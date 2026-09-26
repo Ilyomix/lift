@@ -64,18 +64,19 @@ export function Home() {
 
   return (
     <Screen>
-      <header className="pt-3">
-        <div className="flex items-center justify-between">
-          <Eyebrow>{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
-          <span className="inline-flex items-center gap-2 text-[13px] font-semibold tracking-[-0.01em] text-text-2">
-            <Dial size={22} className="rounded-[6px]" />
+      {/* Same rhythm as the other tabs: a 44 px top row, then the eyebrow, then the title. */}
+      <header className="pt-2">
+        <div className="flex min-h-11 items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
+            <Dial size={24} className="rounded-[6px]" />
             Golgoth
           </span>
         </div>
+        <Eyebrow className="mt-1">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
       </header>
 
       {/* Hero: sessions done out of the sessions planned until the goal date */}
-      <section aria-label="Progression vers l’objectif" className="mt-6">
+      <section aria-label="Progression vers l’objectif" className="mt-2">
         <div className="flex items-end justify-between gap-3">
           <p className="flex items-baseline gap-2">
             <span className="text-[64px] leading-[0.8] font-semibold tracking-[-0.04em] tnum">
