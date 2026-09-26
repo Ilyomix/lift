@@ -347,7 +347,7 @@
     display: none;
   }
   .safe-top {
-    padding-top: max(env(safe-area-inset-top), 12px);
+    padding-top: calc(max(env(safe-area-inset-top), 12px) + var(--top-clear));
   }
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
@@ -355,23 +355,40 @@
 }
 
 /* ───────────────────────── Status bar ───────────────────────── */
-/* Installed on iOS the page runs under a translucent status bar (white glyphs):
-   an opaque band keeps the clock readable and hides content scrolling beneath
-   it, instead of a blurred smear. Dark band in the light theme for the glyphs. */
+/* Installed on iOS the page runs under a translucent status bar, and iOS 26 blurs
+   the content in a band that reaches ~35 pt below it. That band gets an opaque
+   strip (content scrolls under it cleanly) and every screen starts below it.
+   In the light theme the part behind the clock stays dark for its white glyphs. */
+:root {
+  --top-clear: 0px;
+  --top-bar: calc(env(safe-area-inset-top) + var(--top-clear));
+}
+@media (display-mode: standalone) {
+  :root {
+    --top-clear: 34px;
+  }
+}
 .status-scrim {
   position: fixed;
   inset: 0 0 auto 0;
-  height: env(safe-area-inset-top);
+  height: var(--top-bar);
   background: var(--bg);
   z-index: 70;
   pointer-events: none;
 }
+.status-scrim::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto 0;
+  height: 10px;
+  background: linear-gradient(var(--bg), transparent);
+}
 :root[data-theme='light'] .status-scrim {
-  background: var(--status-band);
+  background: linear-gradient(var(--status-band) 0 env(safe-area-inset-top), var(--bg) env(safe-area-inset-top));
 }
 @media (prefers-color-scheme: light) {
   :root[data-theme='auto'] .status-scrim {
-    background: var(--status-band);
+    background: linear-gradient(var(--status-band) 0 env(safe-area-inset-top), var(--bg) env(safe-area-inset-top));
   }
 }
 

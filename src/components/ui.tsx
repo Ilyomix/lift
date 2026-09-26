@@ -347,7 +347,7 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
         tabIndex={-1}
         className={cx(
           'sheet-enter relative flex w-full max-w-[640px] flex-col rounded-t-[16px] bg-surface shadow-[var(--shadow-sheet)] outline-none',
-          tall ? 'h-[92dvh]' : 'max-h-[88dvh]',
+          tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
         )}
       >
         <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
@@ -374,7 +374,7 @@ export function Toaster() {
   }, [toast])
   if (!toast) return null
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),12px)] z-[60] flex justify-center px-4">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),12px)+var(--top-clear))] z-[72] flex justify-center px-4">
       <div
         key={toast.id}
         role="status"

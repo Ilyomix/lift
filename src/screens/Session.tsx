@@ -172,7 +172,7 @@ function ActiveSession() {
       />
 
       {/* Focus bar: stays on top while scrolling, opaque (nothing blurs under it). */}
-      <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
+      <div className="sticky top-[var(--top-bar)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
         <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? `Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}` : 'Toutes les séries sont faites'}>
           <span className="min-w-0 flex-1">
             <span className="block text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? `Série ${curSet + 1}/${cur.sets.length}` : 'Terminé'}</span>
@@ -268,7 +268,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
 
   if (ex.skipped) {
     return (
-      <Card id={`exercise-${index}`} className="flex scroll-mt-[calc(env(safe-area-inset-top)+96px)] items-center gap-3 p-4 opacity-70">
+      <Card id={`exercise-${index}`} className="flex scroll-mt-[calc(var(--top-bar)+96px)] items-center gap-3 p-4 opacity-70">
         <span className="w-6 text-[12px] font-semibold text-muted tnum">{String(index + 1).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium line-through decoration-muted">{ex.name}</p>
@@ -286,7 +286,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         type="button"
         id={`exercise-${index}`}
         onClick={() => setOpen(true)}
-        className="pressable card flex w-full scroll-mt-[calc(env(safe-area-inset-top)+96px)] items-center gap-3 px-4 py-3 text-left hover:border-line-strong"
+        className="pressable card flex w-full scroll-mt-[calc(var(--top-bar)+96px)] items-center gap-3 px-4 py-3 text-left hover:border-line-strong"
         aria-label={`${ex.name} terminé : ${setsSummary(ex.sets, ex.unit)}. Ouvrir`}
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
@@ -303,7 +303,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
     <Card
       as="article"
       id={`exercise-${index}`}
-      className={cx('scroll-mt-[calc(env(safe-area-inset-top)+96px)] overflow-hidden transition-[border-color,box-shadow]', current ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : allDone ? 'border-line-strong' : '')}
+      className={cx('scroll-mt-[calc(var(--top-bar)+96px)] overflow-hidden transition-[border-color,box-shadow]', current ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : allDone ? 'border-line-strong' : '')}
     >
       <div className="flex items-start gap-3 px-4 pt-4">
         <span className={cx('mt-[3px] w-6 shrink-0 text-[12px] font-semibold tnum', current ? 'text-signal-text' : 'text-muted')}>{String(index + 1).padStart(2, '0')}</span>

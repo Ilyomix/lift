@@ -1,19 +1,21 @@
 import { useMemo, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
-import { addDays, capitalize, fmtDate, todayISO } from '../lib/date'
+import { addDays, capitalize, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, plural } from '../lib/format'
 import {
   buildPeriods, CUT_WEEKS, DEFAULT_GOAL, GOAL_DATE, isValidGoal, MIN_PLAN_WEEKS, planShape, PROGRAM_START, projectSessions,
 } from '../lib/program'
 import { plannedWeightPath, weightStatus } from '../lib/stats'
 import { useStore } from '../lib/store'
-import { Button, Card, cx, DateInput, Sheet } from './ui'
+import { Button, Card, DateInput, Sheet } from './ui'
 
-const PRESETS: { date: string; label: string }[] = [
-  { date: '2027-05-31', label: 'Fin mai 2027' },
-  { date: '2027-06-30', label: '30 juin 2027' },
-  { date: '2027-07-31', label: 'Fin juillet 2027' },
-  { date: '2027-08-31', label: 'Fin août 2027' },
+/** Shortcuts relative to the date being chosen, each labelled with the date it leads to. */
+const STEPS: { label: string; apply: (d: string) => string }[] = [
+  { label: '−1 mois', apply: (d) => shiftMonths(d, -1) },
+  { label: '−2 sem.', apply: (d) => addDays(d, -14) },
+  { label: '+2 sem.', apply: (d) => addDays(d, 14) },
+  { label: '+1 mois', apply: (d) => shiftMonths(d, 1) },
+  { label: '+3 mois', apply: (d) => shiftMonths(d, 3) },
 ]
 
 /**
@@ -55,18 +57,24 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
       </div>
     }>
       <DateInput label="Date objectif" value={draft} min={min} max="2030-12-31" onChange={setDraft} />
-      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
-        {PRESETS.filter((p) => isValidGoal(p.date)).map((p) => (
-          <button
-            key={p.date}
-            type="button"
-            aria-pressed={draft === p.date}
-            onClick={() => setDraft(p.date)}
-            className={cx('pressable h-9 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold whitespace-nowrap', draft === p.date ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Décaler la date">
+        {STEPS.map((step) => {
+          const to = step.apply(draft)
+          const ok = isValidGoal(to)
+          return (
+            <button
+              key={step.label}
+              type="button"
+              disabled={!ok}
+              onClick={() => setDraft(to)}
+              aria-label={`${step.label} : ${fmtDate(to, { long: true, year: true })}`}
+              className="pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-3.5 text-[13px] whitespace-nowrap disabled:opacity-35"
+            >
+              <span className="font-semibold">{step.label}</span>
+              <span className="text-muted tnum">{fmtDate(to)}</span>
+            </button>
+          )
+        })}
       </div>
 
       {preview && (

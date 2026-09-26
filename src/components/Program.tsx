@@ -108,7 +108,16 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   const width = Math.max(1, x - G)
   const nextIndex = ticks.findIndex((t) => !t.done)
   if (nextIndex >= 0) ticks[nextIndex].next = true
-  const labels = starts.map((s, i) => ({ ...s, end: i + 1 < starts.length ? starts[i + 1].x : width }))
+  // Label spans: holidays never break a phase label (recomposition → fêtes → recomposition
+  // reads as one recomposition); a span runs until the next different phase.
+  const labels: { group: Group; x: number; end: number }[] = []
+  for (const st of starts) {
+    if (st.group === 'holiday') continue
+    const prevSpan = labels[labels.length - 1]
+    if (prevSpan && prevSpan.group === st.group) continue
+    if (prevSpan) prevSpan.end = st.x
+    labels.push({ group: st.group, x: st.x, end: width })
+  }
   const currentGroup = nextIndex >= 0 ? ticks[nextIndex].group : null
   return (
     <div className="w-full">

@@ -54,7 +54,7 @@ function UpdatePrompt() {
   } = useRegisterSW({ immediate: true })
   if (!needRefresh) return null
   return (
-    <div className="fixed inset-x-0 top-[max(env(safe-area-inset-top),12px)] z-[58] flex justify-center px-4">
+    <div className="fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),12px)+var(--top-clear))] z-[71] flex justify-center px-4">
       <div role="status" className="overlay-enter flex items-center gap-3 rounded-[12px] border border-line bg-surface px-4 py-2.5 shadow-[0_12px_40px_rgb(0_0_0/0.18)]">
         <RefreshCw size={16} className="text-text-2" aria-hidden />
         <span className="text-[14px]">Nouvelle version disponible</span>

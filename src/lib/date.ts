@@ -22,6 +22,16 @@ export function addDays(s: ISODate, n: number): ISODate {
   return toISO(d)
 }
 
+/** Same day n months later; the last day of a month stays the last day (30 June + 1 → 31 July). */
+export function shiftMonths(s: ISODate, n: number): ISODate {
+  const d = parseISO(s)
+  const lastOfMonth = d.getDate() === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1)
+  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(lastOfMonth ? last : Math.min(d.getDate(), last))
+  return toISO(target)
+}
+
 /** Whole days from a to b (b − a). */
 export function diffDays(a: ISODate, b: ISODate): number {
   return Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / DAY_MS)
