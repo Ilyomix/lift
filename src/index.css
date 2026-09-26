@@ -1,0 +1,353 @@
+@import "tailwindcss";
+
+/* ───────────────────────── Fonts ───────────────────────── */
+
+@font-face {
+  font-family: 'Geologica';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/geologica-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Geologica';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/geologica-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Seven-segment digits, reserved for clocks (rest timer, session chrono) — as in Cadran's faces. */
+@font-face {
+  font-family: 'DSEG7';
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+  src: url('./assets/fonts/DSEG7ClassicMini-BoldItalic.woff2') format('woff2');
+}
+
+/* ───────────────────────── Tokens ───────────────────────── */
+/* Committed neutral system (ink / paper) with one signal colour reserved for
+   focus, active states and the single primary action of a screen. */
+
+:root {
+  color-scheme: light;
+  --bg: oklch(0.985 0 0);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.955 0.006 270);
+  --surface-3: oklch(0.925 0.006 270);
+  --line: oklch(0.905 0.004 270);
+  --line-strong: #cbccc9;
+  --text: oklch(0.18 0.006 270);
+  --text-2: #5c5c62;
+  --muted: #6e6e74;
+  --signal: #ff7b00;
+  --signal-ink: #111111;
+  --signal-text: #b34f00;
+  --signal-soft: color-mix(in oklch, #ff7b00 11%, transparent);
+  --chart-1: #e06a00;
+  --chart-2: #8a8a90;
+  --chart-grid: oklch(0.915 0.004 270);
+  --good: #0b7a0b;
+  --good-mark: #0ca30c;
+  --warn: #8a5a00;
+  --warn-mark: #fab219;
+  --bad: #b42a2a;
+  --bad-mark: #d03b3b;
+  --overlay: rgb(10 10 12 / 0.45);
+  --shadow-sheet: 0 -1px 0 var(--line), 0 -24px 60px rgb(0 0 0 / 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --bg: oklch(0.13 0.006 270);
+    --surface: oklch(0.17 0.006 270);
+    --surface-2: oklch(0.21 0.006 270);
+    --surface-3: oklch(0.255 0.006 270);
+    --line: oklch(0.255 0.006 270);
+    --line-strong: #3e3e44;
+    --text: oklch(0.97 0.002 100);
+    --text-2: #b8b9b6;
+    --muted: #8b8b91;
+    --signal: #ff7b00;
+    --signal-ink: #111111;
+    --signal-text: #ff9a3d;
+    --signal-soft: color-mix(in oklch, #ff7b00 16%, transparent);
+    --chart-1: #ff8a1f;
+    --chart-2: #77777d;
+    --chart-grid: oklch(0.24 0.006 270);
+    --good: #3ccb3c;
+    --good-mark: #0ca30c;
+    --warn: #fab219;
+    --warn-mark: #fab219;
+    --bad: #ff7a7a;
+    --bad-mark: #d03b3b;
+    --overlay: rgb(0 0 0 / 0.6);
+    --shadow-sheet: 0 -1px 0 var(--line), 0 -24px 60px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: oklch(0.13 0.006 270);
+  --surface: oklch(0.17 0.006 270);
+  --surface-2: oklch(0.21 0.006 270);
+  --surface-3: oklch(0.255 0.006 270);
+  --line: oklch(0.255 0.006 270);
+  --line-strong: #3e3e44;
+  --text: oklch(0.97 0.002 100);
+  --text-2: #b8b9b6;
+  --muted: #8b8b91;
+  --signal: #ff7b00;
+  --signal-ink: #111111;
+  --signal-text: #ff9a3d;
+  --signal-soft: color-mix(in oklch, #ff7b00 16%, transparent);
+  --chart-1: #ff8a1f;
+  --chart-2: #77777d;
+  --chart-grid: oklch(0.24 0.006 270);
+  --good: #3ccb3c;
+  --good-mark: #0ca30c;
+  --warn: #fab219;
+  --warn-mark: #fab219;
+  --bad: #ff7a7a;
+  --bad-mark: #d03b3b;
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow-sheet: 0 -1px 0 var(--line), 0 -24px 60px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --font-sans: 'Geologica', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-seg: 'DSEG7', ui-monospace, 'SF Mono', monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-signal: var(--signal);
+  --color-signal-ink: var(--signal-ink);
+  --color-signal-text: var(--signal-text);
+  --color-signal-soft: var(--signal-soft);
+  --color-good: var(--good);
+  --color-good-mark: var(--good-mark);
+  --color-warn: var(--warn);
+  --color-warn-mark: var(--warn-mark);
+  --color-bad: var(--bad);
+  --color-bad-mark: var(--bad-mark);
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-sheet: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ───────────────────────── Base ───────────────────────── */
+/* In @layer base so Tailwind utilities always win over these element defaults. */
+@layer base {
+
+  html {
+    background: var(--bg);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  a, button, [role='button'], label[for] {
+    cursor: pointer;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  input, textarea, select {
+    font: inherit;
+    color: inherit;
+    /* 16px minimum prevents iOS zoom on focus */
+    font-size: max(16px, 1em);
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--signal-soft);
+  }
+}
+
+/* ───────────────────────── Components ───────────────────────── */
+
+@layer components {
+  .eyebrow {
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .hairline {
+    border-color: var(--line);
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .seg {
+    font-family: var(--font-seg);
+    font-style: italic;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  /* A seven-segment readout shows its unlit segments faintly, like a real display. */
+  .seg-ghost {
+    position: relative;
+  }
+  .seg-ghost::before {
+    content: attr(data-ghost);
+    position: absolute;
+    inset: 0;
+    color: currentColor;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+  .pressable {
+    transition: transform 120ms var(--ease-out-quart), background-color 150ms, border-color 150ms, color 150ms, opacity 150ms;
+  }
+  .pressable:active {
+    transform: scale(0.985);
+  }
+  .hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--text) 9%, transparent) 0 1.5px,
+      transparent 1.5px 6px
+    );
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 12px);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ───────────────────────── Status bar ───────────────────────── */
+/* Installed on iOS the status bar is translucent with white glyphs: in the light
+   theme an ink band keeps the clock and battery readable. */
+.status-scrim {
+  display: none;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: #0b0b0e;
+  z-index: 70;
+}
+@media (display-mode: standalone) {
+  :root[data-theme='light'] .status-scrim {
+    display: block;
+  }
+}
+@media (display-mode: standalone) and (prefers-color-scheme: light) {
+  :root[data-theme='auto'] .status-scrim {
+    display: block;
+  }
+}
+
+/* ───────────────────────── Motion ───────────────────────── */
+
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.screen-in {
+  animation: screen-in 240ms var(--ease-out-quart) both;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.sheet-enter {
+  animation: sheet-up 280ms var(--ease-sheet) both;
+}
+.overlay-enter {
+  animation: fade 200ms ease-out both;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 0; }
+  12%, 60% { opacity: 1; }
+}
+.rest-flash {
+  animation: flash 1.6s ease-out both;
+}
+
+/* Two-frame exercise demo, crossfaded like a slow loop. */
+@keyframes demo-a { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes demo-b { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
+.demo-a { animation: demo-a 2.4s ease-in-out infinite; }
+.demo-b { animation: demo-b 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .demo-b { opacity: 0 !important; }
+}
