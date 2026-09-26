@@ -1,6 +1,6 @@
 // iCalendar export: native iPhone reminders (Calendar alerts) without any server.
 import { addDays, parseISO, todayISO, weekday } from './date'
-import { GOAL_DATE, PERIODS, PROGRAM_START, TYPE_META } from './program'
+import { GOAL_DATE, keyPeriods, PERIODS, PROGRAM_START, TYPE_META } from './program'
 import type { AppState, ISODate } from './types'
 
 export interface IcsOptions {
@@ -120,8 +120,10 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
     if (o.deloads && p.kind === 'deload') {
       lines.push(...allDay(`golgoth-${p.id}@golgoth`, p.start, p.end, `${p.label} · Golgoth`, p.note, true))
     }
-    if (o.phases && (p.id === 'b1' || p.id === 'b3' || p.id === 'stab' || p.id === 'fetes')) {
-      const title = p.id === 'b1' ? 'Début du programme' : p.id === 'b3' ? 'Début de la sèche' : p.label
+  }
+  if (o.phases) {
+    for (const { period: p, title } of keyPeriods()) {
+      if (p.start < from) continue
       lines.push(...allDay(`golgoth-phase-${p.id}@golgoth`, p.start, p.start, `${title} · Golgoth`, p.note, true))
     }
   }

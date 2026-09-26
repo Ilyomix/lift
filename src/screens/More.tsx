@@ -1,20 +1,23 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  Apple, BellRing, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, FlaskConical, Settings, Sparkles, Upload,
+  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, Flag, FlaskConical, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
-import { addDays, capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
+import { addDays, capitalize, DAYS, DAYS_LETTER, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
-import { contextAt, TYPE_META } from '../lib/program'
+import { HOME_GYM } from '../lib/gyms'
+import { contextAt, GOAL_DATE, trainingDays, TYPE_META } from '../lib/program'
+import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
 import { SOURCES } from '../lib/research'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone, saveFile, shareText } from '../lib/share'
-import { cutAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
+import { calorieAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
 import { useStore } from '../lib/store'
 import { Columns } from '../components/charts'
 import { RefList } from '../components/Evidence'
+import { GoalSheet } from '../components/GoalSheet'
 import { Button, Card, cx, Empty, Field, Header, inputClass, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
 
 
@@ -57,16 +60,17 @@ export function MoreScreen() {
 
 export function NutritionScreen() {
   const state = useStore((s) => s.state)
-  const { setNutrition, setNutritionTargets } = useStore.getState()
+  const { setNutrition, setNutritionTargets, notify } = useStore.getState()
   const today = todayISO()
   const [date, setDate] = useState(today)
   const e = nutritionFor(state, date)
   const protein = proteinTargetFor(state, date)
   const ctx = contextAt(date)
   const days = nutritionDays(state, 14, today)
-  const advice = cutAdvice(state, today)
+  const advice = calorieAdvice(state, today)
   const hit = days.filter((d) => d.protein >= protein.min).length
   const add = (k: 'calories' | 'protein', n: number) => setNutrition(date, { [k]: Math.max(0, (e[k] ?? 0) + n) })
+  const adaptive = state.nutritionTargets.adaptive !== false
   return (
     <Screen>
       <Header backTo="plus" eyebrow={ctx.phase?.label ?? 'Nutrition'} title="Nutrition" sub={ctx.phase?.nutrition} />
@@ -82,6 +86,26 @@ export function NutritionScreen() {
         <Toggle label="Créatine" hint={`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
+      <Section title="Calories : ajustement">
+        <Card className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold">{advice.headline}</p>
+              <p className="mt-1 text-[14px] leading-[1.45] text-text-2">{advice.detail}</p>
+            </div>
+            {advice.status !== 'wait' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
+          </div>
+          {(advice.status === 'lower' || advice.status === 'raise') && (
+            <Button variant="primary" full className="mt-3" onClick={() => { setNutritionTargets({ calories: advice.target }); notify(`Cible : ${advice.target} kcal. Prochain point dans 2 semaines.`, 'good') }}>
+              Passer à {advice.target} kcal
+            </Button>
+          )}
+          <p className="mt-3 text-[12px] leading-[1.45] text-muted">
+            Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines){advice.waist ? `, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois` : ''}. Pas de 150 kcal, puis 2 semaines pour que le poids réagisse. Le poids ne change jamais les charges.
+          </p>
+        </Card>
+      </Section>
+
       <Section title="Protéines, 14 jours" action={<span className="text-[13px] text-text-2 tnum">{hit}/14 jours ≥ {protein.min} g</span>}>
         <Card className="p-4">
           <Columns
@@ -93,20 +117,26 @@ export function NutritionScreen() {
         </Card>
       </Section>
 
-      {advice && (
-        <Section title="Ajustement de la sèche">
-          <Card className="p-4 text-[14px] leading-[1.5]">{advice}</Card>
-        </Section>
-      )}
-
       <Section title="Cibles">
+        <Card className="mb-3">
+          <Toggle
+            label="Protéines adaptées à ton poids"
+            hint={adaptive && protein.weight ? `${protein.min}–${protein.max} g : ≈ ${fmtNum(protein.perKg![0], 1)}–${fmtNum(protein.perKg![1], 1)} g/kg × ${fmtNum(protein.weight, 1)} kg (moyenne 7 jours)` : adaptive ? 'Dès ta première pesée' : 'Fourchette fixe ci-dessous'}
+            checked={adaptive}
+            onChange={(v) => setNutritionTargets({ adaptive: v })}
+          />
+        </Card>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Calories (kcal)"><NumInput value={state.nutritionTargets.calories} onChange={(n) => setNutritionTargets({ calories: n })} /></Field>
           <Field label="Créatine (g)"><NumInput value={state.nutritionTargets.creatine} onChange={(n) => setNutritionTargets({ creatine: n })} /></Field>
-          <Field label="Protéines min (g)"><NumInput value={state.nutritionTargets.proteinMin} onChange={(n) => setNutritionTargets({ proteinMin: n })} /></Field>
-          <Field label="Protéines max (g)"><NumInput value={state.nutritionTargets.proteinMax} onChange={(n) => setNutritionTargets({ proteinMax: n })} /></Field>
+          {!adaptive && (
+            <>
+              <Field label="Protéines min (g)"><NumInput value={state.nutritionTargets.proteinMin} onChange={(n) => setNutritionTargets({ proteinMin: n })} /></Field>
+              <Field label="Protéines max (g)"><NumInput value={state.nutritionTargets.proteinMax} onChange={(n) => setNutritionTargets({ proteinMax: n })} /></Field>
+            </>
+          )}
         </div>
-        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">Aucune étude ne donne ta maintenance : ajuste les calories selon ta moyenne de poids sur 7 jours. En sèche, les protéines montent à 185–200 g automatiquement.</p>
+        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">Aucune étude ne donne ta maintenance : les calories se règlent sur ta moyenne de poids. Protéines : ≈ 2 g/kg, un peu plus en sèche, jamais en baisse pendant la sèche.</p>
         <RefList refs={['morton2018', 'helms2014', 'murphy2022', 'garthe2011', 'burke2023']} compact />
       </Section>
     </Screen>
@@ -237,40 +267,110 @@ export function CoachScreen() {
 
 export function SettingsScreen() {
   const state = useStore((s) => s.state)
-  const { setPrefs, setGoals } = useStore.getState()
+  const { setPrefs, setGoals, toggleTrainingDay } = useStore.getState()
   const goal = goalWeightRange(state)
   const [perm, setPerm] = useState<string>(notificationsSupported() ? Notification.permission : 'unsupported')
+  const [goalOpen, setGoalOpen] = useState(false)
+  const days = trainingDays(state)
+  const perWeek = days.length
   return (
     <Screen>
       <Header backTo="plus" title="Réglages" />
-      <Section title="Apparence" className="mt-0">
-        <Segmented label="Thème" value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: 'Automatique' }, { value: 'dark', label: 'Sombre' }, { value: 'light', label: 'Clair' }]} />
-      </Section>
 
-      <Section title="Minuteur de repos">
+      <Section title="Objectif" className="mt-0">
         <Card className="divide-y divide-line">
-          <Toggle label="Son de fin de repos" hint="Trois tons courts, par-dessus ta musique" checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
-          <Toggle label="Garder l’écran allumé" hint="Pendant la séance, pour que le minuteur sonne" checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
           <Row
-            label="Notifications"
-            hint={perm === 'granted' ? 'Activées' : perm === 'denied' ? 'Refusées dans les réglages iOS' : perm === 'unsupported' ? (isIOS() && !isStandalone() ? 'Installe d’abord l’app sur l’écran d’accueil' : 'Non disponibles') : 'Alerte système quand le repos se termine'}
-            right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>Activer</Button> : undefined}
+            label="Date objectif"
+            hint="Le plan (recomposition, sèche, stabilisation) se recalcule autour"
+            value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><Flag size={14} className="text-signal-text" aria-hidden />{fmtDate(GOAL_DATE, { long: true, year: true })}</span>}
+            right={<Pencil size={14} className="text-muted" aria-hidden />}
+            onClick={() => setGoalOpen(true)}
           />
+          <div className="px-4 py-3.5">
+            <p className="text-[15px]">Jours d’entraînement</p>
+            <div className="mt-2.5 grid grid-cols-7 gap-1.5" role="group" aria-label="Jours d’entraînement">
+              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                const on = days.includes(d)
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={DAYS[d]}
+                    onClick={() => toggleTrainingDay(d)}
+                    className={cx('pressable h-11 rounded-[10px] border text-[14px] font-semibold', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2')}
+                  >
+                    {DAYS_LETTER[d]}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2.5 text-[13px] leading-[1.45] text-text-2">
+              {plural(perWeek, 'séance', 'séances')} par semaine. {perWeek === 5
+                ? 'Le rythme du programme : chaque muscle 2 fois par semaine.'
+                : perWeek < 5
+                  ? `La rotation Upper → Legs continue sur ${perWeek} jours : chaque séance revient moins souvent, environ ${Math.round((perWeek / 5) * 100)} % du volume hebdomadaire prévu.`
+                  : `Environ ${Math.round((perWeek / 5) * 100)} % du volume prévu : surveille la récupération (sommeil, performances).`}
+            </p>
+          </div>
         </Card>
-      </Section>
-
-      <Section title="Objectifs">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-3">
           <Field label="Poids cible min (kg)" hint={goal?.computed ? `Plan : ${fmtNum(goal.min, 0)} kg` : undefined}>
             <GoalInput value={state.goals.targetWeightMin || null} placeholder={goal ? fmtNum(goal.min, 0) : ''} onChange={(n) => setGoals({ targetWeightMin: n ?? 0 })} />
           </Field>
           <Field label="Poids cible max (kg)" hint={goal?.computed ? `Plan : ${fmtNum(goal.max, 0)} kg` : undefined}>
             <GoalInput value={state.goals.targetWeightMax || null} placeholder={goal ? fmtNum(goal.max, 0) : ''} onChange={(n) => setGoals({ targetWeightMax: n ?? 0 })} />
           </Field>
-          <Field label="Tour de taille cible (cm)"><GoalInput value={state.goals.targetWaist} placeholder="—" onChange={(n) => setGoals({ targetWaist: n })} /></Field>
-          <Field label="Séances par semaine"><GoalInput value={state.goals.sessionsPerWeek} onChange={(n) => setGoals({ sessionsPerWeek: n ?? 5 })} /></Field>
+          <Field label="Tour de taille cible (cm)" className="col-span-2"><GoalInput value={state.goals.targetWaist} placeholder="—" onChange={(n) => setGoals({ targetWaist: n })} /></Field>
         </div>
         <p className="mt-3 text-[12px] leading-[1.45] text-muted">Sans valeur, la cible vient de la trajectoire du plan (recomposition à poids stable, puis sèche à −0,5 %/semaine). Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.</p>
+      </Section>
+
+      <Section title="Séances">
+        <Card className="divide-y divide-line">
+          <Toggle
+            label="Charges automatiques"
+            hint="Après chaque séance : charge augmentée quand toutes les séries touchent le haut de la fourchette, baissée quand elles restent sous le bas. Pendant la séance, les séries suivantes s’ajustent. Tout reste annulable."
+            checked={state.prefs.autoLoad}
+            onChange={(v) => setPrefs({ autoLoad: v })}
+          />
+        </Card>
+        <GymManager />
+      </Section>
+
+      <Section title="Minuteur de repos">
+        <Card className="divide-y divide-line">
+          <Toggle label="Son de fin de repos" hint="Trois tons courts, par-dessus ta musique" checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
+          <Toggle label="Garder l’écran allumé" hint="Pendant la séance, pour voir le minuteur" checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
+          <PushRow />
+          {!state.prefs.push && (
+            <Row
+              label="Alerte dans l’app"
+              hint={perm === 'granted' ? 'Activée : quand l’app est ouverte' : perm === 'denied' ? 'Refusée dans les réglages iOS' : perm === 'unsupported' ? (isIOS() && !isStandalone() ? 'Installe d’abord l’app sur l’écran d’accueil' : 'Non disponible') : 'Alerte système quand le repos se termine, app ouverte'}
+              right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>Activer</Button> : undefined}
+            />
+          )}
+        </Card>
+      </Section>
+
+      <Section title="Apparence">
+        <Segmented label="Thème" value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: 'Automatique' }, { value: 'dark', label: 'Sombre' }, { value: 'light', label: 'Clair' }]} />
+        <div className="mt-3 flex gap-2" role="radiogroup" aria-label="Couleur d’accent">
+          {([['blue', 'Bleu', '#3068f5'], ['orange', 'Orange', '#ff7b00']] as const).map(([v, label, color]) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={state.prefs.accent === v}
+              onClick={() => setPrefs({ accent: v })}
+              className={cx('pressable inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] border text-[14px] font-semibold', state.prefs.accent === v ? 'border-text' : 'border-line-strong text-text-2')}
+            >
+              <span className="h-4 w-4 rounded-full" style={{ background: color }} aria-hidden />
+              {label}
+              {state.prefs.accent === v && <Check size={15} aria-hidden />}
+            </button>
+          ))}
+        </div>
       </Section>
 
       <Section title="Installer sur l’iPhone">
@@ -286,7 +386,111 @@ export function SettingsScreen() {
           )}
         </Card>
       </Section>
+      {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
     </Screen>
+  )
+}
+
+/** End-of-rest notifications through the push server (the only way to be alerted phone locked). */
+function PushRow() {
+  const on = useStore((s) => s.state.prefs.push)
+  const { setPrefs, notify } = useStore.getState()
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    void preparePush()
+  }, [])
+  const installed = isStandalone()
+  const supported = pushSupported()
+  const active = on && pushReady()
+  if (!supported || (isIOS() && !installed)) {
+    return (
+      <Row
+        label="Notifications écran verrouillé"
+        hint={isIOS() && !installed ? 'Installe d’abord Golgoth sur l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Non disponibles sur ce navigateur.'}
+      />
+    )
+  }
+  const toggle = async (v: boolean) => {
+    if (!v) {
+      setPrefs({ push: false })
+      await disablePush()
+      return
+    }
+    setBusy(true)
+    try {
+      const r = await enablePush()
+      if (r === 'on') {
+        setPrefs({ push: true })
+        notify('Activées. Touche « Tester » puis verrouille le téléphone.', 'good')
+      } else if (r === 'denied') {
+        notify('Notifications refusées : Réglages iOS → Notifications → Golgoth.', 'bad')
+      } else {
+        notify('Notifications non disponibles ici.', 'bad')
+      }
+    } catch (e) {
+      notify((e as Error).message || 'Activation impossible.', 'bad')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div>
+      <Toggle
+        label="Notifications écran verrouillé"
+        hint={active ? 'Fin de repos envoyée par le serveur Golgoth, même app fermée.' : 'La fin du repos arrive même téléphone verrouillé ou app en arrière-plan.'}
+        checked={active || busy}
+        onChange={(v) => void toggle(v)}
+      />
+      {active && (
+        <div className="flex items-center justify-between gap-3 px-4 pb-3">
+          <p className="text-[12px] leading-[1.4] text-muted">Aucun compte : le serveur garde l’abonnement une heure au plus, le temps d’un repos.</p>
+          <Button size="sm" variant="soft" onClick={() => { if (testPush(8)) notify('Verrouille ton téléphone : notification dans 8 s.') }}>Tester</Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Gyms: machine loads and history are kept per gym. */
+function GymManager() {
+  const gyms = useStore((s) => s.state.gyms)
+  const current = useStore((s) => s.state.gymId)
+  const { renameGym, removeGym, addGym, selectGym } = useStore.getState()
+  const [edit, setEdit] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [adding, setAdding] = useState('')
+  return (
+    <div className="mt-3">
+      <Card className="divide-y divide-line">
+        {gyms.map((g) => (
+          <div key={g.id} className="flex items-center gap-3 px-4 py-2.5">
+            <MapPin size={17} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
+            {edit === g.id ? (
+              <form className="flex min-w-0 flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
+                <input data-autofocus className={cx(inputClass, 'h-10')} value={name} onChange={(e) => setName(e.target.value)} aria-label="Nom de la salle" />
+                <Button type="submit" size="sm" variant="ink">OK</Button>
+              </form>
+            ) : (
+              <>
+                <button type="button" onClick={() => selectGym(g.id)} className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-[15px]">{g.name}</span>
+                  <span className="block text-[12px] text-muted">{g.id === current ? 'Prochaine séance ici' : g.id === HOME_GYM ? 'Salle principale' : 'Toucher pour la choisir'}</span>
+                </button>
+                <button type="button" onClick={() => { setEdit(g.id); setName(g.name) }} aria-label={`Renommer ${g.name}`} className="pressable inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-muted hover:text-text"><Pencil size={15} aria-hidden /></button>
+                {g.id !== HOME_GYM && (
+                  <button type="button" onClick={() => removeGym(g.id)} aria-label={`Supprimer ${g.name}`} className="pressable inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-muted hover:text-bad"><Trash size={15} aria-hidden /></button>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </Card>
+      <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
+        <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder="Ajouter une salle" aria-label="Nom de la nouvelle salle" />
+        <Button type="submit" variant="ink" size="lg" disabled={!adding.trim()}>Ajouter</Button>
+      </form>
+      <p className="mt-2 text-[12px] leading-[1.45] text-muted">Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres, poids du corps : communs.</p>
+    </div>
   )
 }
 

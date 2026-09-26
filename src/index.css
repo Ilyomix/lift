@@ -30,56 +30,103 @@
 }
 
 /* ───────────────────────── Tokens ───────────────────────── */
-/* Committed neutral system (ink / paper) with one signal colour reserved for
-   focus, active states and the single primary action of a screen. */
+/* Neutral system tinted toward the accent (navy for blue, near-grey for orange),
+   with one signal colour reserved for focus, active states and the single primary
+   action of a screen. `data-accent` switches the accent; `data-theme` the mode. */
+
+:root {
+  /* Accent: blue (default). Contrast: white on #2563EB 5.2:1, on #3068F5 4.8:1. */
+  --th: 262;
+  --tc: 0.024;
+  --accent: #2563eb;
+  --accent-bright: #3068f5;
+  --accent-ink: #ffffff;
+  --accent-text-light: #1d4ed8;
+  --accent-text-dark: #7aa7ff;
+  --accent-chart-light: #2563eb;
+  --accent-chart-dark: #5b93ff;
+  /* Rest timer: an always-dark instrument face. */
+  --inst-bg: #060a13;
+  --inst-border: #1f2734;
+  --inst-btn: #151c28;
+  --inst-btn-hover: #1f2734;
+  --inst-label: #8a93a6;
+  --inst-text: #e6ebf5;
+  --inst-track: #151c28;
+  --inst-tick: #2b3446;
+  --inst-done: #7aa7ff;
+  --status-band: #060a13;
+}
+
+:root[data-accent='orange'] {
+  --th: 270;
+  --tc: 0.005;
+  --accent: #ff7b00;
+  --accent-bright: #ff7b00;
+  --accent-ink: #111111;
+  --accent-text-light: #b34f00;
+  --accent-text-dark: #ff9a3d;
+  --accent-chart-light: #e06a00;
+  --accent-chart-dark: #ff8a1f;
+  --inst-bg: #0b0b0e;
+  --inst-border: #2a2a30;
+  --inst-btn: #1c1c21;
+  --inst-btn-hover: #26262c;
+  --inst-label: #8b8b91;
+  --inst-text: #e8e8e6;
+  --inst-track: #1f1f24;
+  --inst-tick: #3a3a40;
+  --inst-done: #ff9a3d;
+  --status-band: #0b0b0e;
+}
 
 :root {
   color-scheme: light;
-  --bg: oklch(0.985 0 0);
+  --bg: oklch(0.985 calc(var(--tc) * 0.2) var(--th));
   --surface: oklch(1 0 0);
-  --surface-2: oklch(0.955 0.006 270);
-  --surface-3: oklch(0.925 0.006 270);
-  --line: oklch(0.905 0.004 270);
-  --line-strong: #cbccc9;
-  --text: oklch(0.18 0.006 270);
-  --text-2: #5c5c62;
-  --muted: #6e6e74;
-  --signal: #ff7b00;
-  --signal-ink: #111111;
-  --signal-text: #b34f00;
-  --signal-soft: color-mix(in oklch, #ff7b00 11%, transparent);
-  --chart-1: #e06a00;
-  --chart-2: #8a8a90;
-  --chart-grid: oklch(0.915 0.004 270);
+  --surface-2: oklch(0.955 calc(var(--tc) * 0.45) var(--th));
+  --surface-3: oklch(0.925 calc(var(--tc) * 0.5) var(--th));
+  --line: oklch(0.905 calc(var(--tc) * 0.42) var(--th));
+  --line-strong: oklch(0.83 calc(var(--tc) * 0.55) var(--th));
+  --text: oklch(0.2 calc(var(--tc) * 1.2) var(--th));
+  --text-2: oklch(0.43 calc(var(--tc) * 1) var(--th));
+  --muted: oklch(0.52 calc(var(--tc) * 0.85) var(--th));
+  --signal: var(--accent);
+  --signal-ink: var(--accent-ink);
+  --signal-text: var(--accent-text-light);
+  --signal-soft: color-mix(in oklch, var(--accent) 10%, transparent);
+  --chart-1: var(--accent-chart-light);
+  --chart-2: oklch(0.62 calc(var(--tc) * 0.8) var(--th));
+  --chart-grid: oklch(0.915 calc(var(--tc) * 0.4) var(--th));
   --good: #0b7a0b;
   --good-mark: #0ca30c;
   --warn: #8a5a00;
   --warn-mark: #fab219;
   --bad: #b42a2a;
   --bad-mark: #d03b3b;
-  --overlay: rgb(10 10 12 / 0.45);
+  --overlay: rgb(6 10 19 / 0.45);
   --shadow-sheet: 0 -1px 0 var(--line), 0 -24px 60px rgb(0 0 0 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme='light'])) {
     color-scheme: dark;
-    --bg: oklch(0.13 0.006 270);
-    --surface: oklch(0.17 0.006 270);
-    --surface-2: oklch(0.21 0.006 270);
-    --surface-3: oklch(0.255 0.006 270);
-    --line: oklch(0.255 0.006 270);
-    --line-strong: #3e3e44;
-    --text: oklch(0.97 0.002 100);
-    --text-2: #b8b9b6;
-    --muted: #8b8b91;
-    --signal: #ff7b00;
-    --signal-ink: #111111;
-    --signal-text: #ff9a3d;
-    --signal-soft: color-mix(in oklch, #ff7b00 16%, transparent);
-    --chart-1: #ff8a1f;
-    --chart-2: #77777d;
-    --chart-grid: oklch(0.24 0.006 270);
+    --bg: oklch(0.145 calc(var(--tc) * 0.92) var(--th));
+    --surface: oklch(0.185 var(--tc) var(--th));
+    --surface-2: oklch(0.225 calc(var(--tc) * 1.08) var(--th));
+    --surface-3: oklch(0.27 calc(var(--tc) * 1.16) var(--th));
+    --line: oklch(0.255 calc(var(--tc) * 1.08) var(--th));
+    --line-strong: oklch(0.34 calc(var(--tc) * 1.2) var(--th));
+    --text: oklch(0.97 calc(var(--tc) * 0.25) var(--th));
+    --text-2: oklch(0.8 calc(var(--tc) * 0.75) var(--th));
+    --muted: oklch(0.66 calc(var(--tc) * 0.85) var(--th));
+    --signal: var(--accent-bright);
+    --signal-ink: var(--accent-ink);
+    --signal-text: var(--accent-text-dark);
+    --signal-soft: color-mix(in oklch, var(--accent-bright) 18%, transparent);
+    --chart-1: var(--accent-chart-dark);
+    --chart-2: oklch(0.55 calc(var(--tc) * 0.8) var(--th));
+    --chart-grid: oklch(0.24 calc(var(--tc) * 1.05) var(--th));
     --good: #3ccb3c;
     --good-mark: #0ca30c;
     --warn: #fab219;
@@ -93,22 +140,22 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: oklch(0.13 0.006 270);
-  --surface: oklch(0.17 0.006 270);
-  --surface-2: oklch(0.21 0.006 270);
-  --surface-3: oklch(0.255 0.006 270);
-  --line: oklch(0.255 0.006 270);
-  --line-strong: #3e3e44;
-  --text: oklch(0.97 0.002 100);
-  --text-2: #b8b9b6;
-  --muted: #8b8b91;
-  --signal: #ff7b00;
-  --signal-ink: #111111;
-  --signal-text: #ff9a3d;
-  --signal-soft: color-mix(in oklch, #ff7b00 16%, transparent);
-  --chart-1: #ff8a1f;
-  --chart-2: #77777d;
-  --chart-grid: oklch(0.24 0.006 270);
+  --bg: oklch(0.145 calc(var(--tc) * 0.92) var(--th));
+  --surface: oklch(0.185 var(--tc) var(--th));
+  --surface-2: oklch(0.225 calc(var(--tc) * 1.08) var(--th));
+  --surface-3: oklch(0.27 calc(var(--tc) * 1.16) var(--th));
+  --line: oklch(0.255 calc(var(--tc) * 1.08) var(--th));
+  --line-strong: oklch(0.34 calc(var(--tc) * 1.2) var(--th));
+  --text: oklch(0.97 calc(var(--tc) * 0.25) var(--th));
+  --text-2: oklch(0.8 calc(var(--tc) * 0.75) var(--th));
+  --muted: oklch(0.66 calc(var(--tc) * 0.85) var(--th));
+  --signal: var(--accent-bright);
+  --signal-ink: var(--accent-ink);
+  --signal-text: var(--accent-text-dark);
+  --signal-soft: color-mix(in oklch, var(--accent-bright) 18%, transparent);
+  --chart-1: var(--accent-chart-dark);
+  --chart-2: oklch(0.55 calc(var(--tc) * 0.8) var(--th));
+  --chart-grid: oklch(0.24 calc(var(--tc) * 1.05) var(--th));
   --good: #3ccb3c;
   --good-mark: #0ca30c;
   --warn: #fab219;
@@ -142,6 +189,13 @@
   --color-warn-mark: var(--warn-mark);
   --color-bad: var(--bad);
   --color-bad-mark: var(--bad-mark);
+  --color-inst-bg: var(--inst-bg);
+  --color-inst-border: var(--inst-border);
+  --color-inst-btn: var(--inst-btn);
+  --color-inst-btn-hover: var(--inst-btn-hover);
+  --color-inst-label: var(--inst-label);
+  --color-inst-text: var(--inst-text);
+  --color-inst-done: var(--inst-done);
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-sheet: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -194,6 +248,25 @@
   input[type='number'] {
     -moz-appearance: textfield;
     appearance: textfield;
+  }
+  /* iOS Safari gives date and time fields an intrinsic minimum width that overflows
+     their container: reset the native look, keep the native picker. */
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input[type='month'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+  }
+  input::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.4em;
+  }
+  label {
+    min-width: 0;
   }
   input[type='number']::-webkit-inner-spin-button,
   input[type='number']::-webkit-outer-spin-button {
@@ -282,24 +355,23 @@
 }
 
 /* ───────────────────────── Status bar ───────────────────────── */
-/* Installed on iOS the status bar is translucent with white glyphs: in the light
-   theme an ink band keeps the clock and battery readable. */
+/* Installed on iOS the page runs under a translucent status bar (white glyphs):
+   an opaque band keeps the clock readable and hides content scrolling beneath
+   it, instead of a blurred smear. Dark band in the light theme for the glyphs. */
 .status-scrim {
-  display: none;
   position: fixed;
   inset: 0 0 auto 0;
   height: env(safe-area-inset-top);
-  background: #0b0b0e;
+  background: var(--bg);
   z-index: 70;
+  pointer-events: none;
 }
-@media (display-mode: standalone) {
-  :root[data-theme='light'] .status-scrim {
-    display: block;
-  }
+:root[data-theme='light'] .status-scrim {
+  background: var(--status-band);
 }
-@media (display-mode: standalone) and (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) {
   :root[data-theme='auto'] .status-scrim {
-    display: block;
+    background: var(--status-band);
   }
 }
 

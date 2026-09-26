@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fr" data-theme="dark">
+<html lang="fr" data-theme="dark" data-accent="blue">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Golgoth</title>
     <meta name="description" content="Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs." />
-    <meta name="theme-color" content="#0B0B0E" />
+    <meta name="theme-color" content="#060A13" />
     <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -15,10 +15,15 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <script>
-      // Apply the stored theme before first paint to avoid a flash.
+      // Apply the stored theme and accent before first paint to avoid a flash.
       try {
         var t = localStorage.getItem('golgoth-theme')
-        if (t === 'light' || t === 'dark' || t === 'auto') document.documentElement.setAttribute('data-theme', t)
+        var a = localStorage.getItem('golgoth-accent')
+        var root = document.documentElement
+        if (t === 'light' || t === 'dark' || t === 'auto') root.setAttribute('data-theme', t)
+        if (a === 'orange' || a === 'blue') root.setAttribute('data-accent', a)
+        var dark = t !== 'light' && (t !== 'auto' || matchMedia('(prefers-color-scheme: dark)').matches)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#060A13' : '#F9FAFD')
       } catch (e) {}
     </script>
   </head>

@@ -1,7 +1,8 @@
 // Coach loop with Claude: export a precise brief, paste back a structured plan update.
 import { fmtDate, todayISO } from './date'
 import { fmtLoad, fmtNum } from './format'
-import { contextAt, nextTargetText, TYPE_META } from './program'
+import { gymName, gymOf, isGymBound } from './gyms'
+import { contextAt, GOAL_DATE, nextTargetText, sessionPlan, TYPE_META } from './program'
 import { exerciseHistory, setsSummary } from './training'
 import { weightStatus } from './stats'
 import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutType } from './types'
@@ -24,7 +25,7 @@ function exerciseLines(state: AppState, w: Workout): string[] {
       lines.push(`  S${i + 1} : ${ex.unit === 'PDC' ? 'PDC' : fmtLoad(s.weight, ex.unit)} × ${s.reps ?? 0} (${s.cleanReps ?? s.reps ?? 0} propres)${typeof s.rir === 'number' ? `, RIR ${s.rir}` : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`)
     })
     if (ex.comparison) lines.push(`  bilan : ${ex.comparison.headline.toLowerCase()} — ${ex.comparison.detail}`)
-    const hist = exerciseHistory(state.workouts.filter((x) => x.id !== w.id), ex.exerciseId).slice(-3)
+    const hist = exerciseHistory(state.workouts.filter((x) => x.id !== w.id), ex.exerciseId, isGymBound(ex) ? gymOf(w) : undefined).slice(-3)
     if (hist.length) lines.push(`  historique : ${hist.map((h) => `${fmtDate(h.date)} ${setsSummary(h.sets, h.unit)}`).join(' | ')}`)
     if (ex.notes) lines.push(`  note : ${ex.notes}`)
   }
@@ -50,6 +51,7 @@ const RULES = [
   '- RIR 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc RIR 3, S2 RIR 2, dernière semaine RIR 0–1.',
   '- Double progression : quand toutes les séries atteignent le haut de la fourchette au RIR visé, +2,5 % environ (plus petit incrément).',
   '- Performance en baisse 2 séances de suite sur un exercice : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.',
+  '- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).',
   '- Décharge : moitié des séries, charges −10 %, RIR 3–4.',
 ].join('\n')
 
@@ -59,7 +61,7 @@ export function sessionPrompt(state: AppState, w: Workout): string {
   return [
     'Tu es mon coach d’hypertrophie. Analyse ma séance et fixe mes prochaines cibles.',
     '',
-    `Séance n°${w.sessionNumber} · ${TYPE_META[w.type].label} (${TYPE_META[w.type].fr}) · ${fmtDate(w.date, { weekday: true, year: true })}`,
+    `Séance n°${w.sessionNumber} · ${TYPE_META[w.type].label} (${TYPE_META[w.type].fr}) · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · salle : ${gymName(state, w.gymId)} (charges machine propres à chaque salle)` : ''}`,
     `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · semaine de décharge' : ''}`,
     ws.current ? `Poids : ${fmtNum(ws.current)} kg${ws.isAverage ? ' (moyenne 7 j)' : ''}${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}` : '',
     w.notes ? `Notes de séance : ${w.notes}` : '',
@@ -84,7 +86,7 @@ export function globalPrompt(state: AppState): string {
     '',
     `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
     `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`,
-    `Séances réalisées : ${state.workouts.length} / ${state.totalSessions}`,
+    `Séances : ${sessionPlan(state).done} faites, ${sessionPlan(state).planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
     ws.current ? `Poids : ${fmtNum(ws.current)} kg${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}` : 'Poids : non renseigné',
     `Nutrition : ${state.nutritionTargets.calories} kcal, protéines ${state.nutritionTargets.proteinMin}–${state.nutritionTargets.proteinMax} g, créatine ${state.nutritionTargets.creatine} g`,
     '',

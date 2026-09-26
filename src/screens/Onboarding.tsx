@@ -9,13 +9,20 @@ import { useStore } from '../lib/store'
 import { Button, Card, Field, inputClass, Sheet, Tag } from '../components/ui'
 import { ImportSheet } from './More'
 
-export function Dial({ size = 56 }: { size?: number }) {
+/** The app icon: a weight-plate dial with the progress arc in the accent colour. */
+export function Dial({ size = 56, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-      <rect width="64" height="64" rx="14" fill="#0B0B0E" />
-      <circle cx="32" cy="32" r="17.4" fill="none" stroke="#EDEDEA" strokeWidth="6.2" />
-      <path d="M32 14.6a17.4 17.4 0 0 1 15.07 26.1" fill="none" stroke="#FF7B00" strokeWidth="6.2" />
-      <circle cx="32" cy="32" r="3.3" fill="#EDEDEA" />
+    <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden>
+      <defs>
+        <linearGradient id="golgoth-dial-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#0D162A" />
+          <stop offset="1" stopColor="#050810" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="14" fill="url(#golgoth-dial-bg)" />
+      <path d="M46.874 41.028A17.4 17.4 0 1 1 31.618 14.604" fill="none" stroke="#E8EEFB" strokeWidth="6.2" />
+      <path d="M32.382 14.604A17.4 17.4 0 0 1 47.256 40.367" fill="none" stroke="var(--accent-bright, #3D7BFF)" strokeWidth="6.2" />
+      <circle cx="32" cy="32" r="3.3" fill="#E8EEFB" />
     </svg>
   )
 }
@@ -41,7 +48,7 @@ export function Onboarding() {
         <Dial />
         <h1 className="mt-8 text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Golgoth</h1>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
-          Ton programme d’hypertrophie fondé sur la recherche, jusqu’au 30 juin 2027.
+          Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif.
         </p>
         <ul className="mt-8 space-y-3 text-[15px] leading-[1.45]">
           <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">01</span>Séances guidées : séries, RIR, minuteur de repos, double progression.</li>

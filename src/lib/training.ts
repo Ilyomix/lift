@@ -1,7 +1,8 @@
 import { addDays, mondayOf } from './date'
 import { fmtLoad, fmtNum, roundTo } from './format'
+import { gymOf, HOME_GYM, isGymBound } from './gyms'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { incrementFor, nextTargetText } from './program'
+import { autoAdjustActive, incrementFor, nextTargetText } from './program'
 import type {
   Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -39,13 +40,19 @@ export interface HistoryPoint {
   volume: number
   topWeight: number | null
   comparison: Comparison | null
+  gymId: string
 }
 
-export function exerciseHistory(workouts: Workout[], exerciseId: string): HistoryPoint[] {
+/**
+ * Every session of an exercise. With a gym, machine and cable work is limited to
+ * that gym (a machine elsewhere is another machine); free weights ignore the filter.
+ */
+export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?: string): HistoryPoint[] {
   const out: HistoryPoint[] = []
   for (const w of workouts) {
     for (const ex of w.exercises) {
       if (ex.exerciseId !== exerciseId || ex.skipped) continue
+      if (gymId !== undefined && isGymBound(ex) && gymOf(w) !== gymId) continue
       const sets = doneSets(ex)
       if (!sets.length) continue
       let best = 0
@@ -71,18 +78,21 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string): Histor
         volume: sets.reduce((a, s) => a + (s.weight ?? 0) * cleanOf(s), 0),
         topWeight: weights.length ? Math.max(...weights) : null,
         comparison: ex.comparison,
+        gymId: gymOf(w),
       })
     }
   }
   return out.sort((a, b) => (a.date === b.date ? a.sessionNumber - b.sessionNumber : a.date < b.date ? -1 : 1))
 }
 
-export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string): { workout: Workout; exercise: WorkoutExercise } | null {
+export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string): { workout: Workout; exercise: WorkoutExercise } | null {
   for (let i = workouts.length - 1; i >= 0; i--) {
     const w = workouts[i]
     if (w.id === excludeId) continue
     const ex = w.exercises.find((e) => e.exerciseId === exerciseId && !e.skipped && doneSets(e).length > 0)
-    if (ex) return { workout: w, exercise: ex }
+    if (!ex) continue
+    if (gymId !== undefined && isGymBound(ex) && gymOf(w) !== gymId) continue
+    return { workout: w, exercise: ex }
   }
   return null
 }
@@ -111,6 +121,101 @@ export function progressionFor(ex: WorkoutExercise): { weight: number; text: str
   const inc = incrementFor(ex)
   const next = roundTo(weight + Math.max(inc, weight * 0.025), inc)
   return { weight: next, text: `${fmtLoad(next, ex.unit)} la prochaine fois` }
+}
+
+export interface LoadDecision {
+  weight: number
+  kind: 'up' | 'down' | 'baseline'
+  text: string
+}
+
+/**
+ * Next load after a session, from the performance only (the body-weight trend never
+ * moves loads: keeping them during the cut is the signal that muscle is preserved).
+ * 1. Every prescribed set at the top of the range → heavier (double progression).
+ * 2. The load was changed during the session and held the range → it becomes the target.
+ * 3. Every set at the target under the bottom of the range → lighter.
+ * Deload and re-entry weeks never move the target.
+ */
+export function loadDecision(ex: WorkoutExercise): LoadDecision | null {
+  if (ex.unit === 'PDC' || ex.skipped) return null
+  if (ex.prescription && ex.prescription.loadFactor < 1) return null
+  const W = ex.target.weight
+  if (W === null || W === undefined) return null
+  const sets = doneSets(ex).filter((s) => typeof s.weight === 'number')
+  if (!sets.length) return null
+  const needed = ex.prescription?.sets ?? ex.target.sets
+  const { minReps: lo, maxReps: hi } = ex.target
+  const inc = incrementFor(ex)
+  const up = progressionFor(ex)
+  if (up) return { weight: up.weight, kind: 'up', text: `${needed} × ${hi} atteint : ${fmtLoad(up.weight, ex.unit)} la prochaine fois` }
+  const last = sets[sets.length - 1].weight as number
+  const atLast = sets.filter((s) => s.weight === last)
+  if (last !== W && atLast.length >= Math.min(2, needed) && atLast.every((s) => cleanOf(s) >= lo && !s.flags.includes('pain'))) {
+    return { weight: last, kind: last > W ? 'up' : 'down', text: `Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible` }
+  }
+  const atW = sets.filter((s) => (s.weight as number) >= W)
+  if (inc > 0 && atW.length >= Math.min(2, needed) && atW.every((s) => cleanOf(s) < lo)) {
+    const next = Math.max(inc, roundTo(W - Math.max(inc, W * 0.05), inc))
+    if (next < W) return { weight: next, kind: 'down', text: `Toutes les séries sous ${lo} reps : ${fmtLoad(next, ex.unit)} la prochaine fois` }
+  }
+  return null
+}
+
+/** Trial session (no target yet): the heaviest load that held the range becomes the starting load. */
+export function baselineFor(ex: WorkoutExercise): LoadDecision | null {
+  if (ex.unit === 'PDC' || ex.skipped) return null
+  if (ex.target.weight !== null && ex.target.weight !== undefined) return null
+  const sets = doneSets(ex).filter((s) => typeof s.weight === 'number' && (s.weight as number) > 0)
+  if (!sets.length) return null
+  const inc = incrementFor(ex)
+  const inRange = sets.filter((s) => cleanOf(s) >= ex.target.minReps)
+  let weight: number
+  if (inRange.length) {
+    const best = Math.max(...inRange.map((s) => s.weight as number))
+    const topHit = inRange.filter((s) => s.weight === best).every((s) => cleanOf(s) >= ex.target.maxReps)
+    weight = topHit && inc > 0 ? roundTo(best + inc, inc) : best
+  } else {
+    const lightest = Math.min(...sets.map((s) => s.weight as number))
+    weight = inc > 0 ? Math.max(inc, roundTo(lightest - inc, inc)) : lightest
+  }
+  return { weight, kind: 'baseline', text: `Charge de départ : ${fmtLoad(weight, ex.unit)}` }
+}
+
+/** Upper bound of an effort target such as "1–2" or "3". */
+export function rirUpper(rir: string | undefined): number | null {
+  const n = (rir ?? '').match(/\d+/g)?.map(Number)
+  return n?.length ? Math.max(...n) : null
+}
+
+/**
+ * In-session correction after a completed set, applied to the following sets:
+ * far above the range (or clearly easier than the effort target) → heavier;
+ * far below the range → lighter. Deload weeks keep their fixed loads.
+ */
+export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number): { weight: number; text: string } | null {
+  if (ex.unit === 'PDC' || ex.skipped) return null
+  if (ex.prescription && ex.prescription.loadFactor < 1) return null
+  const s = ex.sets[setIndex]
+  if (!s?.completed || typeof s.weight !== 'number' || s.flags.includes('pain')) return null
+  if (!ex.sets.slice(setIndex + 1).some((x) => !x.completed)) return null
+  const inc = incrementFor(ex)
+  if (inc <= 0) return null
+  const r = cleanOf(s)
+  const { minReps: lo, maxReps: hi } = ex.target
+  const target = rirUpper(ex.prescription?.rir ?? ex.target.rir)
+  const easy = r >= hi + 3 || (r >= hi && typeof s.rir === 'number' && target !== null && s.rir >= target + 3)
+  if (easy) {
+    const steps = r >= hi + 6 ? 2 : 1
+    const weight = roundTo(s.weight + steps * Math.max(inc, s.weight * 0.025), inc)
+    return { weight, text: `${r} reps${typeof s.rir === 'number' ? ` à RIR ${s.rir}` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite` }
+  }
+  if (r <= lo - 3) {
+    const steps = r <= lo - 5 ? 2 : 1
+    const weight = Math.max(inc, roundTo(s.weight - steps * Math.max(inc, s.weight * 0.05), inc))
+    if (weight < s.weight) return { weight, text: `${r} reps, sous ${lo} : ${fmtLoad(weight, ex.unit)} pour rester dans la fourchette` }
+  }
+  return null
 }
 
 export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | null, history: HistoryPoint[], deload: boolean): Comparison {
@@ -159,8 +264,8 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
 }
 
 /** Report rule: performance down two sessions in a row → remove one set for that muscle. */
-export function dropAlert(workouts: Workout[], exerciseId: string): string | null {
-  const hist = exerciseHistory(workouts, exerciseId).slice(-2)
+export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: string): string | null {
+  const hist = exerciseHistory(workouts, exerciseId, gymId).slice(-2)
   if (hist.length < 2) return null
   if (hist.every((h) => h.comparison?.status === 'down')) {
     const info = infoFor(exerciseId)
@@ -169,32 +274,98 @@ export function dropAlert(workouts: Workout[], exerciseId: string): string | nul
   return null
 }
 
-export interface FinishResult {
-  workout: Workout
-  progressions: { exerciseId: string; name: string; weight: number; text: string }[]
-  alerts: string[]
-  records: string[]
+/** A change of the plan made after a session: load up or down, starting load, or one set less. */
+export interface AutoChange {
+  id: string
+  type: WorkoutType
+  exerciseId: string
+  name: string
+  gymId: string
+  date: ISODate
+  kind: 'up' | 'down' | 'baseline' | 'sets'
+  from: number | null
+  to: number | null
+  text: string
 }
 
-export function finalizeWorkout(workouts: Workout[], w: Workout): FinishResult {
-  const progressions: FinishResult['progressions'] = []
+export interface FinishResult {
+  workout: Workout
+  changes: AutoChange[]
+  alerts: string[]
+  records: string[]
+  /** Several exercises down two sessions in a row: the deload can come early. */
+  generalDrop: boolean
+}
+
+export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Record<WorkoutType, Template>): FinishResult {
+  const gym = gymOf(w)
+  const changes: AutoChange[] = []
   const records: string[] = []
+  const tpl = templates?.[w.type]
+  const inTemplate = (id: string) => !tpl || tpl.exercises.some((e) => e.exerciseId === id)
   const exercises = w.exercises.map((ex) => {
     const completedOnly = { ...ex, sets: ex.sets.filter((s) => s.completed) }
-    const prev = previousPerformance(workouts, ex.exerciseId, w.id)?.exercise ?? null
-    const history = exerciseHistory(workouts.filter((x) => x.id !== w.id), ex.exerciseId)
-    const comparison = compareExercise(completedOnly, prev, history, !!w.deload)
-    const prog = progressionFor(completedOnly)
-    if (prog) progressions.push({ exerciseId: ex.exerciseId, name: ex.name, ...prog })
+    const g = isGymBound(ex) ? gym : undefined
+    const prev = previousPerformance(workouts, ex.exerciseId, w.id, g)?.exercise ?? null
+    const history = exerciseHistory(workouts.filter((x) => x.id !== w.id), ex.exerciseId, g)
+    let comparison = compareExercise(completedOnly, prev, history, !!w.deload)
+    if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: 'Première séance sur cette machine dans cette salle.' }
+    const decision = !ex.replacement && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly) ?? baselineFor(completedOnly)) : null
+    if (decision) {
+      changes.push({
+        id: `${w.id}-${ex.exerciseId}-load`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: g ?? HOME_GYM, date: w.date,
+        kind: decision.kind, from: completedOnly.target.weight ?? null, to: decision.weight, text: decision.text,
+      })
+    }
     if (comparison.isRecord) records.push(ex.name)
     return { ...completedOnly, comparison, validated: doneSets(completedOnly).length > 0, skipped: ex.skipped || doneSets(completedOnly).length === 0 }
   })
   const workout = { ...w, exercises }
   const all = [...workouts.filter((x) => x.id !== w.id), workout]
-  const alerts = exercises.map((ex) => dropAlert(all, ex.exerciseId)).filter((x): x is string => !!x)
-  return { workout, progressions, alerts, records }
+  const alerts: string[] = []
+  for (const ex of exercises) {
+    const alert = dropAlert(all, ex.exerciseId, isGymBound(ex) ? gym : undefined)
+    if (!alert) continue
+    alerts.push(alert)
+    const t = tpl?.exercises.find((e) => e.exerciseId === ex.exerciseId)
+    if (t && t.target.sets > 1 && !autoAdjustActive(t, w.date)) {
+      changes.push({
+        id: `${w.id}-${ex.exerciseId}-sets`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: HOME_GYM, date: w.date,
+        kind: 'sets', from: t.target.sets, to: t.target.sets - 1, text: 'Moins de reps 2 séances de suite : 1 série de moins jusqu’à la fin du bloc',
+      })
+    }
+  }
+  return { workout, changes, alerts, records, generalDrop: alerts.length >= 2 }
 }
 
+/** Load of an exercise at a gym, written in the template (the first gym uses the main target). */
+export function withLoadAt(ex: TemplateExercise, gymId: string, weight: number | null): TemplateExercise {
+  if (!isGymBound(ex) || gymId === HOME_GYM) {
+    const next: TemplateExercise = { ...ex, target: { ...ex.target, weight } }
+    return { ...next, nextTarget: nextTargetText(next) }
+  }
+  return { ...ex, gymLoads: { ...(ex.gymLoads ?? {}), [gymId]: weight } }
+}
+
+/** Applies (or reverts) an automatic change on the template of the session type. */
+export function applyChange(templates: Record<WorkoutType, Template>, c: AutoChange, revert = false): Record<WorkoutType, Template> {
+  const tpl = templates[c.type]
+  if (!tpl) return templates
+  const exercises = tpl.exercises.map((e) => {
+    if (e.exerciseId !== c.exerciseId) return e
+    if (c.kind === 'sets') {
+      if (revert) {
+        const { autoAdjust: _a, ...rest } = e
+        return rest
+      }
+      return { ...e, autoAdjust: { sets: (c.to ?? e.target.sets) - (c.from ?? e.target.sets), since: c.date, reason: 'baisse 2 séances de suite' } }
+    }
+    return withLoadAt(e, c.gymId, revert ? c.from : c.to)
+  })
+  return { ...templates, [c.type]: { ...tpl, exercises } }
+}
+
+/** Legacy helper kept for the coach flow: raises the load everywhere the exercise appears. */
 export function applyProgression(templates: Record<WorkoutType, Template>, exerciseId: string, weight: number): Record<WorkoutType, Template> {
   const out = { ...templates }
   for (const t of Object.keys(out) as WorkoutType[]) {
@@ -259,7 +430,10 @@ export function weeklySessionCounts(workouts: Workout[], weeks: number, today: I
   return out
 }
 
-/** Mean change of estimated 1RM on the program's loaded compound lifts, first session vs best of the last two. */
+/**
+ * Mean change of estimated 1RM on the program's loaded compound lifts, first session
+ * vs best of the last two. Machines are compared within one gym only.
+ */
 export function strengthSummary(workouts: Workout[], templates: Record<WorkoutType, Template>, recordsSince?: ISODate) {
   const ids = new Set(
     Object.values(templates).flatMap((t) =>
@@ -268,8 +442,14 @@ export function strengthSummary(workouts: Workout[], templates: Record<WorkoutTy
   )
   const changes: number[] = []
   for (const id of ids) {
-    const h = exerciseHistory(workouts, id)
-    if (h.length < 2 || h[0].best <= 0) continue
+    const all = exerciseHistory(workouts, id)
+    const groups = new Map<string, HistoryPoint[]>()
+    for (const h of all) {
+      const key = isGymBound({ exerciseId: id, unit: h.unit }) ? h.gymId : '*'
+      groups.set(key, [...(groups.get(key) ?? []), h])
+    }
+    const h = [...groups.values()].sort((a, b) => b.length - a.length)[0]
+    if (!h || h.length < 2 || h[0].best <= 0) continue
     const recent = Math.max(...h.slice(-2).map((x) => x.best))
     changes.push((recent - h[0].best) / h[0].best)
   }

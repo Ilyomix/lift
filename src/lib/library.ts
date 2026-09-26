@@ -306,6 +306,20 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
   ].map((x) => [x.id, x]),
 )
 
+/** Free weights: a dumbbell or a bar weighs the same in every gym. */
+const FREE_WEIGHTS = new Set(['incline-db-press', 'lateral-raise', 'ez-curl', 'seated-db-curl', 'incline-db-curl', 'romanian-deadlift', 'goblet-squat'])
+
+/**
+ * Machines, cables and Smith machines differ from one gym to another (lever arms,
+ * pulleys, stack weights): their loads are kept per gym. Free weights and body
+ * weight are shared.
+ */
+export function gymBound(id: string, unit?: Unit): boolean {
+  const u = unit ?? LIBRARY[id]?.unit ?? 'kg'
+  if (u === 'PDC' || u === 'kg/main') return false
+  return !FREE_WEIGHTS.has(id)
+}
+
 /** Library entry for an exercise id, with a graceful fallback for imported custom exercises. */
 export function infoFor(id: string, fallback?: { name?: string; muscle?: string; unit?: ExerciseInfo['unit'] }): ExerciseInfo {
   const known = LIBRARY[id]

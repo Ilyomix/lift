@@ -2,8 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import { Camera, ChevronLeft, ChevronRight, Plus, Trash } from 'lucide-react'
 import { addDays, capitalize, dayNumber, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
+import { gymName, isGymBound } from '../lib/gyms'
 import { infoFor, MUSCLES } from '../lib/library'
-import { GOAL_DATE, TYPE_META } from '../lib/program'
+import { GOAL_DATE, trainingDays, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import {
@@ -18,7 +19,7 @@ import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../c
 import { LevelTag, RefList } from '../components/Evidence'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { RecordTag, StatusTag } from '../components/Status'
-import { Button, Card, cx, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
 
 type Tab = 'force' | 'corps' | 'volume' | 'seances'
 
@@ -104,9 +105,14 @@ function ExerciseList({ title, rows }: { title: string; rows: { id: string; name
 export function ExerciseDetail({ id }: { id: string }) {
   const state = useStore((s) => s.state)
   const [sheet, setSheet] = useState(false)
-  const h = exerciseHistory(state.workouts, id)
+  const all = exerciseHistory(state.workouts, id)
   const tpl = Object.values(state.templates).flatMap((t) => t.exercises).find((e) => e.exerciseId === id)
-  const info = infoFor(id, { name: tpl?.name ?? h[0]?.sets[0] ? undefined : id })
+  const info = infoFor(id, { name: tpl?.name ?? all[0]?.sets[0] ? undefined : id })
+  // Machines: one curve per gym (the same machine elsewhere is another machine).
+  const bound = isGymBound({ exerciseId: id, unit: all[0]?.unit ?? tpl?.unit ?? info.unit })
+  const gymsUsed = bound ? [...new Set(all.map((x) => x.gymId))] : []
+  const [gym, setGym] = useState<string>(() => (gymsUsed.includes(state.gymId) ? state.gymId : gymsUsed[gymsUsed.length - 1] ?? state.gymId))
+  const h = bound && gymsUsed.length > 1 ? all.filter((x) => x.gymId === gym) : all
   const unit = h[0]?.unit ?? tpl?.unit ?? info.unit
   const loaded = unit !== 'PDC'
   const series: ChartSeries[] = [{ id: 'best', label: loaded ? '1RM estimé' : 'Meilleure série', points: h.map((x) => ({ x: dayNumber(x.date), y: x.best })), kind: 'line', color: 'var(--chart-1)' }]
@@ -115,6 +121,9 @@ export function ExerciseDetail({ id }: { id: string }) {
   return (
     <Screen>
       <Header backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, 'séance', 'séances')} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} depuis le ${fmtDate(first.date)}` : ''}` : 'Pas encore réalisé.'} />
+      {gymsUsed.length > 1 && (
+        <Segmented className="mb-4" label="Salle" value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
+      )}
       {h.length > 0 ? (
         <>
           <Card className="p-4">
@@ -277,7 +286,10 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
   return (
     <Sheet open={open} onClose={onClose} title="Nouvelle mesure" footer={<Button variant="primary" size="lg" full disabled={!any} onClick={save}>Enregistrer</Button>}>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Date" className="col-span-2"><input type="date" className={inputClass} value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} /></Field>
+        <div className="col-span-2">
+          <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
+          <DateInput label="Date de la mesure" value={date} max={todayISO()} onChange={(v) => v && setDate(v)} />
+        </div>
         <Field label="Poids (kg)" hint="À jeun, même balance"><input data-autofocus className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder="93,0" /></Field>
         <Field label="Tour de taille (cm)" hint="Au nombril"><input className={inputClass} inputMode="decimal" value={v.waist} onChange={set('waist')} /></Field>
         <Field label="Bras (cm)"><input className={inputClass} inputMode="decimal" value={v.arm} onChange={set('arm')} /></Field>
@@ -391,7 +403,7 @@ function VolumeTab() {
           <Columns
             ariaLabel="Séances par semaine sur 12 semaines"
             bars={counts.map((c) => ({ key: c.monday, label: fmtDate(c.monday).replace('.', ''), value: c.count, tooltip: <span>Semaine du {fmtDate(c.monday)} : {plural(c.count, 'séance', 'séances')}</span> }))}
-            target={{ value: state.goals.sessionsPerWeek, label: `Objectif ${state.goals.sessionsPerWeek}` }}
+            target={{ value: trainingDays(state).length, label: `Plan ${trainingDays(state).length}` }}
             format={(v) => fmtNum(v, 0)}
           />
         </Card>

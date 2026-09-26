@@ -1,0 +1,13 @@
+{
+  "name": "golgoth-push",
+  "private": true,
+  "description": "Push server of Golgoth: sends the end-of-rest notification at the right time, phone locked.",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.9.9",
+    "web-push": "^3.6.7"
+  }
+}

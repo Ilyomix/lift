@@ -3,7 +3,8 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, Plus, Tras
 import { DAYS } from '../lib/date'
 import { fmtLoad, fmtRest, parseNumber, plural } from '../lib/format'
 import { LIBRARY, MUSCLES } from '../lib/library'
-import { ROTATION, TYPE_META } from '../lib/program'
+import { fmtDate } from '../lib/date'
+import { GOAL_DATE, PERIODS, ROTATION, TYPE_META } from '../lib/program'
 import { CAVEATS, PRINCIPLES, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -19,9 +20,15 @@ export function ProgramScreen() {
   const setSchedule = useStore((s) => s.setSchedule)
   const planned = plannedVolume(state.templates)
   const weekly = Object.values(state.schedule).filter(Boolean).length
+  const recomp = PERIODS.filter((p) => p.phase === 'recomp')
+  const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
+  const holidays = PERIODS.filter((p) => p.kind === 'holiday')
+  const breakWeek = PERIODS.find((p) => p.phase === 'diet-break')
+  const stab = PERIODS.find((p) => p.kind === 'stabilization')
+  const cutText = cut.length ? `sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : 'pas de sèche'
   return (
     <Screen>
-      <Header backTo="plus" eyebrow="Fondé sur la recherche" title="Programme" sub={`Upper · Lower · Push · Pull · Legs — ${weekly} séances par semaine, 2 passages par muscle, blocs de 5 semaines + décharge, sèche du 4 janvier au 13 juin.`} />
+      <Header backTo="plus" eyebrow="Fondé sur la recherche" title="Programme" sub={`Upper · Lower · Push · Pull · Legs — ${weekly} séances par semaine, 2 passages par muscle, blocs de 5 semaines + décharge, ${cutText}.`} />
 
       <Card className="p-4">
         <Eyebrow>La question</Eyebrow>
@@ -80,7 +87,10 @@ export function ProgramScreen() {
       <Section title="Calendrier des blocs" action={<button type="button" onClick={() => navigate('calendrier')} className="text-[13px] font-medium text-text-2 hover:text-text">Calendrier</button>}>
         <PhaseTrack />
         <p className="mt-3 text-[13px] leading-[1.5] text-text-2">
-          Blocs de 5 semaines + 1 semaine de décharge. Recomposition du 28 sept. au 3 janv. (fêtes en maintenance), sèche du 4 janv. au 13 juin avec une pause diététique fin mars, stabilisation jusqu’au 30 juin.
+          Blocs d’environ 5 semaines + 1 semaine de décharge, calculés depuis ta date objectif.
+          {recomp.length ? ` Recomposition du ${fmtDate(recomp[0].start)} au ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (fêtes en maintenance)' : ''},` : ''}
+          {` ${cutText}${breakWeek ? ` avec une pause diététique le ${fmtDate(breakWeek.start)}` : ''}`}
+          {stab ? `, stabilisation jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}.` : '.'}
         </p>
       </Section>
 
@@ -89,7 +99,8 @@ export function ProgramScreen() {
           <RuleRow title="Double progression" text="Toutes les séries au haut de la fourchette, au RIR visé, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette." />
           <RuleRow title="Effort dans le bloc" text="S1 RIR 3 · S2 RIR 2 · S3–S4 RIR 1–2 (polyarticulaire) et 0–1 (isolation) · S5 RIR 0–1, dernière série d’isolation à l’échec technique." />
           <RuleRow title="Volume" text="À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle." />
-          <RuleRow title="Signal d’alerte" text="Performance en baisse 2 séances de suite sur un exercice : retire 1 série à ce muscle. Baisse générale : avance la décharge." />
+          <RuleRow title="Charges automatiques" text="Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle." />
+          <RuleRow title="Signal d’alerte" text="Performance en baisse 2 séances de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge." />
           <RuleRow title="Décharge" text="Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4." />
         </Card>
       </Section>

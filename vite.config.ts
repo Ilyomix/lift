@@ -20,15 +20,15 @@ export default defineConfig({
         name: 'Golgoth — Programme hypertrophie',
         short_name: 'Golgoth',
         description:
-          "Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs jusqu'au 30 juin 2027.",
+          "Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs.",
         lang: 'fr',
         dir: 'ltr',
         start_url: BASE,
         scope: BASE,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#0B0B0E',
-        theme_color: '#0B0B0E',
+        background_color: '#060A13',
+        theme_color: '#060A13',
         categories: ['health', 'fitness', 'sports'],
         icons: [
           { src: 'icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
@@ -41,6 +41,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
+        // End-of-rest notifications from the push server.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

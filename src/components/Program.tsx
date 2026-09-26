@@ -1,10 +1,8 @@
 import { Check } from 'lucide-react'
-import { DAYS_LETTER, diffDays, parseISO, todayISO } from '../lib/date'
-import { FOUNDATION_START, GOAL_DATE, PERIODS, TYPE_META, type Period } from '../lib/program'
+import { DAYS_LETTER, diffDays, fmtDate, parseISO, todayISO } from '../lib/date'
+import { FOUNDATION_START, GOAL_DATE, PERIODS, TYPE_META, type Period, type PhaseId, type SessionPlan } from '../lib/program'
 import type { DayStatus } from '../lib/stats'
 import { cx } from './ui'
-
-const TOTAL = diffDays(FOUNDATION_START, GOAL_DATE) + 1
 
 function fill(p: Period): { className: string; style?: React.CSSProperties } {
   if (p.kind === 'deload') return { className: 'hatch bg-surface-3' }
@@ -14,26 +12,28 @@ function fill(p: Period): { className: string; style?: React.CSSProperties } {
   return { className: '', style: { background: 'color-mix(in oklch, var(--text) 82%, transparent)' } }
 }
 
-/** The whole program on one mechanical track, today marked. */
+/** The whole program on one mechanical track (calendar time), today marked. */
 export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: string; showLabels?: boolean }) {
-  const pos = Math.min(1, Math.max(0, diffDays(FOUNDATION_START, today) / TOTAL))
+  const total = diffDays(FOUNDATION_START, GOAL_DATE) + 1
+  const pos = Math.min(1, Math.max(0, diffDays(FOUNDATION_START, today) / total))
   const months: { label: string; at: number }[] = []
   for (let m = parseISO(FOUNDATION_START); m <= parseISO(GOAL_DATE); m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
     const iso = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`
     if (iso < FOUNDATION_START) continue
-    months.push({ label: 'JFMAMJJASOND'[m.getMonth()], at: diffDays(FOUNDATION_START, iso) / TOTAL })
+    months.push({ label: 'JFMAMJJASOND'[m.getMonth()], at: diffDays(FOUNDATION_START, iso) / total })
   }
   const recomp = PERIODS.filter((p) => p.phase === 'recomp')
   const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
-  const span = (ps: Period[]) => ({ left: diffDays(FOUNDATION_START, ps[0].start) / TOTAL, right: (diffDays(FOUNDATION_START, ps[ps.length - 1].end) + 1) / TOTAL })
+  const span = (ps: Period[]) => (ps.length ? { left: diffDays(FOUNDATION_START, ps[0].start) / total, right: (diffDays(FOUNDATION_START, ps[ps.length - 1].end) + 1) / total } : null)
   const r = span(recomp)
   const c = span(cut)
+  const label = `Calendrier du programme jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition jusqu’au ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`
   return (
-    <div className="w-full" role="img" aria-label="Calendrier du programme : fondation, recomposition jusqu’au 3 janvier, sèche du 4 janvier au 13 juin, stabilisation jusqu’au 30 juin.">
+    <div className="w-full" role="img" aria-label={label}>
       <div className="relative h-3 w-full">
         {PERIODS.map((p) => {
-          const left = diffDays(FOUNDATION_START, p.start) / TOTAL
-          const width = (diffDays(p.start, p.end) + 1) / TOTAL
+          const left = diffDays(FOUNDATION_START, p.start) / total
+          const width = (diffDays(p.start, p.end) + 1) / total
           const f = fill(p)
           return <div key={p.id} className={cx('absolute inset-y-0', f.className)} style={{ left: `calc(${left * 100}% + 1px)`, width: `calc(${width * 100}% - 2px)`, ...f.style }} />
         })}
@@ -47,10 +47,102 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
       </div>
       {showLabels && (
         <div className="relative mt-1 h-4 w-full text-[11px] font-semibold">
-          <span className="absolute truncate text-text-2" style={{ left: `${r.left * 100}%`, width: `${(r.right - r.left) * 100}%` }}>Recomposition</span>
-          <span className="absolute truncate text-text-2" style={{ left: `${c.left * 100}%`, width: `${(c.right - c.left) * 100}%` }}>Sèche</span>
+          {r && <span className="absolute truncate text-text-2" style={{ left: `${r.left * 100}%`, width: `${(r.right - r.left) * 100}%` }}>Recomposition</span>}
+          {c && <span className="absolute truncate text-text-2" style={{ left: `${c.left * 100}%`, width: `${(c.right - c.left) * 100}%` }}>Sèche</span>}
         </div>
       )}
+    </div>
+  )
+}
+
+// ───────────────────────── Sessions to the goal ─────────────────────────
+
+type Group = 'foundation' | 'recomp' | 'holiday' | 'cut' | 'stab'
+
+const GROUP_LABEL: Record<Group, string> = {
+  foundation: 'Fondation',
+  recomp: 'Recomposition',
+  holiday: 'Fêtes',
+  cut: 'Sèche',
+  stab: 'Stab.',
+}
+
+function groupOf(kind: Period['kind'], phase: PhaseId): Group {
+  if (kind === 'pre') return 'foundation'
+  if (kind === 'holiday') return 'holiday'
+  if (kind === 'stabilization') return 'stab'
+  return phase === 'recomp' ? 'recomp' : 'cut'
+}
+
+/**
+ * One tick per session, from the first session to the goal date: lit ticks are the
+ * sessions done, dim ticks the sessions planned. Deload sessions are shorter, the
+ * phases are separated by a gap. Reads as a progress bar and as the plan's rhythm.
+ */
+export function SessionTrack({ plan }: { plan: SessionPlan }) {
+  const T = 2 // tick width
+  const G = 1 // gap between ticks
+  const P = 7 // gap between phases
+  const H = 26
+  type Tick = { x: number; h: number; done: boolean; next: boolean; group: Group }
+  const ticks: Tick[] = []
+  const starts: { group: Group; x: number }[] = []
+  let x = 0
+  let prev: Group | null = null
+  let count = 0
+  for (const seg of plan.segments) {
+    const group = groupOf(seg.kind, seg.phase)
+    if (group !== prev) {
+      if (prev !== null) x += P - G
+      starts.push({ group, x })
+      prev = group
+    }
+    const h = seg.kind === 'deload' ? 12 : seg.kind === 'holiday' ? 17 : H
+    for (let i = 0; i < seg.done + seg.planned; i++) {
+      const done = i < seg.done
+      ticks.push({ x, h, done, next: false, group })
+      x += T + G
+      count++
+    }
+  }
+  const width = Math.max(1, x - G)
+  const nextIndex = ticks.findIndex((t) => !t.done)
+  if (nextIndex >= 0) ticks[nextIndex].next = true
+  const labels = starts.map((s, i) => ({ ...s, end: i + 1 < starts.length ? starts[i + 1].x : width }))
+  const currentGroup = nextIndex >= 0 ? ticks[nextIndex].group : null
+  return (
+    <div className="w-full">
+      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })}`}>
+        {ticks.map((t, i) => (
+          <rect
+            key={i}
+            x={t.x}
+            y={H - t.h}
+            width={T}
+            height={t.h}
+            rx={0.4}
+            fill={t.done ? 'var(--signal)' : t.next ? 'var(--text)' : 'var(--line-strong)'}
+          />
+        ))}
+        {nextIndex >= 0 && <rect x={ticks[nextIndex].x - 1} y={H + 3} width={T + 2} height={3} rx={1} fill="var(--text)" />}
+      </svg>
+      <div className="relative mt-1.5 h-4 w-full">
+        {labels.map((l) => {
+          const w = (l.end - l.x) / width
+          // Only labels that fit their segment (≈ 6.5 px per character on a phone-wide track).
+          if (w * 360 < GROUP_LABEL[l.group].length * 6.5 + 4) return null
+          return (
+            <span
+              key={l.group + l.x}
+              className={cx('absolute truncate text-[11px] font-semibold', l.group === currentGroup ? 'text-text' : 'text-muted')}
+              style={{ left: `${(l.x / width) * 100}%`, width: `${w * 100}%` }}
+            >
+              {GROUP_LABEL[l.group]}
+            </span>
+          )
+        })}
+      </div>
+      <span className="sr-only">{count} séances au total</span>
     </div>
   )
 }

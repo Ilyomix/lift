@@ -34,6 +34,10 @@ export interface TemplateExercise {
   note?: string
   /** Volume rules of the program: priority muscles gain a set from block 2, calves from block 3. */
   volumeTag?: 'priority' | 'calves'
+  /** Loads at gyms other than the first one, for machine and cable work (a machine differs from one gym to another). */
+  gymLoads?: Record<string, number | null>
+  /** Automatic set change (e.g. −1 after two sessions in a row with fewer reps), valid until the end of the period of `since`. */
+  autoAdjust?: { sets: number; since: ISODate; reason: string }
 }
 
 export interface Template {
@@ -101,6 +105,10 @@ export interface WorkoutExercise extends TemplateExercise {
   comparisonContext?: string
   replacement?: { fromId: string; fromName: string }
   prescription?: Prescription
+  /** In-session load change on the following sets, with what is needed to undo it. */
+  hint?: { text: string; from: number; to: number; sets: number[] }
+  /** First time at this gym on a gym-bound exercise: load of another gym offered as a starting point. */
+  gymTrial?: { fromGym: string; weight: number | null }
 }
 
 export interface Workout {
@@ -115,6 +123,8 @@ export interface Workout {
   periodId?: string
   week?: number
   deload?: boolean
+  /** Gym where the session took place (absent = the first gym). */
+  gymId?: string
 }
 
 export interface RestTimer {
@@ -147,6 +157,7 @@ export interface ActiveWorkout {
   week?: number
   deload?: boolean
   reentry?: ReentryInfo | null
+  gymId?: string
 }
 
 export interface BodyEntry {
@@ -198,10 +209,19 @@ export interface NutritionTargets {
   proteinMin: number
   proteinMax: number
   creatine: number
+  /** Day the calorie target last changed: the weight gets two weeks to answer before the next change. */
+  caloriesChangedAt?: ISODate
+  /** Protein follows the 7-day average weight (≈ 2 g/kg) instead of the fixed range. */
+  adaptive?: boolean
 }
 
 export interface Prefs {
   theme: 'auto' | 'light' | 'dark'
+  accent: 'blue' | 'orange'
+  /** Loads follow the performance automatically after each session (undo available). */
+  autoLoad: boolean
+  /** End-of-rest notifications sent by the push server, delivered with the phone locked. */
+  push: boolean
   sound: boolean
   notifications: boolean
   wakeLock: boolean
@@ -214,6 +234,11 @@ export interface Goals {
   targetWeightMax: number
   targetWaist: number | null
   sessionsPerWeek: number
+}
+
+export interface Gym {
+  id: string
+  name: string
 }
 
 export interface AppState {
@@ -234,6 +259,11 @@ export interface AppState {
   nutritionEntries: Record<ISODate, NutritionEntry>
   bodyEntries: BodyEntry[]
   settings: { goalDate: ISODate }
+  /** Deload brought forward after a general drop of performance. */
+  manualDeload: { start: ISODate; end: ISODate } | null
+  gyms: Gym[]
+  /** Gym of the next session (the last one used). */
+  gymId: string
   progressRevision: number
   profile: { heightCm: number; age: number }
   goals: Goals

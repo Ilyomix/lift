@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, Play, Plus, Replace, Sparkles, StickyNote, Trash, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Play, Plus, Replace, Sparkles, StickyNote, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { sessionPrompt } from '../lib/coach'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
+import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
 import { LIBRARY } from '../lib/library'
 import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATION, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
-import { cleanOf, doneSets, previousPerformance, progressionFor, sessionDurationMin, sessionSetCount, setsSummary } from '../lib/training'
+import { cleanOf, doneSets, previousPerformance, progressionFor, sessionDurationMin, sessionSetCount, setsSummary, type AutoChange } from '../lib/training'
 import type { SetFlag, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
+import { GymSheet } from '../components/GymSheet'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
-  Button, Card, cx, Empty, Eyebrow, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
+  Button, Card, cx, DateInput, Empty, Eyebrow, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
 } from '../components/ui'
 
 // ───────────────────────── Entry ─────────────────────────
@@ -35,10 +37,11 @@ function SessionPreview() {
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
   const [type, setType] = useState<WorkoutType>(planned[0]?.type ?? state.nextWorkoutType)
   const [sheet, setSheet] = useState<string | null>(null)
+  const [gymOpen, setGymOpen] = useState(false)
   const date = today < PROGRAM_START ? PROGRAM_START : today
   const ctx = contextAt(date)
   const tpl = state.templates[type]
-  const rx = tpl.exercises.map((e) => prescribe(e, date, state.reentry))
+  const rx = tpl.exercises.map((e) => prescribe(e, date, state.reentry, state.gymId))
   const totalSets = rx.reduce((a, p) => a + p.sets, 0)
   const isNext = type === (planned[0]?.type ?? state.nextWorkoutType)
 
@@ -54,6 +57,7 @@ function SessionPreview() {
         eyebrow={isNext ? `Prochaine séance · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : 'Autre séance'}
         title={TYPE_META[type].label}
         sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, 'exercice', 'exercices')} · ${totalSets} séries · ~${TYPE_META[type].minutes} min`}
+        right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
       <Segmented label="Type de séance" value={type} onChange={setType} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
 
@@ -72,7 +76,7 @@ function SessionPreview() {
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
                 <span className="mt-0.5 block text-[13px] text-text-2 tnum">
-                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {fmtLoad(rx[i].weight, e.unit)}
+                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? 'première fois ici' : 'charge à trouver') : fmtLoad(rx[i].weight, e.unit)}
                 </span>
                 {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> Superset avec l’exercice suivant</span>}
               </span>
@@ -89,7 +93,19 @@ function SessionPreview() {
       </div>
 
       {sheet && <ExerciseSheet exerciseId={sheet} open onClose={() => setSheet(null)} prescription={rx[tpl.exercises.findIndex((e) => e.exerciseId === sheet)]} />}
+      {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
     </Screen>
+  )
+}
+
+function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
+  const name = useStore((s) => gymName(s.state, id))
+  return (
+    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={`Salle : ${name}, changer`}>
+      <MapPin size={14} className="shrink-0" aria-hidden />
+      <span className="truncate">{name}</span>
+      <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
+    </button>
   )
 }
 
@@ -105,47 +121,80 @@ function useElapsed(startedAt: string): number | null {
   return s >= 0 && s < 5 * 3600 ? s : null
 }
 
+/** The exercise to work on: the first one, in order, with a set left to do. */
+function currentIndexOf(exercises: WorkoutExercise[]): number {
+  return exercises.findIndex((e) => !e.skipped && e.sets.some((s) => !s.completed))
+}
+
 function ActiveSession() {
   const a = useStore((s) => s.state.activeWorkout)!
   const { finishSession, discardSession, setSessionField } = useStore.getState()
   const elapsed = useElapsed(a.startedAt)
   const [menu, setMenu] = useState(false)
+  const [gymOpen, setGymOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const ctx = contextAt(a.date)
   const total = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + e.sets.length, 0)
   const done = a.exercises.reduce((n, e) => n + doneSets(e).length, 0)
   const pending = total - done
+  const current = currentIndexOf(a.exercises)
+  const cur = current >= 0 ? a.exercises[current] : null
+  const curSet = cur ? cur.sets.findIndex((s) => !s.completed) : -1
+
+  // When an exercise is finished, bring the next one into view.
+  const prev = useRef(current)
+  useEffect(() => {
+    if (current > prev.current && current >= 0) {
+      const el = document.getElementById(`exercise-${current}`)
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      el?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    }
+    prev.current = current
+  }, [current])
 
   const finish = () => {
     const id = finishSession()
     if (id) navigate('seance/bilan', { replace: true })
   }
+  const jump = () => document.getElementById(`exercise-${current}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
-    <Screen className="pb-[calc(150px+env(safe-area-inset-bottom))]">
+    <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
         eyebrow={`${ctx.before ? 'Fondation' : ctx.title} · ${fmtDate(a.date)}`}
         title={TYPE_META[a.type].label}
         right={
           <div className="flex items-center gap-1">
-            {elapsed !== null && <span className="seg seg-ghost text-[18px] text-text-2 tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-label="Durée de la séance">{fmtClock(elapsed)}</span>}
+            <GymChip id={a.gymId} onClick={() => setGymOpen(true)} />
             <IconButton label="Options de la séance" onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
           </div>
         }
       />
-      <div className="flex items-center gap-3">
-        <ProgressBar value={total ? done / total : 0} label="Séries validées" />
-        <span className="shrink-0 text-[13px] font-semibold tnum">{done}/{total}</span>
+
+      {/* Focus bar: stays on top while scrolling, opaque (nothing blurs under it). */}
+      <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
+        <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? `Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}` : 'Toutes les séries sont faites'}>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? `Série ${curSet + 1}/${cur.sets.length}` : 'Terminé'}</span>
+            <span className="block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : 'Toutes les séries sont faites'}</span>
+          </span>
+          {elapsed !== null && <span className="seg seg-ghost shrink-0 text-[17px] text-text-2 tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-label="Durée de la séance">{fmtClock(elapsed)}</span>}
+        </button>
+        <div className="mt-2.5 flex items-center gap-3">
+          <ProgressBar value={total ? done / total : 0} label="Séries validées" />
+          <span className="shrink-0 text-[12px] font-semibold text-text-2 tnum">{done}/{total}</span>
+        </div>
       </div>
+
       {(a.deload || a.reentry) && (
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
           {a.deload ? 'Semaine de décharge : moitié des séries, charges −10 %, RIR 3–4.' : `${a.reentry!.label} : ${a.reentry!.advice}`}
         </p>
       )}
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-4 space-y-3">
         {a.exercises.map((ex, i) => (
-          <ExerciseLogger key={`${ex.exerciseId}-${i}`} index={i} ex={ex} nextName={a.exercises[i + 1]?.name} />
+          <ExerciseLogger key={`${ex.exerciseId}-${i}`} index={i} ex={ex} nextName={a.exercises[i + 1]?.name} current={i === current} gymId={gymOf(a)} />
         ))}
       </div>
 
@@ -164,10 +213,8 @@ function ActiveSession() {
       <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, 'série restante', 'séries restantes')}` : 'Toutes les séries sont validées.'}</p>
 
       <Sheet open={menu} onClose={() => setMenu(false)} title="Séance">
-        <label className="block">
-          <span className="mb-1.5 block text-[13px] font-medium text-text-2">Date de la séance</span>
-          <input type="date" className={inputClass} value={a.date} max={todayISO()} onChange={(e) => e.target.value && setSessionField({ date: e.target.value })} />
-        </label>
+        <p className="mb-1.5 text-[13px] font-medium text-text-2">Date de la séance</p>
+        <DateInput label="Date de la séance" value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
         <div className="mt-5">
           <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
             Abandonner la séance
@@ -175,6 +222,7 @@ function ActiveSession() {
           <p className="mt-2 text-[12px] text-muted">Les séries saisies seront perdues. La rotation ne change pas.</p>
         </div>
       </Sheet>
+      {gymOpen && <GymSheet session onClose={() => setGymOpen(false)} />}
 
       <Sheet
         open={confirmFinish}
@@ -197,13 +245,17 @@ function ActiveSession() {
 
 // ───────────────────────── Exercise logger ─────────────────────────
 
-function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExercise; nextName?: string }) {
+function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
-  const { addSet, removeSet, skipExercise, replaceExercise, setExerciseField } = useStore.getState()
+  const autoLoad = useStore((s) => s.state.prefs.autoLoad)
+  const { addSet, removeSet, skipExercise, replaceExercise, setExerciseField, undoHint } = useStore.getState()
   const [info, setInfo] = useState(false)
   const [menu, setMenu] = useState(false)
-  const prev = useMemo(() => previousPerformance(workouts, ex.exerciseId)?.exercise ?? null, [workouts, ex.exerciseId])
-  const prevDate = useMemo(() => previousPerformance(workouts, ex.exerciseId)?.workout.date ?? null, [workouts, ex.exerciseId])
+  const [open, setOpen] = useState(false)
+  const bound = isGymBound(ex)
+  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, undefined, bound ? gymId : undefined), [workouts, ex.exerciseId, bound, gymId])
+  const prev = prevPerf?.exercise ?? null
+  const prevDate = prevPerf?.workout.date ?? null
   const p = ex.prescription
   const target = p?.weight ?? ex.target.weight
   const prevSets = prev ? doneSets(prev) : []
@@ -212,10 +264,11 @@ function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExe
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const validated = allDone ? progressionFor({ ...ex, sets: ex.sets }) : null
   const unitLabel = ex.unit === 'kg/main' ? 'kg/main' : ex.unit === 'PDC' ? 'Charge' : 'kg'
+  const currentSet = current ? ex.sets.findIndex((s) => !s.completed) : -1
 
   if (ex.skipped) {
     return (
-      <Card className="flex items-center gap-3 p-4 opacity-70">
+      <Card id={`exercise-${index}`} className="flex scroll-mt-[calc(env(safe-area-inset-top)+96px)] items-center gap-3 p-4 opacity-70">
         <span className="w-6 text-[12px] font-semibold text-muted tnum">{String(index + 1).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium line-through decoration-muted">{ex.name}</p>
@@ -226,33 +279,63 @@ function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExe
     )
   }
 
+  // Finished exercises fold into one line; tap to reopen (to correct a set).
+  if (allDone && !open) {
+    return (
+      <button
+        type="button"
+        id={`exercise-${index}`}
+        onClick={() => setOpen(true)}
+        className="pressable card flex w-full scroll-mt-[calc(env(safe-area-inset-top)+96px)] items-center gap-3 px-4 py-3 text-left hover:border-line-strong"
+        aria-label={`${ex.name} terminé : ${setsSummary(ex.sets, ex.unit)}. Ouvrir`}
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-medium">{ex.name}</span>
+          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : ''}</span>
+        </span>
+        <ChevronDown size={16} className="shrink-0 text-muted" aria-hidden />
+      </button>
+    )
+  }
+
   return (
-    <Card as="article" className={cx('overflow-hidden', allDone && 'border-line-strong')}>
+    <Card
+      as="article"
+      id={`exercise-${index}`}
+      className={cx('scroll-mt-[calc(env(safe-area-inset-top)+96px)] overflow-hidden transition-[border-color,box-shadow]', current ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : allDone ? 'border-line-strong' : '')}
+    >
       <div className="flex items-start gap-3 px-4 pt-4">
-        <span className="mt-[3px] w-6 shrink-0 text-[12px] font-semibold text-muted tnum">{String(index + 1).padStart(2, '0')}</span>
+        <span className={cx('mt-[3px] w-6 shrink-0 text-[12px] font-semibold tnum', current ? 'text-signal-text' : 'text-muted')}>{String(index + 1).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] leading-[1.25] font-semibold tracking-[-0.015em]">{ex.name}</h3>
           <p className="mt-0.5 text-[13px] text-text-2">{ex.muscle}{ex.replacement ? ` · remplace ${ex.replacement.fromName}` : ''}</p>
         </div>
+        {allDone && <IconButton label="Replier" onClick={() => setOpen(false)} className="-mt-1.5 -mr-1"><ChevronDown size={19} className="rotate-180" /></IconButton>}
         <IconButton label={`Démo et technique : ${ex.name}`} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
         <IconButton label={`Options : ${ex.name}`} onClick={() => setMenu(true)} className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
-        <Tag tone="ink">{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
+        <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
         <Tag tone="outline">RIR {p?.rir ?? ex.target.rir ?? '—'}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
         {ex.unit !== 'PDC' && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : 'Charge à trouver'}</Tag>}
       </div>
       <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
+        {ex.gymTrial && (
+          <p className="text-text-2">
+            <span className="font-semibold text-text">Première fois dans cette salle.</span> Charge de {ex.gymTrial.fromGym} ({fmtLoad(ex.gymTrial.weight, ex.unit)}) comme départ : ajuste si la machine est différente, l’app retiendra la tienne.
+          </p>
+        )}
         {prevSets.length > 0 ? (
           <p className="text-text-2">
             <span className="text-muted">Dernière fois{prevDate ? ` · ${fmtDate(prevDate)}` : ''} :</span> <span className="font-medium text-text tnum">{setsSummary(prevSets, prev!.unit)}</span>
             {sameLoad && <span className="text-muted"> → à battre : <span className="font-semibold text-text">{prevClean + 1} reps propres</span></span>}
           </p>
-        ) : (
+        ) : !ex.gymTrial ? (
           <p className="text-muted">{target === null && ex.unit !== 'PDC' ? `Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR 3.` : 'Première fois : établis ta référence.'}</p>
-        )}
+        ) : null}
         {ex.note && <p className="text-muted">{ex.note}</p>}
         {ex.technique && <p className="flex gap-1.5 text-muted"><StickyNote size={13} className="mt-[3px] shrink-0" aria-hidden />{ex.technique}</p>}
         {p?.notes.filter((n) => !n.startsWith('Reprise') && !n.startsWith('Remise')).map((n) => <p key={n} className="text-muted">{n}</p>)}
@@ -268,9 +351,18 @@ function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExe
         </div>
         <div className="space-y-1.5">
           {ex.sets.map((_, i) => (
-            <SetRow key={i} exIndex={index} setIndex={i} ex={ex} prevReps={prevSets[i] ? cleanOf(prevSets[i]) : null} fallbackWeight={target} />
+            <SetRow key={i} exIndex={index} setIndex={i} ex={ex} prevReps={prevSets[i] ? cleanOf(prevSets[i]) : null} fallbackWeight={target} isCurrent={i === currentSet} />
           ))}
         </div>
+        {ex.hint && (
+          <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-signal-soft px-3 py-2 text-[13px]">
+            {ex.hint.to > ex.hint.from ? <ArrowUp size={15} className="shrink-0 text-signal-text" aria-hidden /> : <ArrowDown size={15} className="shrink-0 text-signal-text" aria-hidden />}
+            <span className="min-w-0 flex-1"><span className="font-semibold">Charge ajustée.</span> {ex.hint.text}</span>
+            <button type="button" onClick={() => undoHint(index)} className="pressable -my-1 inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-signal-text hover:bg-surface-2">
+              <Undo2 size={14} aria-hidden /> Annuler
+            </button>
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
           <button type="button" onClick={() => addSet(index)} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
             <Plus size={16} aria-hidden /> Série
@@ -284,7 +376,7 @@ function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExe
         {validated && (
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
             <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
-            <span><span className="font-semibold">Charge validée.</span> {validated.text}.</span>
+            <span><span className="font-semibold">Charge validée.</span> {validated.text}{autoLoad ? ' (appliqué à la fin de la séance)' : ''}.</span>
           </div>
         )}
       </div>
@@ -312,9 +404,9 @@ function ExerciseLogger({ index, ex, nextName }: { index: number; ex: WorkoutExe
             </div>
           )}
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-text-2">Conditions différentes (machine, tempo…)</span>
-            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder="Ex. : autre machine, charge de départ différente" onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
-            <span className="mt-1 block text-[12px] text-muted">Évite une fausse comparaison avec la dernière séance.</span>
+            <span className="mb-1.5 block text-[13px] font-medium text-text-2">Conditions différentes (tempo, prise…)</span>
+            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder="Ex. : tempo lent, prise différente" onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
+            <span className="mt-1 block text-[12px] text-muted">Évite une fausse comparaison avec la dernière séance. Pour une autre salle, change plutôt la salle en haut de la séance.</span>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">Note sur l’exercice</span>
@@ -368,21 +460,21 @@ const FLAGS: { id: SetFlag; label: string }[] = [
   { id: 'pain', label: 'Douleur' },
 ]
 
-function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight }: { exIndex: number; setIndex: number; ex: WorkoutExercise; prevReps: number | null; fallbackWeight: number | null }) {
+function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: { exIndex: number; setIndex: number; ex: WorkoutExercise; prevReps: number | null; fallbackWeight: number | null; isCurrent: boolean }) {
   const s = ex.sets[setIndex]
   const { updateSet, completeSet, toggleFlag } = useStore.getState()
   const [open, setOpen] = useState(false)
   const done = s.completed
   const hasDetail = s.flags.length > 0 || (s.cleanReps !== null && s.reps !== null && s.cleanReps !== s.reps) || !!s.note
   return (
-    <div className={cx('rounded-[12px] px-1 py-1 transition-colors', done && 'bg-surface-2')}>
+    <div className={cx('rounded-[12px] px-1 py-1 transition-colors', done && 'bg-surface-2', isCurrent && 'bg-signal-soft shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--signal)_55%,transparent)]')} aria-current={isCurrent ? 'step' : undefined}>
       <div className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] items-center gap-2">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={`Détails de la série ${setIndex + 1}`}
-          className="pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[15px] font-semibold tnum hover:bg-surface-3"
+          className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[15px] font-semibold tnum hover:bg-surface-3', isCurrent && 'text-signal-text')}
         >
           {setIndex + 1}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
@@ -416,7 +508,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight }: { exIndex: 
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}
-          className={cx('pressable flex h-11 w-12 items-center justify-center rounded-[10px] border', done ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
+          className={cx('pressable flex h-11 w-12 items-center justify-center rounded-[10px] border', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
         >
           <Check size={20} strokeWidth={done ? 3 : 2.2} aria-hidden />
         </button>
@@ -453,7 +545,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight }: { exIndex: 
 export function SessionSummary() {
   const lastFinish = useStore((s) => s.lastFinish)
   const state = useStore((s) => s.state)
-  const applyProgressions = useStore((s) => s.applyProgressions)
+  const { applyChanges, revertChange, bringDeloadForward } = useStore.getState()
   const w = lastFinish?.workout ?? state.workouts.find((x) => x.id === state.lastCompletedWorkoutId) ?? null
   if (!w) {
     return (
@@ -463,15 +555,17 @@ export function SessionSummary() {
       </Screen>
     )
   }
-  const progressions = (lastFinish?.progressions ?? []).filter((p) => !lastFinish?.applied.includes(p.exerciseId))
+  const changes = lastFinish?.changes ?? []
   const applied = lastFinish?.applied ?? []
+  const waiting = changes.filter((c) => !applied.includes(c.id))
   const records = w.exercises.filter((e) => e.comparison?.isRecord)
   const minutes = sessionDurationMin(w)
   const volume = w.exercises.reduce((a, e) => a + (e.comparison?.volume ?? 0), 0)
+  const early = !!lastFinish?.generalDrop && !state.manualDeload && !contextAt(todayISO()).deload
 
   return (
     <Screen>
-      <Header eyebrow={`Séance n°${w.sessionNumber} · ${capitalize(fmtDate(w.date, { weekday: true }))}`} title="Séance terminée" backTo="" />
+      <Header eyebrow={`Séance n°${w.sessionNumber} · ${capitalize(fmtDate(w.date, { weekday: true }))} · ${gymName(state, w.gymId)}`} title="Séance terminée" backTo="" />
       <div className="grid grid-cols-3 gap-2.5">
         <Figure label="Durée" value={minutes === null ? '—' : minutes < 1 ? '< 1 min' : `${minutes} min`} />
         <Figure label="Séries" value={String(sessionSetCount(w))} />
@@ -486,27 +580,30 @@ export function SessionSummary() {
         </Section>
       )}
 
-      {(progressions.length > 0 || applied.length > 0) && (
-        <Section title="Charges validées" action={progressions.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyProgressions(progressions)}>Tout appliquer</Button> : undefined}>
-          <p className="-mt-1 mb-3 text-[13px] text-text-2">Toutes les séries au haut de la fourchette : on augmente la charge (double progression).</p>
+      {changes.length > 0 && (
+        <Section
+          title={state.prefs.autoLoad ? 'Plan ajusté' : 'Ajustements proposés'}
+          action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>Tout appliquer</Button> : undefined}
+        >
+          <p className="-mt-1 mb-3 text-[13px] leading-[1.45] text-text-2">
+            {state.prefs.autoLoad ? 'Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.' : 'Calculé d’après tes séries. Applique ce qui te convient.'}
+          </p>
           <Card className="divide-y divide-line">
-            {(lastFinish?.progressions ?? []).map((p) => {
-              const done = applied.includes(p.exerciseId)
-              return (
-                <div key={p.exerciseId} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-medium">{p.name}</p>
-                    <p className="text-[13px] text-text-2">{p.text}</p>
-                  </div>
-                  {done ? <Tag tone="good" icon={<Check size={12} aria-hidden />}>Appliqué</Tag> : <Button size="sm" variant="primary" onClick={() => applyProgressions([p])}>Appliquer</Button>}
-                </div>
-              )
-            })}
+            {changes.map((c) => <ChangeRow key={c.id} c={c} applied={applied.includes(c.id)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
           </Card>
         </Section>
       )}
 
-      {(lastFinish?.alerts.length ?? 0) > 0 && (
+      {early && (
+        <Section title="Récupération">
+          <Card className="p-4">
+            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />Plusieurs exercices baissent deux séances de suite : c’est le signal pour avancer la décharge.</p>
+            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify('Décharge avancée : 7 jours dès demain.', 'good') }}>Décharge dès demain (7 jours)</Button>
+          </Card>
+        </Section>
+      )}
+
+      {(lastFinish?.alerts.length ?? 0) > 0 && !state.prefs.autoLoad && (
         <Section title="À surveiller">
           <Card className="space-y-2 p-4">
             {lastFinish!.alerts.map((a) => <p key={a} className="text-[14px] leading-[1.45]">{a}</p>)}
@@ -526,6 +623,24 @@ export function SessionSummary() {
       </div>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">Le bilan s’ouvre dans la feuille de partage : envoie-le à Claude, puis colle sa réponse dans Plus → Coach pour mettre tes cibles à jour.</p>
     </Screen>
+  )
+}
+
+function ChangeRow({ c, applied, onApply, onRevert }: { c: AutoChange; applied: boolean; onApply: () => void; onRevert: () => void }) {
+  const icon = c.kind === 'up' ? <ArrowUp size={15} aria-hidden /> : c.kind === 'down' || c.kind === 'sets' ? <ArrowDown size={15} aria-hidden /> : <Check size={15} aria-hidden />
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', c.kind === 'up' ? 'bg-good-mark/12 text-good' : c.kind === 'baseline' ? 'bg-surface-2 text-text-2' : 'bg-warn-mark/12 text-warn')}>{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium">{c.name}</p>
+        <p className={cx('text-[13px] text-text-2', !applied && 'text-muted')}>{c.text}</p>
+      </div>
+      {applied ? (
+        <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>Annuler</Button>
+      ) : (
+        <Button size="sm" variant="primary" onClick={onApply}>Appliquer</Button>
+      )}
+    </div>
   )
 }
 

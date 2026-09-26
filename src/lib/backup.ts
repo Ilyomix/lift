@@ -1,9 +1,10 @@
 import { todayISO } from './date'
+import { DEFAULT_GYMS, HOME_GYM } from './gyms'
 import {
-  buildResearchTemplates, DEFAULT_SCHEDULE, GOAL_DATE, PROGRAM_ID, PROGRAM_REVISION, ROTATION, TOTAL_SESSIONS, TYPE_META,
+  buildResearchTemplates, DEFAULT_GOAL, DEFAULT_SCHEDULE, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
-  AppState, Backup, BodyEntry, NutritionEntry, Photo, ProgramPause, Template, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
+  AppState, Backup, BodyEntry, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
 
@@ -26,14 +27,17 @@ export function defaultState(): AppState {
     appliedPlanUpdates: [],
     programPause: { active: false, startedAt: null, plannedEnd: null, history: [] },
     reentry: null,
-    nutritionTargets: { calories: 2350, proteinMin: 180, proteinMax: 190, creatine: 5 },
+    nutritionTargets: { calories: 2350, proteinMin: 180, proteinMax: 190, creatine: 5, adaptive: true },
     nutritionEntries: {},
     bodyEntries: [],
-    settings: { goalDate: GOAL_DATE },
+    settings: { goalDate: DEFAULT_GOAL },
+    manualDeload: null,
+    gyms: DEFAULT_GYMS.map((g) => ({ ...g })),
+    gymId: HOME_GYM,
     progressRevision: 1,
     profile: { heightCm: 0, age: 0 },
     goals: { targetWeightMin: 0, targetWeightMax: 0, targetWaist: null, sessionsPerWeek: 5 },
-    prefs: { theme: 'dark', sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
+    prefs: { theme: 'dark', accent: 'blue', autoLoad: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
     schedule: { ...DEFAULT_SCHEDULE },
     exerciseVideos: {},
     meta: { createdAt: now, lastBackupAt: null, importedAt: null },
@@ -95,6 +99,26 @@ function normWorkout(w: any, i: number): Workout | null {
     periodId: typeof w.periodId === 'string' ? w.periodId : undefined,
     week: num(w.week) ?? undefined,
     deload: !!w.deload,
+    gymId: typeof w.gymId === 'string' && w.gymId ? w.gymId : undefined,
+  }
+}
+
+function normGyms(raw: any): Gym[] {
+  const list: Gym[] = Array.isArray(raw)
+    ? raw.filter((g: any) => typeof g?.id === 'string' && g.id && typeof g?.name === 'string').map((g: any) => ({ id: g.id, name: g.name.trim() || 'Salle' }))
+    : []
+  if (!list.some((g) => g.id === HOME_GYM)) list.unshift({ ...DEFAULT_GYMS[0] })
+  return list.filter((g, i) => list.findIndex((x) => x.id === g.id) === i)
+}
+
+function normPrefs(raw: any, d: Prefs): Prefs {
+  const p = { ...d, ...(raw && typeof raw === 'object' ? raw : {}) }
+  return {
+    ...p,
+    theme: p.theme === 'light' || p.theme === 'auto' ? p.theme : 'dark',
+    accent: p.accent === 'orange' ? 'orange' : 'blue',
+    autoLoad: p.autoLoad !== false,
+    push: p.push === true,
   }
 }
 
@@ -156,6 +180,12 @@ export function normalizeState(raw: any): AppState {
     const e = v as any
     nutritionEntries[k] = { date: k, calories: num(e?.calories) ?? 0, protein: num(e?.protein) ?? 0, creatine: num(e?.creatine) ?? 0 }
   }
+  // A rest still running when the app was closed survives the reload.
+  const t = raw.activeWorkout?.timer
+  const timer =
+    t && typeof t.endAt === 'number' && typeof t.total === 'number' && t.endAt > Date.now() - 60_000
+      ? { endAt: t.endAt, total: t.total, label: str(t.label), next: typeof t.next === 'string' ? t.next : undefined }
+      : null
   const active = raw.activeWorkout && isType(raw.activeWorkout.type)
     ? {
         ...raw.activeWorkout,
@@ -163,8 +193,9 @@ export function normalizeState(raw: any): AppState {
         date: str(raw.activeWorkout.date, todayISO()),
         startedAt: str(raw.activeWorkout.startedAt, new Date().toISOString()),
         notes: str(raw.activeWorkout.notes),
-        timerEndAt: null,
-        timer: null,
+        timerEndAt: timer ? new Date(timer.endAt).toISOString() : null,
+        timer,
+        gymId: typeof raw.activeWorkout.gymId === 'string' && raw.activeWorkout.gymId ? raw.activeWorkout.gymId : undefined,
         exercises: Array.isArray(raw.activeWorkout.exercises) ? raw.activeWorkout.exercises.map(normExercise) : [],
       }
     : null
@@ -189,10 +220,18 @@ export function normalizeState(raw: any): AppState {
       proteinMin: num(raw.nutritionTargets?.proteinMin) ?? d.nutritionTargets.proteinMin,
       proteinMax: num(raw.nutritionTargets?.proteinMax) ?? d.nutritionTargets.proteinMax,
       creatine: num(raw.nutritionTargets?.creatine) ?? d.nutritionTargets.creatine,
+      caloriesChangedAt: typeof raw.nutritionTargets?.caloriesChangedAt === 'string' ? raw.nutritionTargets.caloriesChangedAt : undefined,
+      adaptive: raw.nutritionTargets?.adaptive !== false,
     },
     nutritionEntries,
     bodyEntries,
-    settings: { goalDate: str(raw.settings?.goalDate, GOAL_DATE) },
+    settings: { goalDate: isValidGoal(raw.settings?.goalDate) ? raw.settings.goalDate : DEFAULT_GOAL },
+    manualDeload:
+      typeof raw.manualDeload?.start === 'string' && typeof raw.manualDeload?.end === 'string'
+        ? { start: raw.manualDeload.start, end: raw.manualDeload.end }
+        : null,
+    gyms: normGyms(raw.gyms),
+    gymId: typeof raw.gymId === 'string' && normGyms(raw.gyms).some((g) => g.id === raw.gymId) ? raw.gymId : HOME_GYM,
     progressRevision: num(raw.progressRevision) ?? 1,
     profile: { heightCm: num(raw.profile?.heightCm) ?? 0, age: num(raw.profile?.age) ?? 0 },
     goals: {
@@ -201,7 +240,7 @@ export function normalizeState(raw: any): AppState {
       targetWaist: num(raw.goals?.targetWaist),
       sessionsPerWeek: num(raw.goals?.sessionsPerWeek) ?? 5,
     },
-    prefs: { ...d.prefs, ...(raw.prefs ?? {}) },
+    prefs: normPrefs(raw.prefs, d.prefs),
     schedule: raw.schedule && typeof raw.schedule === 'object' ? { ...d.schedule, ...raw.schedule } : d.schedule,
     exerciseVideos: raw.exerciseVideos && typeof raw.exerciseVideos === 'object' ? raw.exerciseVideos : {},
     archive: raw.archive,

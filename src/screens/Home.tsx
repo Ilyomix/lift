@@ -1,32 +1,39 @@
-import { useMemo } from 'react'
-import { ArrowRight, Camera, CirclePause, Download, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
-import { addDays, capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
+import { useMemo, useState } from 'react'
+import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
+import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
+import { gymName } from '../lib/gyms'
 import {
-  contextAt, GOAL_DATE, pauseDays, prescribe, programDayCount, projectSessions, PROGRAM_START, TYPE_META,
+  contextAt, GOAL_DATE, pauseDays, prescribe, projectSessions, PROGRAM_START, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
 import {
-  goalWeightRange, measureSeries, movingAverage7, nutritionFor, proteinTargetFor, recentPace, sessionsThisWeek, weekStrip, weightStatus,
+  calorieAdvice, goalWeightRange, measureSeries, movingAverage7, nutritionFor, proteinTargetFor, recentPace, sessionsThisWeek, weekStrip, weightStatus,
 } from '../lib/stats'
 import { useStore } from '../lib/store'
 import { dropAlert, doneSets, strengthSummary } from '../lib/training'
 import { Sparkline } from '../components/charts'
-import { PhaseTrack, WeekStrip } from '../components/Program'
+import { GoalSheet } from '../components/GoalSheet'
+import { GymSheet } from '../components/GymSheet'
+import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
+import { Dial } from './Onboarding'
 
 export function Home() {
   const state = useStore((s) => s.state)
   const photos = useStore((s) => s.photos)
   const startSession = useStore((s) => s.startSession)
+  const [goalOpen, setGoalOpen] = useState(false)
+  const [gymOpen, setGymOpen] = useState(false)
   const today = todayISO()
   const ctx = contextAt(today)
-  const days = programDayCount(today)
+  const plan = useMemo(() => sessionPlan(state, today), [state, today])
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
   const paused = useMemo(() => pauseDays(state, today), [state, today])
   const week = weekStrip(state, planned, paused, today)
   const doneThisWeek = sessionsThisWeek(state.workouts, today)
+  const perWeek = trainingDays(state).length
   const next = planned[0]
   const active = state.activeWorkout
   const ws = weightStatus(state, today)
@@ -37,10 +44,13 @@ export function Home() {
   const pace = recentPace(state.workouts, today)
   const nut = nutritionFor(state, today)
   const protein = proteinTargetFor(state, today)
+  const cal = calorieAdvice(state, today)
   const lastWorkout = state.workouts[state.workouts.length - 1]
-  const drops = lastWorkout ? lastWorkout.exercises.map((e) => dropAlert(state.workouts, e.exerciseId)).filter((x): x is string => !!x) : []
+  const drops = !state.prefs.autoLoad && lastWorkout ? lastWorkout.exercises.map((e) => dropAlert(state.workouts, e.exerciseId)).filter((x): x is string => !!x) : []
   const lastPhoto = photos[photos.length - 1]
   const daysSinceBackup = state.meta.lastBackupAt ? Math.floor((Date.now() - new Date(state.meta.lastBackupAt).getTime()) / 86_400_000) : null
+  const weeksLeft = Math.max(0, Math.ceil(diffDays(today, GOAL_DATE) / 7))
+  const pct = plan.total ? Math.round((plan.done / plan.total) * 100) : 0
 
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
   const nextDate = next?.date ?? today
@@ -57,26 +67,49 @@ export function Home() {
       <header className="pt-3">
         <div className="flex items-center justify-between">
           <Eyebrow>{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
-          <span className="text-[13px] font-semibold tracking-[-0.01em] text-text-2">Golgoth</span>
+          <span className="inline-flex items-center gap-2 text-[13px] font-semibold tracking-[-0.01em] text-text-2">
+            <Dial size={22} className="rounded-[6px]" />
+            Golgoth
+          </span>
         </div>
       </header>
 
-      {/* Hero — the single figure of the view */}
-      <section aria-label="Compte à rebours" className="mt-4">
-        <div className="flex items-end gap-4">
-          <span className="text-[92px] leading-[0.82] font-semibold tracking-[-0.035em] tnum">
-            <Num value={days.left} digits={0} />
-          </span>
-          <p className="pb-1 text-[15px] leading-[1.3] text-text-2">
-            jours avant le
-            <br />
-            <span className="font-semibold text-text">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
+      {/* Hero: sessions done out of the sessions planned until the goal date */}
+      <section aria-label="Progression vers l’objectif" className="mt-6">
+        <div className="flex items-end justify-between gap-3">
+          <p className="flex items-baseline gap-2">
+            <span className="text-[64px] leading-[0.8] font-semibold tracking-[-0.04em] tnum">
+              <Num value={plan.done} digits={0} />
+            </span>
+            <span className="text-[22px] leading-none font-medium tracking-[-0.02em] text-text-2 tnum">/ {plan.total}</span>
+            <span className="sr-only">séances</span>
+          </p>
+          <p className="pb-0.5 text-right">
+            <span className="block text-[22px] leading-none font-semibold tracking-[-0.02em] tnum">{pct} %</span>
+            <span className="mt-1 block text-[12px] font-medium text-muted">séances</span>
           </p>
         </div>
-        <div className="mt-6">
-          <PhaseTrack today={today} />
+        <div className="mt-4">
+          <SessionTrack plan={plan} />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setGoalOpen(true)}
+            className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
+            aria-label={`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`}
+          >
+            <Flag size={14} className="shrink-0 text-signal-text" aria-hidden />
+            <span className="truncate">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
+            <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
+          </button>
+          <span className="shrink-0 text-right text-[12px] leading-[1.35] text-muted tnum">
+            {plural(plan.planned, 'séance', 'séances')} à faire
+            <br />
+            {plural(weeksLeft, 'semaine', 'semaines')}
+          </span>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {ctx.before || ctx.period?.kind === 'pre' ? (
             <>
               <Tag tone="ink">Bloc 1 · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
@@ -127,6 +160,13 @@ export function Home() {
               <Tag tone="outline">{active ? 'En cours' : capitalize(fmtRelativeDay(nextDate, today))}</Tag>
             </div>
             {!active && nextCtx.effort && <p className="mt-3 text-[13px] text-muted">{nextCtx.title} · {nextCtx.effort}</p>}
+            {!active && (
+              <button type="button" onClick={() => setGymOpen(true)} className="pressable -mx-1 mt-2 inline-flex h-9 items-center gap-1.5 rounded-[8px] px-1 text-[13px] font-medium text-text-2 hover:text-text">
+                <MapPin size={14} aria-hidden />
+                {gymName(state, state.gymId)}
+                <ChevronDown size={14} className="text-muted" aria-hidden />
+              </button>
+            )}
           </div>
           <div className="flex gap-2 border-t border-line p-3">
             <Button variant="primary" size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} onClick={active ? () => navigate('seance') : begin}>
@@ -141,7 +181,7 @@ export function Home() {
         </Card>
       </Section>
 
-      <Section title="Cette semaine" action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {state.goals.sessionsPerWeek} séances</span>}>
+      <Section title="Cette semaine" action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} séances</span>}>
         <WeekStrip days={week} />
       </Section>
 
@@ -163,13 +203,13 @@ export function Home() {
             onClick={() => navigate('progres/corps')}
           />
           <Tile
-            label="Séances"
-            value={<><Num value={state.workouts.length} digits={0} /><span className="ml-1 text-[15px] font-medium text-text-2">/ {state.totalSessions}</span></>}
-            foot={`${fmtNum(pace, 1)} par semaine (4 sem.)`}
-            detail={`${planned.length} prévues d’ici juin`}
+            label="Régularité"
+            value={<><Num value={pace} digits={1} /><span className="ml-1 text-[15px] font-medium text-text-2">/ sem.</span></>}
+            foot="4 dernières semaines"
+            detail={`Plan : ${perWeek} par semaine`}
             onClick={() => navigate('progres/seances')}
           >
-            <ProgressBar value={state.workouts.length / state.totalSessions} className="mt-2" label="Séances réalisées" tone="text" />
+            <ProgressBar value={pace / Math.max(1, perWeek)} className="mt-2" label="Séances par semaine par rapport au plan" tone={pace >= perWeek - 0.25 ? 'good' : 'text'} />
           </Tile>
           <Tile
             label="Force"
@@ -192,6 +232,9 @@ export function Home() {
       <Reminders
         items={[
           ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: 'Programme', to: 'plus/programme' })),
+          ...(cal.status === 'lower' || cal.status === 'raise'
+            ? [{ icon: <Apple size={18} aria-hidden />, text: `${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, action: 'Voir', to: 'plus/nutrition' }]
+            : []),
           ...(ws.daysSinceLast === null || ws.daysSinceLast >= 2
             ? [{ icon: <Scale size={18} aria-hidden />, text: ws.daysSinceLast === null ? 'Aucune pesée : la moyenne sur 7 jours guide tes calories.' : `Dernière pesée il y a ${ws.daysSinceLast} jours. Pèse-toi chaque matin, à jeun.`, action: 'Peser', to: 'progres/corps/mesure' }]
             : []),
@@ -206,6 +249,8 @@ export function Home() {
             : []),
         ]}
       />
+      {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
+      {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
     </Screen>
   )
 }

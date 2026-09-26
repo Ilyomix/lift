@@ -5,14 +5,14 @@ import { plural } from '../lib/format'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
   calendarMonth, contextAt, GOAL_DATE, milestones, PERIODS, periodRangeLabel, PHASES, prescribe, projectSessions, reentryForGap, TYPE_META,
-  gapSinceLastSession,
+  gapSinceLastSession, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
 import { PhaseTrack } from '../components/Program'
-import { Button, Card, cx, Eyebrow, Header, inputClass, Screen, Section, Sheet, Tag, Toggle } from '../components/ui'
+import { Button, Card, cx, DateInput, Eyebrow, Header, inputClass, Screen, Section, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
 
 export function CalendarScreen() {
   const state = useStore((s) => s.state)
@@ -24,14 +24,14 @@ export function CalendarScreen() {
   const weeks = useMemo(() => calendarMonth(state, month, planned, today), [state, month, planned, today])
   const [y, m] = month.split('-').map(Number)
   const next = milestones(today).slice(0, 5)
-  const plannedTotal = state.workouts.length + planned.length
+  const plan = useMemo(() => sessionPlan(state, today), [state, today])
 
   return (
     <Screen>
       <Header
-        eyebrow={`${plural(planned.length, 'séance prévue', 'séances prévues')} d’ici le 30 juin`}
+        eyebrow={`${plural(plan.planned, 'séance prévue', 'séances prévues')} d’ici le ${fmtDate(GOAL_DATE, { long: true })}`}
         title="Calendrier"
-        sub={`${state.workouts.length} faites + ${planned.length} prévues = ${plannedTotal} / ${state.totalSessions}. Une séance manquée décale la rotation, elle n’est jamais sautée.`}
+        sub={`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`}
       />
 
       <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ export function PauseScreen() {
 
   return (
     <Screen>
-      <Header backTo="plus" eyebrow="Système de pause" title={p.active ? 'Programme en pause' : 'Mettre en pause'} sub="Vacances, maladie, blessure : le calendrier reste calé sur le 30 juin, et la reprise est adaptée à la durée de l’arrêt." />
+      <Header backTo="plus" eyebrow="Système de pause" title={p.active ? 'Programme en pause' : 'Mettre en pause'} sub={`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`} />
       {p.active ? (
         <>
           <Card className="p-4">
@@ -250,8 +250,18 @@ export function PauseScreen() {
             </div>
           </Section>
           <Section title="Dernier jour de pause (optionnel)">
-            <input type="date" className={inputClass} min={today} max={GOAL_DATE} value={end} onChange={(e) => setEnd(e.target.value)} />
-            {plannedGap !== null && <p className="mt-2 text-[13px] text-text-2">{reentryForGap(plannedGap)?.advice ?? 'Moins d’une semaine : reprise normale.'}</p>}
+            <DateInput label="Dernier jour de pause" value={end} min={today} max={GOAL_DATE} onChange={setEnd} placeholder="Sans date de reprise" clearable />
+            <div className="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4">
+              {[3, 7, 14, 21].map((n) => {
+                const d = addDays(today, n - 1)
+                return (
+                  <button key={n} type="button" aria-pressed={end === d} onClick={() => setEnd(d)} className={cx('pressable h-9 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold', end === d ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
+                    {n < 7 ? `${n} jours` : n === 7 ? '1 semaine' : `${n / 7} semaines`}
+                  </button>
+                )
+              })}
+            </div>
+            {plannedGap !== null && <p className="mt-2 text-[13px] text-text-2">Reprise le {fmtDate(addDays(end, 1), { weekday: true, long: true })}. {reentryForGap(plannedGap)?.advice ?? 'Moins d’une semaine : reprise normale.'}</p>}
           </Section>
           <Section title="Note">
             <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex. : épaule gauche à surveiller" />
@@ -299,17 +309,17 @@ export function RemindersScreen() {
         <Toggle label="Tour de taille" hint="Un dimanche sur deux" checked={o.waist} onChange={set('waist')} />
         <Toggle label="Photos" hint="Toutes les 4 semaines" checked={o.photos} onChange={set('photos')} />
         <Toggle label="Semaines de décharge" hint="Alerte la veille" checked={o.deloads} onChange={set('deloads')} />
-        <Toggle label="Phases et objectif" hint="Début du programme, sèche, stabilisation, 30 juin" checked={o.phases} onChange={set('phases')} />
+        <Toggle label="Phases et objectif" hint={`Début du programme, sèche, fêtes, stabilisation, ${fmtDate(GOAL_DATE, { long: true })}`} checked={o.phases} onChange={set('phases')} />
       </Card>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="mb-1.5 block text-[13px] font-medium text-text-2">Heure des séances</span>
-          <input type="time" className={inputClass} value={state.prefs.trainingTime} onChange={(e) => setPrefs({ trainingTime: e.target.value })} />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[13px] font-medium text-text-2">Heure de la pesée</span>
-          <input type="time" className={inputClass} value={state.prefs.weighInTime} onChange={(e) => setPrefs({ weighInTime: e.target.value })} />
-        </label>
+        <div className="min-w-0">
+          <p className="mb-1.5 text-[13px] font-medium text-text-2">Heure des séances</p>
+          <TimeInput label="Heure des séances" value={state.prefs.trainingTime} onChange={(v) => setPrefs({ trainingTime: v })} />
+        </div>
+        <div className="min-w-0">
+          <p className="mb-1.5 text-[13px] font-medium text-text-2">Heure de la pesée</p>
+          <TimeInput label="Heure de la pesée" value={state.prefs.weighInTime} onChange={(v) => setPrefs({ weighInTime: v })} />
+        </div>
       </div>
       <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile('golgoth-rappels.ics', ics, 'text/calendar')}>
         Ajouter {plural(n, 'rappel', 'rappels')}
@@ -320,7 +330,7 @@ export function RemindersScreen() {
           <li><span className="font-semibold text-text">2.</span> Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.</li>
           <li><span className="font-semibold text-text">3.</span> Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.</li>
         </ol>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">Le minuteur de repos sonne dans l’app (écran gardé allumé pendant la séance). Une web app iOS ne peut pas se réveiller seule quand le téléphone est verrouillé : c’est la limite du web, pas un réglage.</p>
+        <p className="mt-3 text-[12px] leading-[1.45] text-muted">La fin de repos écran verrouillé passe par les notifications du serveur Golgoth : Plus → Réglages → Minuteur de repos.</p>
       </Section>
       <Eyebrow className="mt-8">Semaines de décharge</Eyebrow>
       <p className="mt-1 text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload').map((p) => fmtDate(p.start)).join(' · ')}</p>

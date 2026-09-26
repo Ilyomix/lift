@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Check, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Check, Clock, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
+import { capitalize, fmtDate } from '../lib/date'
 import { back } from '../lib/router'
 import { useStore } from '../lib/store'
 
@@ -228,7 +229,55 @@ export function Field({ label, hint, children, className }: { label: ReactNode; 
 }
 
 export const inputClass =
-  'h-12 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[16px] text-text tnum placeholder:text-muted/70 focus:border-signal focus:outline-none'
+  'h-12 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-3 text-[16px] text-text tnum placeholder:text-muted/70 focus:border-signal focus:outline-none'
+
+/**
+ * Date field: the value is written in French whatever the phone's region, the
+ * native iOS picker opens on tap (transparent input on top), and out-of-range
+ * picks are clamped instead of accepted.
+ */
+export function DateInput({
+  value, onChange, min, max, placeholder = 'Choisir une date', label, className, clearable,
+}: { value: string; onChange: (v: string) => void; min?: string; max?: string; placeholder?: string; label: string; className?: string; clearable?: boolean }) {
+  const text = value ? capitalize(fmtDate(value, { weekday: true, long: true, year: true })) : placeholder
+  return (
+    <div className={cx('relative flex h-12 w-full min-w-0 items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3 focus-within:border-signal', className)}>
+      <CalendarDays size={18} className="shrink-0 text-muted" aria-hidden />
+      <span className={cx('min-w-0 flex-1 truncate text-[16px]', value ? 'text-text' : 'text-muted/80')} aria-hidden>{text}</span>
+      <input
+        type="date"
+        aria-label={label}
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => {
+          let v = e.target.value
+          if (!v) return clearable ? onChange('') : undefined
+          if (min && v < min) v = min
+          if (max && v > max) v = max
+          onChange(v)
+        }}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+      {clearable && value && (
+        <button type="button" onClick={() => onChange('')} aria-label="Effacer la date" className="pressable relative z-10 -mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
+          <X size={16} aria-hidden />
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Time field with the same treatment: readable value, native picker, full width. */
+export function TimeInput({ value, onChange, label, className }: { value: string; onChange: (v: string) => void; label: string; className?: string }) {
+  return (
+    <div className={cx('relative flex h-12 w-full min-w-0 items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3 focus-within:border-signal', className)}>
+      <Clock size={18} className="shrink-0 text-muted" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[16px] tnum" aria-hidden>{value ? value.replace(':', ' h ') : '—'}</span>
+      <input type="time" aria-label={label} value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+    </div>
+  )
+}
 
 export function ProgressBar({ value, className, tone = 'signal', label }: { value: number; className?: string; tone?: 'signal' | 'text' | 'good'; label?: string }) {
   const v = Math.max(0, Math.min(1, value))
@@ -321,7 +370,7 @@ export function Toaster() {
   useEffect(() => {
     if (!toast) return
     if (ref.current) window.clearTimeout(ref.current)
-    ref.current = window.setTimeout(() => useStore.setState({ toast: null }), 2800)
+    ref.current = window.setTimeout(() => useStore.setState({ toast: null }), toast.action ? 5000 : 2800)
   }, [toast])
   if (!toast) return null
   return (
@@ -334,8 +383,13 @@ export function Toaster() {
           toast.tone === 'bad' ? 'border-bad-mark/50' : toast.tone === 'good' ? 'border-good-mark/50' : 'border-line',
         )}
       >
-        {toast.tone === 'good' && <Check size={16} className="text-good" aria-hidden />}
-        {toast.message}
+        {toast.tone === 'good' && <Check size={16} className="shrink-0 text-good" aria-hidden />}
+        <span className="min-w-0 flex-1">{toast.message}</span>
+        {toast.action && (
+          <button type="button" onClick={() => { toast.action!.run(); useStore.setState({ toast: null }) }} className="pressable -my-1 shrink-0 rounded-[8px] px-2 py-1 text-[14px] font-semibold text-signal-text hover:bg-surface-2">
+            {toast.action.label}
+          </button>
+        )}
       </div>
     </div>
   )

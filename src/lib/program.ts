@@ -1,6 +1,7 @@
 // The research-based program (report of 26 Sept 2026) and its calendar engine.
 import { addDays, diffDays, mondayOf, todayISO, weekday, isoFromTimestamp, fmtDate } from './date'
 import { fmtLoad, roundTo } from './format'
+import { loadAt } from './gyms'
 import { LIBRARY } from './library'
 import type {
   AppState, ISODate, Prescription, ReentryInfo, Template, TemplateExercise, Workout, WorkoutType,
@@ -10,7 +11,12 @@ export const PROGRAM_ID = 'golgoth-research-2026'
 export const PROGRAM_REVISION = 3
 export const FOUNDATION_START: ISODate = '2026-08-10'
 export const PROGRAM_START: ISODate = '2026-09-28'
-export const GOAL_DATE: ISODate = '2027-06-30'
+/** Goal date of the research report. The user can move it: the plan is rebuilt around the new date. */
+export const DEFAULT_GOAL: ISODate = '2027-06-30'
+/** Length of the cut in the report (4 Jan → 13 Jun 2027), deload weeks included. */
+export const CUT_WEEKS = 23
+/** Shortest plan accepted, counted from the program start. */
+export const MIN_PLAN_WEEKS = 8
 export const TOTAL_SESSIONS = 220
 export const ROTATION: WorkoutType[] = ['UPPER', 'LOWER', 'PUSH', 'PULL', 'LEGS']
 
@@ -69,21 +75,148 @@ export interface Period {
   fixedRir?: string
 }
 
-export const PERIODS: Period[] = [
-  { id: 'fondation', label: 'Fondation', short: 'F', kind: 'pre', phase: 'foundation', start: FOUNDATION_START, end: '2026-09-27', note: 'Ancien programme : 26 séances, baselines et technique.' },
-  { id: 'b1', label: 'Bloc 1', short: 'B1', kind: 'block', phase: 'recomp', start: '2026-09-28', end: '2026-11-01', note: 'Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.' },
-  { id: 'd1', label: 'Décharge', short: 'D', kind: 'deload', phase: 'recomp', start: '2026-11-02', end: '2026-11-08', note: 'Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.' },
-  { id: 'b2', label: 'Bloc 2', short: 'B2', kind: 'block', phase: 'recomp', start: '2026-11-09', end: '2026-12-20', priorityFromWeek: 3, note: '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.' },
-  { id: 'fetes', label: 'Fêtes', short: 'F', kind: 'holiday', phase: 'maintenance', start: '2026-12-21', end: '2027-01-03', volumeFactor: 0.67, note: '3–4 séances à volume réduit. Une pause ici suit la règle de reprise.' },
-  { id: 'b3', label: 'Bloc 3', short: 'B3', kind: 'block', phase: 'cut', start: '2027-01-04', end: '2027-02-07', priorityFromWeek: 1, calves: true, note: 'Début de la sèche. Volume du bloc 2 maintenu, mollets à 8 séries.' },
-  { id: 'd3', label: 'Décharge', short: 'D', kind: 'deload', phase: 'cut', start: '2027-02-08', end: '2027-02-14', note: 'Moitié des séries, déficit maintenu.' },
-  { id: 'b4', label: 'Bloc 4', short: 'B4', kind: 'block', phase: 'cut', start: '2027-02-15', end: '2027-03-21', priorityFromWeek: 1, calves: true, note: 'Garder les charges : c’est le signal principal de préservation musculaire.' },
-  { id: 'd4', label: 'Décharge + pause diététique', short: 'D', kind: 'deload', phase: 'diet-break', start: '2027-03-22', end: '2027-03-28', note: 'Calories à maintenance, moitié des séries.' },
-  { id: 'b5', label: 'Bloc 5', short: 'B5', kind: 'block', phase: 'cut', start: '2027-03-29', end: '2027-05-02', priorityFromWeek: 1, calves: true, note: 'Si la récupération baisse : −20 % de volume, intensité maintenue.' },
-  { id: 'd5', label: 'Décharge', short: 'D', kind: 'deload', phase: 'cut', start: '2027-05-03', end: '2027-05-09', note: 'Moitié des séries.' },
-  { id: 'b6', label: 'Bloc 6', short: 'B6', kind: 'block', phase: 'cut-end', start: '2027-05-10', end: '2027-06-13', priorityFromWeek: 1, calves: true, volumeFactor: 0.8, fixedRir: '1–2', note: 'Volume ~80 % du bloc 5, RIR 1–2.' },
-  { id: 'stab', label: 'Stabilisation', short: 'S', kind: 'stabilization', phase: 'stabilization', start: '2027-06-14', end: GOAL_DATE, calves: true, volumeFactor: 0.7, fixedRir: '1–2', note: 'Volume −30 %, charges maintenues.' },
-]
+// ───────────────────────── Plan generator ─────────────────────────
+// The calendar is rebuilt from the goal date with the report's rules: a ~2.5-week
+// stabilization ends on the goal, a 23-week cut precedes it, and the recomposition
+// fills the time left since the program start. Blocks last about five weeks and are
+// followed by a deload week, except the last block of a run (holidays, the next phase
+// or the stabilization take that role). Christmas weeks become a maintenance period.
+
+export interface Chunk {
+  weeks: number
+  deload: boolean
+}
+
+export function layBlocks(weeks: number): Chunk[] {
+  if (weeks <= 0) return []
+  const k = Math.max(1, Math.round(weeks / 6))
+  const build = weeks - (k - 1)
+  const base = Math.floor(build / k)
+  const extra = build - base * k
+  return Array.from({ length: k }, (_, i) => ({ weeks: base + (i >= k - extra ? 1 : 0), deload: i < k - 1 }))
+}
+
+function christmasWindows(from: ISODate, to: ISODate): { start: ISODate; end: ISODate }[] {
+  const out: { start: ISODate; end: ISODate }[] = []
+  for (let y = Number(from.slice(0, 4)) - 1; y <= Number(to.slice(0, 4)); y++) {
+    const start = mondayOf(`${y}-12-24`)
+    const end = addDays(mondayOf(`${y + 1}-01-01`), 6)
+    if (end >= from && start <= to) out.push({ start: start < from ? from : start, end: end > to ? to : end })
+  }
+  return out
+}
+
+export interface PlanShape {
+  recompWeeks: number
+  cutWeeks: number
+  cutStart: ISODate
+  stabStart: ISODate
+  shortCut: boolean
+}
+
+export function planShape(goal: ISODate): PlanShape {
+  let stabStart = mondayOf(addDays(goal, -16))
+  if (stabStart <= PROGRAM_START) stabStart = addDays(PROGRAM_START, 7)
+  const available = Math.max(0, Math.round(diffDays(PROGRAM_START, stabStart) / 7))
+  const cutWeeks = Math.min(CUT_WEEKS, available)
+  const recompWeeks = available - cutWeeks
+  return { recompWeeks, cutWeeks, cutStart: addDays(PROGRAM_START, recompWeeks * 7), stabStart, shortCut: cutWeeks < CUT_WEEKS }
+}
+
+export function buildPeriods(goal: ISODate): Period[] {
+  const shape = planShape(goal)
+  const out: Period[] = [
+    { id: 'fondation', label: 'Fondation', short: 'F', kind: 'pre', phase: 'foundation', start: FOUNDATION_START, end: addDays(PROGRAM_START, -1), note: 'Ancien programme : baselines et technique.' },
+  ]
+  let n = 0
+  const segment = (start: ISODate, weeks: number, phase: PhaseId) => {
+    let d = start
+    for (const c of layBlocks(weeks)) {
+      n++
+      out.push({ id: `b${n}`, label: `Bloc ${n}`, short: `B${n}`, kind: 'block', phase, start: d, end: addDays(d, c.weeks * 7 - 1), note: '' })
+      d = addDays(d, c.weeks * 7)
+      if (c.deload) {
+        out.push({ id: `d${n}`, label: 'Décharge', short: 'D', kind: 'deload', phase, start: d, end: addDays(d, 6), note: '' })
+        d = addDays(d, 7)
+      }
+    }
+  }
+  const phase = (start: ISODate, weeks: number, id: PhaseId) => {
+    if (weeks <= 0) return
+    const end = addDays(start, weeks * 7 - 1)
+    let cursor = start
+    for (const w of christmasWindows(start, end)) {
+      if (w.start > cursor) segment(cursor, Math.round(diffDays(cursor, w.start) / 7), id)
+      out.push({ id: `fetes-${w.start.slice(0, 4)}`, label: 'Fêtes', short: 'F', kind: 'holiday', phase: 'maintenance', start: w.start, end: w.end, volumeFactor: 0.67, note: '3–4 séances à volume réduit. Une pause ici suit la règle de reprise.' })
+      cursor = addDays(w.end, 1)
+    }
+    if (cursor <= end) segment(cursor, Math.round((diffDays(cursor, end) + 1) / 7), id)
+  }
+  phase(PROGRAM_START, shape.recompWeeks, 'recomp')
+  phase(shape.cutStart, shape.cutWeeks, 'cut')
+  out.push({ id: 'stab', label: 'Stabilisation', short: 'S', kind: 'stabilization', phase: 'stabilization', start: shape.stabStart, end: goal, calves: true, volumeFactor: 0.7, fixedRir: '1–2', note: 'Volume −30 %, charges maintenues.' })
+
+  const recomp = out.filter((p) => p.kind === 'block' && p.phase === 'recomp')
+  recomp.forEach((p, i) => {
+    if (i === 0) p.note = 'Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.'
+    else {
+      p.priorityFromWeek = 3
+      p.note = '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.'
+    }
+  })
+  const cut = out.filter((p) => p.kind === 'block' && p.phase === 'cut')
+  cut.forEach((p, i) => {
+    p.priorityFromWeek = 1
+    p.calves = true
+    p.note = i === 0
+      ? 'Début de la sèche. Volume du bloc précédent maintenu, mollets à 8 séries.'
+      : i === 1
+        ? 'Garder les charges : c’est le signal principal de préservation musculaire.'
+        : 'Si la récupération baisse : −20 % de volume, intensité maintenue.'
+  })
+  const last = cut[cut.length - 1]
+  if (last && cut.length > 1) {
+    last.phase = 'cut-end'
+    last.volumeFactor = 0.8
+    last.fixedRir = '1–2'
+    last.note = 'Volume ~80 % du bloc précédent, RIR 1–2.'
+  }
+  for (const p of out) {
+    if (p.kind !== 'deload') continue
+    p.note = p.phase === 'recomp' ? 'Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.' : 'Moitié des séries, déficit maintenu.'
+  }
+  const cutDeloads = out.filter((p) => p.kind === 'deload' && p.phase === 'cut')
+  if (cut.length && cutDeloads.length) {
+    const mid = diffDays(cut[0].start, (last ?? cut[0]).end) / 2
+    const pick = cutDeloads.reduce((a, b) => (Math.abs(diffDays(cut[0].start, b.start) - mid) < Math.abs(diffDays(cut[0].start, a.start) - mid) ? b : a))
+    pick.phase = 'diet-break'
+    pick.label = 'Décharge + pause diététique'
+    pick.note = 'Calories à maintenance, moitié des séries.'
+  }
+  return out
+}
+
+export function isValidGoal(goal: unknown): goal is ISODate {
+  return typeof goal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal) && goal >= addDays(PROGRAM_START, MIN_PLAN_WEEKS * 7) && goal <= '2030-12-31'
+}
+
+// Live plan: rebuilt when the goal date changes (ES module live bindings).
+export let GOAL_DATE: ISODate = DEFAULT_GOAL
+export let PERIODS: Period[] = buildPeriods(DEFAULT_GOAL)
+let MANUAL_DELOAD: { start: ISODate; end: ISODate } | null = null
+
+export function configurePlan(goal: ISODate | null | undefined, manualDeload: { start: ISODate; end: ISODate } | null = null): void {
+  const g = isValidGoal(goal) ? goal : DEFAULT_GOAL
+  if (g !== GOAL_DATE) {
+    GOAL_DATE = g
+    PERIODS = buildPeriods(g)
+  }
+  MANUAL_DELOAD = manualDeload
+}
+
+export function manualDeloadAt(date: ISODate): boolean {
+  return !!MANUAL_DELOAD && date >= MANUAL_DELOAD.start && date <= MANUAL_DELOAD.end
+}
 
 export function periodAt(date: ISODate): Period | null {
   return PERIODS.find((p) => date >= p.start && date <= p.end) ?? null
@@ -130,6 +263,12 @@ export function contextAt(date: ISODate): ProgramContext {
   if (period.kind === 'block') title = `${period.label} · S${week}`
   if (period.kind === 'holiday' || period.kind === 'stabilization') title = `${period.label} · S${week}/${weeks}`
   const effort = weekEffort(period, week)
+  if (manualDeloadAt(date) && period.kind !== 'deload') {
+    return {
+      date, period, phase, week, weeks, deload: true, title: 'Décharge anticipée',
+      effort: 'RIR 3–4 · séries ÷ 2', effortDetail: 'Décharge avancée après une baisse générale des performances.', before: false, after: false,
+    }
+  }
   return {
     date, period, phase, week, weeks, deload: period.kind === 'deload', title,
     effort: effort.short, effortDetail: effort.detail, before: false, after: false,
@@ -141,7 +280,7 @@ function weekEffort(p: Period, week: number): { short: string; detail: string } 
   if (p.kind === 'holiday') return { short: 'RIR 2–3 · volume réduit', detail: '3–4 séances à volume réduit pendant les fêtes.' }
   if (p.kind === 'stabilization') return { short: 'RIR 1–2 · volume −30 %', detail: 'Charges maintenues, volume réduit de 30 %.' }
   if (p.kind === 'pre') return { short: 'Baselines', detail: 'Ancien programme.' }
-  if (p.fixedRir) return { short: `RIR ${p.fixedRir} · volume 80 %`, detail: 'Fin de sèche : volume ~80 % du bloc 5.' }
+  if (p.fixedRir) return { short: `RIR ${p.fixedRir} · volume 80 %`, detail: 'Fin de sèche : volume ~80 % du bloc précédent.' }
   const weeks = periodWeeks(p)
   if (week === 1) return { short: 'RIR 3 · réintroduction', detail: 'Semaine 1 du bloc : on garde 3 répétitions en réserve.' }
   if (week === 2) return { short: 'RIR 2', detail: 'Semaine 2 : 2 répétitions en réserve.' }
@@ -153,8 +292,8 @@ function weekEffort(p: Period, week: number): { short: string; detail: string } 
 export function effortFor(ex: TemplateExercise, ctx: ProgramContext): string {
   const base = ex.target.rir ?? (ex.role === 'compound' ? '1–2' : '0–1')
   const p = ctx.period
+  if (ctx.deload) return '3–4'
   if (!p || p.kind === 'pre') return base
-  if (p.kind === 'deload') return '3–4'
   if (p.kind === 'holiday') return '2–3'
   if (p.fixedRir) return p.fixedRir
   if (ctx.week === 1) return '3'
@@ -169,8 +308,19 @@ export function incrementFor(ex: { exerciseId: string; unit: TemplateExercise['u
   return ex.unit === 'kg/main' ? 2 : ex.unit === 'PDC' ? 0 : 2.5
 }
 
-/** Sets, reps, effort and load for one exercise on a given date, all program rules applied. */
-export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null): Prescription {
+/** An automatic set change stays active until the end of the period in which it was made. */
+export function autoAdjustActive(ex: Pick<TemplateExercise, 'autoAdjust'>, date: ISODate): boolean {
+  const a = ex.autoAdjust
+  if (!a || date < a.since) return false
+  const p = periodAt(a.since)
+  return !!p && date <= p.end
+}
+
+/**
+ * Sets, reps, effort and load for one exercise on a given date, all program rules applied.
+ * With a gym, the load is the one of that gym (machines differ between gyms).
+ */
+export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null, gymId?: string): Prescription {
   const ctx = contextAt(date)
   const p = ctx.period
   const notes: string[] = []
@@ -182,6 +332,10 @@ export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryI
   if (p?.calves && ex.volumeTag === 'calves') {
     sets += 1
     notes.push('+1 série (mollets à 8/semaine)')
+  }
+  if (autoAdjustActive(ex, date) && ex.autoAdjust) {
+    sets = Math.max(1, sets + ex.autoAdjust.sets)
+    notes.push(`${ex.autoAdjust.sets > 0 ? '+' : '−'}${Math.abs(ex.autoAdjust.sets)} série (${ex.autoAdjust.reason})`)
   }
   if (p?.volumeFactor) sets = Math.max(1, Math.round(sets * p.volumeFactor))
   let loadFactor = 1
@@ -198,12 +352,13 @@ export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryI
     notes.push(reentry.label)
   }
   const inc = incrementFor(ex)
+  const base = gymId === undefined ? (ex.target.weight ?? null) : loadAt(ex, gymId)
   const weight =
-    ex.target.weight === null || ex.target.weight === undefined
+    base === null
       ? null
       : loadFactor < 1 && inc > 0
-        ? Math.max(inc, roundTo(ex.target.weight * loadFactor, inc))
-        : ex.target.weight
+        ? Math.max(inc, roundTo(base * loadFactor, inc))
+        : base
   return {
     sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir,
     restSeconds: ex.target.restSeconds, weight, loadFactor, notes,
@@ -325,6 +480,12 @@ export function buildResearchTemplates(
 
 // ───────────────────────── Calendar engine ─────────────────────────
 
+/** Weekdays with a session (0 = Sunday), from the weekly schedule. */
+export function trainingDays(state: Pick<AppState, 'schedule'>): number[] {
+  const days = [0, 1, 2, 3, 4, 5, 6].filter((d) => !!state.schedule[d])
+  return days.length ? days : [0, 1, 2, 3, 4, 5, 6].filter((d) => !!DEFAULT_SCHEDULE[d])
+}
+
 export function nextInRotation(t: WorkoutType): WorkoutType {
   return ROTATION[(ROTATION.indexOf(t) + 1) % ROTATION.length]
 }
@@ -360,7 +521,7 @@ export interface PlannedSession {
 export function projectSessions(state: AppState, to: ISODate = GOAL_DATE, from: ISODate = todayISO()): PlannedSession[] {
   const out: PlannedSession[] = []
   let start = from < PROGRAM_START ? PROGRAM_START : from
-  if (state.workouts.some((w) => w.date === start)) start = addDays(start, 1)
+  if (state.workouts.some((w) => w.date === start) || state.activeWorkout?.date === start) start = addDays(start, 1)
   let tentative = false
   const pause = state.programPause
   if (pause.active) {
@@ -450,14 +611,58 @@ export interface Milestone {
 
 export function milestones(from: ISODate = todayISO()): Milestone[] {
   const out: Milestone[] = []
+  const firstBlock = PERIODS.find((p) => p.kind === 'block')
+  const firstCut = PERIODS.find((p) => p.kind === 'block' && (p.phase === 'cut' || p.phase === 'cut-end'))
   for (const p of PERIODS) {
     if (p.start < from || p.kind === 'pre') continue
-    const phaseChange = PERIODS.find((q) => q.end === addDays(p.start, -1))?.phase !== p.phase
-    const title = p.id === 'b3' ? 'Début de la sèche' : p.id === 'b1' ? 'Début du programme' : p.label
-    out.push({ date: p.start, title, detail: p.note, kind: phaseChange && p.id !== 'd4' ? 'phase' : p.kind })
+    const title = p === firstBlock ? 'Début du programme' : p === firstCut ? 'Début de la sèche' : p.label
+    const milestone = p === firstBlock || p === firstCut || p.kind === 'stabilization' || p.kind === 'holiday'
+    out.push({ date: p.start, title, detail: p.note, kind: milestone ? 'phase' : p.kind })
   }
   if (GOAL_DATE >= from) out.push({ date: GOAL_DATE, title: 'Objectif Summer body', detail: 'Fin du programme.', kind: 'goal' })
   return out
+}
+
+/** Periods that deserve a calendar alert: program start, cut start, holidays, stabilization. */
+export function keyPeriods(): { period: Period; title: string }[] {
+  const firstBlock = PERIODS.find((p) => p.kind === 'block')
+  const firstCut = PERIODS.find((p) => p.kind === 'block' && (p.phase === 'cut' || p.phase === 'cut-end'))
+  return PERIODS.filter((p) => p === firstBlock || p === firstCut || p.kind === 'holiday' || p.kind === 'stabilization').map((p) => ({
+    period: p,
+    title: p === firstBlock ? 'Début du programme' : p === firstCut ? 'Début de la sèche' : p.label,
+  }))
+}
+
+// ───────────────────────── Sessions to the goal ─────────────────────────
+
+export interface PlanSegment {
+  id: string
+  label: string
+  kind: PeriodKind
+  phase: PhaseId
+  done: number
+  planned: number
+}
+
+export interface SessionPlan {
+  done: number
+  planned: number
+  total: number
+  segments: PlanSegment[]
+}
+
+/** Sessions done since the start plus the sessions planned until the goal date, grouped by period. */
+export function sessionPlan(state: AppState, today: ISODate = todayISO()): SessionPlan {
+  const planned = projectSessions(state, GOAL_DATE, today)
+  const segs = new Map<string, PlanSegment>(PERIODS.map((p) => [p.id, { id: p.id, label: p.label, kind: p.kind, phase: p.phase, done: 0, planned: 0 }]))
+  const bucket = (date: ISODate) => segs.get((periodAt(date) ?? (date < PERIODS[0].start ? PERIODS[0] : PERIODS[PERIODS.length - 1])).id)!
+  for (const w of state.workouts) bucket(w.date).done++
+  for (const p of planned) bucket(p.date).planned++
+  if (state.activeWorkout) bucket(state.activeWorkout.date).planned++
+  const segments = [...segs.values()].filter((s) => s.done + s.planned > 0)
+  const done = state.workouts.length
+  const plannedCount = planned.length + (state.activeWorkout ? 1 : 0)
+  return { done, planned: plannedCount, total: done + plannedCount, segments }
 }
 
 // ───────────────────────── Pauses & re-entry ─────────────────────────
@@ -466,12 +671,12 @@ export function milestones(from: ISODate = todayISO()): Milestone[] {
 export function reentryForGap(days: number): ReentryInfo | null {
   if (days < 7) return null
   if (days <= 13) {
-    return { sessionsLeft: 2, days, setsFactor: 1, loadFactor: 0.925, rir: '2–3', label: `Reprise après ${days} j`, advice: 'Charges −5 à −10 % et RIR 2–3 pendant 2 séances, puis retour au bloc en cours.' }
+    return { sessionsLeft: 2, days, setsFactor: 1, loadFactor: 0.925, rir: '2–3', label: `Reprise après ${days} j`, advice: 'Charges −5 à −10\u00a0% et RIR\u00a02–\u20603 pendant 2 séances, puis retour au bloc en cours.' }
   }
   if (days <= 21) {
-    return { sessionsLeft: 5, days, setsFactor: 0.7, loadFactor: 1, rir: '3', label: `Reprise après ${days} j`, advice: 'Une semaine comme une semaine 1 : RIR 3, −30 % de séries. Les gains reviennent vite.' }
+    return { sessionsLeft: 5, days, setsFactor: 0.7, loadFactor: 1, rir: '3', label: `Reprise après ${days} j`, advice: 'Une semaine comme une semaine 1 : RIR\u00a03, −30\u00a0% de séries. Les gains reviennent vite.' }
   }
-  return { sessionsLeft: 10, days, setsFactor: 0.7, loadFactor: 0.9, rir: '3', label: `Remise en route (${days} j)`, advice: 'Deux semaines de remise en route : RIR 3, −30 % de séries, charges −10 %.' }
+  return { sessionsLeft: 10, days, setsFactor: 0.7, loadFactor: 0.9, rir: '3', label: `Remise en route (${days} j)`, advice: 'Deux semaines de remise en route : RIR\u00a03, −30\u00a0% de séries, charges −10\u00a0%.' }
 }
 
 export function lastTrainingDate(state: Pick<AppState, 'workouts'>): ISODate | null {
