@@ -19,7 +19,7 @@ export const LOOKS: LookInfo[] = [
   { id: 'athletique', label: 'Athlétique', range: { m: [14, 16], f: [22, 24] }, text: 'Silhouette nette, épaules et bras dessinés, haut des abdos esquissé.' },
   { id: 'sec', label: 'Sec', range: { m: [11, 13], f: [19, 21] }, text: 'Abdos visibles en bonne lumière, veines sur les avant-bras.' },
   { id: 'taille', label: 'Taillé', range: { m: [9, 10], f: [17, 18] }, text: 'Abdos nets, obliques et séparations des épaules visibles.' },
-  { id: 'tres-sec', label: 'Très sec', range: { m: [7, 8], f: [14, 15] }, text: 'Look de shooting ou de plage, tenu quelques semaines.', note: 'Difficile à maintenir : énergie, sommeil et libido baissent. À viser pour une date, pas comme état durable.' },
+  { id: 'tres-sec', label: 'Très sec', range: { m: [7, 8], f: [14, 15] }, text: 'Look de shooting ou de plage, visé pour une date.', note: 'Se garde quelques semaines autour de la date (la stabilisation du plan), pas toute l’année : faim, énergie, sommeil et libido en pâtissent. Ensuite, on remonte vers « taillé ».' },
 ]
 
 export const lookInfo = (id: Look) => LOOKS.find((l) => l.id === id)!
