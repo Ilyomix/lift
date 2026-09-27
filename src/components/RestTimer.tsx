@@ -21,8 +21,16 @@ function useNow(active: boolean) {
   return now
 }
 
-/** Global side effects of a running session: end-of-rest alerts and keeping the screen awake. */
-export function useSessionEffects() {
+/**
+ * Global side effects of a running session: end-of-rest alerts and keeping the screen
+ * awake. A component of its own, so its 200 ms clock re-renders nothing else.
+ */
+export function SessionEffects() {
+  useSessionEffects()
+  return null
+}
+
+function useSessionEffects() {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const hasSession = useStore((s) => !!s.state.activeWorkout)
   const prefs = useStore((s) => s.state.prefs)

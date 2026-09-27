@@ -5,7 +5,7 @@ import { useRoute } from './lib/router'
 import { useStore } from './lib/store'
 import type { WorkoutType } from './lib/types'
 import { WORKOUT_TYPES } from './lib/types'
-import { RestDock, useSessionEffects } from './components/RestTimer'
+import { RestDock, SessionEffects } from './components/RestTimer'
 import { TabBar } from './components/TabBar'
 import { Button, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
@@ -69,7 +69,6 @@ export default function App() {
   const ready = useStore((s) => s.ready)
   const hasData = useStore((s) => s.hasData)
   const path = useRoute()
-  useSessionEffects()
 
   useEffect(() => {
     void useStore.getState().init()
@@ -83,6 +82,7 @@ export default function App() {
     }
   }, [])
 
+  const effects = <SessionEffects />
   if (!ready) {
     return (
       <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
@@ -94,6 +94,7 @@ export default function App() {
   if (!hasData) {
     return (
       <>
+        {effects}
         <Onboarding />
         <Toaster />
         <UpdatePrompt />
@@ -103,6 +104,7 @@ export default function App() {
 
   return (
     <>
+      {effects}
       <div className="status-scrim" aria-hidden />
       <Routes key={path.join('/')} path={path} />
       <RestDock />

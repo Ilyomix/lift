@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, CalendarDays, Check, Clock, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { capitalize, fmtDate } from '../lib/date'
+import { addMonths, capitalize, DAYS_LETTER, fmtDate, MONTHS, todayISO } from '../lib/date'
 import { back } from '../lib/router'
 import { useStore } from '../lib/store'
 
@@ -232,38 +232,112 @@ export const inputClass =
   'h-12 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-3 text-[16px] text-text tnum placeholder:text-muted/70 focus:border-signal focus:outline-none'
 
 /**
- * Date field: the value is written in French whatever the phone's region, the
- * native iOS picker opens on tap (transparent input on top), and out-of-range
- * picks are clamped instead of accepted.
+ * Date field with an in-app month calendar. The native iOS picker closed itself
+ * whenever the page reacted to a new value (a preview growing, a hint appearing),
+ * so the calendar is drawn here: French labels, Monday first, days outside the
+ * allowed range disabled, and it stays open until a day is picked.
  */
 export function DateInput({
   value, onChange, min, max, placeholder = 'Choisir une date', label, className, clearable,
 }: { value: string; onChange: (v: string) => void; min?: string; max?: string; placeholder?: string; label: string; className?: string; clearable?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [month, setMonth] = useState(() => (value || clampDate(todayISO(), min, max)).slice(0, 7))
+  const panel = useId()
+  // Follow outside changes (shortcut chips) so the calendar opens on the chosen month.
+  useEffect(() => {
+    if (value) setMonth(value.slice(0, 7))
+  }, [value])
   const text = value ? capitalize(fmtDate(value, { weekday: true, long: true, year: true })) : placeholder
   return (
-    <div className={cx('relative flex h-12 w-full min-w-0 items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3 focus-within:border-signal', className)}>
-      <CalendarDays size={18} className="shrink-0 text-muted" aria-hidden />
-      <span className={cx('min-w-0 flex-1 truncate text-[16px]', value ? 'text-text' : 'text-muted/80')} aria-hidden>{text}</span>
-      <input
-        type="date"
-        aria-label={label}
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => {
-          let v = e.target.value
-          if (!v) return clearable ? onChange('') : undefined
-          if (min && v < min) v = min
-          if (max && v > max) v = max
-          onChange(v)
-        }}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-      />
-      {clearable && value && (
-        <button type="button" onClick={() => onChange('')} aria-label="Effacer la date" className="pressable relative z-10 -mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
-          <X size={16} aria-hidden />
+    <div className={cx('w-full min-w-0', className)}>
+      <div className={cx('flex h-12 w-full min-w-0 items-center rounded-[10px] border bg-surface', open ? 'border-signal' : 'border-line-strong')}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panel}
+          aria-label={`${label} : ${value ? text : 'aucune date'}`}
+          onClick={() => setOpen(!open)}
+          className="flex h-full min-w-0 flex-1 items-center gap-2 px-3 text-left"
+        >
+          <CalendarDays size={18} className="shrink-0 text-muted" aria-hidden />
+          <span className={cx('min-w-0 flex-1 truncate text-[16px]', value ? 'text-text' : 'text-muted/80')}>{text}</span>
+          <ChevronDown size={16} className={cx('shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
+        {clearable && value && (
+          <button type="button" onClick={() => { onChange(''); setOpen(false) }} aria-label="Effacer la date" className="pressable mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
+            <X size={16} aria-hidden />
+          </button>
+        )}
+      </div>
+      {open && (
+        <MonthCalendar
+          id={panel}
+          month={month}
+          onMonth={setMonth}
+          value={value}
+          min={min}
+          max={max}
+          onPick={(d) => {
+            onChange(d)
+            setOpen(false)
+          }}
+        />
       )}
+    </div>
+  )
+}
+
+function clampDate(d: string, min?: string, max?: string): string {
+  if (min && d < min) return min
+  if (max && d > max) return max
+  return d
+}
+
+const WEEK = [1, 2, 3, 4, 5, 6, 0]
+
+function MonthCalendar({ id, month, onMonth, value, min, max, onPick }: { id: string; month: string; onMonth: (m: string) => void; value: string; min?: string; max?: string; onPick: (d: string) => void }) {
+  const [y, m] = month.split('-').map(Number)
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7
+  const count = new Date(y, m, 0).getDate()
+  const today = todayISO()
+  const prev = addMonths(month, -1)
+  const next = addMonths(month, 1)
+  const canPrev = !min || `${prev}-31` >= min
+  const canNext = !max || `${next}-01` <= max
+  const days = Array.from({ length: count }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`)
+  return (
+    <div id={id} className="overlay-enter mt-2 rounded-[12px] border border-line bg-surface p-3" role="group" aria-label={`${MONTHS[m - 1]} ${y}`}>
+      <div className="flex items-center justify-between">
+        <IconButton label="Mois précédent" disabled={!canPrev} onClick={() => onMonth(prev)} className="h-10 w-10"><ChevronLeft size={18} /></IconButton>
+        <p className="text-[15px] font-semibold capitalize">{MONTHS[m - 1]} <span className="text-text-2">{y}</span></p>
+        <IconButton label="Mois suivant" disabled={!canNext} onClick={() => onMonth(next)} className="h-10 w-10"><ChevronRight size={18} /></IconButton>
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted" aria-hidden>
+        {WEEK.map((d, i) => <span key={i}>{DAYS_LETTER[d]}</span>)}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {Array.from({ length: lead }, (_, i) => <span key={`lead-${i}`} />)}
+        {days.map((d) => {
+          const off = (!!min && d < min) || (!!max && d > max)
+          const selected = d === value
+          return (
+            <button
+              key={d}
+              type="button"
+              disabled={off}
+              aria-pressed={selected}
+              aria-label={capitalize(fmtDate(d, { weekday: true, long: true, year: true }))}
+              onClick={() => onPick(d)}
+              className={cx(
+                'pressable h-10 rounded-[8px] text-[15px] tnum disabled:pointer-events-none disabled:opacity-25',
+                selected ? 'bg-signal font-semibold text-signal-ink' : d === today ? 'font-semibold text-signal-text ring-1 ring-inset ring-line-strong' : 'hover:bg-surface-2',
+              )}
+            >
+              {Number(d.slice(8))}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -307,11 +381,18 @@ export function Empty({ icon, title, children, action }: { icon?: ReactNode; tit
 export function Sheet({ open, onClose, title, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  // The latest onClose, without re-running the focus effect: parents re-render
+  // (a clock ticking, a timer) and pass a new function each time; re-running the
+  // effect used to pull focus out of the field being edited and close pickers.
+  const close = useRef(onClose)
+  useEffect(() => {
+    close.current = onClose
+  })
   useEffect(() => {
     if (!open) return
     const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') close.current()
       if (e.key === 'Tab' && ref.current) {
         const f = ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
         if (!f.length) return
@@ -334,7 +415,7 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
       document.body.style.overflow = ''
       prev?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
