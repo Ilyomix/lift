@@ -321,7 +321,7 @@ export function RemindersScreen() {
           <TimeInput label="Heure de la pesée" value={state.prefs.weighInTime} onChange={(v) => setPrefs({ weighInTime: v })} />
         </div>
       </div>
-      <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile('golgoth-rappels.ics', ics, 'text/calendar')}>
+      <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile('lift-rappels.ics', ics, 'text/calendar')}>
         Ajouter {plural(n, 'rappel', 'rappels')}
       </Button>
       <Section title="Sur iPhone">
@@ -330,7 +330,7 @@ export function RemindersScreen() {
           <li><span className="font-semibold text-text">2.</span> Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.</li>
           <li><span className="font-semibold text-text">3.</span> Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.</li>
         </ol>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">La fin de repos écran verrouillé passe par les notifications du serveur Golgoth : Plus → Réglages → Minuteur de repos.</p>
+        <p className="mt-3 text-[12px] leading-[1.45] text-muted">La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.</p>
       </Section>
       <Eyebrow className="mt-8">Semaines de décharge</Eyebrow>
       <p className="mt-1 text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload').map((p) => fmtDate(p.start)).join(' · ')}</p>

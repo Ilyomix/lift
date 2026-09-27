@@ -17,8 +17,8 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         id: BASE,
-        name: 'Golgoth — Programme hypertrophie',
-        short_name: 'Golgoth',
+        name: 'Lift — Programme hypertrophie',
+        short_name: 'Lift',
         description:
           "Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs.",
         lang: 'fr',

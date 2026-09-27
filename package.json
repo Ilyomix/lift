@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Golgoth — programme d'hypertrophie fondé sur la recherche, en PWA.",
+  "description": "Lift — programme d'hypertrophie fondé sur la recherche, en PWA.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

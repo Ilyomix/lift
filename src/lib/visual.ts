@@ -4,7 +4,7 @@ import { addDays, todayISO } from './date'
 import { infoFor, type MuscleGroup } from './library'
 import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
 import { measureSeries, plannedWeightPath, weightStatus } from './stats'
-import type { AppState, ISODate, Look, Template, WorkoutType, Zone } from './types'
+import type { AppState, ISODate, Look, Template, TemplateExercise, WorkoutType, Zone } from './types'
 
 export interface LookInfo {
   id: Look
@@ -173,7 +173,8 @@ export function visualPlan(
 /**
  * Priority zones → one extra set on one exercise per zone and per session (the report's
  * rule, from block 2): isolation first, the zone's main muscle first. Three zones at most:
- * prioritising everything is prioritising nothing.
+ * prioritising everything is prioritising nothing. Chosen zones replace the report's V-shape
+ * priorities; the calves rule always stays, and "mollets" adds its set on top of it.
  */
 export function tagPriorities(templates: Record<WorkoutType, Template>, zones: Zone[]): Record<WorkoutType, Template> {
   const out = { ...templates }
@@ -181,38 +182,33 @@ export function tagPriorities(templates: Record<WorkoutType, Template>, zones: Z
     const tpl = templates[type]
     if (!tpl) continue
     const chosen = new Set<number>()
-    if (zones.length) {
-      for (const zone of zones) {
-        const z = ZONES.find((x) => x.id === zone)
-        if (!z) continue
-        let bestIndex = -1
-        let bestKey = Infinity
-        for (let i = 0; i < tpl.exercises.length; i++) {
-          const e = tpl.exercises[i]
-          if (chosen.has(i) || e.volumeTag === 'calves') continue
-          const info = infoFor(e.exerciseId, e)
-          const rank = z.groups.findIndex((g) => info.groups[g] === 1)
-          if (rank < 0) continue
-          const key = rank * 100 + (info.role === 'isolation' ? 0 : 50) + i
-          if (key < bestKey) {
-            bestKey = key
-            bestIndex = i
-          }
+    for (const zone of zones) {
+      const z = ZONES.find((x) => x.id === zone)
+      if (!z) continue
+      let bestIndex = -1
+      let bestKey = Infinity
+      for (let i = 0; i < tpl.exercises.length; i++) {
+        if (chosen.has(i)) continue
+        const e = tpl.exercises[i]
+        const info = infoFor(e.exerciseId, e)
+        const rank = z.groups.findIndex((g) => info.groups[g] === 1)
+        if (rank < 0) continue
+        const key = rank * 100 + (info.role === 'isolation' ? 0 : 50) + i
+        if (key < bestKey) {
+          bestKey = key
+          bestIndex = i
         }
-        if (bestIndex >= 0) chosen.add(bestIndex)
       }
-    } else {
-      // Back to the report's tags.
-      const report = new Set(PLAN[type].filter((p) => p.tag === 'priority').map((p) => p.id))
-      tpl.exercises.forEach((e, i) => report.has(e.exerciseId) && chosen.add(i))
+      if (bestIndex >= 0) chosen.add(bestIndex)
     }
+    // Without zones, back to the report's tags.
+    const report = new Set(zones.length ? [] : PLAN[type].filter((p) => p.tag === 'priority').map((p) => p.id))
     out[type] = {
       ...tpl,
       exercises: tpl.exercises.map((e, i) => {
-        if (e.volumeTag === 'calves') return e
-        if (chosen.has(i)) return { ...e, volumeTag: 'priority' as const }
-        const { volumeTag: _v, ...rest } = e
-        return rest
+        const { focus: _f, volumeTag, ...rest } = e
+        const tag = volumeTag === 'calves' ? 'calves' : report.has(e.exerciseId) ? 'priority' : undefined
+        return { ...rest, ...(tag ? { volumeTag: tag } : {}), ...(chosen.has(i) ? { focus: true } : {}) } as TemplateExercise
       }),
     }
   }

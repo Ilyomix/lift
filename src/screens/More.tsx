@@ -49,7 +49,9 @@ export function MoreScreen() {
         ))}
       </Card>
       <p className="mt-8 text-center text-[12px] leading-[1.5] text-muted">
-        Golgoth · programme fondé sur la recherche (rapport du 26 sept. 2026)
+        <span className="font-semibold text-text-2">Lift</span> · conçue par Ilyes
+        <br />
+        Programme fondé sur la recherche (rapport du 26 sept. 2026)
         <br />
         Données stockées sur cet appareil uniquement.
       </p>
@@ -216,7 +218,7 @@ export function CoachScreen() {
         <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} disabled={!last} onClick={() => last && void shareText(sessionPrompt(state, last), `Séance ${last.sessionNumber}`)}>
           {last ? `Bilan de la séance n°${last.sessionNumber}` : 'Aucune séance'}
         </Button>
-        <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), 'Bilan Golgoth')}>Bilan global du programme</Button>
+        <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), 'Bilan Lift')}>Bilan global du programme</Button>
       </div>
 
       <Section title="Réponse de Claude" action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>Coller</Button>}>
@@ -384,12 +386,12 @@ export function SettingsScreen() {
       <Section title="Installer sur l’iPhone">
         <Card className="p-4">
           {isStandalone() ? (
-            <p className="text-[14px] text-text-2">Golgoth est installée : elle fonctionne hors ligne.</p>
+            <p className="text-[14px] text-text-2">Lift est installée : elle fonctionne hors ligne.</p>
           ) : (
             <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
               <li><span className="font-semibold text-text">1.</span> Ouvre cette page dans Safari.</li>
               <li><span className="font-semibold text-text">2.</span> Touche Partager, puis « Sur l’écran d’accueil ».</li>
-              <li><span className="font-semibold text-text">3.</span> Lance Golgoth depuis l’icône : plein écran, hors ligne, notifications possibles.</li>
+              <li><span className="font-semibold text-text">3.</span> Lance Lift depuis l’icône : plein écran, hors ligne, notifications possibles.</li>
             </ol>
           )}
         </Card>
@@ -414,7 +416,7 @@ function PushRow() {
     return (
       <Row
         label="Notifications écran verrouillé"
-        hint={isIOS() && !installed ? 'Installe d’abord Golgoth sur l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Non disponibles sur ce navigateur.'}
+        hint={isIOS() && !installed ? 'Installe d’abord Lift sur l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Non disponibles sur ce navigateur.'}
       />
     )
   }
@@ -431,7 +433,7 @@ function PushRow() {
         setPrefs({ push: true })
         notify('Activées. Touche « Tester » puis verrouille le téléphone.', 'good')
       } else if (r === 'denied') {
-        notify('Notifications refusées : Réglages iOS → Notifications → Golgoth.', 'bad')
+        notify('Notifications refusées : Réglages iOS → Notifications → Lift.', 'bad')
       } else {
         notify('Notifications non disponibles ici.', 'bad')
       }
@@ -445,7 +447,7 @@ function PushRow() {
     <div>
       <Toggle
         label="Notifications écran verrouillé"
-        hint={active ? 'Fin de repos envoyée par le serveur Golgoth, même app fermée.' : 'La fin du repos arrive même téléphone verrouillé ou app en arrière-plan.'}
+        hint={active ? 'Fin de repos envoyée par le serveur Lift, même app fermée.' : 'La fin du repos arrive même téléphone verrouillé ou app en arrière-plan.'}
         checked={active || busy}
         onChange={(v) => void toggle(v)}
       />
@@ -529,7 +531,7 @@ export function DataScreen() {
   }
   const doExport = () => {
     const b = exportBackup()
-    void saveFile(`golgoth-${todayISO()}.json`, JSON.stringify(b), 'application/json')
+    void saveFile(`lift-${todayISO()}.json`, JSON.stringify(b), 'application/json')
   }
   return (
     <Screen>

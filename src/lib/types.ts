@@ -34,6 +34,8 @@ export interface TemplateExercise {
   note?: string
   /** Volume rules of the program: priority muscles gain a set from block 2, calves from block 3. */
   volumeTag?: 'priority' | 'calves'
+  /** Priority zone chosen in the visual goal: +1 set from block 2 like a priority muscle, on top of the calves rule. */
+  focus?: boolean
   /** Loads at gyms other than the first one, for machine and cable work (a machine differs from one gym to another). */
   gymLoads?: Record<string, number | null>
   /** Automatic set change (e.g. −1 after two sessions in a row with fewer reps), valid until the end of the period of `since`. */

@@ -70,7 +70,7 @@ export function Home() {
         <div className="flex min-h-11 items-center justify-between gap-2">
           <span className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
             <Dial size={24} className="rounded-[6px]" />
-            Golgoth
+            Lift
           </span>
         </div>
         <Eyebrow className="mt-1">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
@@ -247,7 +247,7 @@ export function Home() {
             ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? 'Tes données vivent sur ce téléphone. Exporte une sauvegarde.' : `Dernière sauvegarde il y a ${daysSinceBackup} jours.`, action: 'Exporter', to: 'plus/donnees' }]
             : []),
           ...(isIOS() && !isStandalone()
-            ? [{ icon: <Smartphone size={18} aria-hidden />, text: 'Installe Golgoth : Partager, puis « Sur l’écran d’accueil ».', action: 'Aide', to: 'plus/reglages' }]
+            ? [{ icon: <Smartphone size={18} aria-hidden />, text: 'Installe Lift : Partager, puis « Sur l’écran d’accueil ».', action: 'Aide', to: 'plus/reglages' }]
             : []),
         ]}
       />

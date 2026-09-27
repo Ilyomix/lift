@@ -131,6 +131,6 @@ export function testPush(delaySeconds = 8): boolean {
   const subscription = current ?? stored()
   if (!subscription) return false
   const token = `test-${Date.now().toString(36)}`
-  void post('rest', { subscription, endAt: Date.now() + delaySeconds * 1000, token, title: 'Test Golgoth', body: 'Les fins de repos arriveront comme ça, écran verrouillé.' })
+  void post('rest', { subscription, endAt: Date.now() + delaySeconds * 1000, token, title: 'Test Lift', body: 'Les fins de repos arriveront comme ça, écran verrouillé.' })
   return true
 }

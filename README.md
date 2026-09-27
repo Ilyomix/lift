@@ -1,4 +1,4 @@
-# Golgoth
+# Lift
 
 Programme d'hypertrophie fondé sur la recherche, en PWA installable sur iPhone.
 Séances guidées, calendrier des blocs calé sur une date objectif modifiable, minuteur de repos

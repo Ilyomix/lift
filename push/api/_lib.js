@@ -1,4 +1,4 @@
-// Shared helpers of the Golgoth push server.
+// Shared helpers of the Lift push server.
 import { createHash } from 'node:crypto'
 import webpush from 'web-push'
 import { getCache } from '@vercel/functions'

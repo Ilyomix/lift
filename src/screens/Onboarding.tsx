@@ -46,7 +46,7 @@ export function Onboarding() {
     <main className="screen-in mx-auto flex min-h-dvh w-full max-w-[640px] flex-col px-5 safe-top safe-bottom">
       <div className="flex flex-1 flex-col justify-center py-10">
         <Dial />
-        <h1 className="mt-8 text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Golgoth</h1>
+        <h1 className="mt-8 text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
           Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif.
         </p>

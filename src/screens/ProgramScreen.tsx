@@ -181,7 +181,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
             <button type="button" onClick={() => setEdit(i)} className="pressable min-w-0 flex-1 rounded-[8px] px-1 py-1 text-left hover:bg-surface-2">
               <span className="block text-[15px] font-medium">
                 {e.name}{' '}
-                {e.volumeTag === 'priority' && (
+                {(e.volumeTag === 'priority' || e.focus) && (
                   <span className="ml-1 inline-block border border-signal/50 bg-signal-soft px-1.5 align-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap text-signal-text">Prioritaire</span>
                 )}
               </span>
@@ -255,7 +255,7 @@ function EditSheet({ ex, onClose, onSave, onRemove }: { ex: TemplateExercise; on
         <Field label="Réglage machine / note" className="col-span-2"><textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={v.technique} onChange={set('technique')} placeholder="Ex. : siège 4, pieds repère 4–5" /></Field>
       </div>
       {ex.note && <p className="mt-3 text-[13px] text-muted">Programme : {ex.note}</p>}
-      <div className="mt-3 flex flex-wrap gap-2">{ex.volumeTag === 'priority' && <Tag tone="outline">Muscle prioritaire : +1 série dès le bloc 2</Tag>}{ex.volumeTag === 'calves' && <Tag tone="outline">Mollets : +1 série dès le bloc 3</Tag>}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{ex.focus ? <Tag tone="outline">Zone prioritaire : +1 série dès le bloc 2</Tag> : ex.volumeTag === 'priority' && <Tag tone="outline">Muscle prioritaire : +1 série dès le bloc 2</Tag>}{ex.volumeTag === 'calves' && <Tag tone="outline">Mollets : +1 série dès le bloc 3</Tag>}</div>
     </Sheet>
   )
 }

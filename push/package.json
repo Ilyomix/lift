@@ -1,7 +1,7 @@
 {
   "name": "golgoth-push",
   "private": true,
-  "description": "Push server of Golgoth: sends the end-of-rest notification at the right time, phone locked.",
+  "description": "Push server of Lift: sends the end-of-rest notification at the right time, phone locked.",
   "type": "module",
   "engines": {
     "node": "22.x"

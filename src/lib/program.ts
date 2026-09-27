@@ -348,9 +348,9 @@ export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryI
   const p = ctx.period
   const notes: string[] = []
   let sets = ex.target.sets
-  if (p && ex.volumeTag === 'priority' && p.priorityFromWeek && ctx.week >= p.priorityFromWeek) {
+  if (p && (ex.volumeTag === 'priority' || ex.focus) && p.priorityFromWeek && ctx.week >= p.priorityFromWeek) {
     sets += 1
-    notes.push('+1 série (muscle prioritaire)')
+    notes.push(ex.focus ? '+1 série (zone prioritaire)' : '+1 série (muscle prioritaire)')
   }
   if (p?.calves && ex.volumeTag === 'calves') {
     sets += 1

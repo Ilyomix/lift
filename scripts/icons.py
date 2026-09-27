@@ -1,4 +1,4 @@
-"""Generate Golgoth app icons: a mechanical dial (weight plate) with a blue progress arc on navy."""
+"""Generate Lift app icons: a mechanical dial (weight plate) with a blue progress arc on navy."""
 import math
 import os
 from PIL import Image, ImageDraw

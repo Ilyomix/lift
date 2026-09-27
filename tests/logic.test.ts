@@ -354,11 +354,20 @@ test('visual goal: waist-based body fat, target weight, cut length', async () =>
   assertTiled(buildPeriods(DEFAULT_GOAL, p.cutWeeks), DEFAULT_GOAL)
   // Zones: one exercise per zone and per session.
   const t = tagPriorities(s.templates, ['epaules', 'bras'])
-  const upper = t.UPPER.exercises.filter((e) => e.volumeTag === 'priority').map((e) => e.exerciseId)
+  const upper = t.UPPER.exercises.filter((e) => e.focus).map((e) => e.exerciseId)
   assert.deepEqual(upper, ['lateral-raise', 'triceps-overhead-rope'])
+  assert.ok(!Object.values(t).some((x) => x.exercises.some((e) => e.volumeTag === 'priority')), 'zones replace the V-shape tags')
   const back = tagPriorities(t, [])
   assert.deepEqual(back.UPPER.exercises.filter((e) => e.volumeTag === 'priority').map((e) => e.exerciseId), ['lateral-raise'], 'report tags restored')
+  assert.ok(!Object.values(back).some((x) => x.exercises.some((e) => e.focus)), 'no zone left')
   assert.ok(back.LOWER.exercises.some((e) => e.volumeTag === 'calves'), 'calves rule untouched')
+  // Calves as a zone: the extra set comes on top of the calves rule.
+  const calfPress = tagPriorities(s.templates, ['mollets']).LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!
+  assert.equal(calfPress.volumeTag, 'calves')
+  assert.equal(calfPress.focus, true)
+  configurePlan(DEFAULT_GOAL)
+  const firstCut = PERIODS().find((x) => x.kind === 'block' && x.phase === 'cut')!
+  assert.equal(prescribe(calfPress, firstCut.start, null).sets, calfPress.target.sets + 2)
 })
 
 test('visual goal: half-kilo targets, looks reached, block notes follow the zones', async () => {

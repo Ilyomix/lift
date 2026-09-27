@@ -87,7 +87,7 @@ function allDay(uid: string, start: ISODate, endInclusive: ISODate, summary: str
 export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayISO()): string {
   const from = today < PROGRAM_START ? PROGRAM_START : today
   const until = `${compact(GOAL_DATE)}T235959`
-  const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Golgoth//Programme hypertrophie//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Golgoth']
+  const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lift//Programme hypertrophie//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Lift']
   if (o.training) {
     for (let dow = 0; dow < 7; dow++) {
       const type = state.schedule[dow]
@@ -99,35 +99,35 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
         first,
         state.prefs.trainingTime,
         meta.minutes,
-        `Séance ${meta.label} · Golgoth`,
-        `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Golgoth pour la séance du jour.`,
+        `Séance ${meta.label} · Lift`,
+        `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
         `FREQ=WEEKLY;BYDAY=${BYDAY[dow]};UNTIL=${until}`,
         30,
       ))
     }
   }
   if (o.weighIn) {
-    lines.push(...timed('golgoth-weigh-in@golgoth', from, state.prefs.weighInTime, 5, 'Pesée à jeun · Golgoth', 'Même balance, au réveil, après les toilettes. La moyenne sur 7 jours guide les calories.', `FREQ=DAILY;UNTIL=${until}`, 0))
+    lines.push(...timed('golgoth-weigh-in@golgoth', from, state.prefs.weighInTime, 5, 'Pesée à jeun · Lift', 'Même balance, au réveil, après les toilettes. La moyenne sur 7 jours guide les calories.', `FREQ=DAILY;UNTIL=${until}`, 0))
   }
   if (o.waist) {
-    lines.push(...timed('golgoth-waist@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 5, 'Tour de taille · Golgoth', 'À jeun, au niveau du nombril, même point de mesure.', `FREQ=WEEKLY;INTERVAL=2;BYDAY=SU;UNTIL=${until}`, 0))
+    lines.push(...timed('golgoth-waist@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 5, 'Tour de taille · Lift', 'À jeun, au niveau du nombril, même point de mesure.', `FREQ=WEEKLY;INTERVAL=2;BYDAY=SU;UNTIL=${until}`, 0))
   }
   if (o.photos) {
-    lines.push(...timed('golgoth-photos@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 10, 'Photos de progression · Golgoth', 'Même lumière, même pose, même distance.', `FREQ=WEEKLY;INTERVAL=4;BYDAY=SU;UNTIL=${until}`, 0))
+    lines.push(...timed('golgoth-photos@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 10, 'Photos de progression · Lift', 'Même lumière, même pose, même distance.', `FREQ=WEEKLY;INTERVAL=4;BYDAY=SU;UNTIL=${until}`, 0))
   }
   for (const p of PERIODS) {
     if (p.end < from) continue
     if (o.deloads && p.kind === 'deload') {
-      lines.push(...allDay(`golgoth-${p.id}@golgoth`, p.start, p.end, `${p.label} · Golgoth`, p.note, true))
+      lines.push(...allDay(`golgoth-${p.id}@golgoth`, p.start, p.end, `${p.label} · Lift`, p.note, true))
     }
   }
   if (o.phases) {
     for (const { period: p, title } of keyPeriods()) {
       if (p.start < from) continue
-      lines.push(...allDay(`golgoth-phase-${p.id}@golgoth`, p.start, p.start, `${title} · Golgoth`, p.note, true))
+      lines.push(...allDay(`golgoth-phase-${p.id}@golgoth`, p.start, p.start, `${title} · Lift`, p.note, true))
     }
   }
-  if (o.phases) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, 'Objectif Summer body · Golgoth', 'Fin du programme.', true))
+  if (o.phases) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, 'Objectif Summer body · Lift', 'Fin du programme.', true))
   lines.push('END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }

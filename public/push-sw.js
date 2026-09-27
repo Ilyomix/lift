@@ -1,4 +1,4 @@
-/* Golgoth: end-of-rest notifications sent by the push server (loaded by the Workbox service worker). */
+/* Lift: end-of-rest notifications sent by the push server (loaded by the Workbox service worker). */
 self.addEventListener('push', (event) => {
   let data = {}
   try {

@@ -328,7 +328,7 @@ export function parseBackup(text: string): ParsedBackup {
   }
   const rawState = json?.state ?? json
   if (!rawState || typeof rawState !== 'object' || !('workouts' in rawState || 'templates' in rawState)) {
-    throw new Error('Ce fichier ne ressemble pas à une sauvegarde Golgoth.')
+    throw new Error('Ce fichier ne ressemble pas à une sauvegarde Lift (ou Golgoth).')
   }
   const state = normalizeState(rawState)
   const photos: Photo[] = (Array.isArray(json?.photos) ? json.photos : [])
