@@ -12,6 +12,15 @@ function fill(p: Period): { className: string; style?: React.CSSProperties } {
   return { className: '', style: { background: 'color-mix(in oklch, var(--text) 82%, transparent)' } }
 }
 
+/**
+ * First label that fits a span of the track, full name then short form. The track is
+ * about 360 px wide on a phone, ≈ 6.5 px per character at 11 px: a conservative estimate,
+ * so a label never spills onto its neighbour.
+ */
+function fitLabel(fraction: number, options: string[]): string | null {
+  return options.find((t) => fraction * 360 >= t.length * 6.5 + 4) ?? null
+}
+
 /** The whole program on one mechanical track (calendar time), today marked. */
 export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: string; showLabels?: boolean }) {
   const total = diffDays(FOUNDATION_START, GOAL_DATE) + 1
@@ -47,8 +56,12 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
       </div>
       {showLabels && (
         <div className="relative mt-1 h-4 w-full text-[11px] font-semibold">
-          {r && <span className="absolute truncate text-text-2" style={{ left: `${r.left * 100}%`, width: `${(r.right - r.left) * 100}%` }}>Recomposition</span>}
-          {c && <span className="absolute truncate text-text-2" style={{ left: `${c.left * 100}%`, width: `${(c.right - c.left) * 100}%` }}>Sèche</span>}
+          {([[r, ['Recomposition', 'Recomp.']], [c, ['Sèche']]] as const).map(([span, options]) => {
+            const text = span && fitLabel(span.right - span.left, [...options])
+            return span && text ? (
+              <span key={options[0]} className="absolute truncate text-text-2" style={{ left: `${span.left * 100}%`, width: `${(span.right - span.left) * 100}%` }}>{text}</span>
+            ) : null
+          })}
         </div>
       )}
     </div>
@@ -59,12 +72,13 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
 
 type Group = 'foundation' | 'recomp' | 'holiday' | 'cut' | 'stab'
 
-const GROUP_LABEL: Record<Group, string> = {
-  foundation: 'Fondation',
-  recomp: 'Recomposition',
-  holiday: 'Fêtes',
-  cut: 'Sèche',
-  stab: 'Stab.',
+/** Full name then short form, for spans too narrow for the full name. */
+const GROUP_LABEL: Record<Group, string[]> = {
+  foundation: ['Fondation'],
+  recomp: ['Recomposition', 'Recomp.'],
+  holiday: ['Fêtes'],
+  cut: ['Sèche'],
+  stab: ['Stabilisation', 'Stab.'],
 }
 
 function groupOf(kind: Period['kind'], phase: PhaseId): Group {
@@ -138,15 +152,15 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
       <div className="relative mt-1.5 h-4 w-full">
         {labels.map((l) => {
           const w = (l.end - l.x) / width
-          // Only labels that fit their segment (≈ 6.5 px per character on a phone-wide track).
-          if (w * 360 < GROUP_LABEL[l.group].length * 6.5 + 4) return null
+          const text = fitLabel(w, GROUP_LABEL[l.group])
+          if (!text) return null
           return (
             <span
               key={l.group + l.x}
               className={cx('absolute truncate text-[11px] font-semibold', l.group === currentGroup ? 'text-text' : 'text-muted')}
               style={{ left: `${(l.x / width) * 100}%`, width: `${w * 100}%` }}
             >
-              {GROUP_LABEL[l.group]}
+              {text}
             </span>
           )
         })}

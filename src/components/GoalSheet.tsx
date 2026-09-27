@@ -3,7 +3,7 @@ import { TriangleAlert } from 'lucide-react'
 import { addDays, capitalize, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, plural } from '../lib/format'
 import {
-  buildPeriods, CUT_WEEKS, DEFAULT_GOAL, GOAL_DATE, isValidGoal, MIN_PLAN_WEEKS, planShape, PROGRAM_START, projectSessions,
+  buildPeriods, CUT_LENGTH, DEFAULT_GOAL, GOAL_DATE, isValidGoal, MIN_PLAN_WEEKS, planShape, PROGRAM_START, projectSessions,
 } from '../lib/program'
 import { plannedWeightPath, weightStatus } from '../lib/stats'
 import { useStore } from '../lib/store'
@@ -31,8 +31,8 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
   const valid = isValidGoal(draft)
   const preview = useMemo(() => {
     if (!valid) return null
-    const shape = planShape(draft)
-    const periods = buildPeriods(draft)
+    const shape = planShape(draft, CUT_LENGTH)
+    const periods = buildPeriods(draft, CUT_LENGTH)
     const planned = projectSessions(state, draft, today).length + (state.activeWorkout ? 1 : 0)
     const ws = weightStatus(state, today)
     const start = today < PROGRAM_START ? PROGRAM_START : today
@@ -89,7 +89,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
       {preview?.shape.shortCut && (
         <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
           <TriangleAlert size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-          Sèche de {preview.shape.cutWeeks} semaines au lieu de {CUT_WEEKS} : le rythme reste plafonné à −0,7 %/semaine pour garder le muscle, donc moins de gras perdu d’ici la date.
+          Sèche de {preview.shape.cutWeeks} semaines au lieu de {CUT_LENGTH} : le rythme reste plafonné à −0,7 %/semaine pour garder le muscle, donc moins de gras perdu d’ici la date.
         </p>
       )}
       {!valid && <p className="mt-3 text-[13px] text-bad">Choisis une date après le {fmtDate(min, { long: true, year: true })}.</p>}

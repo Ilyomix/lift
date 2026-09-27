@@ -14,6 +14,7 @@ import { CoachScreen, DataScreen, MoreScreen, NutritionScreen, SettingsScreen } 
 import { Dial, ImportResultSheet, Onboarding } from './screens/Onboarding'
 import { ProgramScreen, SourcesScreen, TemplateEditor } from './screens/ProgramScreen'
 import { ExerciseDetail, ProgressScreen } from './screens/Progress'
+import { VisualGoalScreen } from './screens/Goal'
 import { SessionScreen, SessionSummary, WorkoutDetail } from './screens/Session'
 
 function Routes({ path }: { path: string[] }) {
@@ -39,6 +40,7 @@ function Routes({ path }: { path: string[] }) {
         case 'pause': return <PauseScreen />
         case 'rappels': return <RemindersScreen />
         case 'reglages': return <SettingsScreen />
+        case 'objectif': return <VisualGoalScreen />
         case 'donnees': return <DataScreen />
         default: return <MoreScreen />
       }

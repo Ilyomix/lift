@@ -179,7 +179,12 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         {tpl.exercises.map((e, i) => (
           <div key={`${e.exerciseId}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
             <button type="button" onClick={() => setEdit(i)} className="pressable min-w-0 flex-1 rounded-[8px] px-1 py-1 text-left hover:bg-surface-2">
-              <span className="block text-[15px] font-medium">{e.name}</span>
+              <span className="block text-[15px] font-medium">
+                {e.name}{' '}
+                {e.volumeTag === 'priority' && (
+                  <span className="ml-1 inline-block border border-signal/50 bg-signal-soft px-1.5 align-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap text-signal-text">Prioritaire</span>
+                )}
+              </span>
               <span className="block text-[13px] text-text-2 tnum">{e.target.sets} × {e.target.minReps}–{e.target.maxReps} · RIR {e.target.rir ?? '—'} · {fmtRest(e.target.restSeconds)} · {fmtLoad(e.target.weight, e.unit)}</span>
             </button>
             <IconButton label="Monter" disabled={i === 0} onClick={() => moveTemplateExercise(type, i, -1)} className="h-9 w-9"><ArrowUp size={16} /></IconButton>

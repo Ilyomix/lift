@@ -10,7 +10,7 @@ import { imageToDataUrl } from '../lib/share'
 import {
   cutAdvice, goalWeightRange, measureSeries, movingAverage7, phaseRateLabel, plannedWeightPath, weightStatus,
 } from '../lib/stats'
-import { useStore } from '../lib/store'
+import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import {
   averageRir, exerciseHistory, plannedVolume, sessionDurationMin, sessionSetCount, setsSummary, weekVolume, weeklySessionCounts,
 } from '../lib/training'
@@ -301,7 +301,9 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
 }
 
 function Photos() {
-  const photos = useStore((s) => s.photos)
+  const all = useStore((s) => s.photos)
+  const photos = all.filter((p) => p.id !== GOAL_PHOTO_ID)
+  const hasGoal = all.length !== photos.length
   const { addPhoto, deletePhoto } = useStore.getState()
   const input = useRef<HTMLInputElement>(null)
   const [view, setView] = useState<string | null>(null)
@@ -315,7 +317,7 @@ function Photos() {
     useStore.getState().notify('Photo ajoutée. Elle reste sur ce téléphone.', 'good')
   }
   return (
-    <Section title="Photos" action={photos.length > 1 ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>Comparer</Button> : undefined}>
+    <Section title="Photos" action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>Comparer</Button> : undefined}>
       <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
@@ -339,8 +341,11 @@ function Photos() {
 }
 
 function CompareSheet({ onClose }: { onClose: () => void }) {
-  const photos = useStore((s) => s.photos)
-  const [a, setA] = useState(photos[0]?.id)
+  const all = useStore((s) => s.photos)
+  // Progress pictures first, the goal's reference picture last ("Objectif").
+  const photos = [...all.filter((p) => p.id !== GOAL_PHOTO_ID), ...all.filter((p) => p.id === GOAL_PHOTO_ID)]
+  const progress = photos.filter((p) => p.id !== GOAL_PHOTO_ID)
+  const [a, setA] = useState(progress.length > 1 ? progress[0]?.id : progress[progress.length - 1]?.id)
   const [b, setB] = useState(photos[photos.length - 1]?.id)
   const [pos, setPos] = useState(50)
   const pa = photos.find((p) => p.id === a)
@@ -351,7 +356,7 @@ function CompareSheet({ onClose }: { onClose: () => void }) {
         {[['Avant', a, setA], ['Après', b, setB]].map(([label, val, set]) => (
           <Field key={label as string} label={label as string}>
             <select className={inputClass} value={val as string} onChange={(e) => (set as (v: string) => void)(e.target.value)}>
-              {photos.map((p) => <option key={p.id} value={p.id}>{fmtDate(p.date, { year: true })}</option>)}
+              {photos.map((p) => <option key={p.id} value={p.id}>{p.id === GOAL_PHOTO_ID ? 'Objectif' : fmtDate(p.date, { year: true })}</option>)}
             </select>
           </Field>
         ))}

@@ -14,6 +14,7 @@ import { SOURCES } from '../lib/research'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone, saveFile, shareText } from '../lib/share'
 import { calorieAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
+import { lookInfo, ZONES } from '../lib/visual'
 import { useStore } from '../lib/store'
 import { Columns } from '../components/charts'
 import { RefList } from '../components/Evidence'
@@ -279,6 +280,13 @@ export function SettingsScreen() {
 
       <Section title="Objectif" className="mt-0">
         <Card className="divide-y divide-line">
+          <Row
+            label="Objectif visuel"
+            hint={state.visualGoal?.cutWeeks ? `Cible ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `zones : ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'V du programme'}` : 'Le look visé fixe le poids cible, la sèche et les zones prioritaires'}
+            value={<span className="font-medium text-text">{state.visualGoal?.cutWeeks ? lookInfo(state.visualGoal.look).label : 'À choisir'}</span>}
+            right={<ChevronRight size={16} className="text-muted" aria-hidden />}
+            onClick={() => navigate('plus/objectif')}
+          />
           <Row
             label="Date objectif"
             hint="Le plan (recomposition, sèche, stabilisation) se recalcule autour"

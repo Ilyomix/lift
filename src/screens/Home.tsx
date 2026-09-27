@@ -19,6 +19,7 @@ import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { Dial } from './Onboarding'
+import { lookInfo } from '../lib/visual'
 
 export function Home() {
   const state = useStore((s) => s.state)
@@ -192,7 +193,7 @@ export function Home() {
             label="Poids"
             value={ws.current !== null ? <><Num value={ws.current} digits={1} /><span className="ml-0.5 text-[15px] font-medium text-text-2">kg</span></> : '—'}
             foot={ws.current === null ? 'Ajoute une pesée' : ws.isAverage ? 'Moyenne 7 jours' : `Pesée ${fmtRelativeDay(ws.currentDate!, today)}`}
-            detail={goal ? `Cible ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg` : undefined}
+            detail={goal ? `Cible ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg${state.visualGoal?.cutWeeks ? ` · ${lookInfo(state.visualGoal.look).label}` : ''}` : undefined}
             chart={ma.length > 1 ? <Sparkline values={ma} /> : undefined}
             onClick={() => navigate('progres/corps')}
           />

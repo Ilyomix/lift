@@ -4,7 +4,7 @@ import {
   buildResearchTemplates, DEFAULT_GOAL, DEFAULT_SCHEDULE, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
-  AppState, Backup, BodyEntry, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
+  AppState, Backup, BodyEntry, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, VisualGoal, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
 
@@ -35,7 +35,8 @@ export function defaultState(): AppState {
     gyms: DEFAULT_GYMS.map((g) => ({ ...g })),
     gymId: HOME_GYM,
     progressRevision: 1,
-    profile: { heightCm: 0, age: 0 },
+    profile: { heightCm: 0, age: 0, sex: 'm' },
+    visualGoal: null,
     goals: { targetWeightMin: 0, targetWeightMax: 0, targetWaist: null, sessionsPerWeek: 5 },
     prefs: { theme: 'dark', accent: 'blue', autoLoad: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
     schedule: { ...DEFAULT_SCHEDULE },
@@ -109,6 +110,21 @@ function normGyms(raw: any): Gym[] {
     : []
   if (!list.some((g) => g.id === HOME_GYM)) list.unshift({ ...DEFAULT_GYMS[0] })
   return list.filter((g, i) => list.findIndex((x) => x.id === g.id) === i)
+}
+
+const LOOKS = ['athletique', 'sec', 'taille', 'tres-sec']
+const ZONES = ['epaules', 'pectoraux', 'dos', 'bras', 'abdos', 'jambes', 'mollets']
+
+function normVisualGoal(raw: any): VisualGoal | null {
+  if (!raw || typeof raw !== 'object' || !LOOKS.includes(raw.look)) return null
+  const bf = num(raw.bodyFat)
+  return {
+    look: raw.look,
+    zones: Array.isArray(raw.zones) ? raw.zones.filter((z: unknown) => typeof z === 'string' && ZONES.includes(z)).slice(0, 3) : [],
+    bodyFat: bf !== null && bf >= 3 && bf <= 60 ? bf : null,
+    photoId: typeof raw.photoId === 'string' ? raw.photoId : undefined,
+    cutWeeks: num(raw.cutWeeks) ?? undefined,
+  }
 }
 
 function normPrefs(raw: any, d: Prefs): Prefs {
@@ -233,7 +249,8 @@ export function normalizeState(raw: any): AppState {
     gyms: normGyms(raw.gyms),
     gymId: typeof raw.gymId === 'string' && normGyms(raw.gyms).some((g) => g.id === raw.gymId) ? raw.gymId : HOME_GYM,
     progressRevision: num(raw.progressRevision) ?? 1,
-    profile: { heightCm: num(raw.profile?.heightCm) ?? 0, age: num(raw.profile?.age) ?? 0 },
+    profile: { heightCm: num(raw.profile?.heightCm) ?? 0, age: num(raw.profile?.age) ?? 0, sex: raw.profile?.sex === 'f' ? 'f' : 'm' },
+    visualGoal: normVisualGoal(raw.visualGoal),
     goals: {
       targetWeightMin: num(raw.goals?.targetWeightMin) ?? 0,
       targetWeightMax: num(raw.goals?.targetWeightMax) ?? 0,

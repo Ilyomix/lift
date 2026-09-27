@@ -114,17 +114,30 @@ export interface PlanShape {
   shortCut: boolean
 }
 
-export function planShape(goal: ISODate): PlanShape {
+/** Shortest and longest cut a visual goal may ask for (weeks, deloads included). */
+export const MIN_CUT_WEEKS = 8
+export const MAX_CUT_WEEKS = 40
+
+/** Muscles of the extra set, in the blocks' notes: the report's V shape unless a visual goal chose zones. */
+const DEFAULT_PRIORITY_TEXT = 'deltoïdes latéraux, dos et pectoraux'
+let PRIORITY_TEXT = DEFAULT_PRIORITY_TEXT
+
+/**
+ * Weeks of recomposition and of cut before the stabilization that ends on the goal.
+ * The cut lasts 23 weeks (the report) unless a visual goal asks for another length.
+ */
+export function planShape(goal: ISODate, wantedCut: number = CUT_WEEKS): PlanShape {
   let stabStart = mondayOf(addDays(goal, -16))
   if (stabStart <= PROGRAM_START) stabStart = addDays(PROGRAM_START, 7)
   const available = Math.max(0, Math.round(diffDays(PROGRAM_START, stabStart) / 7))
-  const cutWeeks = Math.min(CUT_WEEKS, available)
+  const wanted = Math.max(MIN_CUT_WEEKS, Math.min(MAX_CUT_WEEKS, Math.round(wantedCut)))
+  const cutWeeks = Math.min(wanted, available)
   const recompWeeks = available - cutWeeks
-  return { recompWeeks, cutWeeks, cutStart: addDays(PROGRAM_START, recompWeeks * 7), stabStart, shortCut: cutWeeks < CUT_WEEKS }
+  return { recompWeeks, cutWeeks, cutStart: addDays(PROGRAM_START, recompWeeks * 7), stabStart, shortCut: cutWeeks < wanted }
 }
 
-export function buildPeriods(goal: ISODate): Period[] {
-  const shape = planShape(goal)
+export function buildPeriods(goal: ISODate, wantedCut: number = CUT_WEEKS): Period[] {
+  const shape = planShape(goal, wantedCut)
   const out: Period[] = [
     { id: 'fondation', label: 'Fondation', short: 'F', kind: 'pre', phase: 'foundation', start: FOUNDATION_START, end: addDays(PROGRAM_START, -1), note: 'Ancien programme : baselines et technique.' },
   ]
@@ -161,7 +174,7 @@ export function buildPeriods(goal: ISODate): Period[] {
     if (i === 0) p.note = 'Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.'
     else {
       p.priorityFromWeek = 3
-      p.note = '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.'
+      p.note = `+1 série sur ${PRIORITY_TEXT} à partir de S3.`
     }
   })
   const cut = out.filter((p) => p.kind === 'block' && p.phase === 'cut')
@@ -200,16 +213,26 @@ export function isValidGoal(goal: unknown): goal is ISODate {
   return typeof goal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal) && goal >= addDays(PROGRAM_START, MIN_PLAN_WEEKS * 7) && goal <= '2030-12-31'
 }
 
-// Live plan: rebuilt when the goal date changes (ES module live bindings).
+// Live plan: rebuilt when the goal date or the cut length changes (ES module live bindings).
 export let GOAL_DATE: ISODate = DEFAULT_GOAL
+export let CUT_LENGTH: number = CUT_WEEKS
 export let PERIODS: Period[] = buildPeriods(DEFAULT_GOAL)
 let MANUAL_DELOAD: { start: ISODate; end: ISODate } | null = null
 
-export function configurePlan(goal: ISODate | null | undefined, manualDeload: { start: ISODate; end: ISODate } | null = null): void {
+export function configurePlan(
+  goal: ISODate | null | undefined,
+  manualDeload: { start: ISODate; end: ISODate } | null = null,
+  cutWeeks: number | null | undefined = null,
+  priorities: string | null | undefined = null,
+): void {
   const g = isValidGoal(goal) ? goal : DEFAULT_GOAL
-  if (g !== GOAL_DATE) {
+  const c = typeof cutWeeks === 'number' && Number.isFinite(cutWeeks) ? cutWeeks : CUT_WEEKS
+  const t = priorities || DEFAULT_PRIORITY_TEXT
+  if (g !== GOAL_DATE || c !== CUT_LENGTH || t !== PRIORITY_TEXT) {
     GOAL_DATE = g
-    PERIODS = buildPeriods(g)
+    CUT_LENGTH = c
+    PRIORITY_TEXT = t
+    PERIODS = buildPeriods(g, c)
   }
   MANUAL_DELOAD = manualDeload
 }

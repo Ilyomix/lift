@@ -248,6 +248,15 @@ export const SOURCES: Record<string, Source> = {
     url: doi('10.1186/1550-2783-11-20'),
     id: 'DOI 10.1186/1550-2783-11-20',
   },
+  woolcott2018: {
+    authors: 'Woolcott, Bergman',
+    year: '2018',
+    title: 'Relative fat mass (RFM) as a new estimator of whole-body fat percentage ─ A cross-sectional study in American adult individuals',
+    journal: 'Scientific Reports 8:10980',
+    kind: 'Étude transversale · validation par DXA',
+    url: doi('10.1038/s41598-018-29362-1'),
+    id: 'DOI 10.1038/s41598-018-29362-1 · PMID 30030479',
+  },
   morton2018: {
     authors: 'Morton, Murphy, McKellar et al.',
     year: '2018',

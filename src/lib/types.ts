@@ -241,6 +241,21 @@ export interface Gym {
   name: string
 }
 
+export type Look = 'athletique' | 'sec' | 'taille' | 'tres-sec'
+export type Zone = 'epaules' | 'pectoraux' | 'dos' | 'bras' | 'abdos' | 'jambes' | 'mollets'
+
+/** The physique aimed at: the look (a body-fat range), the zones to emphasise, a reference picture. */
+export interface VisualGoal {
+  look: Look
+  zones: Zone[]
+  /** Measured body fat (impedance scale, DEXA…), preferred over the waist estimate. */
+  bodyFat: number | null
+  /** Id of the reference picture in the photo store. */
+  photoId?: string
+  /** Cut length (weeks) the look asks for, fixed when the goal is applied: the plan follows it. */
+  cutWeeks?: number
+}
+
 export interface AppState {
   version: number
   programId: string
@@ -265,7 +280,8 @@ export interface AppState {
   /** Gym of the next session (the last one used). */
   gymId: string
   progressRevision: number
-  profile: { heightCm: number; age: number }
+  profile: { heightCm: number; age: number; sex?: 'm' | 'f' }
+  visualGoal: VisualGoal | null
   goals: Goals
   prefs: Prefs
   /** weekday (0 = Sunday) → planned session type */

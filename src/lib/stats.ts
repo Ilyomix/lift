@@ -83,12 +83,18 @@ function conservativeRate(rate: [number, number] | null | undefined): number {
   return Math.abs(rate[0]) < Math.abs(rate[1]) ? rate[0] : rate[1]
 }
 
+/** The most negative bound: the fastest loss the phase allows. */
+function fastRate(rate: [number, number] | null | undefined): number {
+  if (!rate) return 0
+  return Math.min(rate[0], rate[1])
+}
+
 /**
  * Planned body-weight path from a starting weight: each phase at the least
  * aggressive end of its recommended weekly rate, compounded until the goal date.
  * A draft plan (another goal date) can be passed to preview it.
  */
-export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?: { periods: Period[]; goal: ISODate }): Point[] {
+export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?: { periods: Period[]; goal: ISODate }, pace: 'prudent' | 'fast' = 'prudent'): Point[] {
   const goal = plan?.goal ?? GOAL_DATE
   const phaseAt = (d: ISODate) => {
     if (!plan) return contextAt(d).phase
@@ -99,7 +105,7 @@ export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?
   let w = startWeight
   for (let d = startDate; d < goal; ) {
     const next = addDays(d, 7) > goal ? goal : addDays(d, 7)
-    const rate = conservativeRate(phaseAt(d)?.weeklyRate)
+    const rate = pace === 'fast' ? fastRate(phaseAt(d)?.weeklyRate) : conservativeRate(phaseAt(d)?.weeklyRate)
     w = w * (1 + ((rate / 100) * diffDays(d, next)) / 7)
     out.push({ date: next, value: w })
     d = next

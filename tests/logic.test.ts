@@ -333,3 +333,50 @@ test('calories: rising weight in recomposition asks for less, no data asks to wa
   const recent = calorieAdvice({ ...s, bodyEntries: entries, nutritionTargets: { ...s.nutritionTargets, caloriesChangedAt: '2026-10-15' } }, '2026-10-21')
   assert.equal(recent.status, 'wait', 'two weeks between changes')
 })
+
+// ───────────────────────── Visual goal ─────────────────────────
+
+test('visual goal: waist-based body fat, target weight, cut length', async () => {
+  const { relativeFatMass, bodyFatEstimate, visualPlan, tagPriorities } = await import('../src/lib/visual')
+  assert.equal(Math.round(relativeFatMass(189, 98)), 25)
+  const s: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [{ id: 'w', date: '2026-09-20', weight: 93, waist: 98, arm: null, chest: null, shoulders: null }] }
+  const bf = bodyFatEstimate(s)!
+  assert.equal(bf.source, 'tour de taille')
+  const p = visualPlan(s, { look: 'taille', bodyFat: bf, today: '2026-09-27' })!
+  assert.ok(p.target[0] > 75 && p.target[1] < 80, p.target.join('–'))
+  assert.ok(p.cutWeeks > 23, 'a leaner look asks for a longer cut')
+  assert.equal(p.fits, true)
+  assert.ok(p.atGoal.fast.weight < p.atGoal.prudent.weight)
+  const measured = bodyFatEstimate(s, { override: 18 })!
+  assert.equal(measured.source, 'mesure')
+  // The plan follows the cut length of an applied look, and the base plan comes back without it.
+  assert.equal(planShape(DEFAULT_GOAL, p.cutWeeks).cutWeeks, p.cutWeeks)
+  assertTiled(buildPeriods(DEFAULT_GOAL, p.cutWeeks), DEFAULT_GOAL)
+  // Zones: one exercise per zone and per session.
+  const t = tagPriorities(s.templates, ['epaules', 'bras'])
+  const upper = t.UPPER.exercises.filter((e) => e.volumeTag === 'priority').map((e) => e.exerciseId)
+  assert.deepEqual(upper, ['lateral-raise', 'triceps-overhead-rope'])
+  const back = tagPriorities(t, [])
+  assert.deepEqual(back.UPPER.exercises.filter((e) => e.volumeTag === 'priority').map((e) => e.exerciseId), ['lateral-raise'], 'report tags restored')
+  assert.ok(back.LOWER.exercises.some((e) => e.volumeTag === 'calves'), 'calves rule untouched')
+})
+
+test('visual goal: half-kilo targets, looks reached, block notes follow the zones', async () => {
+  const { bodyFatEstimate, lookFor, reachesLook, visualPlan, zonesText } = await import('../src/lib/visual')
+  const s: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [{ id: 'w', date: '2026-09-20', weight: 93, waist: 98, arm: null, chest: null, shoulders: null }] }
+  const p = visualPlan(s, { look: 'taille', bodyFat: bodyFatEstimate(s)!, today: '2026-09-27' })!
+  assert.ok(p.target.every((x) => Number.isInteger(x * 2)), `targets in 0.5 kg steps: ${p.target.join('–')}`)
+  // 8.6 % reads as 9 %: taillé, not très sec; 14.7 % is athlétique.
+  assert.equal(lookFor(8.6, 'm')?.id, 'taille')
+  assert.equal(lookFor(14.7, 'm')?.id, 'athletique')
+  assert.equal(lookFor(19, 'm'), null)
+  assert.equal(p.reached?.id, p.atGoal.prudent.look?.id)
+  assert.ok(reachesLook(lookFor(8, 'm'), 'taille') && !reachesLook(lookFor(12, 'm'), 'taille'))
+  assert.equal(zonesText(['epaules', 'pectoraux', 'bras']), 'épaules, pectoraux et bras')
+  assert.equal(zonesText(['dos']), 'dos')
+  assert.equal(zonesText([]), null)
+  configurePlan(DEFAULT_GOAL, null, p.cutWeeks, zonesText(['epaules', 'bras']))
+  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3.')
+  configurePlan(DEFAULT_GOAL)
+  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.')
+})

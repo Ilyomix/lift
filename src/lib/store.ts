@@ -12,10 +12,13 @@ import {
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
 import { applyChange, finalizeWorkout, intraSessionAdjust, previousPerformance, type AutoChange, type FinishResult } from './training'
+import { lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, Prefs,
-  SetFlag, Template, TemplateExercise, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
+  Look, SetFlag, Template, TemplateExercise, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
+
+export const GOAL_PHOTO_ID = 'goal-reference'
 
 const kv = createStore('golgoth', 'kv')
 const photoDb = createStore('golgoth-photos', 'photos')
@@ -84,6 +87,12 @@ interface Store {
   endPause: () => void
 
   setGoalDate: (goal: ISODate) => void
+  applyVisualGoal: (
+    g: { look: Look; zones: Zone[]; bodyFat: number | null; heightCm: number; sex: 'm' | 'f' },
+    plan: { cutWeeks: number; target: [number, number]; goal?: ISODate },
+  ) => void
+  clearVisualGoal: () => void
+  setGoalPhoto: (dataUrl: string | null) => Promise<void>
   setGoals: (patch: Partial<Goals>) => void
   setPrefs: (patch: Partial<Prefs>) => void
   setSchedule: (dow: number, type: WorkoutType | null) => void
@@ -173,7 +182,8 @@ function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
 
 /** The plan (periods, deloads) follows the goal date and an early deload stored in the state. */
 function syncPlan(s: AppState) {
-  configurePlan(s.settings.goalDate, s.manualDeload)
+  const vg = s.visualGoal
+  configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, vg?.cutWeeks ? zonesText(vg.zones) : null)
 }
 
 /** Types laid on the training days in rotation order, Monday first (display and calendar reminders). */
@@ -687,6 +697,51 @@ export const useStore = create<Store>((set, get) => ({
     void get().flush()
   },
 
+  applyVisualGoal: (g, plan) => {
+    const round = (x: number) => Math.round(x * 2) / 2
+    get().update((s) => ({
+      ...s,
+      profile: { ...s.profile, heightCm: g.heightCm, sex: g.sex },
+      visualGoal: { look: g.look, zones: g.zones, bodyFat: g.bodyFat, photoId: s.visualGoal?.photoId, cutWeeks: plan.cutWeeks },
+      goals: { ...s.goals, targetWeightMin: round(plan.target[0]), targetWeightMax: round(plan.target[1]) },
+      templates: tagPriorities(s.templates, g.zones),
+      settings: plan.goal && isValidGoal(plan.goal) ? { ...s.settings, goalDate: plan.goal } : s.settings,
+      appliedPlanUpdates: [
+        ...s.appliedPlanUpdates,
+        {
+          updateId: `visual-${Date.now()}`,
+          basedOnSession: s.workouts.length || null,
+          summary: `Objectif visuel « ${lookInfo(g.look).label} » : ${round(plan.target[0]).toString().replace('.', ',')}–${round(plan.target[1]).toString().replace('.', ',')} kg, sèche de ${plan.cutWeeks} semaines${g.zones.length ? `, priorités : ${g.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : ''}.`,
+          appliedAt: new Date().toISOString(),
+          changeCount: 1,
+          source: 'program',
+        },
+      ],
+    }))
+    void get().flush()
+  },
+
+  clearVisualGoal: () => {
+    // Without a look the plan returns to the report's 23-week cut and V-shape priorities.
+    get().update((s) => ({
+      ...s,
+      visualGoal: s.visualGoal?.photoId ? { look: s.visualGoal.look, zones: [], bodyFat: null, photoId: s.visualGoal.photoId } : null,
+      goals: { ...s.goals, targetWeightMin: 0, targetWeightMax: 0 },
+      templates: tagPriorities(s.templates, []),
+    }))
+    void get().flush()
+  },
+
+  setGoalPhoto: async (dataUrl) => {
+    if (!dataUrl) {
+      await get().deletePhoto(GOAL_PHOTO_ID)
+      get().update((s) => (s.visualGoal ? { ...s, visualGoal: { ...s.visualGoal, photoId: undefined } } : s))
+      return
+    }
+    await get().addPhoto({ id: GOAL_PHOTO_ID, date: todayISO(), dataUrl, name: 'objectif' })
+    get().update((s) => ({ ...s, visualGoal: s.visualGoal ? { ...s.visualGoal, photoId: GOAL_PHOTO_ID } : { look: 'taille', zones: [], bodyFat: null, photoId: GOAL_PHOTO_ID } }))
+  },
+
   setGoals: (patch) => get().update((s) => ({ ...s, goals: { ...s.goals, ...patch } })),
 
   setPrefs: (patch) => {
@@ -785,7 +840,7 @@ export const useStore = create<Store>((set, get) => ({
   applyPlan: (u) => get().update((s) => applyPlanUpdate(s, u)),
 
   addPhoto: async (p) => {
-    set((st) => ({ photos: [...st.photos, p].sort((a, b) => (a.date < b.date ? -1 : 1)) }))
+    set((st) => ({ photos: [...st.photos.filter((x) => x.id !== p.id), p].sort((a, b) => (a.date < b.date ? -1 : 1)) }))
     try {
       await idbSet(p.id, p, photoDb)
     } catch {
