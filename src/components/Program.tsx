@@ -18,8 +18,10 @@ function fill(p: Period): { className: string; style?: React.CSSProperties } {
  * about 360 px wide on a phone, ≈ 6.5 px per character at 11 px: a conservative estimate,
  * so a label never spills onto its neighbour.
  */
+const TRACK_PX = 360
+const labelPx = (t: string) => t.length * 6.5 + 4
 function fitLabel(fraction: number, options: string[]): string | null {
-  return options.find((t) => fraction * 360 >= t.length * 6.5 + 4) ?? null
+  return options.find((t) => fraction * TRACK_PX >= labelPx(t)) ?? null
 }
 
 /**
@@ -129,7 +131,8 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   for (const seg of plan.segments) {
     const group = groupOf(seg.kind, seg.phase)
     if (group !== prev) {
-      if (prev !== null) x += P - G
+      // A gap separates the phases; a maintenance deload follows its block without one, like the deloads of the other phases (its ticks are shorter).
+      if (prev !== null && group !== 'deload') x += P - G
       starts.push({ group, x })
       prev = group
     }
@@ -157,6 +160,20 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
     labels.push({ group: st.group, x: st.x, end: width })
   }
   const currentGroup = nextIndex >= 0 ? ticks[nextIndex].group : null
+  // Each label fits its own span, full name then short form. The last one may also borrow room
+  // on its left: set against the end of the track, its full name shows (« Décharge », not « D. »)
+  // as long as it clears the label before it.
+  const texts = labels.map((l) => ({ l, w: (l.end - l.x) / width, text: fitLabel((l.end - l.x) / width, GROUP_LABEL[l.group]), right: false }))
+  const last = texts[texts.length - 1]
+  const full = last ? GROUP_LABEL[last.l.group][0] : ''
+  if (last && last.text !== full) {
+    const prev = texts[texts.length - 2]
+    const prevEnd = prev ? (prev.l.x / width) * TRACK_PX + (prev.text ? labelPx(prev.text) : 0) : 0
+    if (TRACK_PX - prevEnd >= labelPx(full) + 8) {
+      last.text = full
+      last.right = true
+    }
+  }
   return (
     <div className="w-full">
       <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned sessions done by ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`)}>
@@ -174,15 +191,13 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
         {nextIndex >= 0 && <rect x={ticks[nextIndex].x - 1} y={H + 3} width={T + 2} height={3} rx={1} fill="var(--text)" />}
       </svg>
       <div className="relative mt-1.5 h-4 w-full">
-        {labels.map((l) => {
-          const w = (l.end - l.x) / width
-          const text = fitLabel(w, GROUP_LABEL[l.group])
+        {texts.map(({ l, w, text, right }) => {
           if (!text) return null
           return (
             <span
               key={l.group + l.x}
-              className={cx('absolute truncate text-[11px] font-semibold', l.group === currentGroup ? 'text-text' : 'text-muted')}
-              style={{ left: `${(l.x / width) * 100}%`, width: `${w * 100}%` }}
+              className={cx('absolute text-[11px] font-semibold', right ? 'whitespace-nowrap' : 'truncate', l.group === currentGroup ? 'text-text' : 'text-muted')}
+              style={right ? { right: 0 } : { left: `${(l.x / width) * 100}%`, width: `${w * 100}%` }}
             >
               {text}
             </span>
