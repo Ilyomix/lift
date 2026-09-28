@@ -17,11 +17,11 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         id: BASE,
-        name: 'Lift — Programme hypertrophie',
+        name: 'Lift',
         short_name: 'Lift',
         description:
-          "Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs.",
-        lang: 'fr',
+          'Research-based hypertrophy program, at the gym or at home: guided sessions, block calendar, rest timer and goal tracking. In English and French.',
+        lang: 'en',
         dir: 'ltr',
         start_url: BASE,
         scope: BASE,

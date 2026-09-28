@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type Rea
 import { createPortal } from 'react-dom'
 import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { addMonths, capitalize, DAYS_LETTER, fmtDate, MONTHS, todayISO } from '../lib/date'
+import { addMonths, capitalize, dayLetter, fmtDate, monthName, todayISO } from '../lib/date'
+import { L, locale } from '../lib/i18n'
 import { back } from '../lib/router'
 import { useStore } from '../lib/store'
 
@@ -93,7 +94,7 @@ export function Num({ value, digits = 1, className, suffix, prefix, signed }: { 
     <NumberFlow
       className={className}
       value={value}
-      locales="fr-FR"
+      locales={locale()}
       prefix={prefix}
       suffix={suffix}
       format={{ maximumFractionDigits: digits, minimumFractionDigits: 0, signDisplay: signed ? 'exceptZero' : 'auto' }}
@@ -114,7 +115,7 @@ export function Header({ eyebrow, title, backTo, right, sub }: { eyebrow?: React
         {backTo !== undefined ? (
           <button type="button" onClick={() => back(backTo)} className="pressable -ml-2 inline-flex h-11 items-center gap-1 rounded-[10px] px-2 text-sm font-medium text-text-2 hover:text-text">
             <ArrowLeft size={18} strokeWidth={2} aria-hidden />
-            Retour
+            {L('Retour', 'Back')}
           </button>
         ) : (
           <span />
@@ -234,11 +235,11 @@ export const inputClass =
 /**
  * Date field with an in-app month calendar. The native iOS picker closed itself
  * whenever the page reacted to a new value (a preview growing, a hint appearing),
- * so the calendar is drawn here: French labels, Monday first, days outside the
- * allowed range disabled, and it stays open until a day is picked.
+ * so the calendar is drawn here: labels in the app language, Monday first, days outside
+ * the allowed range disabled, and it stays open until a day is picked.
  */
 export function DateInput({
-  value, onChange, min, max, placeholder = 'Choisir une date', label, className, clearable,
+  value, onChange, min, max, placeholder = L('Choisir une date', 'Pick a date'), label, className, clearable,
 }: { value: string; onChange: (v: string) => void; min?: string; max?: string; placeholder?: string; label: string; className?: string; clearable?: boolean }) {
   const [open, setOpen] = useState(false)
   const [month, setMonth] = useState(() => (value || clampDate(todayISO(), min, max)).slice(0, 7))
@@ -255,7 +256,7 @@ export function DateInput({
           type="button"
           aria-expanded={open}
           aria-controls={panel}
-          aria-label={`${label} : ${value ? text : 'aucune date'}`}
+          aria-label={L(`${label} : ${value ? text : 'aucune date'}`, `${label}: ${value ? text : 'no date'}`)}
           onClick={() => setOpen(!open)}
           className="flex h-full min-w-0 flex-1 items-center gap-2 px-3 text-left"
         >
@@ -264,7 +265,7 @@ export function DateInput({
           <ChevronDown size={16} className={cx('shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
         {clearable && value && (
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }} aria-label="Effacer la date" className="pressable mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
+          <button type="button" onClick={() => { onChange(''); setOpen(false) }} aria-label={L('Effacer la date', 'Clear date')} className="pressable mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
             <X size={16} aria-hidden />
           </button>
         )}
@@ -306,14 +307,14 @@ function MonthCalendar({ id, month, onMonth, value, min, max, onPick }: { id: st
   const canNext = !max || `${next}-01` <= max
   const days = Array.from({ length: count }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`)
   return (
-    <div id={id} className="overlay-enter mt-2 rounded-[12px] border border-line bg-surface p-3" role="group" aria-label={`${MONTHS[m - 1]} ${y}`}>
+    <div id={id} className="overlay-enter mt-2 rounded-[12px] border border-line bg-surface p-3" role="group" aria-label={`${monthName(m - 1)} ${y}`}>
       <div className="flex items-center justify-between">
-        <IconButton label="Mois précédent" disabled={!canPrev} onClick={() => onMonth(prev)} className="h-10 w-10"><ChevronLeft size={18} /></IconButton>
-        <p className="text-[15px] font-semibold capitalize">{MONTHS[m - 1]} <span className="text-text-2">{y}</span></p>
-        <IconButton label="Mois suivant" disabled={!canNext} onClick={() => onMonth(next)} className="h-10 w-10"><ChevronRight size={18} /></IconButton>
+        <IconButton label={L('Mois précédent', 'Previous month')} disabled={!canPrev} onClick={() => onMonth(prev)} className="h-10 w-10"><ChevronLeft size={18} /></IconButton>
+        <p className="text-[15px] font-semibold capitalize">{monthName(m - 1)} <span className="text-text-2">{y}</span></p>
+        <IconButton label={L('Mois suivant', 'Next month')} disabled={!canNext} onClick={() => onMonth(next)} className="h-10 w-10"><ChevronRight size={18} /></IconButton>
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted" aria-hidden>
-        {WEEK.map((d, i) => <span key={i}>{DAYS_LETTER[d]}</span>)}
+        {WEEK.map((d, i) => <span key={i}>{dayLetter(d)}</span>)}
       </div>
       <div className="mt-1 grid grid-cols-7 gap-1">
         {Array.from({ length: lead }, (_, i) => <span key={`lead-${i}`} />)}
@@ -347,7 +348,7 @@ export function TimeInput({ value, onChange, label, className }: { value: string
   return (
     <div className={cx('relative flex h-12 w-full min-w-0 items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3 focus-within:border-signal', className)}>
       <Clock size={18} className="shrink-0 text-muted" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-[16px] tnum" aria-hidden>{value ? value.replace(':', ' h ') : '—'}</span>
+      <span className="min-w-0 flex-1 truncate text-[16px] tnum" aria-hidden>{value ? L(value.replace(':', ' h '), value) : '—'}</span>
       <input type="time" aria-label={label} value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
     </div>
   )
@@ -433,7 +434,7 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
       >
         <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
           <h2 id={titleId} className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>
-          <IconButton label="Fermer" onClick={onClose} className="-mr-2">
+          <IconButton label={L('Fermer', 'Close')} onClick={onClose} className="-mr-2">
             <X size={20} aria-hidden />
           </IconButton>
         </div>

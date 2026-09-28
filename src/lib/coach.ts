@@ -1,79 +1,114 @@
 // Coach loop with Claude: export a precise brief, paste back a structured plan update.
+// The brief is written in the interface language (the coach answers in it); the JSON
+// protocol (keys, "golgoth-plan-update" type) is the same in both languages.
 import { fmtDate, todayISO } from './date'
-import { fmtLoad, fmtNum } from './format'
+import { bodyweightLabel, fmtLoad, fmtNum } from './format'
 import { gymName, gymOf, isGymBound } from './gyms'
+import { L } from './i18n'
 import { contextAt, GOAL_DATE, nextTargetText, sessionPlan, TYPE_META } from './program'
 import { exerciseHistory, setsSummary } from './training'
 import { weightStatus } from './stats'
 import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutType } from './types'
 import { WORKOUT_TYPES } from './types'
 
-const FLAG_LABEL: Record<string, string> = { failure: 'échec', 'bad-technique': 'technique', pain: 'douleur' }
+const FLAG_LABEL: Record<string, string> = {
+  get failure() { return L('échec', 'failure') },
+  get 'bad-technique'() { return L('technique', 'bad form') },
+  get pain() { return L('douleur', 'pain') },
+}
 
 function exerciseLines(state: AppState, w: Workout): string[] {
   const lines: string[] = []
   for (const ex of w.exercises) {
     const t = ex.prescription ?? { sets: ex.target.sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir: ex.target.rir ?? '', weight: ex.target.weight }
-    lines.push(`- ${ex.name} [${ex.exerciseId}] · cible ${t.sets} × ${t.minReps}–${t.maxReps}${t.rir ? `, RIR ${t.rir}` : ''} à ${fmtLoad(t.weight, ex.unit)}`)
+    const scheme = `${t.sets} × ${t.minReps}–${t.maxReps}${t.rir ? `, RIR ${t.rir}` : ''}`
+    lines.push(L(`- ${ex.name} [${ex.exerciseId}] · cible ${scheme} à ${fmtLoad(t.weight, ex.unit)}`, `- ${ex.name} [${ex.exerciseId}] · target ${scheme} at ${fmtLoad(t.weight, ex.unit)}`))
     if (ex.skipped) {
-      lines.push(`  non réalisé${ex.skipReason ? ` (${ex.skipReason})` : ''}`)
+      const reason = ex.skipReason ? ` (${ex.skipReason})` : ''
+      lines.push(L(`  non réalisé${reason}`, `  not done${reason}`))
       continue
     }
     const sets = ex.sets.filter((s) => s.completed)
     sets.forEach((s, i) => {
       const flags = s.flags.map((f) => FLAG_LABEL[f]).join(', ')
-      lines.push(`  S${i + 1} : ${ex.unit === 'PDC' ? 'PDC' : fmtLoad(s.weight, ex.unit)} × ${s.reps ?? 0} (${s.cleanReps ?? s.reps ?? 0} propres)${typeof s.rir === 'number' ? `, RIR ${s.rir}` : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`)
+      const load = ex.unit === 'PDC' ? bodyweightLabel() : fmtLoad(s.weight, ex.unit)
+      const clean = s.cleanReps ?? s.reps ?? 0
+      const extra = `${typeof s.rir === 'number' ? `, RIR ${s.rir}` : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`
+      lines.push(L(`  S${i + 1} : ${load} × ${s.reps ?? 0} (${clean} propres)${extra}`, `  Set ${i + 1}: ${load} × ${s.reps ?? 0} (${clean} clean)${extra}`))
     })
-    if (ex.comparison) lines.push(`  bilan : ${ex.comparison.headline.toLowerCase()} — ${ex.comparison.detail}`)
+    if (ex.comparison) {
+      const verdict = `${ex.comparison.headline.toLowerCase()} — ${ex.comparison.detail}`
+      lines.push(L(`  bilan : ${verdict}`, `  summary: ${verdict}`))
+    }
     const hist = exerciseHistory(state.workouts.filter((x) => x.id !== w.id), ex.exerciseId, isGymBound(ex) ? gymOf(w) : undefined).slice(-3)
-    if (hist.length) lines.push(`  historique : ${hist.map((h) => `${fmtDate(h.date)} ${setsSummary(h.sets, h.unit)}`).join(' | ')}`)
-    if (ex.notes) lines.push(`  note : ${ex.notes}`)
+    if (hist.length) {
+      const past = hist.map((h) => `${fmtDate(h.date)} ${setsSummary(h.sets, h.unit)}`).join(' | ')
+      lines.push(L(`  historique : ${past}`, `  history: ${past}`))
+    }
+    if (ex.notes) lines.push(L(`  note : ${ex.notes}`, `  note: ${ex.notes}`))
   }
   return lines
 }
 
-const SCHEMA = `{
+/** Reply format asked from the coach: keys and type never change, only the sample texts follow the language. */
+const schema = () => `{
   "type": "golgoth-plan-update",
   "version": 1,
-  "summary": "Une phrase de synthèse",
+  "summary": "${L('Une phrase de synthèse', 'One-sentence summary')}",
   "basedOnSession": 27,
   "changes": [
-    { "template": "PUSH", "exerciseId": "incline-db-press", "target": { "weight": 22, "sets": 3, "minReps": 6, "maxReps": 10, "restSeconds": 150, "rir": "1–2" }, "nextTarget": "Consigne courte pour la prochaine séance" },
-    { "template": "PUSH", "exerciseId": "cable-fly", "action": "add", "name": "Écarté poulie", "muscle": "Pectoraux", "unit": "kg", "target": { "weight": 15, "sets": 3, "minReps": 10, "maxReps": 15, "restSeconds": 90, "rir": "0–1" } },
+    { "template": "PUSH", "exerciseId": "incline-db-press", "target": { "weight": 22, "sets": 3, "minReps": 6, "maxReps": 10, "restSeconds": 150, "rir": "1–2" }, "nextTarget": "${L('Consigne courte pour la prochaine séance', 'Short cue for the next session')}" },
+    { "template": "PUSH", "exerciseId": "cable-fly", "action": "add", "name": "${L('Écarté poulie', 'Cable fly')}", "muscle": "${L('Pectoraux', 'Chest')}", "unit": "kg", "target": { "weight": 15, "sets": 3, "minReps": 10, "maxReps": 15, "restSeconds": 90, "rir": "0–1" } },
     { "template": "UPPER", "exerciseId": "dips", "action": "remove" }
   ],
   "nutritionTargets": { "calories": 2300 }
 }`
 
-const RULES = [
-  'Règles du programme (rapport de recherche) :',
-  '- 10–20 séries difficiles par muscle et par semaine (comptage fractionnaire), 2 passages par muscle.',
-  '- RIR 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc RIR 3, S2 RIR 2, dernière semaine RIR 0–1.',
-  '- Double progression : quand toutes les séries atteignent le haut de la fourchette au RIR visé, +2,5 % environ (plus petit incrément).',
-  '- Performance en baisse 2 séances de suite sur un exercice : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.',
-  '- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).',
-  '- Décharge : moitié des séries, charges −10 %, RIR 3–4.',
-].join('\n')
+const rules = () =>
+  [
+    L('Règles du programme (rapport de recherche) :', 'Program rules (research report):'),
+    L('- 10–20 séries difficiles par muscle et par semaine (comptage fractionnaire), 2 passages par muscle.', '- 10–20 hard sets per muscle per week (fractional counting), each muscle trained twice a week.'),
+    L('- RIR 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc RIR 3, S2 RIR 2, dernière semaine RIR 0–1.', '- RIR 1–2 on compounds, 0–1 on isolation; block week 1 RIR 3, week 2 RIR 2, last week RIR 0–1.'),
+    L('- Double progression : quand toutes les séries atteignent le haut de la fourchette au RIR visé, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range at the target RIR, about +2.5% (smallest increment).'),
+    L('- Performance en baisse 2 séances de suite sur un exercice : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.', '- Performance down 2 sessions in a row on an exercise: remove 1 set for that muscle; general drop: bring the deload forward.'),
+    L('- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).', '- The app already adjusts loads after each session (double progression, lower when every set stays below the range): mostly suggest what it can’t see (technique, exercise choice, volume, recovery).'),
+    L('- Décharge : moitié des séries, charges −10 %, RIR 3–4.', '- Deload: half the sets, loads −10%, RIR 3–4.'),
+  ].join('\n')
 
 export function sessionPrompt(state: AppState, w: Workout): string {
   const ctx = contextAt(w.date)
   const ws = weightStatus(state)
+  const meta = TYPE_META[w.type]
   return [
-    'Tu es mon coach d’hypertrophie. Analyse ma séance et fixe mes prochaines cibles.',
+    L('Tu es mon coach d’hypertrophie. Analyse ma séance et fixe mes prochaines cibles.', 'You are my hypertrophy coach. Analyze my session and set my next targets.'),
     '',
-    `Séance n°${w.sessionNumber} · ${TYPE_META[w.type].label} (${TYPE_META[w.type].fr}) · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · salle : ${gymName(state, w.gymId)} (charges machine propres à chaque salle)` : ''}`,
-    `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · semaine de décharge' : ''}`,
-    ws.current ? `Poids : ${fmtNum(ws.current)} kg${ws.isAverage ? ' (moyenne 7 j)' : ''}${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}` : '',
-    w.notes ? `Notes de séance : ${w.notes}` : '',
+    L(
+      `Séance n°${w.sessionNumber} · ${meta.label} (${meta.fr}) · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · salle : ${gymName(state, w.gymId)} (charges machine propres à chaque salle)` : ''}`,
+      `Session #${w.sessionNumber} · ${meta.fr === meta.label ? meta.label : `${meta.label} (${meta.fr})`} · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · gym: ${gymName(state, w.gymId)} (machine loads are specific to each gym)` : ''}`,
+    ),
+    L(
+      `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · semaine de décharge' : ''}`,
+      `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · deload week' : ''}`,
+    ),
+    ws.current
+      ? L(
+          `Poids : ${fmtNum(ws.current)} kg${ws.isAverage ? ' (moyenne 7 j)' : ''}${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}`,
+          `Weight: ${fmtNum(ws.current)} kg${ws.isAverage ? ' (7-day average)' : ''}${ws.weeklyChangePct !== null ? `, trend ${fmtNum(ws.weeklyChangePct, 2)}%/week` : ''}`,
+        )
+      : '',
+    w.notes ? L(`Notes de séance : ${w.notes}`, `Session notes: ${w.notes}`) : '',
     '',
     ...exerciseLines(state, w),
     '',
-    RULES,
+    rules(),
     '',
-    'Réponds en deux parties :',
-    '1. Une analyse courte (5 lignes max).',
-    `2. Un bloc JSON unique, exactement à ce format (ne mets que les exercices qui changent ; ids existants ci-dessus ; types : ${WORKOUT_TYPES.join(', ')}) :`,
-    SCHEMA,
+    L('Réponds en deux parties :', 'Answer in English, in two parts:'),
+    L('1. Une analyse courte (5 lignes max).', '1. A short analysis (5 lines max).'),
+    L(
+      `2. Un bloc JSON unique, exactement à ce format (ne mets que les exercices qui changent ; ids existants ci-dessus ; types : ${WORKOUT_TYPES.join(', ')}) :`,
+      `2. A single JSON block, exactly in this format (include only the exercises that change; existing ids above; types: ${WORKOUT_TYPES.join(', ')}):`,
+    ),
+    schema(),
   ].filter((l) => l !== '').join('\n')
 }
 
@@ -81,28 +116,44 @@ export function globalPrompt(state: AppState): string {
   const today = todayISO()
   const ctx = contextAt(today)
   const ws = weightStatus(state, today)
+  const plan = sessionPlan(state)
   const lines = [
-    'Tu es mon coach d’hypertrophie. Fais le point sur mon programme et propose des ajustements.',
+    L('Tu es mon coach d’hypertrophie. Fais le point sur mon programme et propose des ajustements.', 'You are my hypertrophy coach. Review my program and suggest adjustments.'),
     '',
-    `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
-    `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`,
-    `Séances : ${sessionPlan(state).done} faites, ${sessionPlan(state).planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
-    ws.current ? `Poids : ${fmtNum(ws.current)} kg${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}` : 'Poids : non renseigné',
-    `Nutrition : ${state.nutritionTargets.calories} kcal, protéines ${state.nutritionTargets.proteinMin}–${state.nutritionTargets.proteinMax} g, créatine ${state.nutritionTargets.creatine} g`,
+    L(
+      `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
+      `Date: ${fmtDate(today, { weekday: true, year: true })} · goal on ${fmtDate(state.settings.goalDate, { year: true })}`,
+    ),
+    L(`Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`, `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`),
+    L(
+      `Séances : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
+      `Sessions: ${plan.done} done, ${plan.planned} planned by ${fmtDate(GOAL_DATE, { year: true })}`,
+    ),
+    ws.current
+      ? L(
+          `Poids : ${fmtNum(ws.current)} kg${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}`,
+          `Weight: ${fmtNum(ws.current)} kg${ws.weeklyChangePct !== null ? `, trend ${fmtNum(ws.weeklyChangePct, 2)}%/week` : ''}`,
+        )
+      : L('Poids : non renseigné', 'Weight: not logged'),
+    L(
+      `Nutrition : ${state.nutritionTargets.calories} kcal, protéines ${state.nutritionTargets.proteinMin}–${state.nutritionTargets.proteinMax} g, créatine ${state.nutritionTargets.creatine} g`,
+      `Nutrition: ${state.nutritionTargets.calories} kcal, protein ${state.nutritionTargets.proteinMin}–${state.nutritionTargets.proteinMax} g, creatine ${state.nutritionTargets.creatine} g`,
+    ),
     '',
-    'Programme actuel :',
+    L('Programme actuel :', 'Current program:'),
   ]
   for (const type of WORKOUT_TYPES) {
-    lines.push(`${type} :`)
+    lines.push(L(`${type} :`, `${type}:`))
     for (const e of state.templates[type].exercises) {
       lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, RIR ${e.target.rir ?? '—'}, ${fmtLoad(e.target.weight, e.unit)}`)
     }
   }
-  lines.push('', 'Dernières séances :')
+  lines.push('', L('Dernières séances :', 'Recent sessions:'))
   for (const w of state.workouts.slice(-5)) {
-    lines.push(`${fmtDate(w.date)} · ${w.type} : ${w.exercises.filter((e) => !e.skipped).map((e) => `${e.name} ${setsSummary(e.sets, e.unit)}`).join(' ; ')}`)
+    const done = w.exercises.filter((e) => !e.skipped).map((e) => `${e.name} ${setsSummary(e.sets, e.unit)}`)
+    lines.push(L(`${fmtDate(w.date)} · ${w.type} : ${done.join(' ; ')}`, `${fmtDate(w.date)} · ${w.type}: ${done.join('; ')}`))
   }
-  lines.push('', RULES, '', 'Réponds avec une analyse courte puis un bloc JSON unique à ce format :', SCHEMA)
+  lines.push('', rules(), '', L('Réponds avec une analyse courte puis un bloc JSON unique à ce format :', 'Answer in English with a short analysis, then a single JSON block in this format:'), schema())
   return lines.join('\n')
 }
 
@@ -160,13 +211,13 @@ export function parsePlanUpdate(text: string): PlanUpdate {
       const j = JSON.parse(candidate.replace(/[“”]/g, '"'))
       if (j && j.type === 'golgoth-plan-update' && Array.isArray(j.changes)) {
         const changes = (j.changes as any[]).filter((c) => c && (WORKOUT_TYPES as string[]).includes(c.template) && typeof c.exerciseId === 'string')
-        return { ...j, summary: typeof j.summary === 'string' ? j.summary : 'Mise à jour du coach', changes }
+        return { ...j, summary: typeof j.summary === 'string' ? j.summary : L('Mise à jour du coach', 'Coach update'), changes }
       }
     } catch {
       /* try next candidate */
     }
   }
-  throw new Error('Aucun bloc « golgoth-plan-update » valide trouvé dans le texte collé.')
+  throw new Error(L('Aucun bloc « golgoth-plan-update » valide trouvé dans le texte collé.', 'No valid “golgoth-plan-update” block found in the pasted text.'))
 }
 
 export interface ChangePreview {
@@ -185,7 +236,7 @@ export function previewPlanUpdate(state: AppState, u: PlanUpdate): ChangePreview
     const tpl = state.templates[c.template]
     const cur = tpl.exercises.find((e) => e.exerciseId === c.exerciseId)
     const kind = c.action === 'remove' ? 'remove' : cur ? 'update' : 'add'
-    if (kind === 'remove') return { template: c.template, label: cur?.name ?? c.exerciseId, before: cur ? describe(cur) : '—', after: 'Retiré', kind }
+    if (kind === 'remove') return { template: c.template, label: cur?.name ?? c.exerciseId, before: cur ? describe(cur) : '—', after: L('Retiré', 'Removed'), kind }
     const merged = mergeExercise(cur, c)
     return { template: c.template, label: merged.name, before: cur ? describe(cur) : '—', after: describe(merged), kind }
   })

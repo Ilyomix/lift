@@ -2,6 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
+import { setLang } from '../src/lib/i18n'
 import { defaultState, normalizeState, parseBackup, upgradeToResearchProgram } from '../src/lib/backup'
 import { applyPlanUpdate, parsePlanUpdate, previewPlanUpdate, sessionPrompt } from '../src/lib/coach'
 import { buildIcs, icsEventCount } from '../src/lib/ics'
@@ -16,6 +17,9 @@ import {
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
 import type { AppState, Workout, WorkoutExercise, WorkoutSet } from '../src/lib/types'
+
+// Tests read the French wording (the app's original language).
+setLang('fr')
 
 // Live bindings: the plan follows configurePlan().
 const PERIODS = () => program.PERIODS
@@ -388,4 +392,94 @@ test('visual goal: half-kilo targets, looks reached, block notes follow the zone
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3.')
   configurePlan(DEFAULT_GOAL)
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.')
+})
+
+test('onboarding: a new user starts this week, with the goal and the sessions chosen', async () => {
+  const { stateFromOnboarding, onboardingPreview } = await import('../src/lib/onboarding')
+  const { programStartFor, defaultGoalFor, sessionItems } = program
+  assert.equal(programStartFor('2026-10-07'), '2026-10-05', 'a Wednesday starts that week')
+  assert.equal(programStartFor('2026-10-10'), '2026-10-12', 'a Saturday starts next Monday')
+  assert.equal(defaultGoalFor('2026-09-28'), '2027-06-30', 'the report’s dates come back')
+  const answers = {
+    lang: 'fr' as const, setup: { place: 'gym' as const, equipment: [] }, days: [1, 3, 5], sex: 'm' as const,
+    age: 30, heightCm: 178, weight: 80, waist: 86, look: 'sec' as const, goalDate: '2027-07-31',
+  }
+  const preview = onboardingPreview(answers, '2026-10-07')
+  assert.equal(preview.start, '2026-10-05')
+  assert.ok(preview.plan && preview.plan.cutWeeks >= 8, 'a cut sized from the waist')
+  const s = stateFromOnboarding(answers, '2026-10-07')
+  assert.equal(s.settings.programStart, '2026-10-05')
+  assert.equal(s.settings.foundationStart, null)
+  assert.equal(s.settings.goalDate, '2027-07-31')
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].filter((d) => s.schedule[d]), [1, 3, 5])
+  assert.equal(s.bodyEntries[0].weight, 80)
+  assert.ok(s.nutritionTargets.calories > 1800 && s.nutritionTargets.calories < 3200, String(s.nutritionTargets.calories))
+  assert.equal(typeof s.visualGoal?.cutWeeks, 'number')
+  // The plan of this user: no foundation, first block on the start, goal on the chosen date.
+  configurePlan(s.settings.goalDate, null, s.visualGoal!.cutWeeks, null, { start: s.settings.programStart, foundation: null })
+  assert.equal(PERIODS()[0].kind, 'block')
+  assert.equal(PERIODS()[0].start, '2026-10-05')
+  assertTiled(PERIODS(), '2027-07-31')
+  configurePlan(DEFAULT_GOAL)
+  assert.equal(PERIODS()[0].id, 'fondation', 'the report’s data keeps its foundation')
+  // Already lean: no cut, recomposition until the stabilization.
+  const lean = onboardingPreview({ ...answers, waist: 74, look: 'athletique' }, '2026-10-07')
+  assert.equal(lean.plan?.cutWeeks, 0)
+  assert.equal(lean.shape.cutWeeks, 0)
+  assert.ok(sessionItems('UPPER').length === 8)
+})
+
+test('home training: each gym exercise becomes the best version the equipment allows', async () => {
+  const { sessionItems, doableAt, buildResearchTemplates } = program
+  const ids = (setup: { place: 'home'; equipment: ('dumbbells' | 'bench' | 'pullupBar' | 'bands')[] }, t: 'UPPER' | 'LOWER' | 'PULL') => sessionItems(t, setup).map((i) => i.id)
+  assert.deepEqual(ids({ place: 'home', equipment: ['dumbbells', 'bench'] }, 'UPPER'), [
+    'db-bench-press', 'one-arm-db-row', 'incline-db-press', 'inverted-row', 'lateral-raise', 'db-overhead-extension', 'db-curl', 'close-grip-push-up',
+  ])
+  const bare = ids({ place: 'home', equipment: [] }, 'UPPER')
+  assert.deepEqual(bare, ['push-up', 'inverted-row', 'feet-elevated-push-up', 'doorframe-row', 'close-grip-push-up'])
+  assert.ok(ids({ place: 'home', equipment: ['pullupBar'] }, 'PULL').includes('pull-up'))
+  assert.ok(ids({ place: 'home', equipment: [] }, 'LOWER').includes('bulgarian-split-squat'))
+  // Every home choice is doable with the equipment, and no id repeats within a session.
+  for (const equipment of [[], ['dumbbells'], ['bands'], ['dumbbells', 'bench', 'pullupBar', 'bands']] as const) {
+    const setup = { place: 'home' as const, equipment: [...equipment] }
+    const tpl = buildResearchTemplates(undefined, [], setup)
+    for (const t of Object.values(tpl)) {
+      const list = t.exercises.map((e) => e.exerciseId)
+      assert.equal(new Set(list).size, list.length, `${t.type} ${equipment.join('+')}: no duplicates`)
+      for (const id of list) assert.ok(doableAt(id, setup), `${id} with ${equipment.join('+') || 'bodyweight'}`)
+      assert.ok(list.length >= 3, `${t.type} with ${equipment.join('+') || 'bodyweight'} keeps a session`)
+    }
+  }
+  // Bodyweight versions use their own rep ranges.
+  const push = buildResearchTemplates(undefined, [], { place: 'home', equipment: [] }).UPPER.exercises.find((e) => e.exerciseId === 'push-up')!
+  assert.deepEqual([push.target.minReps, push.target.maxReps], [8, 25])
+  assert.equal(push.unit, 'PDC')
+})
+
+test('English: labels, dates, plurals and stored names follow the language', async () => {
+  const { setLang: set } = await import('../src/lib/i18n')
+  const { fmtDate } = await import('../src/lib/date')
+  const { plural, fmtLoad } = await import('../src/lib/format')
+  const { LOOKS } = await import('../src/lib/visual')
+  const { localizeState } = await import('../src/lib/localize')
+  set('en')
+  try {
+    assert.equal(fmtDate('2027-06-30', { long: true, year: true }), '30 June 2027')
+    assert.equal(fmtDate('2026-10-01'), '1 Oct')
+    assert.equal(plural(1, 'week', 'weeks'), '1 week')
+    assert.equal(plural(0, 'week', 'weeks'), '0 weeks')
+    assert.equal(fmtLoad(null, 'PDC'), 'BW')
+    assert.equal(LOOKS.find((l) => l.id === 'taille')?.label, 'Ripped')
+    assert.equal(program.TYPE_META.UPPER.fr, 'Upper body')
+    configurePlan('2027-06-30')
+    assert.ok(!/Bloc |Sèche|Décharge/.test(PERIODS().map((p) => p.label).join(' ')), 'periods rebuilt in English')
+    const en = localizeState(defaultState())
+    assert.equal(en.templates.UPPER.exercises.find((e) => e.exerciseId === 'lat-pulldown')?.name, 'Lat pulldown')
+    assert.equal(en.gyms[0].name, 'My gym')
+  } finally {
+    set('fr')
+    configurePlan(DEFAULT_GOAL)
+  }
+  assert.equal(fmtDate('2026-10-01'), '1er oct.')
+  assert.equal(localizeState(defaultState()).templates.UPPER.exercises.find((e) => e.exerciseId === 'lat-pulldown')?.name, 'Tirage vertical')
 })

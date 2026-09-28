@@ -1,3 +1,4 @@
+import { L, locale } from './i18n'
 import { addDays, dayNumber, diffDays, mondayOf, todayISO } from './date'
 import { contextAt, GOAL_DATE, PERIODS, PHASES, PROGRAM_START, type Period, type PlannedSession } from './program'
 import type { AppState, BodyEntry, ISODate, Workout, WorkoutType } from './types'
@@ -129,8 +130,10 @@ export function phaseRateLabel(date: ISODate): string {
   const ctx = contextAt(date)
   const rate = ctx.phase?.weeklyRate
   if (!rate) return ''
-  const f = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toLocaleString('fr-FR')}`
-  return rate[0] === rate[1] ? `${f(rate[0])} %/sem` : `${f(rate[0])} à ${f(rate[1])} %/sem`
+  const f = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toLocaleString(locale())}`
+  return rate[0] === rate[1]
+    ? L(`${f(rate[0])} %/sem`, `${f(rate[0])}%/wk`)
+    : L(`${f(rate[0])} à ${f(rate[1])} %/sem`, `${f(rate[0])} to ${f(rate[1])}%/wk`)
 }
 
 export interface DayStatus {
@@ -263,29 +266,47 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
   const base = { target, ratePct: rate, waist }
   const changed = state.nutritionTargets.caloriesChangedAt
   if (rate === null) {
-    return { ...base, status: 'wait', delta: 0, headline: 'Pas encore assez de pesées', detail: 'Pèse-toi chaque matin, à jeun : il faut environ 2 semaines de moyenne pour ajuster les calories.' }
+    return {
+      ...base, status: 'wait', delta: 0, headline: L('Pas encore assez de pesées', 'Not enough weigh-ins yet'),
+      detail: L('Pèse-toi chaque matin, à jeun : il faut environ 2 semaines de moyenne pour ajuster les calories.', 'Weigh yourself every morning on an empty stomach: it takes about 2 weeks of averages to adjust calories.'),
+    }
   }
   if (changed && diffDays(changed, today) < 14) {
-    return { ...base, status: 'wait', delta: 0, headline: 'Ajustement récent', detail: `Calories changées ${diffDays(changed, today) === 0 ? 'aujourd’hui' : `il y a ${diffDays(changed, today)} jours`} : on laisse 2 semaines au poids pour réagir.` }
+    const days = diffDays(changed, today)
+    return {
+      ...base, status: 'wait', delta: 0, headline: L('Ajustement récent', 'Recent adjustment'),
+      detail: L(
+        `Calories changées ${days === 0 ? 'aujourd’hui' : `il y a ${days} jours`} : on laisse 2 semaines au poids pour réagir.`,
+        `Calories changed ${days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`}: give your weight 2 weeks to respond.`,
+      ),
+    }
   }
-  const pct = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %/sem`
+  const pct = (x: number) => {
+    const v = `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toLocaleString(locale(), { maximumFractionDigits: 2 })}`
+    return L(`${v} %/sem`, `${v}%/wk`)
+  }
   const make = (delta: number, headline: string, detail: string): CalorieAdvice => ({ ...base, status: delta < 0 ? 'lower' : delta > 0 ? 'raise' : 'ok', delta, target: target + delta, headline, detail })
   if (phase === 'cut' || phase === 'cut-end') {
-    if (-rate < 0.3) return make(-150, 'Perte trop lente', `${pct(rate)} pour −0,5 à −0,7 visés : −150 kcal (glucides ou lipides, jamais les protéines) ou ~2 000 pas de plus par jour.`)
-    if (-rate > 1) return make(150, 'Perte trop rapide', `${pct(rate)} : au-delà de −1 %/sem le muscle est menacé. +150 kcal.`)
-    return make(0, 'Rythme dans la cible', `${pct(rate)} pour −0,5 à −0,7 visés : ne change rien.`)
+    if (-rate < 0.3) {
+      return make(-150, L('Perte trop lente', 'Loss too slow'), L(
+        `${pct(rate)} pour −0,5 à −0,7 visés : −150 kcal (glucides ou lipides, jamais les protéines) ou ~2 000 pas de plus par jour.`,
+        `${pct(rate)} for a −0.5 to −0.7 target: −150 kcal (carbs or fat, never protein) or ~2,000 more steps a day.`,
+      ))
+    }
+    if (-rate > 1) return make(150, L('Perte trop rapide', 'Loss too fast'), L(`${pct(rate)} : au-delà de −1 %/sem le muscle est menacé. +150 kcal.`, `${pct(rate)}: beyond −1%/wk, muscle is at risk. +150 kcal.`))
+    return make(0, L('Rythme dans la cible', 'Pace on target'), L(`${pct(rate)} pour −0,5 à −0,7 visés : ne change rien.`, `${pct(rate)} for a −0.5 to −0.7 target: change nothing.`))
   }
   if (phase === 'recomp' || phase === 'foundation') {
-    if (rate > 0.15) return make(-150, 'Poids en hausse', `${pct(rate)} alors que la recomposition vise un poids stable : −150 kcal.`)
-    if (rate < -0.5) return make(150, 'Perte trop rapide pour une recomposition', `${pct(rate)} : +150 kcal pour garder l’énergie à l’entraînement.`)
-    if (waist === 'up') return make(-150, 'Tour de taille en hausse', 'Poids stable mais tour de taille +1 cm ou plus en un mois : −150 kcal.')
-    if (waist === 'down') return make(0, 'Recomposition en marche', 'Poids stable et tour de taille en baisse : ne change rien.')
-    return make(0, 'Dans la cible', `${pct(rate)} pour un poids stable à −0,25 %/sem : ne change rien.`)
+    if (rate > 0.15) return make(-150, L('Poids en hausse', 'Weight going up'), L(`${pct(rate)} alors que la recomposition vise un poids stable : −150 kcal.`, `${pct(rate)} while the recomposition aims for a stable weight: −150 kcal.`))
+    if (rate < -0.5) return make(150, L('Perte trop rapide pour une recomposition', 'Loss too fast for a recomposition'), L(`${pct(rate)} : +150 kcal pour garder l’énergie à l’entraînement.`, `${pct(rate)}: +150 kcal to keep your energy up for training.`))
+    if (waist === 'up') return make(-150, L('Tour de taille en hausse', 'Waist going up'), L('Poids stable mais tour de taille +1 cm ou plus en un mois : −150 kcal.', 'Stable weight but waist +1 cm or more in a month: −150 kcal.'))
+    if (waist === 'down') return make(0, L('Recomposition en marche', 'Recomposition working'), L('Poids stable et tour de taille en baisse : ne change rien.', 'Stable weight and a shrinking waist: change nothing.'))
+    return make(0, L('Dans la cible', 'On target'), L(`${pct(rate)} pour un poids stable à −0,25 %/sem : ne change rien.`, `${pct(rate)} for a stable weight to −0.25%/wk: change nothing.`))
   }
   // Holidays, diet break, stabilization: hold the weight.
-  if (rate > 0.3) return make(-150, 'Poids en hausse', `${pct(rate)} pendant une phase de maintien : −150 kcal.`)
-  if (rate < -0.3) return make(150, 'Poids en baisse', `${pct(rate)} pendant une phase de maintien : +150 kcal.`)
-  return make(0, 'Poids stable', `${pct(rate)} : phase de maintien respectée.`)
+  if (rate > 0.3) return make(-150, L('Poids en hausse', 'Weight going up'), L(`${pct(rate)} pendant une phase de maintien : −150 kcal.`, `${pct(rate)} during a maintenance phase: −150 kcal.`))
+  if (rate < -0.3) return make(150, L('Poids en baisse', 'Weight going down'), L(`${pct(rate)} pendant une phase de maintien : +150 kcal.`, `${pct(rate)} during a maintenance phase: +150 kcal.`))
+  return make(0, L('Poids stable', 'Stable weight'), L(`${pct(rate)} : phase de maintien respectée.`, `${pct(rate)}: maintenance phase on track.`))
 }
 
 /** Kept for the Progress screen: the cut advice as one sentence. */
@@ -306,8 +327,8 @@ export function nutritionDays(state: AppState, days: number, today: ISODate = to
 
 export function currentPhaseLabel(today: ISODate = todayISO()): string {
   const ctx = contextAt(today)
-  if (ctx.before) return 'Avant programme'
-  if (ctx.after) return 'Programme terminé'
+  if (ctx.before) return L('Avant programme', 'Before the program')
+  if (ctx.after) return L('Programme terminé', 'Program complete')
   return ctx.phase ? ctx.phase.label : ''
 }
 

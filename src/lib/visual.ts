@@ -1,10 +1,11 @@
 // Visual goal: a look is mostly a body-fat level, then muscle. The app turns the look
 // into numbers (target weight, cut length, date) and the chosen zones into volume.
 import { addDays, todayISO } from './date'
+import { L } from './i18n'
 import { infoFor, type MuscleGroup } from './library'
 import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
 import { measureSeries, plannedWeightPath, weightStatus } from './stats'
-import type { AppState, ISODate, Look, Template, TemplateExercise, WorkoutType, Zone } from './types'
+import type { AppState, ISODate, Look, Template, TemplateExercise, VisualGoal, WorkoutType, Zone } from './types'
 
 export interface LookInfo {
   id: Look
@@ -15,14 +16,42 @@ export interface LookInfo {
   note?: string
 }
 
+// Texts are getters: they follow the interface language.
 export const LOOKS: LookInfo[] = [
-  { id: 'athletique', label: 'Athlétique', range: { m: [14, 16], f: [22, 24] }, text: 'Silhouette nette, épaules et bras dessinés, haut des abdos esquissé.' },
-  { id: 'sec', label: 'Sec', range: { m: [11, 13], f: [19, 21] }, text: 'Abdos visibles en bonne lumière, veines sur les avant-bras.' },
-  { id: 'taille', label: 'Taillé', range: { m: [9, 10], f: [17, 18] }, text: 'Abdos nets, obliques et séparations des épaules visibles.' },
-  { id: 'tres-sec', label: 'Très sec', range: { m: [7, 8], f: [14, 15] }, text: 'Look de shooting ou de plage, visé pour une date.', note: 'Se garde quelques semaines autour de la date (la stabilisation du plan), pas toute l’année : faim, énergie, sommeil et libido en pâtissent. Ensuite, on remonte vers « taillé ».' },
+  {
+    id: 'athletique', range: { m: [14, 16], f: [22, 24] },
+    get label() { return L('Athlétique', 'Athletic') },
+    get text() { return L('Silhouette nette, épaules et bras dessinés, haut des abdos esquissé.', 'Clean silhouette, defined shoulders and arms, upper abs starting to show.') },
+  },
+  {
+    id: 'sec', range: { m: [11, 13], f: [19, 21] },
+    get label() { return L('Sec', 'Lean') },
+    get text() { return L('Abdos visibles en bonne lumière, veines sur les avant-bras.', 'Abs visible in good light, veins on the forearms.') },
+  },
+  {
+    id: 'taille', range: { m: [9, 10], f: [17, 18] },
+    get label() { return L('Taillé', 'Ripped') },
+    get text() { return L('Abdos nets, obliques et séparations des épaules visibles.', 'Sharp abs, visible obliques and shoulder separation.') },
+  },
+  {
+    id: 'tres-sec', range: { m: [7, 8], f: [14, 15] },
+    get label() { return L('Très sec', 'Shredded') },
+    get text() { return L('Look de shooting ou de plage, visé pour une date.', 'Photo-shoot or beach look, aimed at for a date.') },
+    get note() {
+      return L(
+        'Se garde quelques semaines autour de la date (la stabilisation du plan), pas toute l’année : faim, énergie, sommeil et libido en pâtissent. Ensuite, on remonte vers « taillé ».',
+        'Held for a few weeks around the date (the plan’s stabilization), not all year: hunger, energy, sleep and libido suffer. Afterwards, you ease back up to “ripped”.',
+      )
+    },
+  },
 ]
 
 export const lookInfo = (id: Look) => LOOKS.find((l) => l.id === id)!
+
+/** A visual goal counts once applied (its cut length is set, 0 when the look is already reached). */
+export function goalApplied(vg: VisualGoal | null | undefined): vg is VisualGoal & { cutWeeks: number } {
+  return typeof vg?.cutWeeks === 'number'
+}
 
 export interface ZoneInfo {
   id: Zone
@@ -32,24 +61,27 @@ export interface ZoneInfo {
 }
 
 export const ZONES: ZoneInfo[] = [
-  { id: 'epaules', label: 'Épaules', groups: ['sideDelts', 'rearDelts'] },
-  { id: 'pectoraux', label: 'Pectoraux', groups: ['chest'] },
-  { id: 'dos', label: 'Dos', groups: ['back'] },
-  { id: 'bras', label: 'Bras', groups: ['triceps', 'biceps'] },
-  { id: 'abdos', label: 'Abdos', groups: ['abs'] },
-  { id: 'jambes', label: 'Jambes', groups: ['quads', 'hams', 'glutes'] },
-  { id: 'mollets', label: 'Mollets', groups: ['calves'] },
+  { id: 'epaules', get label() { return L('Épaules', 'Shoulders') }, groups: ['sideDelts', 'rearDelts'] },
+  { id: 'pectoraux', get label() { return L('Pectoraux', 'Chest') }, groups: ['chest'] },
+  { id: 'dos', get label() { return L('Dos', 'Back') }, groups: ['back'] },
+  { id: 'bras', get label() { return L('Bras', 'Arms') }, groups: ['triceps', 'biceps'] },
+  { id: 'abdos', get label() { return L('Abdos', 'Abs') }, groups: ['abs'] },
+  { id: 'jambes', get label() { return L('Jambes', 'Legs') }, groups: ['quads', 'hams', 'glutes'] },
+  { id: 'mollets', get label() { return L('Mollets', 'Calves') }, groups: ['calves'] },
 ]
 
 /** The report's priorities (the V shape) when no zone is chosen. */
 export const DEFAULT_ZONES: Zone[] = ['epaules', 'dos', 'pectoraux']
 export const MAX_ZONES = 3
 
-/** "épaules, pectoraux et bras", or null without zones. */
+/** "épaules, pectoraux et bras" ("shoulders, chest and arms"), or null without zones. */
 export function zonesText(zones: Zone[]): string | null {
   const labels = zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).filter((x): x is string => !!x)
   if (!labels.length) return null
-  return labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} et ${labels[labels.length - 1]}`
+  if (labels.length === 1) return labels[0]
+  const head = labels.slice(0, -1).join(', ')
+  const last = labels[labels.length - 1]
+  return L(`${head} et ${last}`, `${head} and ${last}`)
 }
 
 /**
@@ -63,7 +95,8 @@ export function relativeFatMass(heightCm: number, waistCm: number, sex: 'm' | 'f
 
 export interface BodyFat {
   pct: number
-  source: 'mesure' | 'tour de taille'
+  /** Measured, estimated from the waist (RFM), or from BMI when there is no waist (onboarding). */
+  source: 'mesure' | 'tour de taille' | 'imc'
   waist?: number
   waistDate?: ISODate
 }
@@ -125,9 +158,10 @@ const half = (x: number) => Math.round(x * 2) / 2
 
 export function visualPlan(
   state: AppState,
-  input: { look: Look; bodyFat: BodyFat; sex?: 'm' | 'f'; goal?: ISODate; today?: ISODate },
+  input: { look: Look; bodyFat: BodyFat; sex?: 'm' | 'f'; goal?: ISODate; today?: ISODate; start?: ISODate },
 ): VisualPlan | null {
   const today = input.today ?? todayISO()
+  const programStart = input.start ?? PROGRAM_START
   const ws = weightStatus(state, today)
   if (!ws.current) return null
   const sex = input.sex ?? state.profile.sex ?? 'm'
@@ -139,23 +173,24 @@ export function visualPlan(
   const upper = (lean + MAX_LEAN_GAIN) / (1 - range[1] / 100)
   const target: [number, number] = [half(lean / (1 - range[0] / 100)), half(upper)]
   const needed = weight <= upper ? 0 : Math.ceil(Math.log(upper / weight) / Math.log(1 - CUT_RATE))
-  const cutWeeks = Math.max(8, needed)
+  // Already within the look: no cut, the recomposition runs until the stabilization.
+  const cutWeeks = needed === 0 ? 0 : Math.max(8, needed)
   const goal = input.goal ?? GOAL_DATE
-  const fits = !planShape(goal, cutWeeks).shortCut
+  const fits = !planShape(goal, cutWeeks, programStart).shortCut
   let suggestedGoal: ISODate | null = null
   if (!fits) {
     for (let months = 1; months <= 30; months++) {
       const d = new Date(Number(goal.slice(0, 4)), Number(goal.slice(5, 7)) - 1 + months + 1, 0)
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      if (isValidGoal(iso) && !planShape(iso, cutWeeks).shortCut) {
+      if (isValidGoal(iso, programStart) && !planShape(iso, cutWeeks, programStart).shortCut) {
         suggestedGoal = iso
         break
       }
     }
   }
   const planGoal = fits ? goal : (suggestedGoal ?? goal)
-  const periods = buildPeriods(planGoal, cutWeeks)
-  const start = today < PROGRAM_START ? PROGRAM_START : today
+  const periods = buildPeriods(planGoal, cutWeeks, programStart, null)
+  const start = today < programStart ? programStart : today
   const leanMid = lean + MAX_LEAN_GAIN / 2
   const end = (pace: 'prudent' | 'fast'): PaceResult => {
     const w = plannedWeightPath(start, weight, { periods, goal: planGoal }, pace).at(-1)!.value

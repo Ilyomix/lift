@@ -7,15 +7,18 @@ import { fmtLoad, roundTo, uid } from './format'
 import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
-  configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribe,
-  reentryForGap, ROTATION,
+  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribe,
+  reentryForGap,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
 import { applyChange, finalizeWorkout, intraSessionAdjust, previousPerformance, type AutoChange, type FinishResult } from './training'
-import { lookInfo, tagPriorities, ZONES, zonesText } from './visual'
+import { L, resolveLang, setLang } from './i18n'
+import { localizeState } from './localize'
+import { stateFromOnboarding, type OnboardingAnswers } from './onboarding'
+import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, Prefs,
-  Look, SetFlag, Template, TemplateExercise, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
+  Look, SetFlag, Template, TemplateExercise, TrainingSetup, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
 
 export const GOAL_PHOTO_ID = 'goal-reference'
@@ -51,6 +54,10 @@ interface Store {
   notify: (message: string, tone?: Toast['tone'], action?: Toast['action']) => void
 
   startFresh: () => void
+  /** First run: builds the whole state from the onboarding answers. */
+  completeOnboarding: (a: OnboardingAnswers) => void
+  /** Gym or home (and home equipment): the sessions are rebuilt, known loads kept. */
+  setSetup: (setup: TrainingSetup) => void
   importBackup: (parsed: ParsedBackup, opts: { upgrade: boolean }) => Promise<void>
   exportBackup: () => Backup
   resetAll: () => Promise<void>
@@ -166,6 +173,12 @@ function buildExercise(t: TemplateExercise, date: ISODate, state: AppState, gymI
 
 const THEME_COLORS = { dark: '#060A13', light: '#F9FAFD' }
 
+/** Theme, accent and language of the saved preferences. */
+function applyPrefs(prefs: Prefs) {
+  setLang(resolveLang(prefs.lang))
+  applyTheme(prefs.theme, prefs.accent)
+}
+
 function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
   try {
     const root = document.documentElement
@@ -183,20 +196,16 @@ function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
 /** The plan (periods, deloads) follows the goal date and an early deload stored in the state. */
 function syncPlan(s: AppState) {
   const vg = s.visualGoal
-  configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, vg?.cutWeeks ? zonesText(vg.zones) : null)
+  configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, goalApplied(vg) ? zonesText(vg.zones) : null, {
+    start: s.settings.programStart,
+    foundation: s.settings.foundationStart ?? null,
+  })
 }
 
 /** Types laid on the training days in rotation order, Monday first (display and calendar reminders). */
-function scheduleFromDays(days: number[]): Record<number, WorkoutType | null> {
-  const order = [1, 2, 3, 4, 5, 6, 0].filter((d) => days.includes(d))
-  const out: Record<number, WorkoutType | null> = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
-  order.forEach((d, i) => (out[d] = ROTATION[i % ROTATION.length]))
-  return out
-}
-
 function describeChanges(changes: AutoChange[]): string {
   return changes
-    .map((c) => (c.kind === 'sets' ? `${c.name} −1 série` : `${c.name} ${c.from !== null ? `${fmtLoad(c.from, 'kg').replace(' kg', '')} → ` : ''}${fmtLoad(c.to, 'kg')}`))
+    .map((c) => (c.kind === 'sets' ? L(`${c.name} −1 série`, `${c.name} −1 set`) : `${c.name} ${c.from !== null ? `${fmtLoad(c.from, 'kg').replace(' kg', '')} → ` : ''}${fmtLoad(c.to, 'kg')}`))
     .join(', ')
 }
 
@@ -215,9 +224,10 @@ export const useStore = create<Store>((set, get) => ({
       const raw = await idbGet('state', kv)
       const photos = (await entries<string, Photo>(photoDb)).map(([, v]) => v).sort((a, b) => (a.date < b.date ? -1 : 1))
       if (raw) {
-        const state = normalizeState(raw)
+        const normalized = normalizeState(raw)
+        applyPrefs(normalized.prefs)
+        const state = localizeState(normalized)
         syncPlan(state)
-        applyTheme(state.prefs.theme, state.prefs.accent)
         set({ ready: true, hasData: true, state, photos, storage: 'idb' })
       } else {
         set({ ready: true, hasData: false, storage: 'idb' })
@@ -246,17 +256,40 @@ export const useStore = create<Store>((set, get) => ({
       await idbSet('state', get().state, kv)
     } catch {
       set({ storage: 'memory' })
-      get().notify('Stockage indisponible : les données ne sont gardées que pendant cette session.', 'bad')
+      get().notify(L('Stockage indisponible : les données ne sont gardées que pendant cette session.', 'Storage unavailable: your data is only kept for this session.'), 'bad')
     }
   },
 
   notify: (message, tone = 'default', action) => set({ toast: { id: ++toastSeq, message, tone, action } }),
 
   startFresh: () => {
-    const state = defaultState()
+    const fresh = defaultState()
+    applyPrefs(fresh.prefs)
+    const state = localizeState(fresh)
     syncPlan(state)
-    applyTheme(state.prefs.theme, state.prefs.accent)
     set({ hasData: true, state })
+    void get().flush()
+  },
+
+  completeOnboarding: (a) => {
+    setLang(a.lang)
+    const state = localizeState(stateFromOnboarding(a))
+    applyPrefs(state.prefs)
+    syncPlan(state)
+    set({ hasData: true, state, photos: [] })
+    void get().flush()
+  },
+
+  setSetup: (setup) => {
+    get().update((s) => {
+      const place = s.settings.setup?.place ?? 'gym'
+      const archive = { ...(s.archive ?? {}), templatesBySetup: { ...(s.archive?.templatesBySetup ?? {}), [place]: s.templates } }
+      // Back to the gym: its sessions as they were. At home: rebuilt for the equipment, loads carried over.
+      const saved = setup.place === 'gym' ? archive.templatesBySetup.gym : undefined
+      const base = saved ?? buildResearchTemplates({ ...(archive.templatesBySetup.home ?? {}), ...s.templates }, s.workouts, setup)
+      const templates = tagPriorities(base, goalApplied(s.visualGoal) ? s.visualGoal.zones : [])
+      return localizeState({ ...s, archive, templates, settings: { ...s.settings, setup } })
+    })
     void get().flush()
   },
 
@@ -270,8 +303,9 @@ export const useStore = create<Store>((set, get) => ({
     } catch {
       /* photos stay in memory */
     }
+    applyPrefs(state.prefs)
+    state = localizeState(state)
     syncPlan(state)
-    applyTheme(state.prefs.theme, state.prefs.accent)
     set({ hasData: true, state, photos: parsed.photos, lastImport: { changes } })
     await get().flush()
   },
@@ -365,7 +399,7 @@ export const useStore = create<Store>((set, get) => ({
     }
     const reps = st.reps ?? fallback.reps
     if (!reps || reps <= 0) {
-      get().notify('Indique le nombre de répétitions.', 'bad')
+      get().notify(L('Indique le nombre de répétitions.', 'Enter the number of reps.'), 'bad')
       return
     }
     const weight = exercise.unit === 'PDC' ? st.weight : (st.weight ?? fallback.weight)
@@ -397,14 +431,14 @@ export const useStore = create<Store>((set, get) => ({
     const cur = after.exercises[ex]
     const lastSetOfExercise = i >= cur.sets.length - 1
     if (cur.supersetWithNext && after.exercises[ex + 1]) {
-      get().notify(`Enchaîne : ${after.exercises[ex + 1].name}`)
+      get().notify(L(`Enchaîne : ${after.exercises[ex + 1].name}`, `Straight into: ${after.exercises[ex + 1].name}`))
       return
     }
     const rest = cur.prescription?.restSeconds ?? cur.target.restSeconds ?? 120
     const nextEx = lastSetOfExercise ? after.exercises.slice(ex + 1).find((e) => !e.skipped) : cur
     const pairedPrev = ex > 0 && after.exercises[ex - 1].supersetWithNext ? after.exercises[ex - 1] : null
     const label = pairedPrev ? `${pairedPrev.name} + ${cur.name}` : cur.name
-    const nextText = nextEx ? (lastSetOfExercise ? nextEx.name : `Série ${i + 2}/${cur.sets.length} · ${cur.name}`) : undefined
+    const nextText = nextEx ? (lastSetOfExercise ? nextEx.name : L(`Série ${i + 2}/${cur.sets.length} · ${cur.name}`, `Set ${i + 2}/${cur.sets.length} · ${cur.name}`)) : undefined
     get().startRest(rest, label, nextText)
   },
 
@@ -509,7 +543,7 @@ export const useStore = create<Store>((set, get) => ({
   startRest: (seconds, label, next) => {
     const endAt = Date.now() + seconds * 1000
     get().update((s) => withActive(s, (a) => ({ ...a, timer: { endAt, total: seconds, label, next }, timerEndAt: new Date(endAt).toISOString() })))
-    if (get().state.prefs.push) scheduleRestPush(endAt, 'Repos terminé', next ? `Ensuite : ${next}` : 'Série suivante.')
+    if (get().state.prefs.push) scheduleRestPush(endAt, L('Repos terminé', 'Rest over'), next ? L(`Ensuite : ${next}`, `Next: ${next}`) : L('Série suivante.', 'Next set.'))
   },
 
   adjustRest: (delta) => {
@@ -521,7 +555,7 @@ export const useStore = create<Store>((set, get) => ({
       }),
     )
     const t = get().state.activeWorkout?.timer
-    if (t && get().state.prefs.push) scheduleRestPush(t.endAt, 'Repos terminé', t.next ? `Ensuite : ${t.next}` : 'Série suivante.')
+    if (t && get().state.prefs.push) scheduleRestPush(t.endAt, L('Repos terminé', 'Rest over'), t.next ? L(`Ensuite : ${t.next}`, `Next: ${t.next}`) : L('Série suivante.', 'Next set.'))
   },
 
   stopRest: () => {
@@ -571,7 +605,7 @@ export const useStore = create<Store>((set, get) => ({
             {
               updateId: `auto-${workout.id}`,
               basedOnSession: sessionNumber,
-              summary: `Ajustement automatique : ${describeChanges(auto)}.`,
+              summary: L(`Ajustement automatique : ${describeChanges(auto)}.`, `Automatic adjustment: ${describeChanges(auto)}.`),
               appliedAt: new Date().toISOString(),
               changeCount: auto.length,
               source: 'progression' as const,
@@ -602,7 +636,7 @@ export const useStore = create<Store>((set, get) => ({
         templates,
         appliedPlanUpdates: [
           ...s.appliedPlanUpdates,
-          { updateId: `manual-${Date.now()}`, basedOnSession: s.workouts.length, summary: `Charges mises à jour : ${describeChanges(todo)}.`, appliedAt: new Date().toISOString(), changeCount: todo.length, source: 'progression' },
+          { updateId: `manual-${Date.now()}`, basedOnSession: s.workouts.length, summary: L(`Charges mises à jour : ${describeChanges(todo)}.`, `Loads updated: ${describeChanges(todo)}.`), appliedAt: new Date().toISOString(), changeCount: todo.length, source: 'progression' },
         ],
       }
     })
@@ -699,6 +733,14 @@ export const useStore = create<Store>((set, get) => ({
 
   applyVisualGoal: (g, plan) => {
     const round = (x: number) => Math.round(x * 2) / 2
+    const look = lookInfo(g.look).label
+    const lo = round(plan.target[0]).toString()
+    const hi = round(plan.target[1]).toString()
+    const zones = g.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')
+    const summary = L(
+      `Objectif visuel « ${look} » : ${lo.replace('.', ',')}–${hi.replace('.', ',')} kg, sèche de ${plan.cutWeeks} semaines${g.zones.length ? `, priorités : ${zones}` : ''}.`,
+      `Visual goal “${look}”: ${lo}–${hi} kg, ${plan.cutWeeks}-week cut${g.zones.length ? `, priorities: ${zones}` : ''}.`,
+    )
     get().update((s) => ({
       ...s,
       profile: { ...s.profile, heightCm: g.heightCm, sex: g.sex },
@@ -711,7 +753,7 @@ export const useStore = create<Store>((set, get) => ({
         {
           updateId: `visual-${Date.now()}`,
           basedOnSession: s.workouts.length || null,
-          summary: `Objectif visuel « ${lookInfo(g.look).label} » : ${round(plan.target[0]).toString().replace('.', ',')}–${round(plan.target[1]).toString().replace('.', ',')} kg, sèche de ${plan.cutWeeks} semaines${g.zones.length ? `, priorités : ${g.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : ''}.`,
+          summary,
           appliedAt: new Date().toISOString(),
           changeCount: 1,
           source: 'program',
@@ -745,7 +787,12 @@ export const useStore = create<Store>((set, get) => ({
   setGoals: (patch) => get().update((s) => ({ ...s, goals: { ...s.goals, ...patch } })),
 
   setPrefs: (patch) => {
-    get().update((s) => ({ ...s, prefs: { ...s.prefs, ...patch } }))
+    // The language switches before the update so the remounted tree renders in it.
+    if (patch.lang) setLang(resolveLang(patch.lang))
+    get().update((s) => {
+      const next = { ...s, prefs: { ...s.prefs, ...patch } }
+      return patch.lang ? localizeState(next) : next
+    })
     if (patch.theme || patch.accent) applyTheme(get().state.prefs.theme, get().state.prefs.accent)
     void get().flush()
   },
@@ -766,7 +813,7 @@ export const useStore = create<Store>((set, get) => ({
 
   addGym: (name) => {
     const id = newGymId(name)
-    get().update((s) => ({ ...s, gyms: [...s.gyms, { id, name: name.trim() || 'Nouvelle salle' }] }))
+    get().update((s) => ({ ...s, gyms: [...s.gyms, { id, name: name.trim() || L('Nouvelle salle', 'New gym') }] }))
     return id
   },
 
@@ -844,7 +891,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       await idbSet(p.id, p, photoDb)
     } catch {
-      get().notify('Photo gardée pour cette session seulement : stockage indisponible.', 'bad')
+      get().notify(L('Photo gardée pour cette session seulement : stockage indisponible.', 'Photo kept for this session only: storage unavailable.'), 'bad')
     }
   },
 

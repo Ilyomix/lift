@@ -3,6 +3,7 @@ import { CirclePlay, ExternalLink, Replace } from 'lucide-react'
 import { infoFor, LIBRARY, youtubeId, youtubeSearchUrl } from '../lib/library'
 import { fmtDate } from '../lib/date'
 import { fmtRest } from '../lib/format'
+import { L } from '../lib/i18n'
 import { useStore } from '../lib/store'
 import { exerciseHistory, setsSummary } from '../lib/training'
 import type { Prescription } from '../lib/types'
@@ -19,10 +20,10 @@ export function DemoFrames({ id, name, className }: { id: string; name: string; 
     <figure className={className}>
       <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[12px] bg-surface-2">
         <img src={a} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-[1.15] object-cover opacity-60 blur-[36px] motion-reduce:hidden" />
-        <img src={a} alt={`${name} : position de départ`} className="demo-a absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
-        <img src={b} alt={`${name} : position d’arrivée`} className="demo-b absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
+        <img src={a} alt={L(`${name} : position de départ`, `${name}: start position`)} className="demo-a absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
+        <img src={b} alt={L(`${name} : position d’arrivée`, `${name}: end position`)} className="demo-b absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
       </div>
-      <figcaption className="mt-1.5 text-[11px] text-muted">Démonstration · Free Exercise DB (domaine public)</figcaption>
+      <figcaption className="mt-1.5 text-[11px] text-muted">{L('Démonstration · Free Exercise DB (domaine public)', 'Demonstration · Free Exercise DB (public domain)')}</figcaption>
     </figure>
   )
 }
@@ -49,8 +50,8 @@ export function ExerciseSheet({
   return (
     <Sheet open={open} onClose={() => { setPlay(false); onClose() }} title={name ?? info.name} tall>
       <div className="flex flex-wrap items-center gap-2">
-        <Tag tone="outline">{info.muscle || 'Exercice'}</Tag>
-        <Tag tone="muted">{info.role === 'compound' ? 'Polyarticulaire' : 'Isolation'}</Tag>
+        <Tag tone="outline">{info.muscle || L('Exercice', 'Exercise')}</Tag>
+        <Tag tone="muted">{info.role === 'compound' ? L('Polyarticulaire', 'Compound') : 'Isolation'}</Tag>
       </div>
 
       <DemoFrames id={exerciseId} name={info.name} className="mt-4" />
@@ -62,7 +63,7 @@ export function ExerciseSheet({
               <iframe
                 className="h-full w-full"
                 src={`https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&playsinline=1&rel=0`}
-                title={`Vidéo : ${info.name}`}
+                title={L(`Vidéo : ${info.name}`, `Video: ${info.name}`)}
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
               />
@@ -71,20 +72,20 @@ export function ExerciseSheet({
             <button type="button" onClick={() => setPlay(true)} className="pressable relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-[12px] bg-black">
               <img src={`https://i.ytimg.com/vi/${vid}/hqdefault.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
               <span className="relative inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-[14px] font-semibold text-white">
-                <CirclePlay size={18} /> Lire ta vidéo
+                <CirclePlay size={18} /> {L('Lire ta vidéo', 'Play your video')}
               </span>
             </button>
           )
         ) : (
           <a href={youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" className="pressable flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-line-strong text-[14px] font-medium hover:border-muted">
-            <CirclePlay size={18} aria-hidden /> Vidéos de technique sur YouTube
+            <CirclePlay size={18} aria-hidden /> {L('Vidéos de technique sur YouTube', 'Technique videos on YouTube')}
             <ExternalLink size={14} className="text-muted" aria-hidden />
           </a>
         )}
         <details className="mt-2 text-[13px] text-text-2">
-          <summary className="cursor-pointer py-1.5">{vid ? 'Changer ta vidéo' : 'Épingler ta vidéo de référence'}</summary>
+          <summary className="cursor-pointer py-1.5">{vid ? L('Changer ta vidéo', 'Change your video') : L('Épingler ta vidéo de référence', 'Pin your reference video')}</summary>
           <div className="mt-2 flex gap-2">
-            <input className={inputClass} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Lien YouTube" inputMode="url" aria-label="Lien de la vidéo" />
+            <input className={inputClass} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={L('Lien YouTube', 'YouTube link')} inputMode="url" aria-label={L('Lien de la vidéo', 'Video link')} />
             <Button variant="ink" onClick={() => { setVideo(exerciseId, draft); setPlay(false) }}>OK</Button>
           </div>
         </details>
@@ -92,9 +93,9 @@ export function ExerciseSheet({
 
       {prescription && (
         <div className="mt-5 grid grid-cols-3 gap-2">
-          <Metric label="Séries × reps" value={`${prescription.sets} × ${prescription.minReps}–${prescription.maxReps}`} />
+          <Metric label={L('Séries × reps', 'Sets × reps')} value={`${prescription.sets} × ${prescription.minReps}–${prescription.maxReps}`} />
           <Metric label="Effort" value={`RIR ${prescription.rir}`} />
-          <Metric label="Repos" value={fmtRest(prescription.restSeconds)} />
+          <Metric label={L('Repos', 'Rest')} value={fmtRest(prescription.restSeconds)} />
         </div>
       )}
 
@@ -114,7 +115,7 @@ export function ExerciseSheet({
 
       <section className="mt-6">
         <div className="flex items-center justify-between gap-2">
-          <Eyebrow>Pourquoi cet exercice</Eyebrow>
+          <Eyebrow>{L('Pourquoi cet exercice', 'Why this exercise')}</Eyebrow>
           <LevelTag level={info.evidence.level} />
         </div>
         <p className="mt-2 text-[14px] leading-[1.5] text-text-2">{info.evidence.text}</p>
@@ -123,7 +124,7 @@ export function ExerciseSheet({
 
       {history.length > 0 && (
         <section className="mt-6">
-          <Eyebrow>Dernières performances</Eyebrow>
+          <Eyebrow>{L('Dernières performances', 'Recent performances')}</Eyebrow>
           <ul className="mt-2 divide-y divide-line rounded-[12px] border border-line">
             {history.map((h) => (
               <li key={h.workoutId} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[14px]">
@@ -137,7 +138,7 @@ export function ExerciseSheet({
 
       {onReplace && info.alternatives.length > 0 && (
         <section className="mt-6">
-          <Eyebrow>Machine prise ? Remplacer par</Eyebrow>
+          <Eyebrow>{L('Machine prise ? Remplacer par', 'Machine taken? Replace with')}</Eyebrow>
           <div className="mt-2 flex flex-col gap-2">
             {info.alternatives.map((alt) => (
               <Button key={alt} variant="outline" full icon={<Replace size={16} aria-hidden />} onClick={() => { onReplace(alt); onClose() }} className="justify-start">

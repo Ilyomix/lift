@@ -1,8 +1,9 @@
 import { addDays, mondayOf } from './date'
-import { fmtLoad, fmtNum, roundTo } from './format'
+import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound } from './gyms'
+import { L } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, incrementFor, nextTargetText } from './program'
+import { autoAdjustActive, incrementFor, nextTargetText, SET_DROP_REASON } from './program'
 import type {
   Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -102,10 +103,10 @@ export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
   if (!done.length) return '—'
   const sameWeight = done.every((s) => s.weight === done[0].weight)
   if (sameWeight) {
-    const w = unit === 'PDC' ? (done[0].weight ? `PDC+${fmtNum(done[0].weight)}` : 'PDC') : fmtNum(done[0].weight)
+    const w = unit === 'PDC' ? (done[0].weight ? `${bodyweightLabel()}+${fmtNum(done[0].weight)}` : bodyweightLabel()) : fmtNum(done[0].weight)
     return `${w} × ${done.map((s) => cleanOf(s)).join(' · ')}`
   }
-  return done.map((s) => `${unit === 'PDC' ? 'PDC' : fmtNum(s.weight)}×${cleanOf(s)}`).join(' · ')
+  return done.map((s) => `${unit === 'PDC' ? bodyweightLabel() : fmtNum(s.weight)}×${cleanOf(s)}`).join(' · ')
 }
 
 /** Double progression: all prescribed sets reached the top of the range, clean, without pain. */
@@ -120,7 +121,7 @@ export function progressionFor(ex: WorkoutExercise): { weight: number; text: str
   if (!ok) return null
   const inc = incrementFor(ex)
   const next = roundTo(weight + Math.max(inc, weight * 0.025), inc)
-  return { weight: next, text: `${fmtLoad(next, ex.unit)} la prochaine fois` }
+  return { weight: next, text: L(`${fmtLoad(next, ex.unit)} la prochaine fois`, `${fmtLoad(next, ex.unit)} next time`) }
 }
 
 export interface LoadDecision {
@@ -148,16 +149,16 @@ export function loadDecision(ex: WorkoutExercise): LoadDecision | null {
   const { minReps: lo, maxReps: hi } = ex.target
   const inc = incrementFor(ex)
   const up = progressionFor(ex)
-  if (up) return { weight: up.weight, kind: 'up', text: `${needed} × ${hi} atteint : ${fmtLoad(up.weight, ex.unit)} la prochaine fois` }
+  if (up) return { weight: up.weight, kind: 'up', text: L(`${needed} × ${hi} atteint : ${fmtLoad(up.weight, ex.unit)} la prochaine fois`, `${needed} × ${hi} reached: ${fmtLoad(up.weight, ex.unit)} next time`) }
   const last = sets[sets.length - 1].weight as number
   const atLast = sets.filter((s) => s.weight === last)
   if (last !== W && atLast.length >= Math.min(2, needed) && atLast.every((s) => cleanOf(s) >= lo && !s.flags.includes('pain'))) {
-    return { weight: last, kind: last > W ? 'up' : 'down', text: `Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible` }
+    return { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the session: ${fmtLoad(last, ex.unit)} becomes the target`) }
   }
   const atW = sets.filter((s) => (s.weight as number) >= W)
   if (inc > 0 && atW.length >= Math.min(2, needed) && atW.every((s) => cleanOf(s) < lo)) {
     const next = Math.max(inc, roundTo(W - Math.max(inc, W * 0.05), inc))
-    if (next < W) return { weight: next, kind: 'down', text: `Toutes les séries sous ${lo} reps : ${fmtLoad(next, ex.unit)} la prochaine fois` }
+    if (next < W) return { weight: next, kind: 'down', text: L(`Toutes les séries sous ${lo} reps : ${fmtLoad(next, ex.unit)} la prochaine fois`, `Every set under ${lo} reps: ${fmtLoad(next, ex.unit)} next time`) }
   }
   return null
 }
@@ -179,7 +180,7 @@ export function baselineFor(ex: WorkoutExercise): LoadDecision | null {
     const lightest = Math.min(...sets.map((s) => s.weight as number))
     weight = inc > 0 ? Math.max(inc, roundTo(lightest - inc, inc)) : lightest
   }
-  return { weight, kind: 'baseline', text: `Charge de départ : ${fmtLoad(weight, ex.unit)}` }
+  return { weight, kind: 'baseline', text: L(`Charge de départ : ${fmtLoad(weight, ex.unit)}`, `Starting load: ${fmtLoad(weight, ex.unit)}`) }
 }
 
 /** Upper bound of an effort target such as "1–2" or "3". */
@@ -208,12 +209,18 @@ export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number): { wei
   if (easy) {
     const steps = r >= hi + 6 ? 2 : 1
     const weight = roundTo(s.weight + steps * Math.max(inc, s.weight * 0.025), inc)
-    return { weight, text: `${r} reps${typeof s.rir === 'number' ? ` à RIR ${s.rir}` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite` }
+    return {
+      weight,
+      text: L(
+        `${r} reps${typeof s.rir === 'number' ? ` à RIR ${s.rir}` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite`,
+        `${r} reps${typeof s.rir === 'number' ? ` at RIR ${s.rir}` : ''}: ${fmtLoad(weight, ex.unit)} for the next sets`,
+      ),
+    }
   }
   if (r <= lo - 3) {
     const steps = r <= lo - 5 ? 2 : 1
     const weight = Math.max(inc, roundTo(s.weight - steps * Math.max(inc, s.weight * 0.05), inc))
-    if (weight < s.weight) return { weight, text: `${r} reps, sous ${lo} : ${fmtLoad(weight, ex.unit)} pour rester dans la fourchette` }
+    if (weight < s.weight) return { weight, text: L(`${r} reps, sous ${lo} : ${fmtLoad(weight, ex.unit)} pour rester dans la fourchette`, `${r} reps, under ${lo}: ${fmtLoad(weight, ex.unit)} to stay in the range`) }
   }
   return null
 }
@@ -227,23 +234,26 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   const base: Comparison = {
     status: 'stable', headline: '', detail: '', totalReps, totalCleanReps, volume,
     deltaCleanReps: null, previousTotalCleanReps: null, previousSetReps: null, previousWeights: null,
-    chargeValidated: !!prog, suggestion: prog ? 'PROCHAINE CIBLE : AUGMENTER LA CHARGE' : null, isRecord: false,
+    chargeValidated: !!prog, suggestion: prog ? L('PROCHAINE CIBLE : AUGMENTER LA CHARGE', 'NEXT TARGET: INCREASE THE LOAD') : null, isRecord: false,
   }
   if (ex.skipped || sets.length === 0) {
-    return { ...base, status: 'skipped', headline: 'NON RÉALISÉ', detail: ex.skipReason || 'Aucune série comptabilisée', chargeValidated: false, suggestion: null }
+    return { ...base, status: 'skipped', headline: L('NON RÉALISÉ', 'NOT DONE'), detail: ex.skipReason || L('Aucune série comptabilisée', 'No sets logged'), chargeValidated: false, suggestion: null }
   }
   const bestNow = Math.max(...sets.map((s) => setScore(s, ex.unit)))
   const bestBefore = history.length ? Math.max(...history.map((h) => h.best)) : 0
   base.isRecord = history.length > 0 && bestNow > bestBefore + 1e-9
-  if (!prev) return { ...base, status: 'new-baseline', headline: 'NOUVELLE BASELINE', detail: 'Première performance enregistrée' }
+  if (!prev) return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première performance enregistrée', 'First performance logged') }
   const prevSets = doneSets(prev)
   base.previousTotalCleanReps = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   base.previousSetReps = prevSets.map(cleanOf)
   base.previousWeights = prevSets.map((s) => s.weight)
-  if (deload) return { ...base, status: 'deload', headline: 'DÉCHARGE', detail: 'Semaine allégée : pas de comparaison.' }
-  if (ex.comparisonContext?.trim()) return { ...base, status: 'different-context', headline: 'CONDITIONS DIFFÉRENTES', detail: ex.comparisonContext.trim() }
+  if (deload) return { ...base, status: 'deload', headline: L('DÉCHARGE', 'DELOAD'), detail: L('Semaine allégée : pas de comparaison.', 'Lighter week: no comparison.') }
+  if (ex.comparisonContext?.trim()) return { ...base, status: 'different-context', headline: L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: ex.comparisonContext.trim() }
   if (prevSets.length !== sets.length) {
-    return { ...base, status: 'different-sets', headline: 'NOMBRE DE SÉRIES DIFFÉRENT', detail: `${sets.length} série${sets.length > 1 ? 's' : ''} contre ${prevSets.length} la dernière fois.` }
+    return {
+      ...base, status: 'different-sets', headline: L('NOMBRE DE SÉRIES DIFFÉRENT', 'DIFFERENT NUMBER OF SETS'),
+      detail: L(`${sets.length} série${sets.length > 1 ? 's' : ''} contre ${prevSets.length} la dernière fois.`, `${sets.length} set${sets.length === 1 ? '' : 's'} vs ${prevSets.length} last time.`),
+    }
   }
   const sameLoads = sets.every((s, i) => (s.weight ?? 0) === (prevSets[i].weight ?? 0))
   if (!sameLoads) {
@@ -252,15 +262,15 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
     return {
       ...base,
       status: 'load-change',
-      headline: heavier ? 'CHARGE SUPÉRIEURE' : 'RÉPARTITION DES CHARGES MODIFIÉE',
-      detail: `Volume propre : ${fmtNum(volume, 0)} contre ${fmtNum(prevVol, 0)} kg·reps.`,
+      headline: heavier ? L('CHARGE SUPÉRIEURE', 'HEAVIER LOAD') : L('RÉPARTITION DES CHARGES MODIFIÉE', 'LOAD PATTERN CHANGED'),
+      detail: L(`Volume propre : ${fmtNum(volume, 0)} contre ${fmtNum(prevVol, 0)} kg·reps.`, `Clean volume: ${fmtNum(volume, 0)} vs ${fmtNum(prevVol, 0)} kg·reps.`),
     }
   }
   const delta = totalCleanReps - (base.previousTotalCleanReps ?? 0)
   base.deltaCleanReps = delta
-  if (delta > 0) return { ...base, status: 'progress', headline: `+${delta} REP${delta > 1 ? 'S' : ''}`, detail: 'Progression à charge égale.' }
-  if (delta === 0) return { ...base, status: 'stable', headline: 'PERFORMANCE ÉGALE', detail: 'Niveau maintenu.' }
-  return { ...base, status: 'down', headline: `−${-delta} REP${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, detail: 'Variation ponctuelle.' }
+  if (delta > 0) return { ...base, status: 'progress', headline: `+${delta} REP${delta > 1 ? 'S' : ''}`, detail: L('Progression à charge égale.', 'Progress at the same load.') }
+  if (delta === 0) return { ...base, status: 'stable', headline: L('PERFORMANCE ÉGALE', 'SAME PERFORMANCE'), detail: L('Niveau maintenu.', 'Level maintained.') }
+  return { ...base, status: 'down', headline: L(`−${-delta} REP${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, `−${-delta} REP${-delta > 1 ? 'S' : ''} VS LAST TIME`), detail: L('Variation ponctuelle.', 'One-off dip.') }
 }
 
 /** Report rule: performance down two sessions in a row → remove one set for that muscle. */
@@ -269,7 +279,10 @@ export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: strin
   if (hist.length < 2) return null
   if (hist.every((h) => h.comparison?.status === 'down')) {
     const info = infoFor(exerciseId)
-    return `${info.name} : performance en baisse 2 fois de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`
+    return L(
+      `${info.name} : performance en baisse 2 fois de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`,
+      `${info.name}: performance down 2 times in a row. Remove 1 set for this muscle. If the drop is general, bring the deload forward.`,
+    )
   }
   return null
 }
@@ -309,7 +322,7 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
     const prev = previousPerformance(workouts, ex.exerciseId, w.id, g)?.exercise ?? null
     const history = exerciseHistory(workouts.filter((x) => x.id !== w.id), ex.exerciseId, g)
     let comparison = compareExercise(completedOnly, prev, history, !!w.deload)
-    if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: 'Première séance sur cette machine dans cette salle.' }
+    if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First session on this machine at this gym.') }
     const decision = !ex.replacement && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly) ?? baselineFor(completedOnly)) : null
     if (decision) {
       changes.push({
@@ -331,7 +344,8 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
     if (t && t.target.sets > 1 && !autoAdjustActive(t, w.date)) {
       changes.push({
         id: `${w.id}-${ex.exerciseId}-sets`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: HOME_GYM, date: w.date,
-        kind: 'sets', from: t.target.sets, to: t.target.sets - 1, text: 'Moins de reps 2 séances de suite : 1 série de moins jusqu’à la fin du bloc',
+        kind: 'sets', from: t.target.sets, to: t.target.sets - 1,
+        text: L('Moins de reps 2 séances de suite : 1 série de moins jusqu’à la fin du bloc', 'Fewer reps 2 sessions in a row: 1 set fewer until the end of the block'),
       })
     }
   }
@@ -358,7 +372,7 @@ export function applyChange(templates: Record<WorkoutType, Template>, c: AutoCha
         const { autoAdjust: _a, ...rest } = e
         return rest
       }
-      return { ...e, autoAdjust: { sets: (c.to ?? e.target.sets) - (c.from ?? e.target.sets), since: c.date, reason: 'baisse 2 séances de suite' } }
+      return { ...e, autoAdjust: { sets: (c.to ?? e.target.sets) - (c.from ?? e.target.sets), since: c.date, reason: L(...SET_DROP_REASON) } }
     }
     return withLoadAt(e, c.gymId, revert ? c.from : c.to)
   })

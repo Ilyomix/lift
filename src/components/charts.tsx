@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { fmtDate, fromDayNumber } from '../lib/date'
 import { fmtNum } from '../lib/format'
+import { L } from '../lib/i18n'
 import { cx } from './ui'
 
 // Mark specs (dataviz): 2px lines, ≥8px markers with a 2px surface ring, hairline
@@ -92,7 +93,7 @@ export function LineChart({
     }
   }, [all, band, refLine, iw, ih, xDomain, yPad, m.l, m.t])
 
-  if (!all.length) return <div ref={ref} className="flex h-24 items-center justify-center text-[13px] text-muted">Pas encore de données</div>
+  if (!all.length) return <div ref={ref} className="flex h-24 items-center justify-center text-[13px] text-muted">{L('Pas encore de données', 'No data yet')}</div>
 
   const primary = series.find((s) => s.kind === 'line') ?? series[0]
   const xs = Array.from(new Set(series.flatMap((s) => s.points.map((p) => p.x)))).sort((a, b) => a - b)
@@ -287,7 +288,7 @@ export function RangeBars({ rows, min = 10, max = 20, domain = 24 }: { rows: { k
               <span className="text-[13px] text-text-2">{r.label}</span>
               <span className="text-[13px] font-semibold tnum">
                 {fmtNum(r.value)}
-                {r.planned !== undefined && <span className="font-normal text-muted"> / {fmtNum(r.planned)} prévues</span>}
+                {r.planned !== undefined && <span className="font-normal text-muted">{L(` / ${fmtNum(r.planned)} prévues`, ` / ${fmtNum(r.planned)} planned`)}</span>}
               </span>
             </div>
             <div className="relative h-2.5 w-full rounded-full bg-surface-3">

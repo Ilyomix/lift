@@ -5,9 +5,11 @@ import {
 import { unlockAudio } from '../lib/alerts'
 import { sessionPrompt } from '../lib/coach'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
-import { fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
+import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
+import { L } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
+import { localizeGymName } from '../lib/localize'
 import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATION, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
@@ -54,19 +56,19 @@ function SessionPreview() {
   return (
     <Screen>
       <Header
-        eyebrow={isNext ? `Prochaine séance · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : 'Autre séance'}
+        eyebrow={isNext ? `${L('Prochaine séance', 'Next session')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Other session')}
         title={TYPE_META[type].label}
-        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, 'exercice', 'exercices')} · ${totalSets} séries · ~${TYPE_META[type].minutes} min`}
+        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${TYPE_META[type].minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
-      <Segmented label="Type de séance" value={type} onChange={setType} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
+      <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={setType} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <Tag tone="ink">{ctx.before ? 'Bloc 1 · S1' : ctx.title}</Tag>
+        <Tag tone="ink">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
         <span className="text-[13px] text-text-2">{ctx.effortDetail}</span>
       </div>
-      {state.reentry && <p className="mt-2 text-[13px] text-text-2">{state.reentry.label} : {state.reentry.advice}</p>}
-      {!isNext && <p className="mt-2 text-[13px] text-muted">La rotation reprendra après cette séance : {TYPE_META[type].label} → {TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.</p>}
+      {state.reentry && <p className="mt-2 text-[13px] text-text-2">{L(`${state.reentry.label} : ${state.reentry.advice}`, `${state.reentry.label}: ${state.reentry.advice}`)}</p>}
+      {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this session: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
 
       <ol className="mt-5 divide-y divide-line rounded-[12px] border border-line bg-surface">
         {tpl.exercises.map((e, i) => (
@@ -76,9 +78,9 @@ function SessionPreview() {
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
                 <span className="mt-0.5 block text-[13px] text-text-2 tnum">
-                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? 'première fois ici' : 'charge à trouver') : fmtLoad(rx[i].weight, e.unit)}
+                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
                 </span>
-                {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> Superset avec l’exercice suivant</span>}
+                {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('Superset avec l’exercice suivant', 'Superset with the next exercise')}</span>}
               </span>
               <Info size={18} className="shrink-0 text-muted" aria-hidden />
             </button>
@@ -88,7 +90,7 @@ function SessionPreview() {
 
       <div className="sticky bottom-[calc(66px+env(safe-area-inset-bottom))] z-20 mt-6">
         <Button variant="primary" size="lg" full icon={<Play size={18} aria-hidden />} onClick={begin}>
-          Commencer {TYPE_META[type].label}
+          {L('Commencer', 'Start')} {TYPE_META[type].label}
         </Button>
       </div>
 
@@ -101,7 +103,7 @@ function SessionPreview() {
 function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
   const name = useStore((s) => gymName(s.state, id))
   return (
-    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={`Salle : ${name}, changer`}>
+    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Salle : ${name}, changer`, `Gym: ${name}, change`)}>
       <MapPin size={14} className="shrink-0" aria-hidden />
       <span className="truncate">{name}</span>
       <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
@@ -161,34 +163,34 @@ function ActiveSession() {
   return (
     <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
-        eyebrow={`${ctx.before ? 'Fondation' : ctx.title} · ${fmtDate(a.date)}`}
+        eyebrow={`${ctx.before ? L('Fondation', 'Foundation') : ctx.title} · ${fmtDate(a.date)}`}
         title={TYPE_META[a.type].label}
         right={
           <div className="flex items-center gap-1">
             <GymChip id={a.gymId} onClick={() => setGymOpen(true)} />
-            <IconButton label="Options de la séance" onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
+            <IconButton label={L('Options de la séance', 'Session options')} onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
           </div>
         }
       />
 
       {/* Focus bar: stays on top while scrolling, opaque (nothing blurs under it). */}
       <div className="sticky top-[var(--top-bar)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
-        <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? `Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}` : 'Toutes les séries sont faites'}>
+        <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? L(`Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}`, `Current exercise: ${cur.name}, set ${curSet + 1} of ${cur.sets.length}`) : L('Toutes les séries sont faites', 'All sets done')}>
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? `Série ${curSet + 1}/${cur.sets.length}` : 'Terminé'}</span>
-            <span className="block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : 'Toutes les séries sont faites'}</span>
+            <span className="block text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
+            <span className="block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : L('Toutes les séries sont faites', 'All sets done')}</span>
           </span>
-          {elapsed !== null && <span className="seg seg-ghost shrink-0 text-[17px] text-text-2 tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-label="Durée de la séance">{fmtClock(elapsed)}</span>}
+          {elapsed !== null && <span className="seg seg-ghost shrink-0 text-[17px] text-text-2 tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-label={L('Durée de la séance', 'Session duration')}>{fmtClock(elapsed)}</span>}
         </button>
         <div className="mt-2.5 flex items-center gap-3">
-          <ProgressBar value={total ? done / total : 0} label="Séries validées" />
+          <ProgressBar value={total ? done / total : 0} label={L('Séries validées', 'Sets logged')} />
           <span className="shrink-0 text-[12px] font-semibold text-text-2 tnum">{done}/{total}</span>
         </div>
       </div>
 
       {(a.deload || a.reentry) && (
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-          {a.deload ? 'Semaine de décharge : moitié des séries, charges −10 %, RIR 3–4.' : `${a.reentry!.label} : ${a.reentry!.advice}`}
+          {a.deload ? L('Semaine de décharge : moitié des séries, charges −10 %, RIR 3–4.', 'Deload week: half the sets, loads −10%, RIR 3–4.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
         </p>
       )}
 
@@ -198,28 +200,28 @@ function ActiveSession() {
         ))}
       </div>
 
-      <Section title="Notes de séance">
+      <Section title={L('Notes de séance', 'Session notes')}>
         <textarea
           className={cx(inputClass, 'h-24 resize-none py-2.5')}
-          placeholder="Sensations, sommeil, machine différente…"
+          placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')}
           value={a.notes}
           onChange={(e) => setSessionField({ notes: e.target.value })}
         />
       </Section>
 
       <Button variant="primary" size="lg" full className="mt-6" icon={<CircleCheck size={18} aria-hidden />} onClick={() => (pending > 0 ? setConfirmFinish(true) : finish())}>
-        Terminer la séance
+        {L('Terminer la séance', 'Finish session')}
       </Button>
-      <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, 'série restante', 'séries restantes')}` : 'Toutes les séries sont validées.'}</p>
+      <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, L('série restante', 'set left'), L('séries restantes', 'sets left'))}` : L('Toutes les séries sont validées.', 'All sets are logged.')}</p>
 
-      <Sheet open={menu} onClose={() => setMenu(false)} title="Séance">
-        <p className="mb-1.5 text-[13px] font-medium text-text-2">Date de la séance</p>
-        <DateInput label="Date de la séance" value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
+      <Sheet open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Session')}>
+        <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Date de la séance', 'Session date')}</p>
+        <DateInput label={L('Date de la séance', 'Session date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
         <div className="mt-5">
           <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
-            Abandonner la séance
+            {L('Abandonner la séance', 'Discard session')}
           </Button>
-          <p className="mt-2 text-[12px] text-muted">Les séries saisies seront perdues. La rotation ne change pas.</p>
+          <p className="mt-2 text-[12px] text-muted">{L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
         </div>
       </Sheet>
       {gymOpen && <GymSheet session onClose={() => setGymOpen(false)} />}
@@ -227,16 +229,19 @@ function ActiveSession() {
       <Sheet
         open={confirmFinish}
         onClose={() => setConfirmFinish(false)}
-        title="Terminer maintenant ?"
+        title={L('Terminer maintenant ?', 'Finish now?')}
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmFinish(false)}>Continuer</Button>
-            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setConfirmFinish(false); finish() }}>Terminer</Button>
+            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmFinish(false)}>{L('Continuer', 'Keep going')}</Button>
+            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setConfirmFinish(false); finish() }}>{L('Terminer', 'Finish')}</Button>
           </div>
         }
       >
         <p className="text-[15px] leading-[1.5] text-text-2">
-          {plural(pending, 'série n’est pas validée', 'séries ne sont pas validées')} : {pending > 1 ? 'elles seront ignorées' : 'elle sera ignorée'}. Les exercices sans série validée comptent comme non réalisés.
+          {L(
+            `${plural(pending, 'série n’est pas validée', 'séries ne sont pas validées')} : ${pending > 1 ? 'elles seront ignorées' : 'elle sera ignorée'}. Les exercices sans série validée comptent comme non réalisés.`,
+            `${plural(pending, 'set isn’t logged', 'sets aren’t logged')}: ${pending > 1 ? 'they’ll be ignored' : 'it’ll be ignored'}. Exercises with no logged set count as not done.`,
+          )}
         </p>
       </Sheet>
     </Screen>
@@ -244,6 +249,13 @@ function ActiveSession() {
 }
 
 // ───────────────────────── Exercise logger ─────────────────────────
+
+/** Re-entry labels (« Reprise après 10 j », « Remise en route (25 j) », « Return after… », « Restart… »): already shown above the exercises. */
+const REENTRY_NOTE_PREFIXES = ['Reprise', 'Remise', 'Return', 'Restart']
+const isReentryNote = (n: string) => REENTRY_NOTE_PREFIXES.some((x) => n.startsWith(x))
+
+/** The skip reason stored by « Passer cet exercice », shown in the current language; other reasons are left as typed. */
+const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : r)
 
 function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
@@ -263,7 +275,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const prevClean = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const validated = allDone ? progressionFor({ ...ex, sets: ex.sets }) : null
-  const unitLabel = ex.unit === 'kg/main' ? 'kg/main' : ex.unit === 'PDC' ? 'Charge' : 'kg'
+  const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? L('Charge', 'Load') : 'kg'
   const currentSet = current ? ex.sets.findIndex((s) => !s.completed) : -1
 
   if (ex.skipped) {
@@ -272,9 +284,9 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <span className="w-6 text-[12px] font-semibold text-muted tnum">{String(index + 1).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium line-through decoration-muted">{ex.name}</p>
-          <p className="text-[12px] text-muted">Non réalisé{ex.skipReason ? ` · ${ex.skipReason}` : ''}</p>
+          <p className="text-[12px] text-muted">{L('Non réalisé', 'Not done')}{ex.skipReason ? ` · ${skipReasonLabel(ex.skipReason)}` : ''}</p>
         </div>
-        <Button size="sm" variant="soft" onClick={() => skipExercise(index, false)}>Reprendre</Button>
+        <Button size="sm" variant="soft" onClick={() => skipExercise(index, false)}>{L('Reprendre', 'Restore')}</Button>
       </Card>
     )
   }
@@ -287,7 +299,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         id={`exercise-${index}`}
         onClick={() => setOpen(true)}
         className="pressable card flex w-full scroll-mt-[calc(var(--top-bar)+96px)] items-center gap-3 px-4 py-3 text-left hover:border-line-strong"
-        aria-label={`${ex.name} terminé : ${setsSummary(ex.sets, ex.unit)}. Ouvrir`}
+        aria-label={L(`${ex.name} terminé : ${setsSummary(ex.sets, ex.unit)}. Ouvrir`, `${ex.name} done: ${setsSummary(ex.sets, ex.unit)}. Open`)}
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
         <span className="min-w-0 flex-1">
@@ -309,45 +321,45 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <span className={cx('mt-[3px] w-6 shrink-0 text-[12px] font-semibold tnum', current ? 'text-signal-text' : 'text-muted')}>{String(index + 1).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] leading-[1.25] font-semibold tracking-[-0.015em]">{ex.name}</h3>
-          <p className="mt-0.5 text-[13px] text-text-2">{ex.muscle}{ex.replacement ? ` · remplace ${ex.replacement.fromName}` : ''}</p>
+          <p className="mt-0.5 text-[13px] text-text-2">{ex.muscle}{ex.replacement ? L(` · remplace ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`, ` · replaces ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`) : ''}</p>
         </div>
-        {allDone && <IconButton label="Replier" onClick={() => setOpen(false)} className="-mt-1.5 -mr-1"><ChevronDown size={19} className="rotate-180" /></IconButton>}
-        <IconButton label={`Démo et technique : ${ex.name}`} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
-        <IconButton label={`Options : ${ex.name}`} onClick={() => setMenu(true)} className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
+        {allDone && <IconButton label={L('Replier', 'Collapse')} onClick={() => setOpen(false)} className="-mt-1.5 -mr-1"><ChevronDown size={19} className="rotate-180" /></IconButton>}
+        <IconButton label={L(`Démo et technique : ${ex.name}`, `Demo and technique: ${ex.name}`)} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
+        <IconButton label={L(`Options : ${ex.name}`, `Options: ${ex.name}`)} onClick={() => setMenu(true)} className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
         <Tag tone="outline">RIR {p?.rir ?? ex.target.rir ?? '—'}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
-        {ex.unit !== 'PDC' && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : 'Charge à trouver'}</Tag>}
+        {ex.unit !== 'PDC' && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
       <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
-            <span className="font-semibold text-text">Première fois dans cette salle.</span> Charge de {ex.gymTrial.fromGym} ({fmtLoad(ex.gymTrial.weight, ex.unit)}) comme départ : ajuste si la machine est différente, l’app retiendra la tienne.
+            <span className="font-semibold text-text">{L('Première fois dans cette salle.', 'First time at this gym.')}</span> {L(`Charge de ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}) comme départ : ajuste si la machine est différente, l’app retiendra la tienne.`, `Starting from your load at ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}): adjust if the machine is different, the app will remember yours.`)}
           </p>
         )}
         {prevSets.length > 0 ? (
           <p className="text-text-2">
-            <span className="text-muted">Dernière fois{prevDate ? ` · ${fmtDate(prevDate)}` : ''} :</span> <span className="font-medium text-text tnum">{setsSummary(prevSets, prev!.unit)}</span>
-            {sameLoad && <span className="text-muted"> → à battre : <span className="font-semibold text-text">{prevClean + 1} reps propres</span></span>}
+            <span className="text-muted">{L('Dernière fois', 'Last time')}{prevDate ? ` · ${fmtDate(prevDate)}` : ''}{L(' :', ':')}</span> <span className="font-medium text-text tnum">{setsSummary(prevSets, prev!.unit)}</span>
+            {sameLoad && <span className="text-muted"> {L('→ à battre :', '→ to beat:')} <span className="font-semibold text-text">{L(`${prevClean + 1} reps propres`, `${prevClean + 1} clean reps`)}</span></span>}
           </p>
         ) : !ex.gymTrial ? (
-          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? `Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR 3.` : 'Première fois : établis ta référence.'}</p>
+          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L(`Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR 3.`, `Trial session: find a load for ${ex.target.minReps}–${ex.target.maxReps} reps at RIR 3.`) : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
         {ex.note && <p className="text-muted">{ex.note}</p>}
         {ex.technique && <p className="flex gap-1.5 text-muted"><StickyNote size={13} className="mt-[3px] shrink-0" aria-hidden />{ex.technique}</p>}
-        {p?.notes.filter((n) => !n.startsWith('Reprise') && !n.startsWith('Remise')).map((n) => <p key={n} className="text-muted">{n}</p>)}
+        {p?.notes.filter((n) => !isReentryNote(n)).map((n) => <p key={n} className="text-muted">{n}</p>)}
       </div>
 
       <div className="mt-3 px-3 pb-3">
         <div className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] gap-2 px-1 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-          <span>Série</span>
+          <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>
           <span>Reps</span>
           <span>RIR</span>
-          <span className="sr-only">Valider</span>
+          <span className="sr-only">{L('Valider', 'Log')}</span>
         </div>
         <div className="space-y-1.5">
           {ex.sets.map((_, i) => (
@@ -357,26 +369,26 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         {ex.hint && (
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-signal-soft px-3 py-2 text-[13px]">
             {ex.hint.to > ex.hint.from ? <ArrowUp size={15} className="shrink-0 text-signal-text" aria-hidden /> : <ArrowDown size={15} className="shrink-0 text-signal-text" aria-hidden />}
-            <span className="min-w-0 flex-1"><span className="font-semibold">Charge ajustée.</span> {ex.hint.text}</span>
+            <span className="min-w-0 flex-1"><span className="font-semibold">{L('Charge ajustée.', 'Load adjusted.')}</span> {ex.hint.text}</span>
             <button type="button" onClick={() => undoHint(index)} className="pressable -my-1 inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-signal-text hover:bg-surface-2">
-              <Undo2 size={14} aria-hidden /> Annuler
+              <Undo2 size={14} aria-hidden /> {L('Annuler', 'Undo')}
             </button>
           </div>
         )}
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
           <button type="button" onClick={() => addSet(index)} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
-            <Plus size={16} aria-hidden /> Série
+            <Plus size={16} aria-hidden /> {L('Série', 'Set')}
           </button>
           {ex.sets.length > 1 && !ex.sets[ex.sets.length - 1].completed && (
             <button type="button" onClick={() => removeSet(index, ex.sets.length - 1)} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-medium text-muted hover:bg-surface-2 hover:text-text">
-              <X size={15} aria-hidden /> Retirer
+              <X size={15} aria-hidden /> {L('Retirer', 'Remove')}
             </button>
           )}
         </div>
         {validated && (
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
             <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
-            <span><span className="font-semibold">Charge validée.</span> {validated.text}{autoLoad ? ' (appliqué à la fin de la séance)' : ''}.</span>
+            <span><span className="font-semibold">{L('Charge validée.', 'Load mastered.')}</span> {validated.text}{autoLoad ? L(' (appliqué à la fin de la séance)', ' (applied at the end of the session)') : ''}.</span>
           </div>
         )}
       </div>
@@ -384,7 +396,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       {ex.supersetWithNext && nextName && (
         <div className="flex items-center gap-2 border-t border-dashed border-line-strong bg-signal-soft px-4 py-2.5 text-[13px] font-medium">
           <LinkIcon size={14} className="text-signal-text" aria-hidden />
-          Superset : enchaîne avec {nextName}, repos après.
+          {L(`Superset : enchaîne avec ${nextName}, repos après.`, `Superset: go straight into ${nextName}, then rest.`)}
         </div>
       )}
 
@@ -393,7 +405,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <div className="space-y-5">
           {(LIBRARY[ex.exerciseId]?.alternatives.length ?? 0) > 0 && (
             <div>
-              <Eyebrow>Remplacer par</Eyebrow>
+              <Eyebrow>{L('Remplacer par', 'Replace with')}</Eyebrow>
               <div className="mt-2 flex flex-col gap-2">
                 {LIBRARY[ex.exerciseId].alternatives.map((alt) => (
                   <Button key={alt} full variant="outline" className="justify-start" icon={<Replace size={16} aria-hidden />} onClick={() => { replaceExercise(index, alt); setMenu(false) }}>
@@ -404,15 +416,15 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
             </div>
           )}
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-text-2">Conditions différentes (tempo, prise…)</span>
-            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder="Ex. : tempo lent, prise différente" onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
-            <span className="mt-1 block text-[12px] text-muted">Évite une fausse comparaison avec la dernière séance. Pour une autre salle, change plutôt la salle en haut de la séance.</span>
+            <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Conditions différentes (tempo, prise…)', 'Different conditions (tempo, grip…)')}</span>
+            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder={L('Ex. : tempo lent, prise différente', 'E.g. slow tempo, different grip')} onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
+            <span className="mt-1 block text-[12px] text-muted">{L('Évite une fausse comparaison avec la dernière séance. Pour une autre salle, change plutôt la salle en haut de la séance.', 'Avoids a misleading comparison with the last session. For another gym, change the gym at the top of the session instead.')}</span>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-text-2">Note sur l’exercice</span>
+            <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Note sur l’exercice', 'Exercise note')}</span>
             <textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={ex.notes} onChange={(e) => setExerciseField(index, { notes: e.target.value })} />
           </label>
-          <Button variant="danger" full onClick={() => { skipExercise(index, true, 'Passé'); setMenu(false) }}>Passer cet exercice</Button>
+          <Button variant="danger" full onClick={() => { skipExercise(index, true, L('Passé', 'Skipped')); setMenu(false) }}>{L('Passer cet exercice', 'Skip this exercise')}</Button>
         </div>
       </Sheet>
     </Card>
@@ -420,7 +432,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
 }
 
 function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { value: number | null; onCommit: (n: number | null) => void; placeholder?: string; decimal?: boolean; label: string; disabled?: boolean }) {
-  const toText = (v: number | null) => (v === null ? '' : String(v).replace('.', ','))
+  const toText = (v: number | null) => (v === null ? '' : String(v).replace('.', L(',', '.')))
   const [text, setText] = useState(toText(value))
   const focused = useRef(false)
   useEffect(() => {
@@ -454,10 +466,11 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { 
   )
 }
 
+// Labels are getters: they follow the interface language.
 const FLAGS: { id: SetFlag; label: string }[] = [
-  { id: 'failure', label: 'Échec' },
-  { id: 'bad-technique', label: 'Technique' },
-  { id: 'pain', label: 'Douleur' },
+  { id: 'failure', get label() { return L('Échec', 'Failure') } },
+  { id: 'bad-technique', get label() { return L('Technique', 'Technique') } },
+  { id: 'pain', get label() { return L('Douleur', 'Pain') } },
 ]
 
 function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: { exIndex: number; setIndex: number; ex: WorkoutExercise; prevReps: number | null; fallbackWeight: number | null; isCurrent: boolean }) {
@@ -473,26 +486,26 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          aria-label={`Détails de la série ${setIndex + 1}`}
+          aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
           className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[15px] font-semibold tnum hover:bg-surface-3', isCurrent && 'text-signal-text')}
         >
           {setIndex + 1}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
         {ex.unit === 'PDC' ? (
-          <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">PDC</span>
+          <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
         ) : (
-          <NumField label={`Charge série ${setIndex + 1}`} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
+          <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
         )}
         <NumField
-          label={`Répétitions série ${setIndex + 1}`}
+          label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
           value={s.reps}
           placeholder={prevReps !== null ? String(prevReps) : `${ex.target.minReps}–${ex.target.maxReps}`}
           onCommit={(n) => updateSet(exIndex, setIndex, { reps: n === null ? null : Math.round(n) })}
           disabled={done}
         />
         <select
-          aria-label={`RIR série ${setIndex + 1}`}
+          aria-label={L(`RIR série ${setIndex + 1}`, `Set ${setIndex + 1} RIR`)}
           value={s.rir ?? ''}
           onChange={(e) => updateSet(exIndex, setIndex, { rir: e.target.value === '' ? null : Number(e.target.value) })}
           className="h-11 w-full appearance-none rounded-[10px] border border-line-strong bg-surface text-center text-[16px] font-semibold text-text tnum focus:border-signal focus:outline-none"
@@ -503,7 +516,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
         <button
           type="button"
           aria-pressed={done}
-          aria-label={done ? `Annuler la série ${setIndex + 1}` : `Valider la série ${setIndex + 1}`}
+          aria-label={done ? L(`Annuler la série ${setIndex + 1}`, `Undo set ${setIndex + 1}`) : L(`Valider la série ${setIndex + 1}`, `Log set ${setIndex + 1}`)}
           onClick={() => {
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
@@ -526,14 +539,14 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             })}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[13px] text-text-2">Reps propres</span>
+            <span className="text-[13px] text-text-2">{L('Reps propres', 'Clean reps')}</span>
             <div className="flex items-center gap-1">
-              <IconButton label="Une rep propre de moins" onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })} className="h-9 w-9"><span className="text-[18px]">−</span></IconButton>
+              <IconButton label={L('Une rep propre de moins', 'One fewer clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })} className="h-9 w-9"><span className="text-[18px]">−</span></IconButton>
               <span className="w-8 text-center text-[16px] font-semibold tnum">{s.cleanReps ?? s.reps ?? '—'}</span>
-              <IconButton label="Une rep propre de plus" onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })} className="h-9 w-9"><span className="text-[18px]">+</span></IconButton>
+              <IconButton label={L('Une rep propre de plus', 'One more clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })} className="h-9 w-9"><span className="text-[18px]">+</span></IconButton>
             </div>
           </div>
-          <input className={cx(inputClass, 'h-11')} placeholder="Note (ex. : dernière rep aidée)" value={s.note} onChange={(e) => updateSet(exIndex, setIndex, { note: e.target.value })} />
+          <input className={cx(inputClass, 'h-11')} placeholder={L('Note (ex. : dernière rep aidée)', 'Note (e.g. last rep assisted)')} value={s.note} onChange={(e) => updateSet(exIndex, setIndex, { note: e.target.value })} />
         </div>
       )}
     </div>
@@ -550,8 +563,8 @@ export function SessionSummary() {
   if (!w) {
     return (
       <Screen>
-        <Header title="Bilan" backTo="" />
-        <Empty title="Aucune séance terminée" />
+        <Header title={L('Bilan', 'Summary')} backTo="" />
+        <Empty title={L('Aucune séance terminée', 'No completed session')} />
       </Screen>
     )
   }
@@ -565,10 +578,10 @@ export function SessionSummary() {
 
   return (
     <Screen>
-      <Header eyebrow={`Séance n°${w.sessionNumber} · ${capitalize(fmtDate(w.date, { weekday: true }))} · ${gymName(state, w.gymId)}`} title="Séance terminée" backTo="" />
+      <Header eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Session #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true }))} · ${gymName(state, w.gymId)}`} title={L('Séance terminée', 'Workout complete')} backTo="" />
       <div className="grid grid-cols-3 gap-2.5">
-        <Figure label="Durée" value={minutes === null ? '—' : minutes < 1 ? '< 1 min' : `${minutes} min`} />
-        <Figure label="Séries" value={String(sessionSetCount(w))} />
+        <Figure label={L('Durée', 'Duration')} value={minutes === null ? '—' : minutes < 1 ? '< 1 min' : `${minutes} min`} />
+        <Figure label={L('Séries', 'Sets')} value={String(sessionSetCount(w))} />
         <Figure label="Volume" value={`${fmtNum(volume / 1000, 1)} t`} />
       </div>
 
@@ -582,11 +595,11 @@ export function SessionSummary() {
 
       {changes.length > 0 && (
         <Section
-          title={state.prefs.autoLoad ? 'Plan ajusté' : 'Ajustements proposés'}
-          action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>Tout appliquer</Button> : undefined}
+          title={state.prefs.autoLoad ? L('Plan ajusté', 'Plan adjusted') : L('Ajustements proposés', 'Suggested adjustments')}
+          action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>{L('Tout appliquer', 'Apply all')}</Button> : undefined}
         >
           <p className="-mt-1 mb-3 text-[13px] leading-[1.45] text-text-2">
-            {state.prefs.autoLoad ? 'Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.' : 'Calculé d’après tes séries. Applique ce qui te convient.'}
+            {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next sessions start from these loads. Undo a change if this session wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
           </p>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} applied={applied.includes(c.id)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
@@ -595,33 +608,33 @@ export function SessionSummary() {
       )}
 
       {early && (
-        <Section title="Récupération">
+        <Section title={L('Récupération', 'Recovery')}>
           <Card className="p-4">
-            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />Plusieurs exercices baissent deux séances de suite : c’est le signal pour avancer la décharge.</p>
-            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify('Décharge avancée : 7 jours dès demain.', 'good') }}>Décharge dès demain (7 jours)</Button>
+            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices baissent deux séances de suite : c’est le signal pour avancer la décharge.', 'Several exercises dropped two sessions in a row: that’s the signal to bring the deload forward.')}</p>
+            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Décharge avancée : 7 jours dès demain.', 'Deload brought forward: 7 days starting tomorrow.'), 'good') }}>{L('Décharge dès demain (7 jours)', 'Deload from tomorrow (7 days)')}</Button>
           </Card>
         </Section>
       )}
 
       {(lastFinish?.alerts.length ?? 0) > 0 && !state.prefs.autoLoad && (
-        <Section title="À surveiller">
+        <Section title={L('À surveiller', 'To watch')}>
           <Card className="space-y-2 p-4">
             {lastFinish!.alerts.map((a) => <p key={a} className="text-[14px] leading-[1.45]">{a}</p>)}
           </Card>
         </Section>
       )}
 
-      <Section title="Exercices">
+      <Section title={L('Exercices', 'Exercises')}>
         <WorkoutExercises w={w} />
       </Section>
 
       <div className="mt-8 grid gap-2">
-        <Button variant="primary" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), `Séance ${w.sessionNumber}`)}>
-          Bilan pour Claude
+        <Button variant="primary" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>
+          {L('Bilan pour Claude', 'Summary for Claude')}
         </Button>
-        <Button variant="outline" size="lg" full onClick={() => navigate('')}>Retour à l’accueil</Button>
+        <Button variant="outline" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
       </div>
-      <p className="mt-3 text-[12px] leading-[1.45] text-muted">Le bilan s’ouvre dans la feuille de partage : envoie-le à Claude, puis colle sa réponse dans Plus → Coach pour mettre tes cibles à jour.</p>
+      <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Le bilan s’ouvre dans la feuille de partage : envoie-le à Claude, puis colle sa réponse dans Plus → Coach pour mettre tes cibles à jour.', 'The summary opens in the share sheet: send it to Claude, then paste the reply in More → Coach to update your targets.')}</p>
     </Screen>
   )
 }
@@ -636,9 +649,9 @@ function ChangeRow({ c, applied, onApply, onRevert }: { c: AutoChange; applied: 
         <p className={cx('text-[13px] text-text-2', !applied && 'text-muted')}>{c.text}</p>
       </div>
       {applied ? (
-        <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>Annuler</Button>
+        <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>{L('Annuler', 'Undo')}</Button>
       ) : (
-        <Button size="sm" variant="primary" onClick={onApply}>Appliquer</Button>
+        <Button size="sm" variant="primary" onClick={onApply}>{L('Appliquer', 'Apply')}</Button>
       )}
     </div>
   )
@@ -673,7 +686,7 @@ export function WorkoutExercises({ w }: { w: Workout }) {
                 {e.comparison?.detail && <span className="text-[12px] text-muted">{e.comparison.detail}</span>}
               </div>
             )}
-            {e.skipped && <p className="mt-1 text-[12px] text-muted">Non réalisé</p>}
+            {e.skipped && <p className="mt-1 text-[12px] text-muted">{L('Non réalisé', 'Not done')}</p>}
             {e.notes && <p className="mt-1 text-[12px] text-muted">{e.notes}</p>}
           </div>
         ))}
@@ -691,8 +704,8 @@ export function WorkoutDetail({ id }: { id: string }) {
   if (!w) {
     return (
       <Screen>
-        <Header title="Séance" backTo="progres/seances" />
-        <Empty title="Séance introuvable" />
+        <Header title={L('Séance', 'Session')} backTo="progres/seances" />
+        <Empty title={L('Séance introuvable', 'Session not found')} />
       </Screen>
     )
   }
@@ -700,25 +713,25 @@ export function WorkoutDetail({ id }: { id: string }) {
   const ctx = contextAt(w.date)
   return (
     <Screen>
-      <Header eyebrow={`Séance n°${w.sessionNumber} · ${capitalize(fmtDate(w.date, { weekday: true, year: true }))}`} title={TYPE_META[w.type].label} backTo="progres/seances" sub={`${TYPE_META[w.type].fr} · ${sessionSetCount(w)} séries${minutes ? ` · ${minutes} min` : ''}${ctx.period ? ` · ${ctx.title}` : ''}`} />
+      <Header eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Session #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true, year: true }))}`} title={TYPE_META[w.type].label} backTo="progres/seances" sub={`${TYPE_META[w.type].fr} · ${L(`${sessionSetCount(w)} séries`, plural(sessionSetCount(w), 'set', 'sets'))}${minutes ? ` · ${minutes} min` : ''}${ctx.period ? ` · ${ctx.title}` : ''}`} />
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
       <div className="mt-8 grid gap-2">
-        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), `Séance ${w.sessionNumber}`)}>Bilan pour Claude</Button>
-        <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>Supprimer la séance</Button>
+        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>{L('Bilan pour Claude', 'Summary for Claude')}</Button>
+        <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>{L('Supprimer la séance', 'Delete session')}</Button>
       </div>
       <Sheet
         open={confirm}
         onClose={() => setConfirm(false)}
-        title="Supprimer cette séance ?"
+        title={L('Supprimer cette séance ?', 'Delete this session?')}
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirm(false)}>Annuler</Button>
-            <Button variant="danger" size="lg" className="flex-1" onClick={() => { deleteWorkout(w.id); navigate('progres/seances', { replace: true }) }}>Supprimer</Button>
+            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirm(false)}>{L('Annuler', 'Cancel')}</Button>
+            <Button variant="danger" size="lg" className="flex-1" onClick={() => { deleteWorkout(w.id); navigate('progres/seances', { replace: true }) }}>{L('Supprimer', 'Delete')}</Button>
           </div>
         }
       >
-        <p className="text-[15px] text-text-2">Elle disparaît de l’historique et des graphiques. Pense à exporter une sauvegarde avant.</p>
+        <p className="text-[15px] text-text-2">{L('Elle disparaît de l’historique et des graphiques. Pense à exporter une sauvegarde avant.', 'It disappears from your history and charts. Consider exporting a backup first.')}</p>
       </Sheet>
     </Screen>
   )

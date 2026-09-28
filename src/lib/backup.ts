@@ -1,10 +1,13 @@
 import { todayISO } from './date'
 import { DEFAULT_GYMS, HOME_GYM } from './gyms'
+import { L } from './i18n'
 import {
-  buildResearchTemplates, DEFAULT_GOAL, DEFAULT_SCHEDULE, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, ROTATION, TOTAL_SESSIONS, TYPE_META,
+  buildResearchTemplates, DEFAULT_GOAL, DEFAULT_SCHEDULE, defaultGoalFor, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, REPORT_FOUNDATION, REPORT_START,
+  ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
-  AppState, Backup, BodyEntry, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, VisualGoal, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
+  AppState, Backup, BodyEntry, Equipment, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, TrainingSetup, VisualGoal, Workout, WorkoutExercise,
+  WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
 
@@ -30,7 +33,7 @@ export function defaultState(): AppState {
     nutritionTargets: { calories: 2350, proteinMin: 180, proteinMax: 190, creatine: 5, adaptive: true },
     nutritionEntries: {},
     bodyEntries: [],
-    settings: { goalDate: DEFAULT_GOAL },
+    settings: { goalDate: DEFAULT_GOAL, programStart: REPORT_START, foundationStart: REPORT_FOUNDATION, setup: { place: 'gym', equipment: [] } },
     manualDeload: null,
     gyms: DEFAULT_GYMS.map((g) => ({ ...g })),
     gymId: HOME_GYM,
@@ -38,7 +41,7 @@ export function defaultState(): AppState {
     profile: { heightCm: 0, age: 0, sex: 'm' },
     visualGoal: null,
     goals: { targetWeightMin: 0, targetWeightMax: 0, targetWaist: null, sessionsPerWeek: 5 },
-    prefs: { theme: 'dark', accent: 'blue', autoLoad: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
+    prefs: { theme: 'dark', lang: 'auto', accent: 'blue', autoLoad: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
     schedule: { ...DEFAULT_SCHEDULE },
     exerciseVideos: {},
     meta: { createdAt: now, lastBackupAt: null, importedAt: null },
@@ -67,7 +70,7 @@ function normExercise(e: any): WorkoutExercise {
   return {
     ...e,
     exerciseId: str(e?.exerciseId, 'exercice'),
-    name: str(e?.name, str(e?.exerciseId, 'Exercice')),
+    name: str(e?.name, str(e?.exerciseId, L('Exercice', 'Exercise'))),
     muscle: str(e?.muscle),
     unit: e?.unit === 'kg/main' || e?.unit === 'PDC' ? e.unit : 'kg',
     target: {
@@ -106,10 +109,32 @@ function normWorkout(w: any, i: number): Workout | null {
 
 function normGyms(raw: any): Gym[] {
   const list: Gym[] = Array.isArray(raw)
-    ? raw.filter((g: any) => typeof g?.id === 'string' && g.id && typeof g?.name === 'string').map((g: any) => ({ id: g.id, name: g.name.trim() || 'Salle' }))
+    ? raw.filter((g: any) => typeof g?.id === 'string' && g.id && typeof g?.name === 'string').map((g: any) => ({ id: g.id, name: g.name.trim() || L('Salle', 'Gym') }))
     : []
   if (!list.some((g) => g.id === HOME_GYM)) list.unshift({ ...DEFAULT_GYMS[0] })
   return list.filter((g, i) => list.findIndex((x) => x.id === g.id) === i)
+}
+
+const isISO = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)
+const EQUIPMENT: Equipment[] = ['dumbbells', 'bench', 'pullupBar', 'bands']
+
+function normSetup(raw: any): TrainingSetup {
+  return {
+    place: raw?.place === 'home' ? 'home' : 'gym',
+    equipment: Array.isArray(raw?.equipment) ? EQUIPMENT.filter((e) => raw.equipment.includes(e)) : [],
+  }
+}
+
+/** Data from before onboarding (the report's) keeps the report's start and foundation. */
+function normSettings(raw: any): AppState['settings'] {
+  const programStart = isISO(raw?.programStart) ? raw.programStart : REPORT_START
+  const foundationStart = raw?.foundationStart === null ? null : isISO(raw?.foundationStart) ? raw.foundationStart : programStart === REPORT_START ? REPORT_FOUNDATION : null
+  return {
+    goalDate: isValidGoal(raw?.goalDate, programStart) ? raw.goalDate : defaultGoalFor(programStart),
+    programStart,
+    foundationStart,
+    setup: normSetup(raw?.setup),
+  }
 }
 
 const LOOKS = ['athletique', 'sec', 'taille', 'tres-sec']
@@ -133,6 +158,7 @@ function normPrefs(raw: any, d: Prefs): Prefs {
     ...p,
     theme: p.theme === 'light' || p.theme === 'auto' ? p.theme : 'dark',
     accent: p.accent === 'orange' ? 'orange' : 'blue',
+    lang: p.lang === 'fr' || p.lang === 'en' ? p.lang : 'auto',
     autoLoad: p.autoLoad !== false,
     push: p.push === true,
   }
@@ -241,7 +267,7 @@ export function normalizeState(raw: any): AppState {
     },
     nutritionEntries,
     bodyEntries,
-    settings: { goalDate: isValidGoal(raw.settings?.goalDate) ? raw.settings.goalDate : DEFAULT_GOAL },
+    settings: normSettings(raw.settings),
     manualDeload:
       typeof raw.manualDeload?.start === 'string' && typeof raw.manualDeload?.end === 'string'
         ? { start: raw.manualDeload.start, end: raw.manualDeload.end }
@@ -302,7 +328,10 @@ export function upgradeToResearchProgram(state: AppState): { state: AppState; ch
       {
         updateId: `research-program-${todayISO()}`,
         basedOnSession: state.completedSessions || null,
-        summary: 'Programme fondé sur la recherche : ULPPL rééquilibré (latéraux ×2, triceps au-dessus de la tête, leg curl assis, hip thrust, RDL, mollets 2×/sem), blocs de 5 semaines + décharge, sèche du 4 janvier au 13 juin.',
+        summary: L(
+          'Programme fondé sur la recherche : ULPPL rééquilibré (latéraux ×2, triceps au-dessus de la tête, leg curl assis, hip thrust, RDL, mollets 2×/sem), blocs de 5 semaines + décharge, sèche du 4 janvier au 13 juin.',
+          'Research-based program: rebalanced ULPPL (side delts ×2, overhead triceps, seated leg curl, hip thrust, RDL, calves 2×/wk), 5-week blocks + deload, cut from 4 January to 13 June.',
+        ),
         appliedAt: new Date().toISOString(),
         changeCount: changes.filter((c) => c.kind !== 'kept').length,
         source: 'program',
@@ -324,11 +353,11 @@ export function parseBackup(text: string): ParsedBackup {
   try {
     json = JSON.parse(text)
   } catch {
-    throw new Error('Ce fichier n’est pas un JSON valide.')
+    throw new Error(L('Ce fichier n’est pas un JSON valide.', 'This file is not valid JSON.'))
   }
   const rawState = json?.state ?? json
   if (!rawState || typeof rawState !== 'object' || !('workouts' in rawState || 'templates' in rawState)) {
-    throw new Error('Ce fichier ne ressemble pas à une sauvegarde Lift (ou Golgoth).')
+    throw new Error(L('Ce fichier ne ressemble pas à une sauvegarde Lift (ou Golgoth).', 'This file doesn’t look like a Lift (or Golgoth) backup.'))
   }
   const state = normalizeState(rawState)
   const photos: Photo[] = (Array.isArray(json?.photos) ? json.photos : [])

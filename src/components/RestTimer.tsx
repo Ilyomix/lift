@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Plus, SkipForward, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
+import { L } from '../lib/i18n'
 import { preparePush, pushReady } from '../lib/push'
 import { useStore } from '../lib/store'
 import { cx } from './ui'
@@ -54,17 +55,20 @@ function useSessionEffects() {
       // With push on, the server sends the notification (it also arrives phone locked).
       const viaPush = prefs.push && pushReady()
       if (!viaPush && (document.visibilityState !== 'visible' || prefs.notifications)) {
-        void systemNotify('Repos terminé', timer.next ? `Ensuite : ${timer.next}` : 'Série suivante.')
+        void systemNotify(L('Repos terminé', 'Rest over'), timer.next ? L(`Ensuite : ${timer.next}`, `Next: ${timer.next}`) : L('Série suivante.', 'Next set.'))
       }
     }
   }, [now, timer, prefs.sound, prefs.notifications, prefs.push])
 }
 
-/** "Série 2/3 · Chest press machine" → ["Série 2/3", "Chest press machine"]; an exercise name stays whole. */
+/**
+ * "Série 2/3 · Chest press machine" → ["Série 2/3", "Chest press machine"]; an exercise name stays whole.
+ * The store writes "Set 2/3 · …" in English; either form is read and the step is shown in the current language.
+ */
 function splitNext(next: string | undefined): { step: string; name: string } | null {
   if (!next) return null
-  const m = next.match(/^(Série \d+(?:\/\d+)?) · (.+)$/)
-  return m ? { step: m[1], name: m[2] } : { step: 'Exercice suivant', name: next }
+  const m = next.match(/^(?:Série|Set) (\d+(?:\/\d+)?) · (.+)$/)
+  return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { step: L('Exercice suivant', 'Next exercise'), name: next }
 }
 
 function SegDigits({ value, className }: { value: string; className?: string }) {
@@ -98,19 +102,19 @@ export function RestDock() {
       <div
         role="timer"
         aria-live={done ? 'assertive' : 'off'}
-        aria-label={done ? 'Repos terminé' : `Repos : ${clock} restantes`}
+        aria-label={done ? L('Repos terminé', 'Rest over') : L(`Repos : ${clock} restantes`, `Rest: ${clock} left`)}
         className={cx('relative mx-auto max-w-[620px] overflow-hidden rounded-[14px] border bg-inst-bg px-3 pt-2.5 pb-3 text-inst-text shadow-[0_18px_50px_rgb(0_0_0/0.35)]', done ? 'border-signal' : 'border-inst-border')}
       >
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label="Agrandir le minuteur">
+          <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
             <SegDigits value={clock} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
             <span className="min-w-0">
-              <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? 'Ensuite' : 'Repos'}</span>
+              <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
             </span>
           </button>
-          {!done && <DockButton label="Ajouter 15 secondes" onClick={() => adjustRest(15)}><Plus size={16} /></DockButton>}
-          <DockButton label={done ? 'Fermer' : 'Passer le repos'} onClick={stopRest} accent={done}>
+          {!done && <DockButton label={L('Ajouter 15 secondes', 'Add 15 seconds')} onClick={() => adjustRest(15)}><Plus size={16} /></DockButton>}
+          <DockButton label={done ? L('Fermer', 'Close') : L('Passer le repos', 'Skip rest')} onClick={stopRest} accent={done}>
             {done ? <X size={16} /> : <SkipForward size={16} />}
           </DockButton>
         </div>
@@ -151,10 +155,10 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const R = 132
   const C = 2 * Math.PI * R
   return (
-    <div role="dialog" aria-modal="true" aria-label="Minuteur de repos" className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-inst-bg text-white safe-top safe-bottom">
+    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-inst-bg text-white safe-top safe-bottom">
       <div className="flex items-center justify-between px-4 pt-2">
-        <span className="text-[11px] font-semibold tracking-[0.1em] text-inst-label uppercase">{done ? 'Repos terminé' : 'Repos'}</span>
-        <button type="button" onClick={onClose} aria-label="Réduire" className="pressable inline-flex h-11 w-11 items-center justify-center rounded-[10px] text-inst-text hover:bg-inst-btn">
+        <span className="text-[11px] font-semibold tracking-[0.1em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : L('Repos', 'Rest')}</span>
+        <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable inline-flex h-11 w-11 items-center justify-center rounded-[10px] text-inst-text hover:bg-inst-btn">
           <X size={20} />
         </button>
       </div>
@@ -175,12 +179,12 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
             <span className="mt-3 max-w-[200px] truncate text-center text-[13px] text-inst-label">{timer.label}</span>
           </div>
         </div>
-        <p className="mt-8 min-h-[22px] px-4 text-center text-[15px] font-medium text-inst-text">{timer.next ? `Ensuite : ${timer.next}` : ''}</p>
+        <p className="mt-8 min-h-[22px] px-4 text-center text-[15px] font-medium text-inst-text">{timer.next ? L(`Ensuite : ${timer.next}`, `Next: ${timer.next}`) : ''}</p>
       </div>
       <div className="grid grid-cols-3 gap-3 px-6 pb-6">
         <button type="button" onClick={() => adjustRest(-15)} disabled={done} className="pressable h-14 rounded-[12px] bg-inst-btn text-[15px] font-semibold disabled:opacity-40">−15 s</button>
         <button type="button" onClick={() => adjustRest(15)} className="pressable h-14 rounded-[12px] bg-inst-btn text-[15px] font-semibold">+15 s</button>
-        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable h-14 rounded-[12px] bg-signal text-[15px] font-semibold text-signal-ink">{done ? 'Go' : 'Passer'}</button>
+        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable h-14 rounded-[12px] bg-signal text-[15px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer', 'Skip')}</button>
       </div>
     </div>
   )

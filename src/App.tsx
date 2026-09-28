@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { Fragment, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { RefreshCw } from 'lucide-react'
+import { L, resolveLang } from './lib/i18n'
 import { useRoute } from './lib/router'
 import { useStore } from './lib/store'
 import type { WorkoutType } from './lib/types'
@@ -59,9 +60,9 @@ function UpdatePrompt() {
     <div className="fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),12px)+var(--top-clear))] z-[71] flex justify-center px-4">
       <div role="status" className="overlay-enter flex items-center gap-3 rounded-[12px] border border-line bg-surface px-4 py-2.5 shadow-[0_12px_40px_rgb(0_0_0/0.18)]">
         <RefreshCw size={16} className="text-text-2" aria-hidden />
-        <span className="text-[14px]">Nouvelle version disponible</span>
-        <Button size="sm" variant="primary" onClick={() => void updateServiceWorker(true)}>Mettre à jour</Button>
-        <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>Plus tard</Button>
+        <span className="text-[14px]">{L('Nouvelle version disponible', 'New version available')}</span>
+        <Button size="sm" variant="primary" onClick={() => void updateServiceWorker(true)}>{L('Mettre à jour', 'Update')}</Button>
+        <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>{L('Plus tard', 'Later')}</Button>
       </div>
     </div>
   )
@@ -70,6 +71,8 @@ function UpdatePrompt() {
 export default function App() {
   const ready = useStore((s) => s.ready)
   const hasData = useStore((s) => s.hasData)
+  // Strings are read at render: a language change remounts the whole tree.
+  const langKey = useStore((s) => resolveLang(s.state.prefs.lang))
   const path = useRoute()
 
   useEffect(() => {
@@ -105,7 +108,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <Fragment key={langKey}>
       {effects}
       <div className="status-scrim" aria-hidden />
       <Routes key={path.join('/')} path={path} />
@@ -114,6 +117,6 @@ export default function App() {
       <ImportResultSheet />
       <Toaster />
       <UpdatePrompt />
-    </>
+    </Fragment>
   )
 }

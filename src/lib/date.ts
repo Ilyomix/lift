@@ -1,3 +1,4 @@
+import { L, lang } from './i18n'
 import type { ISODate } from './types'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -75,28 +76,52 @@ export function clampDate(s: ISODate, min: ISODate, max: ISODate): ISODate {
   return s < min ? min : s > max ? max : s
 }
 
-export const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-export const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
-export const DAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
-export const DAYS_SHORT = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']
-export const DAYS_LETTER = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+const MONTHS_SHORT_FR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+const DAYS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+const DAYS_SHORT_FR = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']
+const DAYS_LETTER_FR = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTHS_SHORT_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAYS_SHORT_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAYS_LETTER_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
+/** Month name, 0 = January (French names are lowercase, as in running text). */
+export function monthName(month: number, short = false): string {
+  const en = lang() === 'en'
+  return (short ? (en ? MONTHS_SHORT_EN : MONTHS_SHORT_FR) : en ? MONTHS_EN : MONTHS_FR)[month]
+}
+
+/** Weekday name, 0 = Sunday. */
+export function dayName(day: number, short = false): string {
+  const en = lang() === 'en'
+  return (short ? (en ? DAYS_SHORT_EN : DAYS_SHORT_FR) : en ? DAYS_EN : DAYS_FR)[day]
+}
+
+/** One-letter weekday, 0 = Sunday. */
+export function dayLetter(day: number): string {
+  return (lang() === 'en' ? DAYS_LETTER_EN : DAYS_LETTER_FR)[day]
+}
+
+/** « lun. 28 sept. 2026 » / « Mon 28 Sep 2026 », long: « lundi 28 septembre » / « Monday 28 September ». */
 export function fmtDate(s: ISODate, opts: { weekday?: boolean; year?: boolean; long?: boolean } = {}): string {
   const d = parseISO(s)
-  const month = opts.long ? MONTHS[d.getMonth()] : MONTHS_SHORT[d.getMonth()]
-  let out = `${d.getDate() === 1 ? '1er' : d.getDate()} ${month}`
-  if (opts.weekday) out = `${opts.long ? DAYS[d.getDay()] : DAYS_SHORT[d.getDay()]} ${out}`
+  const month = monthName(d.getMonth(), !opts.long)
+  const day = lang() === 'fr' && d.getDate() === 1 ? '1er' : String(d.getDate())
+  let out = `${day} ${month}`
+  if (opts.weekday) out = `${dayName(d.getDay(), !opts.long)} ${out}`
   if (opts.year) out += ` ${d.getFullYear()}`
   return out
 }
 
 export function fmtRelativeDay(s: ISODate, ref: ISODate = todayISO()): string {
   const n = diffDays(ref, s)
-  if (n === 0) return "aujourd'hui"
-  if (n === 1) return 'demain'
-  if (n === -1) return 'hier'
-  if (n > 1 && n < 7) return DAYS[weekday(s)]
-  if (n < -1 && n > -7) return `il y a ${-n} jours`
+  if (n === 0) return L('aujourd’hui', 'today')
+  if (n === 1) return L('demain', 'tomorrow')
+  if (n === -1) return L('hier', 'yesterday')
+  if (n > 1 && n < 7) return dayName(weekday(s))
+  if (n < -1 && n > -7) return L(`il y a ${-n} jours`, `${-n} days ago`)
   return fmtDate(s, { weekday: true })
 }
 

@@ -1,3 +1,4 @@
+import { L } from './i18n'
 import { useStore } from './store'
 
 /** Shares text through the iOS share sheet (straight into the Claude app), or copies it. */
@@ -17,7 +18,7 @@ export async function shareText(text: string, title: string): Promise<void> {
 export async function copyText(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
-    useStore.getState().notify('Copié. Colle-le dans Claude.', 'good')
+    useStore.getState().notify(L('Copié. Colle-le dans Claude.', 'Copied. Paste it into Claude.'), 'good')
   } catch {
     const ta = document.createElement('textarea')
     ta.value = text
@@ -27,9 +28,9 @@ export async function copyText(text: string): Promise<void> {
     ta.select()
     try {
       document.execCommand('copy')
-      useStore.getState().notify('Copié. Colle-le dans Claude.', 'good')
+      useStore.getState().notify(L('Copié. Colle-le dans Claude.', 'Copied. Paste it into Claude.'), 'good')
     } catch {
-      useStore.getState().notify('Copie impossible sur cet appareil.', 'bad')
+      useStore.getState().notify(L('Copie impossible sur cet appareil.', 'Copying isn’t possible on this device.'), 'bad')
     }
     ta.remove()
   }

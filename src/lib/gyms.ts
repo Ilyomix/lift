@@ -1,14 +1,16 @@
 // Gyms: machine and cable loads are kept per gym, free weights are shared.
+import { L } from './i18n'
 import { gymBound } from './library'
 import type { AppState, Gym, TemplateExercise } from './types'
 
 export const HOME_GYM = 'main'
-export const DEFAULT_GYMS: Gym[] = [{ id: HOME_GYM, name: 'Ma salle' }]
+/** The name is a getter (current language): copy the entries with `{ ...g }` before storing them. */
+export const DEFAULT_GYMS: Gym[] = [{ id: HOME_GYM, get name() { return L('Ma salle', 'My gym') } }]
 
 export const gymOf = (w: { gymId?: string } | null | undefined): string => w?.gymId || HOME_GYM
 
 export function gymName(state: Pick<AppState, 'gyms'>, id: string | undefined): string {
-  return state.gyms.find((g) => g.id === (id || HOME_GYM))?.name ?? 'Salle supprimée'
+  return state.gyms.find((g) => g.id === (id || HOME_GYM))?.name ?? L('Salle supprimée', 'Deleted gym')
 }
 
 export function isGymBound(ex: Pick<TemplateExercise, 'exerciseId' | 'unit'>): boolean {

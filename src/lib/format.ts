@@ -1,7 +1,8 @@
+import { L, lang, locale } from './i18n'
 import type { Unit } from './types'
 
 const nf = (digits: number) =>
-  new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: digits })
+  new Intl.NumberFormat(locale(), { minimumFractionDigits: 0, maximumFractionDigits: digits })
 
 export function fmtNum(n: number | null | undefined, digits = 1): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '—'
@@ -10,20 +11,30 @@ export function fmtNum(n: number | null | undefined, digits = 1): string {
 
 export function fmtFixed(n: number | null | undefined, digits = 1): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n)
+  return new Intl.NumberFormat(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n)
 }
 
 export function fmtSigned(n: number | null | undefined, digits = 1, unit = ''): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '—'
   const v = Math.abs(n) < 10 ** -digits / 2 ? 0 : n
   const sign = v > 0 ? '+' : v < 0 ? '−' : '±'
-  return `${sign}${nf(digits).format(Math.abs(v))}${unit ? ` ${unit}` : ''}`
+  // « +5 % » in French, « +5% » in English; other units keep their space.
+  const sep = unit === '%' && lang() === 'en' ? '' : ' '
+  return `${sign}${nf(digits).format(Math.abs(v))}${unit ? `${sep}${unit}` : ''}`
+}
+
+/** Body weight: « PDC » (poids du corps) / « BW » (bodyweight). */
+export const bodyweightLabel = () => L('PDC', 'BW')
+
+/** Unit as displayed: kg/main → kg/hand in English, PDC → BW. */
+export function unitLabel(unit: Unit): string {
+  return unit === 'PDC' ? bodyweightLabel() : unit === 'kg/main' ? L('kg/main', 'kg/hand') : 'kg'
 }
 
 export function fmtLoad(weight: number | null | undefined, unit: Unit): string {
-  if (unit === 'PDC') return weight ? `PDC +${fmtNum(weight)} kg` : 'PDC'
+  if (unit === 'PDC') return weight ? `${bodyweightLabel()} +${fmtNum(weight)} kg` : bodyweightLabel()
   if (weight === null || weight === undefined) return '—'
-  return `${fmtNum(weight)} ${unit === 'kg/main' ? 'kg/main' : 'kg'}`
+  return `${fmtNum(weight)} ${unitLabel(unit)}`
 }
 
 export function fmtDuration(totalSeconds: number): string {
@@ -46,8 +57,10 @@ export function fmtRest(seconds: number): string {
   return fmtDuration(seconds)
 }
 
+/** « 1 semaine », « 0 semaine » in French (singular below 2); « 1 week », « 0 weeks » in English. */
 export function plural(n: number, one: string, many: string): string {
-  return `${fmtNum(n, 0)} ${Math.abs(n) >= 2 ? many : one}`
+  const single = lang() === 'en' ? Math.abs(n) === 1 : Math.abs(n) < 2
+  return `${fmtNum(n, 0)}\u00a0${single ? one : many}`
 }
 
 export function uid(prefix: string): string {

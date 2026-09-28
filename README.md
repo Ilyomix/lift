@@ -1,78 +1,127 @@
 # Lift
 
-Programme d'hypertrophie fondé sur la recherche, en PWA installable sur iPhone.
-Séances guidées, calendrier des blocs calé sur une date objectif modifiable, minuteur de repos
-(notifié même téléphone verrouillé), charges qui s'ajustent seules, reprise après pause et
-graphiques de progression. Tout fonctionne hors ligne.
+A research-based hypertrophy program, as a web app you install on your phone.
 
-**App : https://ilyomix.github.io/golgoth/**
+**App: https://ilyomix.github.io/lift/** · Lift was formerly called Golgoth.
 
-## Le programme
+## What it is
 
-Split Upper / Lower / Push / Pull / Legs, 5 séances par semaine, 2 passages par muscle.
-Les règles viennent du rapport de recherche du 26 septembre 2026 (27 publications
-vérifiées, listées dans l'app et dans `src/lib/research.ts`) :
+You tell Lift where you train, on which days, a few body measurements and the look you want by a given date. It lays out the whole plan (recomposition, a cut if needed, then a stabilization ending on that date, in blocks separated by deloads). Then it guides each session set by set, times your rests and adjusts your loads from what you actually lift.
 
-- 10 à 20 séries difficiles par muscle et par semaine, en comptage fractionnaire ;
-- RIR 1–2 en polyarticulaire, 0–1 en isolation, avec une progression d'effort dans chaque bloc ;
-- double progression des charges ;
-- blocs de 5 semaines suivis d'une semaine de décharge (séries ÷ 2, charges −10 %) ;
-- pour l'objectif par défaut (30 juin 2027) : recomposition jusqu'au 3 janvier, sèche du 4 janvier
-  au 13 juin, stabilisation jusqu'au 30 juin. Une autre date objectif recalcule le plan : sèche de
-  23 semaines au plus, recomposition sur le temps restant, fêtes en maintenance ;
-- reprise adaptée à la durée d'une pause (1 semaine, 2–3 semaines, plus de 3 semaines).
+- **Installable PWA**, designed for the iPhone: open the app in Safari, then Share → Add to Home Screen. It then runs full screen and offline, and can receive notifications.
+- **Bilingual**: French and English. It follows the phone's language, and you can switch in Settings.
+- **Private**: no account, everything is stored on the device.
 
-La fréquence n'est pas optimale en soi. À volume égal, s'entraîner 1, 2 ou 3 fois par semaine
-donne des résultats similaires. Les 5 séances servent à répartir le volume.
+## Features
 
-## Fonctionnalités
+- **Onboarding**: language; gym or home training (home equipment: dumbbells, bench, pull-up bar, bands; body weight is always available); training days; body (sex, age, height, weight, optional waist); then the look and the goal date, with a preview of the plan. You can also start by importing a backup.
+- **Program**: an Upper / Lower / Push / Pull / Legs rotation that runs continuously over your training days (five a week is the program's pace). At home, each gym exercise of the program is replaced by the best version your equipment allows; you can switch between gym and home in Settings, and your gym sessions come back as they were. Sessions are editable.
+- **Guided sessions**: the day's prescription for each exercise (sets, rep range, RIR (reps in reserve), rest, load), your last performance, clean reps, failure / technique / pain flags, supersets and exercise swaps. Machine loads and history are kept per gym; free weights are shared.
+- **Automatic loads**: double progression after each session. When every set reaches the top of the range, the load goes up; when every set falls under it, the load goes down. A trial session sets the starting load. Within a session, the next sets follow the one just done. Two drops in a row remove a set until the end of the block, and a general drop offers an early deload. Every change can be undone.
+- **Rest timer**: seven-segment dial, sound and vibration, screen kept awake, and a push notification that arrives even with the phone locked.
+- **Calendar**: blocks, deloads, phases and holidays up to the goal date. A missed session shifts the rotation instead of being skipped. Pauses (holiday, illness, injury…) end with return-to-training rules. Reminders for sessions, weigh-ins, waist, photos, deloads and phases export as an `.ics` file for the phone's calendar.
+- **Visual goal**: four looks, from athletic to shredded, each defined by a body-fat range. Lift estimates your body fat and derives a target weight and a cut length. It then checks that the cut fits before your goal date (or proposes a later date) and gives up to three priority zones an extra set.
+- **Nutrition**: protein follows your 7-day average weight. Calorie changes (±150 kcal) are suggested from the weight trend against the phase's target rate, and from the waist during recomposition. Body weight never changes training loads.
+- **Progress**: estimated 1RM per exercise, 7-day average weight against the plan's path, body measurements, hard sets per muscle per week against the 10–20 band, and before/after photos.
+- **AI coach**: send a session or whole-program brief to Claude, then paste its reply back. The JSON plan update is previewed before it applies.
+- **Exercise sheets**: demo images, technique cues, the evidence behind the exercise, and a YouTube search or your own video.
+- **Backups**: JSON export and import, photos included. Golgoth backups import as they are. Data from the older Golgoth Tracker can be moved onto the research program with loads and history kept.
 
-- **Séance** : prescription du jour (séries, fourchette, RIR, repos, charge), série en cours mise
-  en avant, dernière performance, reps propres, drapeaux échec, technique et douleur, supersets,
-  remplacement d'exercice.
-- **Charges automatiques** : après chaque séance, double progression (haut de fourchette → plus
-  lourd), baisse si toutes les séries restent sous la fourchette, charge de départ après une séance
-  d'essai, une série de moins après deux baisses de suite ; pendant la séance, les séries suivantes
-  s'ajustent. Tout est annulable. Baisse générale → décharge avancée proposée.
-- **Salles** : charges et historique des machines par salle ; haltères, barres et poids du corps communs.
-- **Minuteur de repos** : cadran en chiffres DSEG, alertes sonores et vibrations, notification
-  poussée par le serveur `push/` (Vercel) pour être prévenu téléphone verrouillé.
-- **Nutrition** : protéines selon la moyenne de poids sur 7 jours, calories proposées d'après la
-  tendance du poids (et du tour de taille en recomposition).
-- **Calendrier** : rotation posée sur la semaine type (une séance manquée décale la rotation,
-  aucune n'est sautée), décharges, phases, pauses, rappels natifs iPhone via un fichier `.ics`.
-- **Progrès** : 1RM estimé par exercice, poids en moyenne sur 7 jours avec la trajectoire du plan,
-  tour de taille, séries par muscle et par semaine face à la zone 10–20, photos avant/après.
-- **Coach Claude** : bilan de séance exporté vers Claude, puis sa réponse JSON appliquée
-  aux cibles, avec un aperçu avant validation.
-- **Démos** : deux images par exercice, sources de preuve et vidéos YouTube.
+## Evidence base
 
-## Stack
+The rules come from a research report dated 26 September 2026. It cites 31 publications, all checked; studies the report could not verify are left out. They are listed in the app and in [`src/lib/research.ts`](src/lib/research.ts), each rule tagged with its level of evidence.
 
-Vite 8 · React 19 · TypeScript · Tailwind CSS 4 · Lucide · NumberFlow · Zustand ·
-IndexedDB (idb-keyval) · vite-plugin-pwa (Workbox).
+| Topic | Rule in Lift | Evidence |
+|---|---|---|
+| Volume | 10–20 hard sets per muscle per week, counted fractionally (direct set 1, indirect 0.5) | Strong |
+| Frequency, split | Each muscle twice a week; Upper / Lower / Push / Pull / Legs | Strong |
+| Effort | RIR 1–2 on compound lifts, 0–1 on isolation; within a block, week 1 at RIR 3, week 2 at RIR 2, last week 0–1 | Strong |
+| Reps | 6–12 on compound lifts, 10–20 on isolation | Strong |
+| Rest | At least 90 s; 2–3 min on compound lifts | Moderate |
+| Machines | As good as free weights for muscle growth | Strong |
+| Range of motion | Full range, with emphasis on the stretched position | Moderate |
+| Progression | Double progression, no complex periodization | Strong |
+| Deloads | One lighter week every ~6 weeks: half the sets, loads −10 %, RIR 3–4 | Expert opinion |
+| Breaks | One to three weeks off cost little | Moderate |
+| Cut | −0.5 to −0.7 % of body weight per week, deficit ≤ 500 kcal/day | Moderate |
+| Protein | ≥ 1.6 g/kg/day (Lift aims for about 2 g/kg, a little more during the cut) | Strong |
+| Creatine | 5 g/day | Moderate |
+
+Five sessions a week are not optimal in themselves: at equal volume, training a muscle once, twice or three times a week gives similar growth. The five sessions spread the volume and keep each one around an hour.
+
+**The plan** is built backwards from the goal date, which can be 8 weeks to 5 years away:
+
+- **Stabilization**: about 2.5 weeks, ending on the goal date.
+- **Cut**: just before it, as long as your look needs, capped by the time available.
+- **Recomposition**: fills the time from the start.
+
+Blocks last about five weeks, each followed by a deload week; the last block of a phase hands over to the next phase instead. The Christmas weeks become maintenance, and in a long cut the middle deload doubles as a diet break. After a break, the return scales with its length:
+
+- **1–2 weeks off**: two sessions at −5 to −10 % load.
+- **2–3 weeks off**: one week run like week 1.
+- **More than 3 weeks off**: two restart weeks.
+
+**Estimates**: body fat comes from waist and height (relative fat mass, Woolcott & Bergman 2018). At onboarding without a waist measurement, it comes from BMI, age and sex instead (Deurenberg 1991). Starting calories come from Mifflin–St Jeor (1990). Your weight trend and waist then correct these estimates.
+
+**Limits**: muscle-length trials mostly involve beginners over 8–12 weeks, and the meta-analyses mostly include young men. Deload frequency, the diet break and the return thresholds are expert opinion. Lift is not medical advice.
+
+## Privacy
+
+- Sessions, measurements, photos and settings stay on the device, in IndexedDB. There is no account and no analytics.
+- The one exception applies when lock-screen notifications are on. For each rest, the push subscription and the notification text are sent to the [push server](push/README.md), which keeps a cache entry for one hour at most.
+- Backups and coach briefs leave the phone only when you export or share them.
+- A video you pin to an exercise loads from YouTube's privacy-enhanced domain (youtube-nocookie.com).
+
+## Development
 
 ```bash
+git clone https://github.com/Ilyomix/lift.git && cd lift
 npm install
-npm run dev      # http://localhost:5173/golgoth/
-npm test         # tests de logique (node --test)
-npm run build    # typecheck + build PWA dans dist/
+npm run dev         # http://localhost:5173/lift/
+npm test            # logic tests (node:test + tsx, no DOM)
+npm run typecheck   # tsc --noEmit
+npm run build       # typecheck, then the PWA build in dist/
+npm run preview     # serves dist/ at http://localhost:4173/lift/
 ```
 
-Chaque push sur `main` est testé, compilé puis publié sur GitHub Pages
-(`.github/workflows/deploy.yml`).
+- **Node 22**, as in CI.
+- **Base path**: `/lift/` by default; set `LIFT_BASE` to build for another path, e.g. `LIFT_BASE=/ npm run build`.
+- **Service worker**: offline mode and push notifications need it, and the dev server doesn't run it. Test those with `npm run build && npm run preview`.
+- **Translations**: every string is written inline, French first, e.g. `L('Repos terminé', 'Rest over')`, so neither language can miss one.
+- **Stack**: Vite 8 · React 19 · TypeScript · Tailwind CSS 4 · Zustand · idb-keyval (IndexedDB) · vite-plugin-pwa (Workbox) · Lucide · NumberFlow.
 
-## Données
+| Path | Contents |
+|---|---|
+| `src/lib/program.ts` | Program, plan generator, calendar engine, home versions of the exercises |
+| `src/lib/research.ts` | Sources and evidence levels |
+| `src/lib/training.ts` | Load decisions, comparisons, volume per muscle |
+| `src/lib/stats.ts` | Weight trend, protein and calorie targets |
+| `src/lib/visual.ts` | Visual goal: body fat, target weight, cut length, priority zones |
+| `src/lib/onboarding.ts` | First run → complete initial state |
+| `src/screens/`, `src/components/` | Interface |
+| `tests/` | Logic tests |
+| `public/push-sw.js` | Push handler, imported by the Workbox service worker |
+| `push/` | Push server (Vercel) |
+| `scripts/icons.py` | App icon generator (Pillow) |
 
-Tout reste sur l'appareil, dans IndexedDB, sans compte. Seule exception, si les notifications
-écran verrouillé sont activées : l'abonnement push est envoyé au serveur `push/` le temps d'un
-repos (entrée de cache d'une heure au plus). L'export et l'import JSON sont compatibles avec les
-sauvegardes de l'ancien Golgoth Tracker.
+## Deployment
 
-## Crédits
+Every push to `main` (or a manual run) triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): Node 22, `npm ci`, `npm test`, `npm run build`, then `dist/` is published to GitHub Pages. A failing test stops the deploy.
 
-- Images de démonstration : [Free Exercise DB](https://github.com/yuhonas/free-exercise-db), domaine public (Unlicense).
-- Police Geologica : SIL Open Font License (`src/assets/fonts/Geologica-LICENSE.txt`).
-- Police DSEG7 : SIL Open Font License, © keshikan (`src/assets/fonts/DSEG-LICENSE.txt`).
+- In the repository settings, Pages → Source must be **GitHub Actions**.
+- The site is served at https://ilyomix.github.io/lift/, so the base path `/lift/` matches the repository name.
+- Installed apps offer each new version through an in-app update prompt.
 
-Ce programme n'est pas un avis médical.
+## Push server
+
+The end-of-rest notification with the phone locked comes from a small Vercel server in [`push/`](push/README.md) (Node 22, `web-push`). It runs at https://golgoth-push.vercel.app, an internal address that kept its original name. The server's VAPID keys are set as Vercel environment variables (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) and never appear in the repository.
+
+The client side is [`src/lib/push.ts`](src/lib/push.ts) and [`public/push-sw.js`](public/push-sw.js). On iPhone, notifications need the app installed on the Home Screen. Endpoints and deployment are covered in [`push/README.md`](push/README.md).
+
+## Credits
+
+- Demo images: [Free Exercise DB](https://github.com/yuhonas/free-exercise-db), public domain (Unlicense).
+- Geologica font: SIL Open Font License (`src/assets/fonts/Geologica-LICENSE.txt`).
+- DSEG7 font: SIL Open Font License, © keshikan (`src/assets/fonts/DSEG-LICENSE.txt`).
+
+Author: Ilyes.

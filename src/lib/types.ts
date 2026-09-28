@@ -217,8 +217,18 @@ export interface NutritionTargets {
   adaptive?: boolean
 }
 
+/** Home equipment; body weight is always available. */
+export type Equipment = 'dumbbells' | 'bench' | 'pullupBar' | 'bands'
+
+export interface TrainingSetup {
+  place: 'gym' | 'home'
+  equipment: Equipment[]
+}
+
 export interface Prefs {
   theme: 'auto' | 'light' | 'dark'
+  /** Interface language; auto follows the phone. */
+  lang?: 'auto' | 'fr' | 'en'
   accent: 'blue' | 'orange'
   /** Loads follow the performance automatically after each session (undo available). */
   autoLoad: boolean
@@ -275,7 +285,15 @@ export interface AppState {
   nutritionTargets: NutritionTargets
   nutritionEntries: Record<ISODate, NutritionEntry>
   bodyEntries: BodyEntry[]
-  settings: { goalDate: ISODate }
+  settings: {
+    goalDate: ISODate
+    /** Monday of the program's first week; the report's data starts on 28 Sept 2026. */
+    programStart?: ISODate
+    /** Sessions logged before the program (the report's data), shown as a foundation phase. */
+    foundationStart?: ISODate | null
+    /** Where the sessions happen: a gym (machines) or at home with the equipment listed. */
+    setup?: TrainingSetup
+  }
   /** Deload brought forward after a general drop of performance. */
   manualDeload: { start: ISODate; end: ISODate } | null
   gyms: Gym[]
@@ -289,7 +307,11 @@ export interface AppState {
   /** weekday (0 = Sunday) → planned session type */
   schedule: Record<number, WorkoutType | null>
   exerciseVideos: Record<string, string>
-  archive?: { templatesBeforeResearch?: Record<string, Template> }
+  archive?: {
+    templatesBeforeResearch?: Record<string, Template>
+    /** Sessions of the other training place, restored when switching back (gym ↔ home). */
+    templatesBySetup?: Partial<Record<'gym' | 'home', Record<WorkoutType, Template>>>
+  }
   meta: { createdAt: string; lastBackupAt: string | null; importedAt: string | null }
 }
 

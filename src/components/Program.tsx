@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
-import { DAYS_LETTER, diffDays, fmtDate, parseISO, todayISO } from '../lib/date'
+import { dayLetter, diffDays, fmtDate, monthName, parseISO, todayISO } from '../lib/date'
+import { L, locale } from '../lib/i18n'
 import { FOUNDATION_START, GOAL_DATE, PERIODS, TYPE_META, type Period, type PhaseId, type SessionPlan } from '../lib/program'
 import type { DayStatus } from '../lib/stats'
 import { cx } from './ui'
@@ -29,14 +30,17 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
   for (let m = parseISO(FOUNDATION_START); m <= parseISO(GOAL_DATE); m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
     const iso = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`
     if (iso < FOUNDATION_START) continue
-    months.push({ label: 'JFMAMJJASOND'[m.getMonth()], at: diffDays(FOUNDATION_START, iso) / total })
+    months.push({ label: monthName(m.getMonth()).charAt(0).toUpperCase(), at: diffDays(FOUNDATION_START, iso) / total })
   }
   const recomp = PERIODS.filter((p) => p.phase === 'recomp')
   const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
   const span = (ps: Period[]) => (ps.length ? { left: diffDays(FOUNDATION_START, ps[0].start) / total, right: (diffDays(FOUNDATION_START, ps[ps.length - 1].end) + 1) / total } : null)
   const r = span(recomp)
   const c = span(cut)
-  const label = `Calendrier du programme jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition jusqu’au ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`
+  const label = L(
+    `Calendrier du programme jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition jusqu’au ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
+    `Program calendar until ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition until ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, cut from ${fmtDate(cut[0].start, { long: true })} to ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
+  )
   return (
     <div className="w-full" role="img" aria-label={label}>
       <div className="relative h-3 w-full">
@@ -56,7 +60,7 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
       </div>
       {showLabels && (
         <div className="relative mt-1 h-4 w-full text-[11px] font-semibold">
-          {([[r, ['Recomposition', 'Recomp.']], [c, ['Sèche']]] as const).map(([span, options]) => {
+          {([[r, ['Recomposition', 'Recomp.']], [c, [L('Sèche', 'Cut')]]] as const).map(([span, options]) => {
             const text = span && fitLabel(span.right - span.left, [...options])
             return span && text ? (
               <span key={options[0]} className="absolute truncate text-text-2" style={{ left: `${span.left * 100}%`, width: `${(span.right - span.left) * 100}%` }}>{text}</span>
@@ -72,13 +76,13 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
 
 type Group = 'foundation' | 'recomp' | 'holiday' | 'cut' | 'stab'
 
-/** Full name then short form, for spans too narrow for the full name. */
+/** Full name then short form, for spans too narrow for the full name. Getters: they follow the interface language. */
 const GROUP_LABEL: Record<Group, string[]> = {
-  foundation: ['Fondation'],
+  get foundation() { return [L('Fondation', 'Foundation')] },
   recomp: ['Recomposition', 'Recomp.'],
-  holiday: ['Fêtes'],
-  cut: ['Sèche'],
-  stab: ['Stabilisation', 'Stab.'],
+  get holiday() { return [L('Fêtes', 'Holidays')] },
+  get cut() { return [L('Sèche', 'Cut')] },
+  get stab() { return [L('Stabilisation', 'Stabilization'), 'Stab.'] },
 }
 
 function groupOf(kind: Period['kind'], phase: PhaseId): Group {
@@ -135,7 +139,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   const currentGroup = nextIndex >= 0 ? ticks[nextIndex].group : null
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })}`}>
+      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned sessions done by ${fmtDate(GOAL_DATE, { long: true, year: true })}`)}>
         {ticks.map((t, i) => (
           <rect
             key={i}
@@ -165,7 +169,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
           )
         })}
       </div>
-      <span className="sr-only">{count} séances au total</span>
+      <span className="sr-only">{L(`${count} séances au total`, `${count} sessions in total`)}</span>
     </div>
   )
 }
@@ -176,10 +180,11 @@ export function WeekStrip({ days }: { days: DayStatus[] }) {
       {days.map((d) => {
         const done = d.done[0]
         const code = done ? TYPE_META[done.type].code : d.planned ? TYPE_META[d.planned].code : null
-        const label = done ? `${TYPE_META[done.type].label} faite` : d.planned ? `${TYPE_META[d.planned].label} prévue` : d.paused ? 'Pause' : 'Repos'
+        const label = done ? L(`${TYPE_META[done.type].label} faite`, `${TYPE_META[done.type].label} done`) : d.planned ? L(`${TYPE_META[d.planned].label} prévue`, `${TYPE_META[d.planned].label} planned`) : d.paused ? L('Pause', 'Break') : L('Repos', 'Rest')
+        const day = parseISO(d.date).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric' })
         return (
-          <li key={d.date} className="flex flex-col items-center gap-1.5" aria-label={`${parseISO(d.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })} : ${label}`}>
-            <span className={cx('text-[11px] font-semibold', d.isToday ? 'text-signal-text' : 'text-muted')}>{DAYS_LETTER[parseISO(d.date).getDay()]}</span>
+          <li key={d.date} className="flex flex-col items-center gap-1.5" aria-label={L(`${day} : ${label}`, `${day}: ${label}`)}>
+            <span className={cx('text-[11px] font-semibold', d.isToday ? 'text-signal-text' : 'text-muted')}>{dayLetter(parseISO(d.date).getDay())}</span>
             <span
               className={cx(
                 'flex h-10 w-full items-center justify-center rounded-[8px] text-[11px] font-bold tracking-[0.02em]',

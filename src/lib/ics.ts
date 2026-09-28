@@ -1,5 +1,7 @@
 // iCalendar export: native iPhone reminders (Calendar alerts) without any server.
+// Event texts follow the interface language; UIDs stay the same so a re-import updates the events.
 import { addDays, parseISO, todayISO, weekday } from './date'
+import { L } from './i18n'
 import { GOAL_DATE, keyPeriods, PERIODS, PROGRAM_START, TYPE_META } from './program'
 import type { AppState, ISODate } from './types'
 
@@ -99,21 +101,51 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
         first,
         state.prefs.trainingTime,
         meta.minutes,
-        `Séance ${meta.label} · Lift`,
-        `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
+        L(`Séance ${meta.label} · Lift`, `${meta.label} session · Lift`),
+        L(
+          `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
+          `${meta.fr !== meta.label ? `${meta.fr}. ` : ''}The rotation shifts if a session is missed: open Lift for today’s session.`,
+        ),
         `FREQ=WEEKLY;BYDAY=${BYDAY[dow]};UNTIL=${until}`,
         30,
       ))
     }
   }
   if (o.weighIn) {
-    lines.push(...timed('golgoth-weigh-in@golgoth', from, state.prefs.weighInTime, 5, 'Pesée à jeun · Lift', 'Même balance, au réveil, après les toilettes. La moyenne sur 7 jours guide les calories.', `FREQ=DAILY;UNTIL=${until}`, 0))
+    lines.push(...timed(
+      'golgoth-weigh-in@golgoth',
+      from,
+      state.prefs.weighInTime,
+      5,
+      L('Pesée à jeun · Lift', 'Fasted weigh-in · Lift'),
+      L('Même balance, au réveil, après les toilettes. La moyenne sur 7 jours guide les calories.', 'Same scale, right after waking up and using the bathroom. The 7-day average guides your calories.'),
+      `FREQ=DAILY;UNTIL=${until}`,
+      0,
+    ))
   }
   if (o.waist) {
-    lines.push(...timed('golgoth-waist@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 5, 'Tour de taille · Lift', 'À jeun, au niveau du nombril, même point de mesure.', `FREQ=WEEKLY;INTERVAL=2;BYDAY=SU;UNTIL=${until}`, 0))
+    lines.push(...timed(
+      'golgoth-waist@golgoth',
+      firstOnOrAfter(from, 0),
+      state.prefs.weighInTime,
+      5,
+      L('Tour de taille · Lift', 'Waist measurement · Lift'),
+      L('À jeun, au niveau du nombril, même point de mesure.', 'Fasted, at navel level, same measuring point.'),
+      `FREQ=WEEKLY;INTERVAL=2;BYDAY=SU;UNTIL=${until}`,
+      0,
+    ))
   }
   if (o.photos) {
-    lines.push(...timed('golgoth-photos@golgoth', firstOnOrAfter(from, 0), state.prefs.weighInTime, 10, 'Photos de progression · Lift', 'Même lumière, même pose, même distance.', `FREQ=WEEKLY;INTERVAL=4;BYDAY=SU;UNTIL=${until}`, 0))
+    lines.push(...timed(
+      'golgoth-photos@golgoth',
+      firstOnOrAfter(from, 0),
+      state.prefs.weighInTime,
+      10,
+      L('Photos de progression · Lift', 'Progress photos · Lift'),
+      L('Même lumière, même pose, même distance.', 'Same light, same pose, same distance.'),
+      `FREQ=WEEKLY;INTERVAL=4;BYDAY=SU;UNTIL=${until}`,
+      0,
+    ))
   }
   for (const p of PERIODS) {
     if (p.end < from) continue
@@ -127,7 +159,7 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
       lines.push(...allDay(`golgoth-phase-${p.id}@golgoth`, p.start, p.start, `${title} · Lift`, p.note, true))
     }
   }
-  if (o.phases) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, 'Objectif Summer body · Lift', 'Fin du programme.', true))
+  if (o.phases) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, L('Objectif Summer body · Lift', 'Summer body goal · Lift'), L('Fin du programme.', 'End of the program.'), true))
   lines.push('END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }

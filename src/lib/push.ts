@@ -1,6 +1,7 @@
 // End-of-rest notifications through a push server: they arrive with the phone locked,
 // when the page itself is asleep. The server only stores a subscription for the length
 // of a rest (a one-hour cache entry), never an account or personal data.
+import { L } from './i18n'
 
 export const PUSH_API = 'https://golgoth-push.vercel.app/api'
 const SUB_KEY = 'golgoth-push-subscription'
@@ -75,7 +76,7 @@ export async function enablePush(): Promise<PushState> {
   if (!pushSupported()) return 'unsupported'
   if (!registration || !publicKey) {
     await preparePush()
-    if (!registration || !publicKey) throw new Error('Serveur de notifications injoignable. Vérifie ta connexion et réessaie.')
+    if (!registration || !publicKey) throw new Error(L('Serveur de notifications injoignable. Vérifie ta connexion et réessaie.', 'Notification server unreachable. Check your connection and try again.'))
   }
   const options = { userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) }
   let sub: PushSubscription
@@ -131,6 +132,12 @@ export function testPush(delaySeconds = 8): boolean {
   const subscription = current ?? stored()
   if (!subscription) return false
   const token = `test-${Date.now().toString(36)}`
-  void post('rest', { subscription, endAt: Date.now() + delaySeconds * 1000, token, title: 'Test Lift', body: 'Les fins de repos arriveront comme ça, écran verrouillé.' })
+  void post('rest', {
+    subscription,
+    endAt: Date.now() + delaySeconds * 1000,
+    token,
+    title: L('Test Lift', 'Lift test'),
+    body: L('Les fins de repos arriveront comme ça, écran verrouillé.', 'End-of-rest alerts will arrive like this, with the screen locked.'),
+  })
   return true
 }

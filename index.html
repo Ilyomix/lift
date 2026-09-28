@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Lift</title>
-    <meta name="description" content="Programme d'hypertrophie fondé sur la recherche : séances, calendrier des blocs, minuteur de repos et suivi des objectifs." />
+    <meta name="description" content="Research-based hypertrophy program, at the gym or at home: guided sessions, block calendar, rest timer and goal tracking." />
     <meta name="theme-color" content="#060A13" />
     <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,6 +17,7 @@
     <script>
       // Apply the stored theme and accent before first paint to avoid a flash.
       try {
+        document.documentElement.lang = (navigator.language || 'fr').toLowerCase().indexOf('fr') === 0 ? 'fr' : 'en'
         var t = localStorage.getItem('golgoth-theme')
         var a = localStorage.getItem('golgoth-accent')
         var root = document.documentElement
@@ -29,7 +30,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <noscript>Lift a besoin de JavaScript pour fonctionner.</noscript>
+    <noscript>Lift needs JavaScript to run. · Lift a besoin de JavaScript pour fonctionner.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, MapPin, Plus } from 'lucide-react'
+import { L } from '../lib/i18n'
 import { useStore } from '../lib/store'
 import { Button, cx, inputClass, Sheet } from './ui'
 
@@ -22,11 +23,11 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
     const n = name.trim()
     if (!n) return
     const id = addGym(n)
-    notify(`${n} ajoutée : les charges machine y seront suivies à part.`, 'good')
+    notify(L(`${n} ajoutée : les charges machine y seront suivies à part.`, `${n} added: machine loads will be tracked separately there.`), 'good')
     pick(id)
   }
   return (
-    <Sheet open onClose={onClose} title={session ? 'Salle de cette séance' : 'Salle'}>
+    <Sheet open onClose={onClose} title={session ? L('Salle de cette séance', 'Gym for this session') : L('Salle', 'Gym')}>
       <div className="divide-y divide-line overflow-hidden rounded-[12px] border border-line">
         {gyms.map((g) => (
           <button key={g.id} type="button" onClick={() => pick(g.id)} aria-pressed={g.id === current} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
@@ -37,11 +38,14 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
         ))}
       </div>
       <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); create() }}>
-        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nouvelle salle (ex. : Basic-Fit Nation)" enterKeyHint="done" aria-label="Nom de la nouvelle salle" />
-        <Button type="submit" variant="ink" size="lg" disabled={!name.trim()} aria-label="Ajouter la salle" icon={<Plus size={18} aria-hidden />} />
+        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={L('Nouvelle salle (ex. : Basic-Fit Nation)', 'New gym (e.g. Basic-Fit Nation)')} enterKeyHint="done" aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
+        <Button type="submit" variant="ink" size="lg" disabled={!name.trim()} aria-label={L('Ajouter la salle', 'Add gym')} icon={<Plus size={18} aria-hidden />} />
       </form>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-        Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres et poids du corps : communs. Première fois sur une machine dans une salle : la charge connue ailleurs sert de départ, puis l’app retient la vraie.
+        {L(
+          'Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres et poids du corps : communs. Première fois sur une machine dans une salle : la charge connue ailleurs sert de départ, puis l’app retient la vraie.',
+          'Machines, cables and Smith: loads and history are kept per gym. Dumbbells, barbells and bodyweight: shared. First time on a machine at a gym: the load known elsewhere is the starting point, then the app learns the real one.',
+        )}
       </p>
     </Sheet>
   )

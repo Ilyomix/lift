@@ -3,6 +3,7 @@ import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Ma
 import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymName } from '../lib/gyms'
+import { L } from '../lib/i18n'
 import {
   contextAt, GOAL_DATE, pauseDays, prescribe, projectSessions, PROGRAM_START, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
@@ -19,7 +20,7 @@ import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { Dial } from './Onboarding'
-import { lookInfo } from '../lib/visual'
+import { lookInfo, goalApplied } from '../lib/visual'
 
 export function Home() {
   const state = useStore((s) => s.state)
@@ -77,18 +78,18 @@ export function Home() {
       </header>
 
       {/* Hero: sessions done out of the sessions planned until the goal date */}
-      <section aria-label="Progression vers l’objectif" className="mt-2">
+      <section aria-label={L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-2">
         <div className="flex items-end justify-between gap-3">
           <p className="flex items-baseline gap-2">
             <span className="text-[64px] leading-[0.8] font-semibold tracking-[-0.04em] tnum">
               <Num value={plan.done} digits={0} />
             </span>
             <span className="text-[22px] leading-none font-medium tracking-[-0.02em] text-text-2 tnum">/ {plan.total}</span>
-            <span className="sr-only">séances</span>
+            <span className="sr-only">{L('séances', 'sessions')}</span>
           </p>
           <p className="pb-0.5 text-right">
-            <span className="block text-[22px] leading-none font-semibold tracking-[-0.02em] tnum">{pct} %</span>
-            <span className="mt-1 block text-[12px] font-medium text-muted">séances</span>
+            <span className="block text-[22px] leading-none font-semibold tracking-[-0.02em] tnum">{L(`${pct} %`, `${pct}%`)}</span>
+            <span className="mt-1 block text-[12px] font-medium text-muted">{L('séances', 'sessions')}</span>
           </p>
         </div>
         <div className="mt-4">
@@ -99,23 +100,23 @@ export function Home() {
             type="button"
             onClick={() => setGoalOpen(true)}
             className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
-            aria-label={`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`}
+            aria-label={L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
           >
             <Flag size={14} className="shrink-0 text-signal-text" aria-hidden />
             <span className="truncate">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
             <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
           </button>
           <span className="shrink-0 text-right text-[12px] leading-[1.35] text-muted tnum">
-            {plural(plan.planned, 'séance', 'séances')} à faire
+            {plural(plan.planned, L('séance', 'session'), L('séances', 'sessions'))} {L('à faire', 'to go')}
             <br />
-            {plural(weeksLeft, 'semaine', 'semaines')}
+            {plural(weeksLeft, L('semaine', 'week'), L('semaines', 'weeks'))}
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {ctx.before || ctx.period?.kind === 'pre' ? (
             <>
-              <Tag tone="ink">Bloc 1 · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
-              <span className="text-[13px] text-text-2">Recomposition · RIR 3, réintroduction</span>
+              <Tag tone="ink">{L('Bloc 1', 'Block 1')} · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
+              <span className="text-[13px] text-text-2">{L('Recomposition · RIR 3, réintroduction', 'Recomposition · RIR 3, ramp-up')}</span>
             </>
           ) : (
             <>
@@ -131,35 +132,35 @@ export function Home() {
         <Card className="mt-6 flex items-center gap-3 p-4">
           <CirclePause size={20} className="shrink-0 text-muted" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">Programme en pause</p>
+            <p className="text-[15px] font-semibold">{L('Programme en pause', 'Program paused')}</p>
             <p className="text-[13px] text-text-2">
-              Depuis {state.programPause.startedAt ? fmtRelativeDay(state.programPause.startedAt.slice(0, 10), today) : '—'}
-              {state.programPause.plannedEnd ? ` · reprise ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}` : ''}
+              {L('Depuis', 'Started')} {state.programPause.startedAt ? fmtRelativeDay(state.programPause.startedAt.slice(0, 10), today) : '—'}
+              {state.programPause.plannedEnd ? L(` · reprise ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`, ` · back ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`) : ''}
             </p>
           </div>
-          <Button size="sm" variant="ink" onClick={() => navigate('plus/pause')}>Gérer</Button>
+          <Button size="sm" variant="ink" onClick={() => navigate('plus/pause')}>{L('Gérer', 'Manage')}</Button>
         </Card>
       )}
 
       {state.reentry && (
         <Card className="mt-3 p-4">
           <p className="text-[15px] font-semibold">{state.reentry.label}</p>
-          <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{state.reentry.advice} Encore {plural(state.reentry.sessionsLeft, 'séance', 'séances')}.</p>
+          <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{state.reentry.advice} {L(`Encore ${plural(state.reentry.sessionsLeft, 'séance', 'séances')}.`, `${plural(state.reentry.sessionsLeft, 'more session', 'more sessions')}.`)}</p>
         </Card>
       )}
 
       {/* Next action — the one primary command of the screen */}
-      <Section title={active ? 'Séance en cours' : 'Prochaine séance'}>
+      <Section title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
         <Card className="overflow-hidden">
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[26px] leading-none font-semibold tracking-[-0.03em]">{TYPE_META[nextType].label}</p>
                 <p className="mt-1.5 text-[14px] text-text-2">
-                  {TYPE_META[nextType].fr} · {active ? `${active.exercises.reduce((a, e) => a + doneSets(e).length, 0)} / ${active.exercises.reduce((a, e) => a + e.sets.length, 0)} séries` : `${nextSets} séries · ~${TYPE_META[nextType].minutes} min`}
+                  {TYPE_META[nextType].fr} · {active ? `${active.exercises.reduce((a, e) => a + doneSets(e).length, 0)} / ${active.exercises.reduce((a, e) => a + e.sets.length, 0)} ${L('séries', 'sets')}` : `${L(`${nextSets} séries`, plural(nextSets, 'set', 'sets'))} · ~${TYPE_META[nextType].minutes} min`}
                 </p>
               </div>
-              <Tag tone="outline">{active ? 'En cours' : capitalize(fmtRelativeDay(nextDate, today))}</Tag>
+              <Tag tone="outline">{active ? L('En cours', 'In progress') : capitalize(fmtRelativeDay(nextDate, today))}</Tag>
             </div>
             {!active && nextCtx.effort && <p className="mt-3 text-[13px] text-muted">{nextCtx.title} · {nextCtx.effort}</p>}
             {!active && (
@@ -172,82 +173,82 @@ export function Home() {
           </div>
           <div className="flex gap-2 border-t border-line p-3">
             <Button variant="primary" size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} onClick={active ? () => navigate('seance') : begin}>
-              {active ? 'Reprendre' : 'Commencer'}
+              {active ? L('Reprendre', 'Resume') : L('Commencer', 'Start')}
             </Button>
             {!active && (
-              <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label="Voir le détail de la séance">
-                Détail
+              <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label={L('Voir le détail de la séance', 'View session details')}>
+                {L('Détail', 'Details')}
               </Button>
             )}
           </div>
         </Card>
       </Section>
 
-      <Section title="Cette semaine" action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} séances</span>}>
+      <Section title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'sessions')}</span>}>
         <WeekStrip days={week} />
       </Section>
 
-      <Section title="Objectifs" action={<button type="button" onClick={() => navigate('progres')} className="inline-flex items-center gap-1 text-[13px] font-medium text-text-2 hover:text-text">Progrès <ArrowRight size={14} aria-hidden /></button>}>
+      <Section title={L('Objectifs', 'Goals')} action={<button type="button" onClick={() => navigate('progres')} className="inline-flex items-center gap-1 text-[13px] font-medium text-text-2 hover:text-text">{L('Progrès', 'Progress')} <ArrowRight size={14} aria-hidden /></button>}>
         <div className="grid grid-cols-2 gap-2.5">
           <Tile
-            label="Poids"
+            label={L('Poids', 'Weight')}
             value={ws.current !== null ? <><Num value={ws.current} digits={1} /><span className="ml-0.5 text-[15px] font-medium text-text-2">kg</span></> : '—'}
-            foot={ws.current === null ? 'Ajoute une pesée' : ws.isAverage ? 'Moyenne 7 jours' : `Pesée ${fmtRelativeDay(ws.currentDate!, today)}`}
-            detail={goal ? `Cible ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg${state.visualGoal?.cutWeeks ? ` · ${lookInfo(state.visualGoal.look).label}` : ''}` : undefined}
+            foot={ws.current === null ? L('Ajoute une pesée', 'Add a weigh-in') : ws.isAverage ? L('Moyenne 7 jours', '7-day average') : L(`Pesée ${fmtRelativeDay(ws.currentDate!, today)}`, `Weighed ${fmtRelativeDay(ws.currentDate!, today)}`)}
+            detail={goal ? `${L('Cible', 'Target')} ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg${goalApplied(state.visualGoal) ? ` · ${lookInfo(state.visualGoal.look).label}` : ''}` : undefined}
             chart={ma.length > 1 ? <Sparkline values={ma} /> : undefined}
             onClick={() => navigate('progres/corps')}
           />
           <Tile
-            label="Tour de taille"
+            label={L('Tour de taille', 'Waist')}
             value={waist.length ? <><Num value={waist[waist.length - 1].value} digits={1} /><span className="ml-0.5 text-[15px] font-medium text-text-2">cm</span></> : '—'}
-            foot={waist.length ? `Mesuré ${fmtRelativeDay(waist[waist.length - 1].date, today)}` : 'Toutes les 2 semaines'}
-            detail={waist.length > 1 ? `${fmtSigned(waist[waist.length - 1].value - waist[0].value, 1, 'cm')} depuis le début` : state.goals.targetWaist ? `Cible ${fmtNum(state.goals.targetWaist)} cm` : 'À jeun, même point'}
+            foot={waist.length ? L(`Mesuré ${fmtRelativeDay(waist[waist.length - 1].date, today)}`, `Measured ${fmtRelativeDay(waist[waist.length - 1].date, today)}`) : L('Toutes les 2 semaines', 'Every 2 weeks')}
+            detail={waist.length > 1 ? L(`${fmtSigned(waist[waist.length - 1].value - waist[0].value, 1, 'cm')} depuis le début`, `${fmtSigned(waist[waist.length - 1].value - waist[0].value, 1, 'cm')} since the start`) : state.goals.targetWaist ? `${L('Cible', 'Target')} ${fmtNum(state.goals.targetWaist)} cm` : L('À jeun, même point', 'Fasted, same spot')}
             onClick={() => navigate('progres/corps')}
           />
           <Tile
-            label="Régularité"
-            value={<><Num value={pace} digits={1} /><span className="ml-1 text-[15px] font-medium text-text-2">/ sem.</span></>}
-            foot="4 dernières semaines"
-            detail={`Plan : ${perWeek} par semaine`}
+            label={L('Régularité', 'Consistency')}
+            value={<><Num value={pace} digits={1} /><span className="ml-1 text-[15px] font-medium text-text-2">{L('/ sem.', '/ wk')}</span></>}
+            foot={L('4 dernières semaines', 'Last 4 weeks')}
+            detail={L(`Plan : ${perWeek} par semaine`, `Plan: ${perWeek} per week`)}
             onClick={() => navigate('progres/seances')}
           >
-            <ProgressBar value={pace / Math.max(1, perWeek)} className="mt-2" label="Séances par semaine par rapport au plan" tone={pace >= perWeek - 0.25 ? 'good' : 'text'} />
+            <ProgressBar value={pace / Math.max(1, perWeek)} className="mt-2" label={L('Séances par semaine par rapport au plan', 'Sessions per week compared with the plan')} tone={pace >= perWeek - 0.25 ? 'good' : 'text'} />
           </Tile>
           <Tile
-            label="Force"
-            value={strength.avg !== null ? <Num value={strength.avg * 100} digits={0} suffix=" %" signed /> : '—'}
-            foot={strength.avg !== null ? `1RM estimé · ${plural(strength.lifts, 'exercice', 'exercices')}` : 'Après 2 séances par exercice'}
-            detail={strength.records ? `${plural(strength.records, 'record', 'records')} en 30 jours` : undefined}
+            label={L('Force', 'Strength')}
+            value={strength.avg !== null ? <Num value={strength.avg * 100} digits={0} suffix={L(' %', '%')} signed /> : '—'}
+            foot={strength.avg !== null ? L(`1RM estimé · ${plural(strength.lifts, 'exercice', 'exercices')}`, `Estimated 1RM · ${plural(strength.lifts, 'exercise', 'exercises')}`) : L('Après 2 séances par exercice', 'After 2 sessions per exercise')}
+            detail={strength.records ? L(`${plural(strength.records, 'record', 'records')} en 30 jours`, `${plural(strength.records, 'record', 'records')} in 30 days`) : undefined}
             onClick={() => navigate('progres')}
           />
         </div>
       </Section>
 
-      <Section title="Nutrition du jour" action={<button type="button" onClick={() => navigate('plus/nutrition')} className="text-[13px] font-medium text-text-2 hover:text-text">Saisir</button>}>
+      <Section title={L('Nutrition du jour', 'Today’s nutrition')} action={<button type="button" onClick={() => navigate('plus/nutrition')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Saisir', 'Log')}</button>}>
         <Card className="grid grid-cols-3 divide-x divide-line">
-          <NutriCell label="Protéines" value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
+          <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />
-          <NutriCell label="Créatine" value={nut.creatine} unit="g" target={`${state.nutritionTargets.creatine}`} ratio={nut.creatine / Math.max(1, state.nutritionTargets.creatine)} />
+          <NutriCell label={L('Créatine', 'Creatine')} value={nut.creatine} unit="g" target={`${state.nutritionTargets.creatine}`} ratio={nut.creatine / Math.max(1, state.nutritionTargets.creatine)} />
         </Card>
       </Section>
 
       <Reminders
         items={[
-          ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: 'Programme', to: 'plus/programme' })),
+          ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: L('Programme', 'Program'), to: 'plus/programme' })),
           ...(cal.status === 'lower' || cal.status === 'raise'
-            ? [{ icon: <Apple size={18} aria-hidden />, text: `${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, action: 'Voir', to: 'plus/nutrition' }]
+            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
             : []),
           ...(ws.daysSinceLast === null || ws.daysSinceLast >= 2
-            ? [{ icon: <Scale size={18} aria-hidden />, text: ws.daysSinceLast === null ? 'Aucune pesée : la moyenne sur 7 jours guide tes calories.' : `Dernière pesée il y a ${ws.daysSinceLast} jours. Pèse-toi chaque matin, à jeun.`, action: 'Peser', to: 'progres/corps/mesure' }]
+            ? [{ icon: <Scale size={18} aria-hidden />, text: ws.daysSinceLast === null ? L('Aucune pesée : la moyenne sur 7 jours guide tes calories.', 'No weigh-ins yet: the 7-day average guides your calories.') : L(`Dernière pesée il y a ${ws.daysSinceLast} jours. Pèse-toi chaque matin, à jeun.`, `Last weigh-in ${ws.daysSinceLast} days ago. Weigh yourself every morning, fasted.`), action: L('Peser', 'Weigh in'), to: 'progres/corps/mesure' }]
             : []),
           ...(!lastPhoto || (Date.now() - new Date(lastPhoto.date).getTime()) / 86_400_000 > 28
-            ? [{ icon: <Camera size={18} aria-hidden />, text: 'Photos de progression : une série toutes les 4 semaines, même lumière.', action: 'Photos', to: 'progres/corps' }]
+            ? [{ icon: <Camera size={18} aria-hidden />, text: L('Photos de progression : une série toutes les 4 semaines, même lumière.', 'Progress photos: one set every 4 weeks, same lighting.'), action: 'Photos', to: 'progres/corps' }]
             : []),
           ...(daysSinceBackup === null || daysSinceBackup > 7
-            ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? 'Tes données vivent sur ce téléphone. Exporte une sauvegarde.' : `Dernière sauvegarde il y a ${daysSinceBackup} jours.`, action: 'Exporter', to: 'plus/donnees' }]
+            ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données vivent sur ce téléphone. Exporte une sauvegarde.', 'Your data lives on this phone. Export a backup.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
             : []),
           ...(isIOS() && !isStandalone()
-            ? [{ icon: <Smartphone size={18} aria-hidden />, text: 'Installe Lift : Partager, puis « Sur l’écran d’accueil ».', action: 'Aide', to: 'plus/reglages' }]
+            ? [{ icon: <Smartphone size={18} aria-hidden />, text: L('Installe Lift : Partager, puis « Sur l’écran d’accueil ».', 'Install Lift: Share, then “Add to Home Screen”.'), action: L('Aide', 'Help'), to: 'plus/reglages' }]
             : []),
         ]}
       />
@@ -289,7 +290,7 @@ function NutriCell({ label, value, unit, target, ratio }: { label: string; value
 function Reminders({ items }: { items: { icon: React.ReactNode; text: string; action: string; to: string }[] }) {
   if (!items.length) return null
   return (
-    <Section title="À faire">
+    <Section title={L('À faire', 'To do')}>
       <Card className="divide-y divide-line">
         {items.map((it, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
