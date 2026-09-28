@@ -483,3 +483,114 @@ test('English: labels, dates, plurals and stored names follow the language', asy
   assert.equal(fmtDate('2026-10-01'), '1er oct.')
   assert.equal(localizeState(defaultState()).templates.UPPER.exercises.find((e) => e.exerciseId === 'lat-pulldown')?.name, 'Tirage vertical')
 })
+
+// ───────────────────────── Maintenance mode ─────────────────────────
+
+test('maintenance mode: blocks and deloads with no cut, no stabilization and no end date', () => {
+  const { buildMaintenancePeriods, maintenanceHorizon } = program
+  assert.equal(maintenanceHorizon('2026-09-28', '2026-09-28'), '2028-01-02', 'to the end of next year’s holidays')
+  assert.equal(maintenanceHorizon('2027-12-30', '2026-09-28'), '2029-01-07')
+  const p = buildMaintenancePeriods('2026-09-28', null, '2028-01-02')
+  assertTiled(p, '2028-01-02')
+  assert.ok(p.every((x) => x.phase === 'upkeep' || x.kind === 'holiday'), 'no recomposition, no cut')
+  assert.ok(!p.some((x) => x.kind === 'stabilization'))
+  assert.deepEqual(p.filter((x) => x.kind === 'holiday').map((x) => x.id), ['fetes-2026', 'fetes-2027'])
+  // Until the first holidays, the same blocks as the report's recomposition.
+  const report = buildPeriods(DEFAULT_GOAL, 23, '2026-09-28', null).filter((x) => x.end < '2026-12-21').map((x) => [x.id, x.start, x.end])
+  assert.deepEqual(p.filter((x) => x.end < '2026-12-21').map((x) => [x.id, x.start, x.end]), report)
+  // Blocks last 4 to 6 weeks, each one but the last before the holidays followed by a deload.
+  for (let i = 0; i < p.length; i++) {
+    const x = p[i]
+    if (x.kind !== 'block') continue
+    const weeks = program.periodWeeks(x)
+    assert.ok(weeks >= 4 && weeks <= 6, `${x.id}: ${weeks} weeks`)
+    assert.ok(p[i + 1].kind === 'deload' || p[i + 1].kind === 'holiday', `${x.id} → ${p[i + 1].id}`)
+  }
+  // Extending the plan by a year never moves the blocks already laid out.
+  const longer = buildMaintenancePeriods('2026-09-28', null, '2029-01-07')
+  assert.deepEqual(longer.slice(0, p.length).map((x) => [x.id, x.start, x.end]), p.map((x) => [x.id, x.start, x.end]))
+})
+
+test('maintenance mode: live plan, cycle count, no goal milestone, back to a dated plan', () => {
+  try {
+    configurePlan(DEFAULT_GOAL, null, null, null, { start: '2026-09-28', foundation: null, maintenance: true, today: '2026-10-14' })
+    assert.equal(program.MAINTENANCE, true)
+    assert.equal(GOAL_DATE(), '2028-01-02', 'the plan ends where the calendar is laid out')
+    const ctx = contextAt('2026-10-14')
+    assert.equal(ctx.phase?.id, 'upkeep')
+    assert.equal(ctx.title, 'Bloc 1 · S3')
+    assert.ok(!milestones('2026-10-14').some((m) => m.kind === 'goal'))
+    assert.ok(!PERIODS().some((p) => p.phase === 'cut' || p.kind === 'stabilization'))
+    // The hero counts the current cycle: block 1 and its deload.
+    const s: AppState = {
+      ...defaultState(),
+      settings: { ...defaultState().settings, programStart: '2026-09-28', foundationStart: null, maintenance: true },
+      workouts: [workout('old', '2026-08-20', undefined, [], 1), workout('a', '2026-09-29', undefined, [], 2)],
+    }
+    const plan = sessionPlan(s, '2026-10-14')
+    assert.deepEqual(plan.cycle, { start: '2026-09-28', end: '2026-11-08', label: 'Bloc 1' })
+    assert.equal(plan.done, 1, 'only the sessions of the cycle')
+    assert.equal(plan.total, plan.done + plan.planned)
+    assert.ok(plan.planned >= 15 && plan.planned <= 20, String(plan.planned))
+    assert.deepEqual(plan.segments.map((x) => x.kind), ['block', 'deload'])
+    // In the deload, the cycle is still block 1 + its deload; after it, block 2.
+    assert.equal(sessionPlan(s, '2026-11-04').cycle?.label, 'Bloc 1')
+    assert.equal(sessionPlan(s, '2026-11-10').cycle?.label, 'Bloc 2')
+    // Stable weight asked: gaining 0.5 %/week asks for fewer calories.
+    const entries = Array.from({ length: 21 }, (_, i) => ({ id: `w${i}`, date: `2026-10-${String(i + 1).padStart(2, '0')}`, weight: 80 + i * 0.06, waist: null, arm: null, chest: null, shoulders: null }))
+    assert.equal(calorieAdvice({ ...s, bodyEntries: entries }, '2026-10-21').status, 'lower')
+    assert.equal(goalWeightRange({ ...s, bodyEntries: entries.slice(-1) }, '2026-10-21')?.computed, true)
+    // The ics export has no goal day.
+    assert.ok(!buildIcs(s, { training: true, weighIn: false, waist: false, photos: false, deloads: true, phases: true }, '2026-10-14').includes('golgoth-goal@'))
+  } finally {
+    configurePlan(DEFAULT_GOAL)
+  }
+  assert.equal(program.MAINTENANCE, false)
+  assert.equal(GOAL_DATE(), DEFAULT_GOAL)
+  assert.ok(PERIODS().some((p) => p.kind === 'stabilization'), 'back to a dated plan')
+})
+
+test('maintenance mode: onboarding without a goal date, and backups keep the mode', async () => {
+  const { stateFromOnboarding, onboardingPreview } = await import('../src/lib/onboarding')
+  const answers = {
+    lang: 'fr' as const, setup: { place: 'gym' as const, equipment: [] }, days: [1, 2, 4, 5, 6], sex: 'm' as const,
+    age: 30, heightCm: 178, weight: 80, waist: 86, look: 'sec' as const, goalDate: '2027-07-31',
+  }
+  const dated = onboardingPreview(answers, '2026-10-07')
+  const preview = onboardingPreview({ ...answers, maintenance: true }, '2026-10-07')
+  assert.equal(preview.plan, null)
+  assert.equal(preview.shape, null)
+  assert.ok(preview.calories > dated.calories, 'maintenance calories, no deficit')
+  assert.equal(preview.until, '2026-11-08', 'first block of a start on 5 October: 5 weeks')
+  assert.ok(preview.sessions >= 20 && preview.sessions <= 30, String(preview.sessions))
+  const s = stateFromOnboarding({ ...answers, maintenance: true }, '2026-10-07')
+  assert.equal(s.settings.maintenance, true)
+  assert.equal(s.settings.goalDate, '2027-07-31', 'kept for later')
+  assert.equal(s.visualGoal, null)
+  assert.equal(s.nutritionTargets.calories, preview.calories)
+  assert.equal(normalizeState(JSON.parse(JSON.stringify(s))).settings.maintenance, true)
+  assert.equal(normalizeState(JSON.parse(JSON.stringify(stateFromOnboarding(answers, '2026-10-07')))).settings.maintenance, undefined)
+  // Leaving maintenance offers the date kept from before, or nine months out once it is too close.
+  assert.equal(program.resumeGoalFor('2027-07-31', '2026-10-07', '2026-10-05'), '2027-07-31')
+  assert.equal(program.resumeGoalFor('2026-11-15', '2026-10-07', '2026-10-05'), '2027-07-31')
+})
+
+test('maintenance mode: a look brings back the date it needs, not an arbitrary one', async () => {
+  const { earliestGoalFor, visualPlan } = await import('../src/lib/visual')
+  const s: AppState = {
+    ...defaultState(),
+    profile: { heightCm: 180, age: 31, sex: 'm' },
+    bodyEntries: [{ id: 'b', date: '2026-09-28', weight: 82, waist: 88, arm: null, chest: null, shoulders: null }],
+  }
+  try {
+    configurePlan(DEFAULT_GOAL, null, null, null, { start: '2026-09-28', foundation: null, maintenance: true, today: '2026-09-28' })
+    const bodyFat = { pct: 20, source: 'mesure' as const }
+    const lean = earliestGoalFor(s, { look: 'sec', bodyFat, today: '2026-09-28' })!
+    const ripped = earliestGoalFor(s, { look: 'taille', bodyFat, today: '2026-09-28' })!
+    assert.ok(lean >= '2026-11-23', lean)
+    assert.ok(ripped > lean, `${ripped} after ${lean}: a leaner look needs a longer cut`)
+    assert.equal(visualPlan(s, { look: 'taille', bodyFat, today: '2026-09-28', start: '2026-09-28', goal: ripped })!.fits, true)
+  } finally {
+    configurePlan(DEFAULT_GOAL)
+  }
+})

@@ -58,7 +58,7 @@ export const DEFAULT_SCHEDULE: Record<number, WorkoutType | null> = {
 
 // ───────────────────────── Phases & periods ─────────────────────────
 
-export type PhaseId = 'foundation' | 'recomp' | 'maintenance' | 'cut' | 'diet-break' | 'cut-end' | 'stabilization'
+export type PhaseId = 'foundation' | 'recomp' | 'maintenance' | 'cut' | 'diet-break' | 'cut-end' | 'stabilization' | 'upkeep'
 export type PeriodKind = 'pre' | 'block' | 'deload' | 'holiday' | 'stabilization'
 
 export interface Phase {
@@ -121,6 +121,14 @@ export const PHASES: Record<PhaseId, Phase> = {
     get label() { return L('Phase 3 · Stabilisation', 'Phase 3 · Stabilization') },
     get short() { return L('Stabilisation', 'Stabilization') },
     get nutrition() { return L('Remonter progressivement à maintenance. Le look final est atteint ici.', 'Ease back up to maintenance. The final look is reached here.') },
+    weeklyRate: [-0.1, 0.1], proteinMin: 180, proteinMax: 190,
+  },
+  // Maintenance mode: no goal date, the blocks repeat with no cut and no end.
+  upkeep: {
+    id: 'upkeep',
+    get label() { return L('Entretien', 'Maintenance') },
+    get short() { return L('Entretien', 'Maintenance') },
+    get nutrition() { return L('Calories à maintenance : poids stable (±0,1 %/sem), les charges continuent de progresser.', 'Maintenance calories: stable weight (±0.1%/wk), loads keep progressing.') },
     weeklyRate: [-0.1, 0.1], proteinMin: 180, proteinMax: 190,
   },
 }
@@ -213,45 +221,13 @@ export function buildPeriods(
   const shape = planShape(goal, wantedCut, start)
   const out: Period[] = []
   // Labels and notes are written in the current language: configurePlan() rebuilds the plan when it changes.
-  if (foundation && foundation < start) {
-    out.push({ id: 'fondation', label: L('Fondation', 'Foundation'), short: 'F', kind: 'pre', phase: 'foundation', start: foundation, end: addDays(start, -1), note: L('Ancien programme : baselines et technique.', 'Previous program: baselines and technique.') })
-  }
-  let n = 0
-  const segment = (start: ISODate, weeks: number, phase: PhaseId) => {
-    let d = start
-    for (const c of layBlocks(weeks)) {
-      n++
-      out.push({ id: `b${n}`, label: L(`Bloc ${n}`, `Block ${n}`), short: `B${n}`, kind: 'block', phase, start: d, end: addDays(d, c.weeks * 7 - 1), note: '' })
-      d = addDays(d, c.weeks * 7)
-      if (c.deload) {
-        out.push({ id: `d${n}`, label: L('Décharge', 'Deload'), short: 'D', kind: 'deload', phase, start: d, end: addDays(d, 6), note: '' })
-        d = addDays(d, 7)
-      }
-    }
-  }
-  const phase = (start: ISODate, weeks: number, id: PhaseId) => {
-    if (weeks <= 0) return
-    const end = addDays(start, weeks * 7 - 1)
-    let cursor = start
-    for (const w of christmasWindows(start, end)) {
-      if (w.start > cursor) segment(cursor, Math.round(diffDays(cursor, w.start) / 7), id)
-      out.push({ id: `fetes-${w.start.slice(0, 4)}`, label: L('Fêtes', 'Holidays'), short: L('F', 'H'), kind: 'holiday', phase: 'maintenance', start: w.start, end: w.end, volumeFactor: 0.67, note: L('3–4 séances à volume réduit. Une pause ici suit la règle de reprise.', '3–4 sessions at reduced volume. A break here follows the return rule.') })
-      cursor = addDays(w.end, 1)
-    }
-    if (cursor <= end) segment(cursor, Math.round((diffDays(cursor, end) + 1) / 7), id)
-  }
-  phase(start, shape.recompWeeks, 'recomp')
-  phase(shape.cutStart, shape.cutWeeks, 'cut')
+  pushFoundation(out, start, foundation)
+  const counter = { n: 0 }
+  layPhase(out, counter, start, shape.recompWeeks, 'recomp')
+  layPhase(out, counter, shape.cutStart, shape.cutWeeks, 'cut')
   out.push({ id: 'stab', label: L('Stabilisation', 'Stabilization'), short: 'S', kind: 'stabilization', phase: 'stabilization', start: shape.stabStart, end: goal, calves: true, volumeFactor: 0.7, fixedRir: '1–2', note: L('Volume −30 %, charges maintenues.', 'Volume −30%, loads kept.') })
 
-  const recomp = out.filter((p) => p.kind === 'block' && p.phase === 'recomp')
-  recomp.forEach((p, i) => {
-    if (i === 0) p.note = L('Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.', 'New split. Learning the Romanian deadlift and the hip thrust.')
-    else {
-      p.priorityFromWeek = 3
-      p.note = L(`+1 série sur ${PRIORITY_TEXT} à partir de S3.`, `+1 set for ${PRIORITY_TEXT} from W3.`)
-    }
-  })
+  noteBuildBlocks(out.filter((p) => p.kind === 'block' && p.phase === 'recomp'))
   const cut = out.filter((p) => p.kind === 'block' && p.phase === 'cut')
   cut.forEach((p, i) => {
     p.priorityFromWeek = 1
@@ -269,12 +245,7 @@ export function buildPeriods(
     last.fixedRir = '1–2'
     last.note = L('Volume ~80 % du bloc précédent, RIR 1–2.', 'Volume ~80% of the previous block, RIR 1–2.')
   }
-  for (const p of out) {
-    if (p.kind !== 'deload') continue
-    p.note = p.phase === 'recomp'
-      ? L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')
-      : L('Moitié des séries, déficit maintenu.', 'Half the sets, deficit kept.')
-  }
+  noteDeloads(out)
   const cutDeloads = out.filter((p) => p.kind === 'deload' && p.phase === 'cut')
   if (cut.length && cutDeloads.length) {
     const mid = diffDays(cut[0].start, (last ?? cut[0]).end) / 2
@@ -286,14 +257,94 @@ export function buildPeriods(
   return out
 }
 
+/**
+ * Maintenance mode: no goal date. Blocks of about five weeks and their deloads follow
+ * each other from the program start, Christmas weeks at maintenance, with no cut and
+ * no stabilization. Each stretch between two Christmases is laid out on its own, so the
+ * blocks already planned never move when the plan is extended by a year.
+ */
+export function buildMaintenancePeriods(
+  start: ISODate = PROGRAM_START,
+  foundation: ISODate | null = FOUNDATION,
+  until: ISODate = maintenanceHorizon(todayISO(), start),
+): Period[] {
+  const out: Period[] = []
+  pushFoundation(out, start, foundation)
+  layPhase(out, { n: 0 }, start, Math.max(1, Math.round((diffDays(start, until) + 1) / 7)), 'upkeep')
+  noteBuildBlocks(out.filter((p) => p.kind === 'block' && p.phase === 'upkeep'))
+  noteDeloads(out)
+  return out
+}
+
+/** How far the open-ended plan is laid out: to the end of next year's holidays (12 to 24 months ahead). */
+export function maintenanceHorizon(today: ISODate = todayISO(), start: ISODate = PROGRAM_START): ISODate {
+  const ref = today > start ? today : start
+  const y = Number(ref.slice(0, 4)) + 1
+  return addDays(mondayOf(`${y + 1}-01-01`), 6)
+}
+
+function pushFoundation(out: Period[], start: ISODate, foundation: ISODate | null) {
+  if (foundation && foundation < start) {
+    out.push({ id: 'fondation', label: L('Fondation', 'Foundation'), short: 'F', kind: 'pre', phase: 'foundation', start: foundation, end: addDays(start, -1), note: L('Ancien programme : baselines et technique.', 'Previous program: baselines and technique.') })
+  }
+}
+
+/** Blocks and deloads of one phase over a number of weeks, the Christmas weeks set aside as holidays. */
+function layPhase(out: Period[], counter: { n: number }, start: ISODate, weeks: number, id: PhaseId) {
+  if (weeks <= 0) return
+  const segment = (from: ISODate, w: number) => {
+    let d = from
+    for (const c of layBlocks(w)) {
+      const n = ++counter.n
+      out.push({ id: `b${n}`, label: L(`Bloc ${n}`, `Block ${n}`), short: `B${n}`, kind: 'block', phase: id, start: d, end: addDays(d, c.weeks * 7 - 1), note: '' })
+      d = addDays(d, c.weeks * 7)
+      if (c.deload) {
+        out.push({ id: `d${n}`, label: L('Décharge', 'Deload'), short: 'D', kind: 'deload', phase: id, start: d, end: addDays(d, 6), note: '' })
+        d = addDays(d, 7)
+      }
+    }
+  }
+  const end = addDays(start, weeks * 7 - 1)
+  let cursor = start
+  for (const w of christmasWindows(start, end)) {
+    if (w.start > cursor) segment(cursor, Math.round(diffDays(cursor, w.start) / 7))
+    out.push({ id: `fetes-${w.start.slice(0, 4)}`, label: L('Fêtes', 'Holidays'), short: L('F', 'H'), kind: 'holiday', phase: 'maintenance', start: w.start, end: w.end, volumeFactor: 0.67, note: L('3–4 séances à volume réduit. Une pause ici suit la règle de reprise.', '3–4 sessions at reduced volume. A break here follows the return rule.') })
+    cursor = addDays(w.end, 1)
+  }
+  if (cursor <= end) segment(cursor, Math.round((diffDays(cursor, end) + 1) / 7))
+}
+
+/** Building blocks (recomposition, maintenance): the first one learns the split, the next ones add the priority set from W3. */
+function noteBuildBlocks(blocks: Period[]) {
+  blocks.forEach((p, i) => {
+    if (i === 0) p.note = L('Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.', 'New split. Learning the Romanian deadlift and the hip thrust.')
+    else {
+      p.priorityFromWeek = 3
+      p.note = L(`+1 série sur ${PRIORITY_TEXT} à partir de S3.`, `+1 set for ${PRIORITY_TEXT} from W3.`)
+    }
+  })
+}
+
+function noteDeloads(out: Period[]) {
+  for (const p of out) {
+    if (p.kind !== 'deload') continue
+    p.note = p.phase === 'recomp' || p.phase === 'upkeep'
+      ? L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')
+      : L('Moitié des séries, déficit maintenu.', 'Half the sets, deficit kept.')
+  }
+}
+
 /** A goal at least 8 weeks and at most 5 years after the program start. */
 export function isValidGoal(goal: unknown, start: ISODate = PROGRAM_START): goal is ISODate {
   return typeof goal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal) && goal >= addDays(start, MIN_PLAN_WEEKS * 7) && goal <= addDays(start, 5 * 365)
 }
 
 // Live plan: rebuilt when the goal date or the cut length changes (ES module live bindings).
+/** End of the plan: the goal date, or in maintenance mode the end of the calendar laid out so far. */
 export let GOAL_DATE: ISODate = DEFAULT_GOAL
 export let CUT_LENGTH: number = CUT_WEEKS
+/** Maintenance mode: no goal date, blocks and deloads with no cut and no end. */
+export let MAINTENANCE = false
 export let PERIODS: Period[] = buildPeriods(DEFAULT_GOAL)
 let MANUAL_DELOAD: { start: ISODate; end: ISODate } | null = null
 let PLAN_LANG = lang()
@@ -303,16 +354,17 @@ export function configurePlan(
   manualDeload: { start: ISODate; end: ISODate } | null = null,
   cutWeeks: number | null | undefined = null,
   priorities: string | null | undefined = null,
-  origin: { start?: ISODate | null; foundation?: ISODate | null } = { start: REPORT_START, foundation: REPORT_FOUNDATION },
+  origin: { start?: ISODate | null; foundation?: ISODate | null; maintenance?: boolean; today?: ISODate } = { start: REPORT_START, foundation: REPORT_FOUNDATION },
 ): void {
   const start = origin.start && /^\d{4}-\d{2}-\d{2}$/.test(origin.start) ? origin.start : REPORT_START
   const foundation = origin.foundation && origin.foundation < start ? origin.foundation : null
-  const g = isValidGoal(goal, start) ? goal : defaultGoalFor(start)
+  const maintenance = !!origin.maintenance
+  const g = maintenance ? maintenanceHorizon(origin.today ?? todayISO(), start) : isValidGoal(goal, start) ? goal : defaultGoalFor(start)
   const c = typeof cutWeeks === 'number' && Number.isFinite(cutWeeks) ? cutWeeks : CUT_WEEKS
   const t = priorities || defaultPriorityText()
   // Period labels and notes are written at build time: a language change rebuilds them too.
   const lg = lang()
-  if (g !== GOAL_DATE || c !== CUT_LENGTH || t !== PRIORITY_TEXT || start !== PROGRAM_START || foundation !== FOUNDATION || lg !== PLAN_LANG) {
+  if (g !== GOAL_DATE || c !== CUT_LENGTH || t !== PRIORITY_TEXT || start !== PROGRAM_START || foundation !== FOUNDATION || lg !== PLAN_LANG || maintenance !== MAINTENANCE) {
     PLAN_LANG = lg
     PROGRAM_START = start
     FOUNDATION = foundation
@@ -320,9 +372,29 @@ export function configurePlan(
     GOAL_DATE = g
     CUT_LENGTH = c
     PRIORITY_TEXT = t
-    PERIODS = buildPeriods(g, c, start, foundation)
+    MAINTENANCE = maintenance
+    PERIODS = maintenance ? buildMaintenancePeriods(start, foundation, g) : buildPeriods(g, c, start, foundation)
   }
   MANUAL_DELOAD = manualDeload
+}
+
+/**
+ * Goal date offered when leaving maintenance mode: the one kept from before while it is
+ * still at least 8 weeks away, else nine months after this week (the default plan length).
+ */
+export function resumeGoalFor(saved: ISODate | null | undefined, today: ISODate = todayISO(), start: ISODate = PROGRAM_START): ISODate {
+  const min = addDays(today, MIN_PLAN_WEEKS * 7)
+  if (saved && saved >= min && isValidGoal(saved, start)) return saved
+  const d = defaultGoalFor(programStartFor(today))
+  const max = addDays(start, 5 * 365)
+  return d > max ? max : d
+}
+
+/** Earliest goal date when leaving maintenance: 8 weeks from today, room for a real plan. */
+export function minResumeGoal(today: ISODate = todayISO(), start: ISODate = PROGRAM_START): ISODate {
+  const a = addDays(today, MIN_PLAN_WEEKS * 7)
+  const b = addDays(start, MIN_PLAN_WEEKS * 7)
+  return a > b ? a : b
 }
 
 export function manualDeloadAt(date: ISODate): boolean {
@@ -779,7 +851,7 @@ export function calendarMonth(state: AppState, month: string, planned: PlannedSe
     let caption = ''
     if (period) {
       caption = period.kind === 'block' ? L(`${period.label} · S${weekIn(period, mid)}`, `${period.label} · W${weekIn(period, mid)}`) : period.label
-    } else if (mid > GOAL_DATE) caption = L('Après l’objectif', 'After the goal')
+    } else if (mid > GOAL_DATE && !MAINTENANCE) caption = L('Après l’objectif', 'After the goal')
     const cells: CalendarCell[] = []
     for (let i = 0; i < 7; i++) {
       const date = addDays(monday, i)
@@ -791,7 +863,7 @@ export function calendarMonth(state: AppState, month: string, planned: PlannedSe
         planned: plannedBy.get(date) ?? null,
         active: !!state.activeWorkout && state.activeWorkout.date === date,
         paused: paused.has(date),
-        isGoal: date === GOAL_DATE,
+        isGoal: !MAINTENANCE && date === GOAL_DATE,
         isStart: date === PROGRAM_START,
       })
     }
@@ -817,7 +889,7 @@ export function milestones(from: ISODate = todayISO()): Milestone[] {
     const milestone = p === firstBlock || p === firstCut || p.kind === 'stabilization' || p.kind === 'holiday'
     out.push({ date: p.start, title, detail: p.note, kind: milestone ? 'phase' : p.kind })
   }
-  if (GOAL_DATE >= from) out.push({ date: GOAL_DATE, title: L('Objectif', 'Goal'), detail: L('Fin du programme.', 'End of the program.'), kind: 'goal' })
+  if (!MAINTENANCE && GOAL_DATE >= from) out.push({ date: GOAL_DATE, title: L('Objectif', 'Goal'), detail: L('Fin du programme.', 'End of the program.'), kind: 'goal' })
   return out
 }
 
@@ -847,20 +919,47 @@ export interface SessionPlan {
   planned: number
   total: number
   segments: PlanSegment[]
+  /** Maintenance mode: the plan counts the current cycle only (a block and its deload, or the holidays). */
+  cycle?: { start: ISODate; end: ISODate; label: string }
 }
 
-/** Sessions done since the start plus the sessions planned until the goal date, grouped by period. */
+/** Maintenance mode: the cycle around a date — a block with the deload that follows it, or the holidays. */
+export function cycleAt(date: ISODate): Period[] {
+  const list = PERIODS.filter((p) => p.kind !== 'pre')
+  if (!list.length) return []
+  let i = list.findIndex((p) => date <= p.end)
+  if (i < 0) i = list.length - 1
+  const p = list[i]
+  if (p.kind === 'deload' && list[i - 1]?.kind === 'block') return [list[i - 1], p]
+  if (p.kind === 'block' && list[i + 1]?.kind === 'deload') return [p, list[i + 1]]
+  return [p]
+}
+
+/**
+ * Sessions done since the start plus the sessions planned until the goal date, grouped by period.
+ * In maintenance mode there is no goal: the same count over the current cycle.
+ */
 export function sessionPlan(state: AppState, today: ISODate = todayISO()): SessionPlan {
-  const planned = projectSessions(state, GOAL_DATE, today)
-  const segs = new Map<string, PlanSegment>(PERIODS.map((p) => [p.id, { id: p.id, label: p.label, kind: p.kind, phase: p.phase, done: 0, planned: 0 }]))
-  const bucket = (date: ISODate) => segs.get((periodAt(date) ?? (date < PERIODS[0].start ? PERIODS[0] : PERIODS[PERIODS.length - 1])).id)!
-  for (const w of state.workouts) bucket(w.date).done++
+  const cycle = MAINTENANCE ? cycleAt(today) : []
+  const from = cycle.length ? cycle[0].start : null
+  const to = cycle.length ? cycle[cycle.length - 1].end : GOAL_DATE
+  const periods = cycle.length ? cycle : PERIODS
+  const inPlan = (date: ISODate) => !from || (date >= from && date <= to)
+  const planned = projectSessions(state, to, today)
+  const segs = new Map<string, PlanSegment>(periods.map((p) => [p.id, { id: p.id, label: p.label, kind: p.kind, phase: p.phase, done: 0, planned: 0 }]))
+  const bucket = (date: ISODate) => segs.get((periodAt(date) ?? (date < periods[0].start ? periods[0] : periods[periods.length - 1])).id)!
+  const workouts = state.workouts.filter((w) => inPlan(w.date))
+  const active = state.activeWorkout && inPlan(state.activeWorkout.date) ? state.activeWorkout : null
+  for (const w of workouts) bucket(w.date).done++
   for (const p of planned) bucket(p.date).planned++
-  if (state.activeWorkout) bucket(state.activeWorkout.date).planned++
+  if (active) bucket(active.date).planned++
   const segments = [...segs.values()].filter((s) => s.done + s.planned > 0)
-  const done = state.workouts.length
-  const plannedCount = planned.length + (state.activeWorkout ? 1 : 0)
-  return { done, planned: plannedCount, total: done + plannedCount, segments }
+  const done = workouts.length
+  const plannedCount = planned.length + (active ? 1 : 0)
+  return {
+    done, planned: plannedCount, total: done + plannedCount, segments,
+    ...(from ? { cycle: { start: from, end: to, label: cycle[0].label } } : {}),
+  }
 }
 
 // ───────────────────────── Pauses & re-entry ─────────────────────────

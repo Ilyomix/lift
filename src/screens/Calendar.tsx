@@ -5,7 +5,7 @@ import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
-  calendarMonth, contextAt, GOAL_DATE, milestones, PERIODS, periodRangeLabel, PHASES, prescribe, projectSessions, reentryForGap, TYPE_META,
+  calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, milestones, PERIODS, periodRangeLabel, PHASES, prescribe, projectSessions, reentryForGap, TYPE_META,
   gapSinceLastSession, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
@@ -26,13 +26,18 @@ export function CalendarScreen() {
   const [y, m] = month.split('-').map(Number)
   const next = milestones(today).slice(0, 5)
   const plan = useMemo(() => sessionPlan(state, today), [state, today])
+  const cycle = plan.cycle
+  // Maintenance mode has no end: the list shows what comes next, not the whole calendar laid out.
+  const periods = MAINTENANCE ? PERIODS.filter((p) => p.kind !== 'pre' && p.end >= today).slice(0, 8) : PERIODS.filter((p) => p.kind !== 'pre')
 
   return (
     <Screen>
       <Header
-        eyebrow={L(`${plural(plan.planned, 'séance prévue', 'séances prévues')} d’ici le ${fmtDate(GOAL_DATE, { long: true })}`, `${plural(plan.planned, 'session planned', 'sessions planned')} until ${fmtDate(GOAL_DATE, { long: true })}`)}
+        eyebrow={cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`${plural(plan.planned, 'séance prévue', 'séances prévues')} d’ici le ${fmtDate(GOAL_DATE, { long: true })}`, `${plural(plan.planned, 'session planned', 'sessions planned')} until ${fmtDate(GOAL_DATE, { long: true })}`)}
         title={L('Calendrier', 'Calendar')}
-        sub={L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}
+        sub={cycle
+          ? L(`${cycle.label} : ${plan.done} faites + ${plan.planned} prévues jusqu’au ${fmtDate(cycle.end, { long: true })}. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${cycle.label}: ${plan.done} done + ${plan.planned} planned until ${fmtDate(cycle.end, { long: true })}. A missed session shifts the rotation; it’s never skipped.`)
+          : L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}
       />
 
       <div className="flex items-center justify-between">
@@ -101,11 +106,11 @@ export function CalendarScreen() {
       <Section title={L('Le programme', 'The program')}>
         <PhaseTrack today={today} />
         <Card className="mt-4 divide-y divide-line">
-          {PERIODS.filter((p) => p.kind !== 'pre').map((p) => {
+          {periods.map((p) => {
             const current = today >= p.start && today <= p.end
             return (
               <div key={p.id} className={cx('flex items-start gap-3 px-4 py-3', current && 'bg-signal-soft')}>
-                <span className={cx('mt-1 h-3 w-3 shrink-0 rounded-[3px]', p.kind === 'deload' ? 'hatch border border-line-strong' : p.kind === 'holiday' ? 'bg-surface-3' : p.kind === 'stabilization' ? 'bg-signal' : '')} style={p.kind === 'block' ? { background: `color-mix(in oklch, var(--text) ${p.phase === 'recomp' ? 42 : 82}%, transparent)` } : undefined} aria-hidden />
+                <span className={cx('mt-1 h-3 w-3 shrink-0 rounded-[3px]', p.kind === 'deload' ? 'hatch border border-line-strong' : p.kind === 'holiday' ? 'bg-surface-3' : p.kind === 'stabilization' ? 'bg-signal' : '')} style={p.kind === 'block' ? { background: `color-mix(in oklch, var(--text) ${p.phase === 'recomp' || p.phase === 'upkeep' ? 42 : 82}%, transparent)` } : undefined} aria-hidden />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-[15px] font-semibold">{p.label}{current && <span className="ml-2 text-[12px] font-semibold text-signal-text">{L('en cours', 'current')}</span>}</p>
@@ -117,6 +122,9 @@ export function CalendarScreen() {
             )
           })}
         </Card>
+        {MAINTENANCE && (
+          <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Le plan continue ensuite au même rythme, sans date de fin : blocs de 5 semaines + décharge, fêtes à volume réduit.', 'The plan then keeps the same rhythm, with no end date: 5-week blocks + deload, holidays at reduced volume.')}</p>
+        )}
       </Section>
 
       {next.length > 0 && (
@@ -221,7 +229,7 @@ export function PauseScreen() {
 
   return (
     <Screen>
-      <Header backTo="plus" eyebrow={L('Système de pause', 'Pause system')} title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
+      <Header backTo="plus" eyebrow={L('Système de pause', 'Pause system')} title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={MAINTENANCE ? L('Vacances, maladie, blessure : le calendrier continue, et la reprise est adaptée à la durée de l’arrêt.', 'Vacation, illness, injury: the calendar keeps going, and your return is adapted to how long you stopped.') : L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
       {p.active ? (
         <>
           <Card className="p-4">
@@ -311,7 +319,7 @@ export function RemindersScreen() {
         <Toggle label={L('Tour de taille', 'Waist')} hint={L('Un dimanche sur deux', 'Every other Sunday')} checked={o.waist} onChange={set('waist')} />
         <Toggle label="Photos" hint={L('Toutes les 4 semaines', 'Every 4 weeks')} checked={o.photos} onChange={set('photos')} />
         <Toggle label={L('Semaines de décharge', 'Deload weeks')} hint={L('Alerte la veille', 'Alert the day before')} checked={o.deloads} onChange={set('deloads')} />
-        <Toggle label={L('Phases et objectif', 'Phases and goal')} hint={L(`Début du programme, sèche, fêtes, stabilisation, ${fmtDate(GOAL_DATE, { long: true })}`, `Program start, cut, holidays, stabilization, ${fmtDate(GOAL_DATE, { long: true })}`)} checked={o.phases} onChange={set('phases')} />
+        <Toggle label={MAINTENANCE ? L('Phases', 'Phases') : L('Phases et objectif', 'Phases and goal')} hint={MAINTENANCE ? L('Début du programme, fêtes', 'Program start, holidays') : L(`Début du programme, sèche, fêtes, stabilisation, ${fmtDate(GOAL_DATE, { long: true })}`, `Program start, cut, holidays, stabilization, ${fmtDate(GOAL_DATE, { long: true })}`)} checked={o.phases} onChange={set('phases')} />
       </Card>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="min-w-0">
@@ -335,7 +343,7 @@ export function RemindersScreen() {
         <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest timer.')}</p>
       </Section>
       <Eyebrow className="mt-8">{L('Semaines de décharge', 'Deload weeks')}</Eyebrow>
-      <p className="mt-1 text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload').map((p) => fmtDate(p.start)).join(' · ')}</p>
+      <p className="mt-1 text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload' && (!MAINTENANCE || p.end >= todayISO())).slice(0, MAINTENANCE ? 8 : undefined).map((p) => fmtDate(p.start)).join(' · ')}</p>
     </Screen>
   )
 }

@@ -1,0 +1,112 @@
+<!doctype html>
+<!-- Share image (Open Graph / Twitter), 1200 × 630. Rendered to public/og.png by scripts/og.py. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: 'Geologica'; font-weight: 100 900; src: url('../src/assets/fonts/geologica-latin-wght-normal.woff2') format('woff2-variations'); }
+  @font-face { font-family: 'DSEG7'; font-style: italic; font-weight: 700; src: url('../src/assets/fonts/DSEG7ClassicMini-BoldItalic.woff2') format('woff2'); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    position: relative; overflow: hidden; font-family: 'Geologica', system-ui, sans-serif; color: #e8eefb;
+    background:
+      radial-gradient(640px 520px at 930px 330px, rgba(48, 104, 245, 0.30), transparent 70%),
+      radial-gradient(700px 420px at 0px 0px, rgba(38, 58, 104, 0.55), transparent 70%),
+      linear-gradient(180deg, #0a1122 0%, #050810 100%);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* A faint engineering grid, fading out toward the text. */
+  .grid {
+    position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(122, 167, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(122, 167, 255, 0.07) 1px, transparent 1px);
+    background-size: 48px 48px; background-position: -1px -1px;
+    -webkit-mask-image: radial-gradient(620px 520px at 930px 320px, #000 30%, transparent 80%);
+  }
+  .left { position: absolute; left: 72px; top: 64px; bottom: 60px; width: 600px; display: flex; flex-direction: column; }
+  .brand { display: flex; align-items: center; gap: 16px; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+  .brand svg { border-radius: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(232, 238, 251, 0.08); }
+  h1 { margin-top: 44px; font-size: 56px; line-height: 1.06; font-weight: 600; letter-spacing: -0.035em; }
+  h1 em { font-style: normal; color: #7aa7ff; }
+  .sub { max-width: 540px; margin-top: 20px; font-size: 22px; line-height: 1.4; color: #a3aec4; font-weight: 400; letter-spacing: -0.005em; }
+  .foot { margin-top: auto; display: flex; align-items: center; gap: 10px; }
+  .chip { height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #2b3446; display: inline-flex; align-items: center; font-size: 17px; font-weight: 600; color: #c9d2e4; letter-spacing: 0.01em; }
+  .url { margin-left: 8px; font-size: 17px; color: #6f7a90; font-weight: 500; }
+
+  /* The rest timer, the app's signature instrument. */
+  .card {
+    position: absolute; right: 72px; top: 76px; width: 400px; height: 478px; border-radius: 30px;
+    background: linear-gradient(180deg, #0c1426 0%, #070b16 100%);
+    border: 1px solid #1f2734; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(232, 238, 251, 0.06);
+    padding: 30px 32px;
+  }
+  .eyebrow { display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: #8a93a6; letter-spacing: 0.06em; text-transform: uppercase; }
+  .eyebrow b { color: #7aa7ff; font-weight: 600; }
+  .ring { position: relative; width: 250px; height: 250px; margin: 22px auto 0; }
+  .ring svg { position: absolute; inset: 0; }
+  .clock { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .clock .t { font-family: 'DSEG7'; font-style: italic; font-weight: 700; font-size: 64px; color: #e6ebf5; letter-spacing: 0.02em; }
+  .clock .l { margin-top: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0.14em; color: #8a93a6; text-transform: uppercase; }
+  .next { margin-top: 24px; display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #1f2734; padding-top: 18px; }
+  .next .k { font-size: 15px; color: #8a93a6; }
+  .next .v { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+  .next .v span { color: #8a93a6; font-weight: 500; font-size: 17px; margin-left: 6px; }
+  .track { margin-top: 16px; display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+  .track i { display: block; width: 5px; border-radius: 1px; background: #2b3446; height: 26px; }
+  .track i.d { background: #3d7bff; }
+  .track i.n { background: #e6ebf5; }
+  .track i.s { height: 12px; }
+  .track i.gap { margin-left: 9px; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+
+  <section class="left">
+    <div class="brand">
+      <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0D162A" /><stop offset="1" stop-color="#050810" /></linearGradient></defs>
+        <rect width="64" height="64" rx="14" fill="url(#bg)" />
+        <path d="M46.874 41.028A17.4 17.4 0 1 1 31.618 14.604" fill="none" stroke="#E8EEFB" stroke-width="6.2" />
+        <path d="M32.382 14.604A17.4 17.4 0 0 1 47.256 40.367" fill="none" stroke="#3D7BFF" stroke-width="6.2" />
+        <circle cx="32" cy="32" r="3.3" fill="#E8EEFB" />
+      </svg>
+      Lift
+    </div>
+    <h1>Ton programme d’hypertrophie, <em>fondé sur la&nbsp;recherche.</em></h1>
+    <p class="sub">Séances guidées, blocs et décharges, charges qui progressent d’elles-mêmes. Avec une date&nbsp;objectif ou en&nbsp;entretien.</p>
+    <div class="foot">
+      <span class="chip">Salle ou maison</span>
+      <span class="chip">Hors ligne</span>
+      <span class="chip">Sans compte</span>
+    </div>
+  </section>
+
+  <aside class="card">
+    <div class="eyebrow"><span>Repos</span><b>Bloc 2 · S3</b></div>
+    <div class="ring">
+      <svg viewBox="0 0 250 250">
+        <circle cx="125" cy="125" r="112" fill="none" stroke="#151c28" stroke-width="12" />
+        <circle cx="125" cy="125" r="112" fill="none" stroke="#3d7bff" stroke-width="12" stroke-linecap="round"
+          stroke-dasharray="703.7" stroke-dashoffset="263.9" transform="rotate(-90 125 125)" />
+      </svg>
+      <div class="clock"><span class="t">1:30</span><span class="l">RIR 1–2</span></div>
+    </div>
+    <div class="next"><span class="k">Ensuite</span><span class="v">Tirage vertical<span>3 × 8–12</span></span></div>
+    <div class="track" id="track"></div>
+  </aside>
+
+  <script>
+    // Session ticks, as on the home screen: done (blue), next (white), planned (dim); deload weeks shorter, a gap between periods.
+    const t = document.getElementById('track')
+    const plan = [['d', 12, false], ['d s', 3, true], ['d', 6, true], ['n', 1, false], ['', 13, false], ['s', 3, true]]
+    for (const [cls, n, gap] of plan) {
+      for (let k = 0; k < n; k++) {
+        const el = document.createElement('i')
+        el.className = `${cls}${gap && k === 0 ? ' gap' : ''}`
+        t.appendChild(el)
+      }
+    }
+  </script>
+</body>
+</html>

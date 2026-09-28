@@ -2,22 +2,23 @@ import { create } from 'zustand'
 import { clear, createStore, del, entries, get as idbGet, set as idbSet } from 'idb-keyval'
 import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
 import { applyPlanUpdate, type PlanUpdate } from './coach'
-import { addDays, diffDays, isoFromTimestamp, todayISO } from './date'
+import { addDays, diffDays, fmtDate, isoFromTimestamp, todayISO } from './date'
 import { fmtLoad, roundTo, uid } from './format'
 import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
   buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribe,
-  reentryForGap,
+  reentryForGap, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
 import { applyChange, finalizeWorkout, intraSessionAdjust, previousPerformance, type AutoChange, type FinishResult } from './training'
 import { L, resolveLang, setLang } from './i18n'
 import { localizeState } from './localize'
-import { stateFromOnboarding, type OnboardingAnswers } from './onboarding'
+import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
+import { weightStatus } from './stats'
 import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
-  ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, Prefs,
+  ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs,
   Look, SetFlag, Template, TemplateExercise, TrainingSetup, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
 
@@ -93,7 +94,13 @@ interface Store {
   startPause: (p: { reason: PauseReason; plannedEnd: ISODate | null; note?: string }) => void
   endPause: () => void
 
+  /** Sets the goal date; from maintenance mode, it also brings the dated plan back. */
   setGoalDate: (goal: ISODate) => void
+  /**
+   * Maintenance mode: no goal date. The look's cut and target weight are set aside (zones stay);
+   * leaving a cut, calories go back to the estimated maintenance. Returns the new calories, if changed.
+   */
+  enterMaintenance: () => number | null
   applyVisualGoal: (
     g: { look: Look; zones: Zone[]; bodyFat: number | null; heightCm: number; sex: 'm' | 'f' },
     plan: { cutWeeks: number; target: [number, number]; goal?: ISODate },
@@ -193,13 +200,43 @@ function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
   }
 }
 
-/** The plan (periods, deloads) follows the goal date and an early deload stored in the state. */
+/** The plan (periods, deloads) follows the goal date — or maintenance mode — and an early deload stored in the state. */
 function syncPlan(s: AppState) {
   const vg = s.visualGoal
-  configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, goalApplied(vg) ? zonesText(vg.zones) : null, {
+  configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, vg?.zones?.length ? zonesText(vg.zones) : null, {
     start: s.settings.programStart,
     foundation: s.settings.foundationStart ?? null,
+    maintenance: !!s.settings.maintenance,
   })
+}
+
+/** Settings of a dated plan: the maintenance flag dropped. */
+function withGoal(settings: AppState['settings'], goal?: ISODate): AppState['settings'] {
+  const { maintenance: _m, ...rest } = settings
+  return goal ? { ...rest, goalDate: goal } : rest
+}
+
+/** An entry of the update history, for a change of plan made in the app. */
+function planRecord(summary: string, s: AppState): PlanUpdateRecord {
+  return { updateId: `plan-${Date.now()}`, basedOnSession: s.workouts.length || null, summary, appliedAt: new Date().toISOString(), changeCount: 1, source: 'program' }
+}
+
+/** Maintenance calories from the profile and today's weight (Mifflin–St Jeor × activity), when both are known. */
+function estimatedMaintenance(s: AppState): number | null {
+  const weight = weightStatus(s).current
+  if (!weight || !s.profile.heightCm) return null
+  return maintenanceCalories({ weight, heightCm: s.profile.heightCm, age: s.profile.age, sex: s.profile.sex ?? 'm', days: trainingDays(s) })
+}
+
+/**
+ * Calories once in maintenance mode: leaving a cut, the estimated maintenance; otherwise the
+ * current target stays (it already aims at a stable weight) and this returns null.
+ */
+export function caloriesForMaintenance(s: AppState, today: ISODate = todayISO()): number | null {
+  const phase = contextAt(today).phase?.id
+  if (phase !== 'cut' && phase !== 'cut-end' && phase !== 'diet-break') return null
+  const kcal = estimatedMaintenance(s)
+  return kcal && kcal !== s.nutritionTargets.calories ? kcal : null
 }
 
 /** Types laid on the training days in rotation order, Monday first (display and calendar reminders). */
@@ -727,8 +764,45 @@ export const useStore = create<Store>((set, get) => ({
 
   setGoalDate: (goal) => {
     if (!isValidGoal(goal)) return
-    get().update((s) => ({ ...s, settings: { ...s.settings, goalDate: goal } }))
+    const wasMaintenance = !!get().state.settings.maintenance
+    get().update((s) => ({
+      ...s,
+      settings: withGoal(s.settings, goal),
+      appliedPlanUpdates: wasMaintenance
+        ? [...s.appliedPlanUpdates, planRecord(L(`Fin du mode entretien : objectif le ${fmtDate(goal, { long: true, year: true })}.`, `Maintenance mode ended: goal on ${fmtDate(goal, { long: true, year: true })}.`), s)]
+        : s.appliedPlanUpdates,
+    }))
     void get().flush()
+  },
+
+  enterMaintenance: () => {
+    const s0 = get().state
+    if (s0.settings.maintenance) return null
+    const calories = caloriesForMaintenance(s0)
+    const hadLook = goalApplied(s0.visualGoal)
+    get().update((s) => {
+      const vg = s.visualGoal
+      return {
+        ...s,
+        settings: { ...s.settings, maintenance: true },
+        // The look's cut and target weight belong to a dated plan; its zones still set the priority sets.
+        visualGoal: hadLook && vg ? { look: vg.look, zones: vg.zones, bodyFat: vg.bodyFat, photoId: vg.photoId } : vg,
+        goals: hadLook ? { ...s.goals, targetWeightMin: 0, targetWeightMax: 0 } : s.goals,
+        nutritionTargets: calories ? { ...s.nutritionTargets, calories, caloriesChangedAt: todayISO() } : s.nutritionTargets,
+        appliedPlanUpdates: [
+          ...s.appliedPlanUpdates,
+          planRecord(
+            L(
+              `Mode entretien : plus de date objectif, blocs de 5 semaines + décharge en continu${calories ? `, calories à ${calories} kcal (maintenance estimée)` : ''}.`,
+              `Maintenance mode: no goal date, 5-week blocks + deload with no end${calories ? `, calories at ${calories} kcal (estimated maintenance)` : ''}.`,
+            ),
+            s,
+          ),
+        ],
+      }
+    })
+    void get().flush()
+    return calories
   },
 
   applyVisualGoal: (g, plan) => {
@@ -747,7 +821,8 @@ export const useStore = create<Store>((set, get) => ({
       visualGoal: { look: g.look, zones: g.zones, bodyFat: g.bodyFat, photoId: s.visualGoal?.photoId, cutWeeks: plan.cutWeeks },
       goals: { ...s.goals, targetWeightMin: round(plan.target[0]), targetWeightMax: round(plan.target[1]) },
       templates: tagPriorities(s.templates, g.zones),
-      settings: plan.goal && isValidGoal(plan.goal) ? { ...s.settings, goalDate: plan.goal } : s.settings,
+      // A look is a dated plan: applying one leaves maintenance mode.
+      settings: withGoal(s.settings, plan.goal && isValidGoal(plan.goal) ? plan.goal : undefined),
       appliedPlanUpdates: [
         ...s.appliedPlanUpdates,
         {

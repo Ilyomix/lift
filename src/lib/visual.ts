@@ -3,7 +3,7 @@
 import { addDays, todayISO } from './date'
 import { L } from './i18n'
 import { infoFor, type MuscleGroup } from './library'
-import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
+import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, minResumeGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
 import { measureSeries, plannedWeightPath, weightStatus } from './stats'
 import type { AppState, ISODate, Look, Template, TemplateExercise, VisualGoal, WorkoutType, Zone } from './types'
 
@@ -203,6 +203,23 @@ export function visualPlan(
     look, range, weight, bodyFat: input.bodyFat, lean, fat, target, cutWeeks, fits, suggestedGoal,
     atGoal: { prudent, fast }, reached: prudent.look,
   }
+}
+
+/**
+ * Maintenance mode has no goal date to keep: the date a look needs instead — its cut, then
+ * the stabilization — at the end of a month, 8 weeks away at least. Null without a weight.
+ */
+export function earliestGoalFor(
+  state: AppState,
+  input: { look: Look; bodyFat: BodyFat; sex?: 'm' | 'f'; today?: ISODate },
+): ISODate | null {
+  const today = input.today ?? todayISO()
+  const min = minResumeGoal(today)
+  const [y, m] = min.split('-').map(Number)
+  const first = `${y}-${String(m).padStart(2, '0')}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+  const plan = visualPlan(state, { ...input, today, goal: first })
+  if (!plan) return null
+  return plan.fits ? first : plan.suggestedGoal
 }
 
 /**

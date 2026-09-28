@@ -10,6 +10,7 @@ import { SOURCES } from '../lib/research'
 import { useStore } from '../lib/store'
 import type { Look, TrainingSetup } from '../lib/types'
 import { LOOKS, reachesLook } from '../lib/visual'
+import { PlanModePicker } from '../components/PlanMode'
 import { setupLabel, SetupPicker } from '../components/Setup'
 import { Button, Card, cx, DateInput, Field, inputClass, Sheet, Tag } from '../components/ui'
 import { ImportSheet } from './More'
@@ -48,6 +49,8 @@ interface Draft {
   waist: string
   look: Look
   goalDate: string
+  /** Maintenance mode: no goal date, no look. */
+  maintenance: boolean
 }
 
 const inRange = (v: number | null, min: number, max: number): v is number => v !== null && v >= min && v <= max
@@ -68,6 +71,7 @@ export function Onboarding() {
     waist: '',
     look: 'sec',
     goalDate: defaultGoalFor(start),
+    maintenance: false,
   }))
   const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }))
   const chooseLang = (l: Lang) => {
@@ -81,9 +85,9 @@ export function Onboarding() {
   const waist = parseNumber(d.waist)
   const bodyOk = inRange(age, 14, 90) && inRange(height, 120, 230) && inRange(weight, 35, 250) && (d.waist.trim() === '' || inRange(waist, 50, 200))
   const answers: OnboardingAnswers | null = bodyOk
-    ? { lang: language, setup: d.setup, days: d.days, sex: d.sex, age: age!, heightCm: height!, weight: weight!, waist: d.waist.trim() ? waist : null, look: d.look, goalDate: d.goalDate }
+    ? { lang: language, setup: d.setup, days: d.days, sex: d.sex, age: age!, heightCm: height!, weight: weight!, waist: d.waist.trim() ? waist : null, look: d.look, goalDate: d.goalDate, maintenance: d.maintenance }
     : null
-  const goalOk = isValidGoal(d.goalDate, start)
+  const goalOk = d.maintenance || isValidGoal(d.goalDate, start)
   const preview = useMemo(() => (answers && goalOk ? onboardingPreview(answers, today) : null), [JSON.stringify(answers), goalOk, today]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canNext = step === 1 ? true : step === 2 ? d.days.length >= 2 : step === 3 ? bodyOk : step === 4 ? goalOk && !!preview : true
@@ -172,11 +176,11 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
         <Dial />
         <h1 className="mt-8 text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
-          {L('Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif.', 'Your research-based hypertrophy program, built around your goal date.')}
+          {L('Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif ou en entretien, sans date.', 'Your research-based hypertrophy program, built around your goal date or in maintenance mode, with no end date.')}
         </p>
         <ul className="mt-8 space-y-3 text-[15px] leading-[1.45]">
           <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">01</span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</li>
-          <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">02</span>{L('Un plan jusqu’à ta date : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date: blocks, deloads, cut and returns after a break.')}</li>
+          <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">02</span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</li>
           <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">03</span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</li>
         </ul>
         <div className="mt-6 flex flex-wrap gap-2">
@@ -278,8 +282,39 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
   const max = addDays(start, 5 * 365)
   const chips = [3, 6, 9, 12].map((m) => ({ label: L(`${m} mois`, `${m} months`), date: endOfMonth(shiftMonths(start, m)) }))
   const plan = preview?.plan
+  const bodyFat = preview && (
+    <Line
+      label={L('Taux de gras estimé', 'Estimated body fat')}
+      value={preview.bodyFat ? `≈${fmtNum(preview.bodyFat.pct, 0)}${L(' %', '%')}` : '—'}
+      hint={preview.bodyFat?.source === 'imc' ? L('Avec ton IMC : ± 4 points. Mesure ton tour de taille pour mieux faire.', 'From your BMI: ± 4 points. Measure your waist to do better.') : L('Avec ton tour de taille (formule RFM)', 'From your waist (RFM formula)')}
+    />
+  )
+  const mode = <PlanModePicker value={d.maintenance ? 'maintenance' : 'goal'} onChange={(m) => patch({ maintenance: m === 'maintenance' })} />
+  if (d.maintenance) {
+    return (
+      <div>
+        {mode}
+        {preview && (
+          <Card className="mt-5 divide-y divide-line">
+            {bodyFat}
+            <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Maintenance estimée : poids stable, ajustée ensuite sur ta moyenne 7 jours', 'Estimated maintenance: stable weight, then adjusted to your 7-day average')} />
+            <Line
+              label={L('Rythme', 'Rhythm')}
+              value={L('5 sem. + décharge', '5 wk + deload')}
+              hint={L('Les blocs se suivent sans date de fin, fêtes de fin d’année à volume réduit. Pas de sèche.', 'Blocks follow one another with no end date, year-end holidays at reduced volume. No cut.')}
+            />
+          </Card>
+        )}
+        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
+          {L('Pour garder ton physique et continuer à progresser. Tu pourras fixer une date objectif plus tard dans Réglages : le plan passera en recomposition puis en sèche.', 'To keep your physique and keep progressing. You can set a goal date later in Settings: the plan then switches to recomposition, then a cut.')}
+        </p>
+      </div>
+    )
+  }
   return (
     <div>
+      {mode}
+      <p className="mt-5 mb-2 text-[13px] font-medium text-text-2">{L('Look visé', 'Target look')}</p>
       <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
         {LOOKS.map((l) => {
           const on = l.id === d.look
@@ -327,12 +362,8 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
 
       {preview && (
         <Card className="mt-5 divide-y divide-line">
-          <Line
-            label={L('Taux de gras estimé', 'Estimated body fat')}
-            value={preview.bodyFat ? `≈${fmtNum(preview.bodyFat.pct, 0)}${L(' %', '%')}` : '—'}
-            hint={preview.bodyFat?.source === 'imc' ? L('Avec ton IMC : ± 4 points. Mesure ton tour de taille pour mieux faire.', 'From your BMI: ± 4 points. Measure your waist to do better.') : L('Avec ton tour de taille (formule RFM)', 'From your waist (RFM formula)')}
-          />
-          {plan && (
+          {bodyFat}
+          {plan && preview.shape && (
             <>
               <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />
               <Line
@@ -390,18 +421,27 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
           value={capitalize(fmtDate(preview.firstSession, { weekday: true }))}
           hint={`${firstType.label} · ${L('semaine 1 à 3 répétitions de l’échec', 'week 1 at 3 reps from failure')}`}
         />
-        <Line label={L('Objectif', 'Goal')} value={plan ? plan.look.label : '—'} hint={fmtDate(answers.goalDate, { long: true, year: true })} />
-        {plan && <Line label={L('Poids cible', 'Target weight')} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />}
-        <Line label={L('Séances d’ici là', 'Sessions until then')} value={String(preview.sessions)} />
+        {answers.maintenance ? (
+          <>
+            <Line label={L('Objectif', 'Goal')} value={L('Entretien', 'Maintenance')} hint={L('Sans date : blocs de 5 semaines + décharge, en continu', 'No end date: 5-week blocks + deload, ongoing')} />
+            <Line label={L('Séances du bloc 1', 'Sessions in block 1')} value={String(preview.sessions)} hint={L(`Jusqu’au ${fmtDate(preview.until, { long: true })}, puis une semaine de décharge`, `Until ${fmtDate(preview.until, { long: true })}, then a deload week`)} />
+          </>
+        ) : (
+          <>
+            <Line label={L('Objectif', 'Goal')} value={plan ? plan.look.label : '—'} hint={fmtDate(answers.goalDate, { long: true, year: true })} />
+            {plan && <Line label={L('Poids cible', 'Target weight')} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />}
+            <Line label={L('Séances d’ici là', 'Sessions until then')} value={String(preview.sessions)} />
+          </>
+        )}
         <Line
           label={L('Calories de départ', 'Starting calories')}
           value={`${fmtNum(preview.calories, 0)} kcal`}
-          hint={L('Estimation (Mifflin–St Jeor) ajustée ensuite sur ta moyenne de poids 7 jours', 'Estimate (Mifflin–St Jeor), then adjusted to your 7-day average weight')}
+          hint={answers.maintenance ? L('Maintenance estimée (Mifflin–St Jeor), ajustée ensuite sur ta moyenne de poids 7 jours', 'Estimated maintenance (Mifflin–St Jeor), then adjusted to your 7-day average weight') : L('Estimation (Mifflin–St Jeor) ajustée ensuite sur ta moyenne de poids 7 jours', 'Estimate (Mifflin–St Jeor), then adjusted to your 7-day average weight')}
         />
         <Line label={L('Protéines', 'Protein')} value={`${fmtNum(Math.round((1.95 * answers.weight) / 5) * 5, 0)}–${fmtNum(Math.round((2.05 * answers.weight) / 5) * 5, 0)} g`} hint={L('≈ 2 g par kg de poids', '≈ 2 g per kg of body weight')} />
       </Card>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-        {L('Tout se modifie ensuite dans Plus → Réglages : lieu, jours, date et objectif visuel.', 'You can change everything later in More → Settings: place, days, date and visual goal.')}
+        {L('Tout se modifie ensuite dans Plus → Réglages : lieu, jours, date objectif ou entretien, objectif visuel.', 'You can change everything later in More → Settings: place, days, goal date or maintenance, visual goal.')}
       </p>
     </div>
   )

@@ -5,7 +5,7 @@ import { addDays, capitalize, dayNumber, fmtDate, fmtRelativeDay, mondayOf, pars
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
 import { infoFor, MUSCLES } from '../lib/library'
-import { GOAL_DATE, trainingDays, TYPE_META } from '../lib/program'
+import { GOAL_DATE, MAINTENANCE, PERIODS, trainingDays, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import {
@@ -188,7 +188,9 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
   const waist = measureSeries(state.bodyEntries, 'waist')
   const advice = cutAdvice(state, today)
   const planStart = today < '2026-09-28' ? '2026-09-28' : today
-  const plan = ws.current ? plannedWeightPath(planStart, ws.current) : []
+  // Maintenance mode has no end date: the trajectory looks 12 weeks ahead.
+  const chartEnd = MAINTENANCE ? addDays(today, 84) : GOAL_DATE
+  const plan = ws.current ? plannedWeightPath(planStart, ws.current, MAINTENANCE ? { periods: PERIODS, goal: chartEnd } : undefined) : []
   const weightSeries: ChartSeries[] = [
     { id: 'raw', label: L('Pesées', 'Weigh-ins'), points: weights.map((p) => ({ x: dayNumber(p.date), y: p.value })), kind: 'dots', color: 'var(--chart-2)' },
     { id: 'ma', label: L('Moyenne 7 jours', '7-day average'), points: ma.map((p) => ({ x: dayNumber(p.date), y: p.value })), kind: 'line', color: 'var(--chart-1)' },
@@ -213,7 +215,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
             ariaLabel={L('Poids, moyenne sur 7 jours et trajectoire du plan', 'Weight, 7-day average and plan trajectory')}
             height={220}
             band={goal ? { y0: goal.min, y1: goal.max, label: L(`Cible ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg`, `Target ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg`) } : undefined}
-            xDomain={weights.length ? [dayNumber(weights[0].date), dayNumber(GOAL_DATE)] : undefined}
+            xDomain={weights.length ? [dayNumber(weights[0].date), dayNumber(chartEnd)] : undefined}
           />
         </div>
       </Card>

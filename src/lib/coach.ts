@@ -5,7 +5,7 @@ import { fmtDate, todayISO } from './date'
 import { bodyweightLabel, fmtLoad, fmtNum } from './format'
 import { gymName, gymOf, isGymBound } from './gyms'
 import { L } from './i18n'
-import { contextAt, GOAL_DATE, nextTargetText, sessionPlan, TYPE_META } from './program'
+import { contextAt, GOAL_DATE, MAINTENANCE, nextTargetText, sessionPlan, TYPE_META } from './program'
 import { exerciseHistory, setsSummary } from './training'
 import { weightStatus } from './stats'
 import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutType } from './types'
@@ -120,15 +120,25 @@ export function globalPrompt(state: AppState): string {
   const lines = [
     L('Tu es mon coach d’hypertrophie. Fais le point sur mon programme et propose des ajustements.', 'You are my hypertrophy coach. Review my program and suggest adjustments.'),
     '',
-    L(
-      `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
-      `Date: ${fmtDate(today, { weekday: true, year: true })} · goal on ${fmtDate(state.settings.goalDate, { year: true })}`,
-    ),
+    MAINTENANCE
+      ? L(
+          `Date : ${fmtDate(today, { weekday: true, year: true })} · mode entretien, sans date objectif (blocs + décharges en continu, calories à maintenance)`,
+          `Date: ${fmtDate(today, { weekday: true, year: true })} · maintenance mode, no goal date (blocks + deloads with no end, maintenance calories)`,
+        )
+      : L(
+          `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
+          `Date: ${fmtDate(today, { weekday: true, year: true })} · goal on ${fmtDate(state.settings.goalDate, { year: true })}`,
+        ),
     L(`Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`, `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`),
-    L(
-      `Séances : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
-      `Sessions: ${plan.done} done, ${plan.planned} planned by ${fmtDate(GOAL_DATE, { year: true })}`,
-    ),
+    plan.cycle
+      ? L(
+          `Séances : ${state.workouts.length} faites au total ; cycle en cours (${plan.cycle.label}) : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(plan.cycle.end, { year: true })}`,
+          `Sessions: ${state.workouts.length} done in total; current cycle (${plan.cycle.label}): ${plan.done} done, ${plan.planned} planned by ${fmtDate(plan.cycle.end, { year: true })}`,
+        )
+      : L(
+          `Séances : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
+          `Sessions: ${plan.done} done, ${plan.planned} planned by ${fmtDate(GOAL_DATE, { year: true })}`,
+        ),
     ws.current
       ? L(
           `Poids : ${fmtNum(ws.current)} kg${ws.weeklyChangePct !== null ? `, tendance ${fmtNum(ws.weeklyChangePct, 2)} %/sem` : ''}`,

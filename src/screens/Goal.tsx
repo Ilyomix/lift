@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState } from 'react'
-import { Camera, Check, Flag, ImageOff, Ruler, Target, TriangleAlert } from 'lucide-react'
+import { Camera, Check, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
-import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE } from '../lib/program'
+import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, resumeGoalFor } from '../lib/program'
 import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import type { Look, Zone } from '../lib/types'
-import { bodyFatEstimate, DEFAULT_ZONES, goalApplied, LOOKS, lookInfo, MAX_ZONES, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
+import { bodyFatEstimate, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
 import { RefList } from '../components/Evidence'
 import { Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
 
@@ -36,21 +36,31 @@ export function VisualGoalScreen() {
   const heightCm = parseNumber(height) ?? 0
   const override = parseNumber(measured)
   const bf = bodyFatEstimate(state, { override: override && override >= 3 && override <= 60 ? override : null, heightCm, sex })
-  const plan = useMemo(() => (bf ? visualPlan(state, { look, bodyFat: bf, sex, today }) : null), [state, look, bf?.pct, sex, today]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Maintenance mode has no date: applying a look brings back a dated plan, ending on the date this look needs.
+  const goalDate = useMemo(
+    () => (MAINTENANCE ? (bf && earliestGoalFor(state, { look, bodyFat: bf, sex, today })) || resumeGoalFor(state.settings.goalDate, today) : GOAL_DATE),
+    [state, look, bf?.pct, sex, today], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const plan = useMemo(() => (bf ? visualPlan(state, { look, bodyFat: bf, sex, today, goal: goalDate }) : null), [state, look, bf?.pct, sex, today, goalDate]) // eslint-disable-line react-hooks/exhaustive-deps
   const photo = photos.find((p) => p.id === GOAL_PHOTO_ID)
   const waistMissing = !state.bodyEntries.some((b) => typeof b.waist === 'number' && b.waist > 0)
   const noWeight = !state.bodyEntries.some((b) => typeof b.weight === 'number' && b.weight > 0)
   const waistAge = bf?.source === 'tour de taille' && bf.waistDate ? diffDays(bf.waistDate, today) : 0
   const waistStale = waistAge > STALE_WAIST_DAYS
-  const planDate = plan ? (plan.fits ? GOAL_DATE : (plan.suggestedGoal ?? GOAL_DATE)) : GOAL_DATE
+  const planDate = plan ? (plan.fits ? goalDate : (plan.suggestedGoal ?? goalDate)) : goalDate
 
   const toggleZone = (z: Zone) => {
     setZones((cur) => (cur.includes(z) ? cur.filter((x) => x !== z) : cur.length >= MAX_ZONES ? cur : [...cur, z]))
   }
   const apply = (goal?: string) => {
     if (!plan) return
-    applyVisualGoal({ look, zones, bodyFat: override ?? null, heightCm, sex }, { cutWeeks: plan.cutWeeks, target: plan.target, goal })
-    notify(L(`Objectif « ${lookInfo(look).label} » appliqué : plan recalculé.`, `Goal “${lookInfo(look).label}” applied: plan recalculated.`), 'good')
+    applyVisualGoal({ look, zones, bodyFat: override ?? null, heightCm, sex }, { cutWeeks: plan.cutWeeks, target: plan.target, goal: goal ?? (MAINTENANCE ? goalDate : undefined) })
+    notify(
+      MAINTENANCE
+        ? L(`Objectif « ${lookInfo(look).label} » appliqué : fin du mode entretien, plan jusqu’au ${fmtDate(goal ?? goalDate, { long: true, year: true })}.`, `Goal “${lookInfo(look).label}” applied: maintenance mode ended, plan until ${fmtDate(goal ?? goalDate, { long: true, year: true })}.`)
+        : L(`Objectif « ${lookInfo(look).label} » appliqué : plan recalculé.`, `Goal “${lookInfo(look).label}” applied: plan recalculated.`),
+      'good',
+    )
     navigate('')
   }
   const onPhoto = async (f: File | undefined) => {
@@ -69,12 +79,26 @@ export function VisualGoalScreen() {
         sub={L('Un physique se joue d’abord sur le taux de gras, puis sur le muscle. Choisis le look : l’app en déduit ton poids cible, la durée de sèche et les zones à travailler.', 'A physique comes down to body fat first, then muscle. Choose the look: the app works out your target weight, how long to cut and which areas to work on.')}
       />
 
+      {MAINTENANCE && (
+        <Card className="mb-2 flex items-center gap-3 p-4">
+          <InfinityIcon size={20} className="shrink-0 text-signal-text" aria-hidden />
+          <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-text-2">
+            <span className="block text-[15px] font-semibold text-text">{L('Tu es en mode entretien', 'You’re in maintenance mode')}</span>
+            {plan?.cutWeeks === 0
+              ? L(`Tu as déjà le look « ${lookInfo(look).label} » : pas besoin de sèche, l’entretien suffit.`, `You already have the “${lookInfo(look).label}” look: no cut needed, maintenance is enough.`)
+              : plan
+                ? L(`Le look « ${lookInfo(look).label} » demande une sèche de ${plural(plan.cutWeeks, 'semaine', 'semaines')} : l’appliquer crée un plan qui finit au plus tôt le ${nb(fmtDate(goalDate, { long: true, year: true }))}. Date modifiable ensuite.`, `The “${lookInfo(look).label}” look needs a ${plan.cutWeeks}-week cut: applying it creates a plan ending ${nb(fmtDate(goalDate, { long: true, year: true }))} at the earliest. You can move the date later.`)
+                : L('Choisis un look : l’app calcule la sèche qu’il demande et la date de fin du plan.', 'Choose a look: the app works out the cut it needs and when the plan ends.')}
+          </p>
+        </Card>
+      )}
+
       {applied && saved && (
         <Card className="mb-2 flex items-center gap-3 p-4">
           <Target size={20} className="shrink-0 text-signal-text" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold">{L('Objectif actif : ', 'Active goal: ')}{lookInfo(saved.look).label}</p>
-            <p className="text-[13px] leading-[1.45] text-text-2">{fmtNum(state.goals.targetWeightMin, 1)}–{kg(state.goals.targetWeightMax)} {L('d’ici le', 'by')} {nb(fmtDate(GOAL_DATE, { long: true, year: true }))}</p>
+            <p className="text-[13px] leading-[1.45] text-text-2">{fmtNum(state.goals.targetWeightMin, 1)}–{kg(state.goals.targetWeightMax)} {L('d’ici le', 'by')} {nb(fmtDate(goalDate, { long: true, year: true }))}</p>
             <p className="text-[13px] leading-[1.45] text-text-2">
               {L(`Sèche de ${plural(CUT_LENGTH, 'semaine', 'semaines')}`, `${CUT_LENGTH}-week cut`)}{zonesText(saved.zones) ? L(` · priorités : ${zonesText(saved.zones)}`, ` · priorities: ${zonesText(saved.zones)}`) : ''}
             </p>
@@ -192,14 +216,14 @@ export function VisualGoalScreen() {
             <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
               <Flag size={15} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
               {reachesLook(plan.atGoal.prudent.look, look)
-                ? L(`Tenable d’ici le ${nb(fmtDate(GOAL_DATE, { long: true, year: true }))}, même au rythme prudent.`, `Doable by ${nb(fmtDate(GOAL_DATE, { long: true, year: true }))}, even at the cautious pace.`)
-                : L(`Tenable d’ici le ${nb(fmtDate(GOAL_DATE, { long: true, year: true }))} en tenant le rythme soutenu de la sèche (−0,7 %/semaine) : les calories s’ajustent sur ta courbe de poids.`, `Doable by ${nb(fmtDate(GOAL_DATE, { long: true, year: true }))} if you hold the cut’s brisk pace (−0.7%/week): calories adjust to your weight curve.`)}
+                ? L(`Tenable d’ici le ${nb(fmtDate(goalDate, { long: true, year: true }))}, même au rythme prudent.`, `Doable by ${nb(fmtDate(goalDate, { long: true, year: true }))}, even at the cautious pace.`)
+                : L(`Tenable d’ici le ${nb(fmtDate(goalDate, { long: true, year: true }))} en tenant le rythme soutenu de la sèche (−0,7 %/semaine) : les calories s’ajustent sur ta courbe de poids.`, `Doable by ${nb(fmtDate(goalDate, { long: true, year: true }))} if you hold the cut’s brisk pace (−0.7%/week): calories adjust to your weight curve.`)}
             </p>
           ) : (
             <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
               <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               {plan.suggestedGoal
-                ? L(`Pas tenable au ${fmtDate(GOAL_DATE, { long: true })} sans perdre de muscle : il faut aller jusqu’au ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un look moins sec.`, `Not doable by ${fmtDate(GOAL_DATE, { long: true })} without losing muscle: you need until ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean look.`)
+                ? L(`Pas tenable au ${fmtDate(goalDate, { long: true })} sans perdre de muscle : il faut aller jusqu’au ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un look moins sec.`, `Not doable by ${fmtDate(goalDate, { long: true })} without losing muscle: you need until ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean look.`)
                 : L('Trop loin pour un seul plan : choisis un look moins sec pour commencer.', 'Too far for a single plan: choose a less lean look to start with.')}
             </p>
           )}
@@ -209,7 +233,7 @@ export function VisualGoalScreen() {
             ) : (
               <>
                 {plan.suggestedGoal && <Button variant="primary" size="lg" full onClick={() => apply(plan.suggestedGoal!)}>{L('Viser le', 'Aim for')} {fmtDate(plan.suggestedGoal, { long: true, year: true })}</Button>}
-                <Button variant="outline" size="lg" full onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(GOAL_DATE, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
+                <Button variant="outline" size="lg" full onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(goalDate, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
               </>
             )}
             {applied && <Button variant="ghost" full onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')) }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}

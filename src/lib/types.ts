@@ -286,7 +286,10 @@ export interface AppState {
   nutritionEntries: Record<ISODate, NutritionEntry>
   bodyEntries: BodyEntry[]
   settings: {
+    /** Goal date of the plan. Kept in maintenance mode, and offered again when leaving it. */
     goalDate: ISODate
+    /** Maintenance mode: training with no goal date — blocks and deloads with no cut and no end, calories at maintenance. */
+    maintenance?: boolean
     /** Monday of the program's first week; the report's data starts on 28 Sept 2026. */
     programStart?: ISODate
     /** Sessions logged before the program (the report's data), shown as a foundation phase. */

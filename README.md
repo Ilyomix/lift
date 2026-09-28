@@ -14,7 +14,7 @@ You tell Lift where you train, on which days, a few body measurements and the lo
 
 ## Features
 
-- **Onboarding**: language; gym or home training (home equipment: dumbbells, bench, pull-up bar, bands; body weight is always available); training days; body (sex, age, height, weight, optional waist); then the look and the goal date, with a preview of the plan. You can also start by importing a backup.
+- **Onboarding**: language; gym or home training (home equipment: dumbbells, bench, pull-up bar, bands; body weight is always available); training days; body (sex, age, height, weight, optional waist); then either a look and a goal date, or maintenance mode with no date, with a preview of the plan. You can also start by importing a backup.
 - **Program**: an Upper / Lower / Push / Pull / Legs rotation that runs continuously over your training days (five a week is the program's pace). At home, each gym exercise of the program is replaced by the best version your equipment allows; you can switch between gym and home in Settings, and your gym sessions come back as they were. Sessions are editable.
 - **Guided sessions**: the day's prescription for each exercise (sets, rep range, RIR (reps in reserve), rest, load), your last performance, clean reps, failure / technique / pain flags, supersets and exercise swaps. Machine loads and history are kept per gym; free weights are shared.
 - **Automatic loads**: double progression after each session. When every set reaches the top of the range, the load goes up; when every set falls under it, the load goes down. A trial session sets the starting load. Within a session, the next sets follow the one just done. Two drops in a row remove a set until the end of the block, and a general drop offers an early deload. Every change can be undone.
@@ -54,6 +54,8 @@ Five sessions a week are not optimal in themselves: at equal volume, training a 
 - **Stabilization**: about 2.5 weeks, ending on the goal date.
 - **Cut**: just before it, as long as your look needs, capped by the time available.
 - **Recomposition**: fills the time from the start.
+
+**Maintenance mode** has no goal date: blocks of about five weeks and their deloads follow each other with no end, the Christmas weeks at maintenance, with no cut and no stabilization, and calories aim for a stable weight. The calendar is laid out to the end of next year's holidays and grows each year without moving the blocks already planned. Onboarding and Settings → Goal switch between the two; the goal date is kept for when you come back to it.
 
 Blocks last about five weeks, each followed by a deload week; the last block of a phase hands over to the next phase instead. The Christmas weeks become maintenance, and in a long cut the middle deload doubles as a diet break. After a break, the return scales with its length:
 
@@ -103,6 +105,7 @@ npm run preview     # serves dist/ at http://localhost:4173/lift/
 | `public/push-sw.js` | Push handler, imported by the Workbox service worker |
 | `push/` | Push server (Vercel) |
 | `scripts/icons.py` | App icon generator (Pillow) |
+| `scripts/og.html`, `scripts/og.py` | Link-preview image (`public/og.png`, 1200 × 630), rendered with Playwright |
 
 ## Deployment
 

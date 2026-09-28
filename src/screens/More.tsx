@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, Flag, FlaskConical, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
+  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, Flag, FlaskConical, Infinity as InfinityIcon, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
@@ -9,7 +9,7 @@ import { L } from '../lib/i18n'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { HOME_GYM } from '../lib/gyms'
-import { contextAt, GOAL_DATE, trainingDays, TYPE_META } from '../lib/program'
+import { contextAt, GOAL_DATE, MAINTENANCE, trainingDays, TYPE_META } from '../lib/program'
 import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
 import { SOURCES } from '../lib/research'
 import { navigate } from '../lib/router'
@@ -290,18 +290,28 @@ export function SettingsScreen() {
         <Card className="divide-y divide-line">
           <Row
             label={L('Objectif visuel', 'Visual goal')}
-            hint={goalApplied(state.visualGoal) ? L(`Cible ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `zones : ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'V du programme'}`, `Target ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `areas: ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'program’s V shape'}`) : L('Le look visé fixe le poids cible, la sèche et les zones prioritaires', 'Your target look sets the target weight, the cut and the priority areas')}
-            value={<span className="font-medium text-text">{goalApplied(state.visualGoal) ? lookInfo(state.visualGoal.look).label : L('À choisir', 'Choose')}</span>}
+            hint={goalApplied(state.visualGoal) ? L(`Cible ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `zones : ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'V du programme'}`, `Target ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `areas: ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'program’s V shape'}`) : MAINTENANCE ? L('En entretien, pas de sèche : appliquer un look repasse sur une date objectif', 'In maintenance, no cut: applying a look switches back to a goal date') : L('Le look visé fixe le poids cible, la sèche et les zones prioritaires', 'Your target look sets the target weight, the cut and the priority areas')}
+            value={<span className="font-medium text-text">{goalApplied(state.visualGoal) ? lookInfo(state.visualGoal.look).label : MAINTENANCE ? (state.visualGoal ? L('En pause', 'On hold') : L('Aucun', 'None')) : L('À choisir', 'Choose')}</span>}
             right={<ChevronRight size={16} className="text-muted" aria-hidden />}
             onClick={() => navigate('plus/objectif')}
           />
-          <Row
-            label={L('Date objectif', 'Goal date')}
-            hint={L('Le plan (recomposition, sèche, stabilisation) se recalcule autour', 'The plan (recomposition, cut, stabilization) is recalculated around it')}
-            value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><Flag size={14} className="text-signal-text" aria-hidden />{fmtDate(GOAL_DATE, { long: true, year: true })}</span>}
-            right={<Pencil size={14} className="text-muted" aria-hidden />}
-            onClick={() => setGoalOpen(true)}
-          />
+          {MAINTENANCE ? (
+            <Row
+              label={L('Objectif', 'Goal')}
+              hint={L('Sans date : blocs et décharges en continu, calories à maintenance', 'No end date: blocks and deloads that keep going, maintenance calories')}
+              value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><InfinityIcon size={14} className="text-signal-text" aria-hidden />{L('Entretien', 'Maintenance')}</span>}
+              right={<Pencil size={14} className="text-muted" aria-hidden />}
+              onClick={() => setGoalOpen(true)}
+            />
+          ) : (
+            <Row
+              label={L('Date objectif', 'Goal date')}
+              hint={L('Le plan (recomposition, sèche, stabilisation) se recalcule autour. Ou mode entretien, sans date.', 'The plan (recomposition, cut, stabilization) is recalculated around it. Or maintenance mode, with no date.')}
+              value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><Flag size={14} className="text-signal-text" aria-hidden />{fmtDate(GOAL_DATE, { long: true, year: true })}</span>}
+              right={<Pencil size={14} className="text-muted" aria-hidden />}
+              onClick={() => setGoalOpen(true)}
+            />
+          )}
           <Row
             label={L('Lieu d’entraînement', 'Where you train')}
             hint={setupLabel(state.settings.setup)}
@@ -345,7 +355,7 @@ export function SettingsScreen() {
           </Field>
           <Field label={L('Tour de taille cible (cm)', 'Target waist (cm)')} className="col-span-2"><GoalInput value={state.goals.targetWaist} placeholder="—" onChange={(n) => setGoals({ targetWaist: n })} /></Field>
         </div>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Sans valeur, la cible vient de la trajectoire du plan (recomposition à poids stable, puis sèche à −0,5 %/semaine). Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.', 'With no value, the target comes from the plan’s trajectory (recomposition at a stable weight, then a cut at −0.5%/week). Body fat and target weight are still estimates: adjust with your waist and your photos.')}</p>
+        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{MAINTENANCE ? L('Sans valeur, la cible est ton poids actuel ± 1 kg : en entretien, le poids reste stable. Taux de gras et poids restent des estimations : suis aussi ton tour de taille et tes photos.', 'With no value, the target is your current weight ± 1 kg: in maintenance, your weight stays stable. Body fat and weight are still estimates: also track your waist and your photos.') : L('Sans valeur, la cible vient de la trajectoire du plan (recomposition à poids stable, puis sèche à −0,5 %/semaine). Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.', 'With no value, the target comes from the plan’s trajectory (recomposition at a stable weight, then a cut at −0.5%/week). Body fat and target weight are still estimates: adjust with your waist and your photos.')}</p>
       </Section>
 
       <Section title={L('Séances', 'Sessions')}>

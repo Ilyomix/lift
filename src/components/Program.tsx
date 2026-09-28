@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
-import { dayLetter, diffDays, fmtDate, monthName, parseISO, todayISO } from '../lib/date'
+import { addDays, dayLetter, diffDays, fmtDate, mondayOf, monthName, parseISO, todayISO } from '../lib/date'
 import { L, locale } from '../lib/i18n'
-import { FOUNDATION_START, GOAL_DATE, PERIODS, TYPE_META, type Period, type PhaseId, type SessionPlan } from '../lib/program'
+import { FOUNDATION_START, GOAL_DATE, MAINTENANCE, PERIODS, TYPE_META, type Period, type PhaseId, type SessionPlan } from '../lib/program'
 import type { DayStatus } from '../lib/stats'
 import { cx } from './ui'
 
@@ -9,7 +9,7 @@ function fill(p: Period): { className: string; style?: React.CSSProperties } {
   if (p.kind === 'deload') return { className: 'hatch bg-surface-3' }
   if (p.kind === 'pre' || p.kind === 'holiday') return { className: 'bg-surface-3' }
   if (p.kind === 'stabilization') return { className: 'bg-signal' }
-  if (p.phase === 'recomp') return { className: '', style: { background: 'color-mix(in oklch, var(--text) 42%, transparent)' } }
+  if (p.phase === 'recomp' || p.phase === 'upkeep') return { className: '', style: { background: 'color-mix(in oklch, var(--text) 42%, transparent)' } }
   return { className: '', style: { background: 'color-mix(in oklch, var(--text) 82%, transparent)' } }
 }
 
@@ -22,31 +22,45 @@ function fitLabel(fraction: number, options: string[]): string | null {
   return options.find((t) => fraction * 360 >= t.length * 6.5 + 4) ?? null
 }
 
-/** The whole program on one mechanical track (calendar time), today marked. */
+/**
+ * The whole program on one mechanical track (calendar time), today marked. In maintenance
+ * mode the plan has no end: the track shows a year around today instead.
+ */
 export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: string; showLabels?: boolean }) {
-  const total = diffDays(FOUNDATION_START, GOAL_DATE) + 1
-  const pos = Math.min(1, Math.max(0, diffDays(FOUNDATION_START, today) / total))
+  const lateStart = mondayOf(addDays(today, -13 * 7))
+  const from = MAINTENANCE && lateStart > FOUNDATION_START ? lateStart : FOUNDATION_START
+  const to = MAINTENANCE && addDays(from, 52 * 7 - 1) < GOAL_DATE ? addDays(from, 52 * 7 - 1) : GOAL_DATE
+  const total = diffDays(from, to) + 1
+  const pos = Math.min(1, Math.max(0, diffDays(from, today) / total))
   const months: { label: string; at: number }[] = []
-  for (let m = parseISO(FOUNDATION_START); m <= parseISO(GOAL_DATE); m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+  for (let m = parseISO(from); m <= parseISO(to); m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
     const iso = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`
-    if (iso < FOUNDATION_START) continue
-    months.push({ label: monthName(m.getMonth()).charAt(0).toUpperCase(), at: diffDays(FOUNDATION_START, iso) / total })
+    if (iso < from) continue
+    months.push({ label: monthName(m.getMonth()).charAt(0).toUpperCase(), at: diffDays(from, iso) / total })
   }
-  const recomp = PERIODS.filter((p) => p.phase === 'recomp')
-  const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
-  const span = (ps: Period[]) => (ps.length ? { left: diffDays(FOUNDATION_START, ps[0].start) / total, right: (diffDays(FOUNDATION_START, ps[ps.length - 1].end) + 1) / total } : null)
+  const shown = PERIODS.filter((p) => p.end >= from && p.start <= to)
+  const recomp = shown.filter((p) => p.phase === 'recomp' || p.phase === 'upkeep')
+  const cut = shown.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
+  const clip = (d: string) => (d < from ? from : d > to ? to : d)
+  const span = (ps: Period[]) => (ps.length ? { left: diffDays(from, clip(ps[0].start)) / total, right: (diffDays(from, clip(ps[ps.length - 1].end)) + 1) / total } : null)
   const r = span(recomp)
   const c = span(cut)
-  const label = L(
-    `Calendrier du programme jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition jusqu’au ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
-    `Program calendar until ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition until ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, cut from ${fmtDate(cut[0].start, { long: true })} to ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
-  )
+  const label = MAINTENANCE
+    ? L(
+        `Calendrier en mode entretien, sans date de fin : blocs de 5 semaines et décharges du ${fmtDate(from, { long: true })} au ${fmtDate(to, { long: true, year: true })}.`,
+        `Maintenance-mode calendar, with no end date: 5-week blocks and deloads from ${fmtDate(from, { long: true })} to ${fmtDate(to, { long: true, year: true })}.`,
+      )
+    : L(
+        `Calendrier du programme jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition jusqu’au ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
+        `Program calendar until ${fmtDate(GOAL_DATE, { long: true, year: true })}${recomp.length ? `, recomposition until ${fmtDate(recomp[recomp.length - 1].end, { long: true })}` : ''}${cut.length ? `, cut from ${fmtDate(cut[0].start, { long: true })} to ${fmtDate(cut[cut.length - 1].end, { long: true })}` : ''}.`,
+      )
+  const firstLabel: string[] = MAINTENANCE ? [L('Entretien, sans date de fin', 'Maintenance, no end date'), L('Entretien', 'Maintenance')] : ['Recomposition', 'Recomp.']
   return (
     <div className="w-full" role="img" aria-label={label}>
-      <div className="relative h-3 w-full">
-        {PERIODS.map((p) => {
-          const left = diffDays(FOUNDATION_START, p.start) / total
-          const width = (diffDays(p.start, p.end) + 1) / total
+      <div className="relative h-3 w-full overflow-hidden">
+        {shown.map((p) => {
+          const left = diffDays(from, clip(p.start)) / total
+          const width = (diffDays(clip(p.start), clip(p.end)) + 1) / total
           const f = fill(p)
           return <div key={p.id} className={cx('absolute inset-y-0', f.className)} style={{ left: `calc(${left * 100}% + 1px)`, width: `calc(${width * 100}% - 2px)`, ...f.style }} />
         })}
@@ -60,7 +74,7 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
       </div>
       {showLabels && (
         <div className="relative mt-1 h-4 w-full text-[11px] font-semibold">
-          {([[r, ['Recomposition', 'Recomp.']], [c, [L('Sèche', 'Cut')]]] as const).map(([span, options]) => {
+          {([[r, firstLabel], [c, [L('Sèche', 'Cut')]]] as const).map(([span, options]) => {
             const text = span && fitLabel(span.right - span.left, [...options])
             return span && text ? (
               <span key={options[0]} className="absolute truncate text-text-2" style={{ left: `${span.left * 100}%`, width: `${(span.right - span.left) * 100}%` }}>{text}</span>
@@ -74,7 +88,7 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
 
 // ───────────────────────── Sessions to the goal ─────────────────────────
 
-type Group = 'foundation' | 'recomp' | 'holiday' | 'cut' | 'stab'
+type Group = 'foundation' | 'recomp' | 'holiday' | 'cut' | 'stab' | 'upkeep' | 'deload'
 
 /** Full name then short form, for spans too narrow for the full name. Getters: they follow the interface language. */
 const GROUP_LABEL: Record<Group, string[]> = {
@@ -83,12 +97,16 @@ const GROUP_LABEL: Record<Group, string[]> = {
   get holiday() { return [L('Fêtes', 'Holidays')] },
   get cut() { return [L('Sèche', 'Cut')] },
   get stab() { return [L('Stabilisation', 'Stabilization'), 'Stab.'] },
+  get upkeep() { return [L('Entretien', 'Maintenance')] },
+  get deload() { return [L('Décharge', 'Deload'), 'D.'] },
 }
 
 function groupOf(kind: Period['kind'], phase: PhaseId): Group {
   if (kind === 'pre') return 'foundation'
   if (kind === 'holiday') return 'holiday'
   if (kind === 'stabilization') return 'stab'
+  // Maintenance counts one cycle: its deload gets a label of its own.
+  if (phase === 'upkeep') return kind === 'deload' ? 'deload' : 'upkeep'
   return phase === 'recomp' ? 'recomp' : 'cut'
 }
 
@@ -127,10 +145,12 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   const nextIndex = ticks.findIndex((t) => !t.done)
   if (nextIndex >= 0) ticks[nextIndex].next = true
   // Label spans: holidays never break a phase label (recomposition → fêtes → recomposition
-  // reads as one recomposition); a span runs until the next different phase.
+  // reads as one recomposition), unless the track is the holidays alone (a maintenance cycle);
+  // a span runs until the next different phase.
   const labels: { group: Group; x: number; end: number }[] = []
+  const onlyHolidays = starts.every((st) => st.group === 'holiday')
   for (const st of starts) {
-    if (st.group === 'holiday') continue
+    if (st.group === 'holiday' && !onlyHolidays) continue
     const prevSpan = labels[labels.length - 1]
     if (prevSpan && prevSpan.group === st.group) continue
     if (prevSpan) prevSpan.end = st.x
@@ -139,7 +159,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   const currentGroup = nextIndex >= 0 ? ticks[nextIndex].group : null
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned sessions done by ${fmtDate(GOAL_DATE, { long: true, year: true })}`)}>
+      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned sessions done by ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`)}>
         {ticks.map((t, i) => (
           <rect
             key={i}

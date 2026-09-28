@@ -131,6 +131,7 @@ function normSettings(raw: any): AppState['settings'] {
   const foundationStart = raw?.foundationStart === null ? null : isISO(raw?.foundationStart) ? raw.foundationStart : programStart === REPORT_START ? REPORT_FOUNDATION : null
   return {
     goalDate: isValidGoal(raw?.goalDate, programStart) ? raw.goalDate : defaultGoalFor(programStart),
+    ...(raw?.maintenance === true ? { maintenance: true } : {}),
     programStart,
     foundationStart,
     setup: normSetup(raw?.setup),

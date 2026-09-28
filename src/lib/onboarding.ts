@@ -3,7 +3,7 @@ import { defaultState } from './backup'
 import { addDays, todayISO, weekday } from './date'
 import { HOME_GYM } from './gyms'
 import { detectLang, L } from './i18n'
-import { buildResearchTemplates, planShape, programStartFor, scheduleFromDays, type PlanShape } from './program'
+import { buildMaintenancePeriods, buildResearchTemplates, maintenanceHorizon, planShape, programStartFor, scheduleFromDays, type PlanShape } from './program'
 import type { AppState, ISODate, Look, TrainingSetup } from './types'
 import { relativeFatMass, tagPriorities, visualPlan, type BodyFat, type VisualPlan } from './visual'
 
@@ -18,7 +18,10 @@ export interface OnboardingAnswers {
   weight: number
   waist: number | null
   look: Look
+  /** Kept in maintenance mode: offered again if the user sets a goal later. */
   goalDate: ISODate
+  /** Maintenance mode: no goal date and no look — blocks and deloads with no end, calories at maintenance. */
+  maintenance?: boolean
 }
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x))
@@ -48,11 +51,15 @@ export function maintenanceCalories(a: Pick<OnboardingAnswers, 'weight' | 'heigh
 export interface OnboardingPreview {
   start: ISODate
   bodyFat: BodyFat | null
+  /** The look's plan; null in maintenance mode. */
   plan: VisualPlan | null
-  shape: PlanShape
+  /** Recomposition and cut weeks; null in maintenance mode. */
+  shape: PlanShape | null
   calories: number
   firstSession: ISODate
+  /** Sessions until `until`: the goal date, or the end of the first block in maintenance mode. */
   sessions: number
+  until: ISODate
 }
 
 /** Sessions on the chosen days from the first one to the goal date. */
@@ -71,14 +78,21 @@ function countSessions(from: ISODate, to: ISODate, days: number[]): { first: ISO
 export function onboardingPreview(a: OnboardingAnswers, today: ISODate = todayISO()): OnboardingPreview {
   const start = programStartFor(today)
   const bodyFat = onboardingBodyFat(a, today)
+  const from = today < start ? start : today
+  if (a.maintenance) {
+    // No cut: calories at maintenance, and the first block shows the rhythm.
+    const firstBlock = buildMaintenancePeriods(start, null, maintenanceHorizon(today, start)).find((p) => p.kind === 'block')!
+    const { first, count } = countSessions(from, firstBlock.end, a.days)
+    return { start, bodyFat, plan: null, shape: null, calories: maintenanceCalories(a), firstSession: first, sessions: count, until: firstBlock.end }
+  }
   const probe = draftState(a, today, start)
   const plan = bodyFat ? visualPlan(probe, { look: a.look, bodyFat, sex: a.sex, goal: a.goalDate, today, start }) : null
   const shape = planShape(a.goalDate, plan ? plan.cutWeeks : 23, start)
   const maintenance = maintenanceCalories(a)
   // Maintenance during a recomposition (a slight deficit), a moderate deficit when the cut starts right away.
   const calories = round(maintenance - (shape.recompWeeks === 0 && shape.cutWeeks > 0 ? 400 : 150), 50)
-  const { first, count } = countSessions(today < start ? start : today, a.goalDate, a.days)
-  return { start, bodyFat, plan, shape, calories, firstSession: first, sessions: count }
+  const { first, count } = countSessions(from, a.goalDate, a.days)
+  return { start, bodyFat, plan, shape, calories, firstSession: first, sessions: count, until: a.goalDate }
 }
 
 function draftState(a: OnboardingAnswers, today: ISODate, start: ISODate): AppState {
@@ -90,7 +104,7 @@ function draftState(a: OnboardingAnswers, today: ISODate, start: ISODate): AppSt
     goals: { ...base.goals, sessionsPerWeek: a.days.length },
     bodyEntries: [{ id: `body-${today}`, date: today, weight: a.weight, waist: a.waist, arm: null, chest: null, shoulders: null }],
     profile: { heightCm: a.heightCm, age: a.age, sex: a.sex },
-    settings: { goalDate: a.goalDate, programStart: start, foundationStart: null, setup: a.setup },
+    settings: { goalDate: a.goalDate, ...(a.maintenance ? { maintenance: true } : {}), programStart: start, foundationStart: null, setup: a.setup },
     gyms: [{ id: HOME_GYM, name: a.setup.place === 'home' ? L('Maison', 'Home') : L('Ma salle', 'My gym') }],
     gymId: HOME_GYM,
     prefs: { ...base.prefs, lang: a.lang === detectLang() ? 'auto' : a.lang },

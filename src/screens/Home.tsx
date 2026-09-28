@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
+import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Infinity as InfinityIcon, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
 import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
-  contextAt, GOAL_DATE, pauseDays, prescribe, projectSessions, PROGRAM_START, sessionPlan, trainingDays, TYPE_META,
+  contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribe, projectSessions, PROGRAM_START, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
@@ -52,6 +52,8 @@ export function Home() {
   const lastPhoto = photos[photos.length - 1]
   const daysSinceBackup = state.meta.lastBackupAt ? Math.floor((Date.now() - new Date(state.meta.lastBackupAt).getTime()) / 86_400_000) : null
   const weeksLeft = Math.max(0, Math.ceil(diffDays(today, GOAL_DATE) / 7))
+  // Maintenance mode: no goal, the hero follows the current cycle (a block and its deload).
+  const cycle = plan.cycle
   const pct = plan.total ? Math.round((plan.done / plan.total) * 100) : 0
 
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
@@ -77,8 +79,8 @@ export function Home() {
         <Eyebrow className="mt-1">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
       </header>
 
-      {/* Hero: sessions done out of the sessions planned until the goal date */}
-      <section aria-label={L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-2">
+      {/* Hero: sessions done out of the sessions planned until the goal date (maintenance: in the current cycle) */}
+      <section aria-label={cycle ? L('Progression du cycle en cours', 'Progress through the current cycle') : L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-2">
         <div className="flex items-end justify-between gap-3">
           <p className="flex items-baseline gap-2">
             <span className="text-[64px] leading-[0.8] font-semibold tracking-[-0.04em] tnum">
@@ -96,27 +98,40 @@ export function Home() {
           <SessionTrack plan={plan} />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setGoalOpen(true)}
-            className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
-            aria-label={L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
-          >
-            <Flag size={14} className="shrink-0 text-signal-text" aria-hidden />
-            <span className="truncate">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
-            <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
-          </button>
+          {cycle ? (
+            <button
+              type="button"
+              onClick={() => setGoalOpen(true)}
+              className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
+              aria-label={L('Mode entretien, sans date objectif, modifier', 'Maintenance mode, no goal date, edit')}
+            >
+              <InfinityIcon size={14} className="shrink-0 text-signal-text" aria-hidden />
+              <span className="truncate">{L('Entretien', 'Maintenance')}</span>
+              <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setGoalOpen(true)}
+              className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
+              aria-label={L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
+            >
+              <Flag size={14} className="shrink-0 text-signal-text" aria-hidden />
+              <span className="truncate">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
+              <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
+            </button>
+          )}
           <span className="shrink-0 text-right text-[12px] leading-[1.35] text-muted tnum">
             {plural(plan.planned, L('séance', 'session'), L('séances', 'sessions'))} {L('à faire', 'to go')}
             <br />
-            {plural(weeksLeft, L('semaine', 'week'), L('semaines', 'weeks'))}
+            {cycle ? L(`${cycle.label} · jusqu’au ${fmtDate(cycle.end)}`, `${cycle.label} · until ${fmtDate(cycle.end)}`) : plural(weeksLeft, L('semaine', 'week'), L('semaines', 'weeks'))}
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {ctx.before || ctx.period?.kind === 'pre' ? (
             <>
               <Tag tone="ink">{L('Bloc 1', 'Block 1')} · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
-              <span className="text-[13px] text-text-2">{L('Recomposition · RIR 3, réintroduction', 'Recomposition · RIR 3, ramp-up')}</span>
+              <span className="text-[13px] text-text-2">{L(`${PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short} · RIR 3, réintroduction`, `${PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short} · RIR 3, ramp-up`)}</span>
             </>
           ) : (
             <>

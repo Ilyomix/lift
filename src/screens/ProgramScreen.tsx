@@ -5,7 +5,7 @@ import { fmtLoad, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
 import { fmtDate } from '../lib/date'
-import { doableAt, GOAL_DATE, PERIODS, ROTATION, TYPE_META } from '../lib/program'
+import { doableAt, GOAL_DATE, MAINTENANCE, PERIODS, ROTATION, TYPE_META } from '../lib/program'
 import { caveats, PRINCIPLES, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -26,7 +26,9 @@ export function ProgramScreen() {
   const holidays = PERIODS.filter((p) => p.kind === 'holiday')
   const breakWeek = PERIODS.find((p) => p.phase === 'diet-break')
   const stab = PERIODS.find((p) => p.kind === 'stabilization')
-  const cutText = cut.length
+  const cutText = MAINTENANCE
+    ? L('en continu, sans date (mode entretien)', 'ongoing, with no end date (maintenance mode)')
+    : cut.length
     ? L(
         `sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}`,
         `cut from ${fmtDate(cut[0].start, { long: true })} to ${fmtDate(cut[cut.length - 1].end, { long: true })}`,
@@ -101,15 +103,21 @@ export function ProgramScreen() {
       <Section title={L('Calendrier des blocs', 'Block calendar')} action={<button type="button" onClick={() => navigate('calendrier')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Calendrier', 'Calendar')}</button>}>
         <PhaseTrack />
         <p className="mt-3 text-[13px] leading-[1.5] text-text-2">
-          {L('Blocs d’environ 5 semaines + 1 semaine de décharge, calculés depuis ta date objectif.', 'Blocks of about 5 weeks + 1 deload week, calculated from your goal date.')}
-          {recomp.length
-            ? L(
-                ` Recomposition du ${fmtDate(recomp[0].start)} au ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (fêtes en maintenance)' : ''},`,
-                ` Recomposition from ${fmtDate(recomp[0].start)} to ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (holidays at maintenance)' : ''},`,
-              )
-            : ''}
-          {` ${cutText}${breakWeek ? L(` avec une pause diététique le ${fmtDate(breakWeek.start)}`, ` with a diet break on ${fmtDate(breakWeek.start)}`) : ''}`}
-          {stab ? L(`, stabilisation jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}.`, `, stabilization until ${fmtDate(GOAL_DATE, { long: true, year: true })}.`) : '.'}
+          {MAINTENANCE ? (
+            L('Mode entretien : blocs d’environ 5 semaines + 1 semaine de décharge, qui se suivent sans date de fin. Pas de sèche ni de stabilisation, fêtes de fin d’année à volume réduit, calories à maintenance.', 'Maintenance mode: blocks of about 5 weeks + 1 deload week, one after another with no end date. No cut and no stabilization, year-end holidays at reduced volume, maintenance calories.')
+          ) : (
+            <>
+              {L('Blocs d’environ 5 semaines + 1 semaine de décharge, calculés depuis ta date objectif.', 'Blocks of about 5 weeks + 1 deload week, calculated from your goal date.')}
+              {recomp.length
+                ? L(
+                    ` Recomposition du ${fmtDate(recomp[0].start)} au ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (fêtes en maintenance)' : ''},`,
+                    ` Recomposition from ${fmtDate(recomp[0].start)} to ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (holidays at maintenance)' : ''},`,
+                  )
+                : ''}
+              {` ${cutText}${breakWeek ? L(` avec une pause diététique le ${fmtDate(breakWeek.start)}`, ` with a diet break on ${fmtDate(breakWeek.start)}`) : ''}`}
+              {stab ? L(`, stabilisation jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}.`, `, stabilization until ${fmtDate(GOAL_DATE, { long: true, year: true })}.`) : '.'}
+            </>
+          )}
         </p>
       </Section>
 

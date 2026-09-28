@@ -38,6 +38,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,jpg}'],
+        // The link-preview image is for crawlers, not for the app offline.
+        globIgnores: ['og.png'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
