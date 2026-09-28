@@ -77,7 +77,7 @@ let configured = false
 export function send(subscription, payload) {
   if (!configured) {
     // Subject: the app's page (a contact URL for the push services), no e-mail address.
-    webpush.setVapidDetails('https://ilyomix.github.io/golgoth/', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY)
+    webpush.setVapidDetails('https://ilyomix.github.io/lift/', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY)
     configured = true
   }
   return webpush.sendNotification(subscription, JSON.stringify(payload), { TTL: 120, urgency: 'high', topic: 'golgoth-rest' })

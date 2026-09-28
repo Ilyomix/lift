@@ -51,7 +51,10 @@ export function MoreScreen() {
         ))}
       </Card>
       <p className="mt-8 text-center text-[12px] leading-[1.5] text-muted">
-        <span className="font-semibold text-text-2">Lift</span> · {L('conçue par Ilyes', 'designed by Ilyes')}
+        <span className="font-semibold text-text-2">Lift</span> · {L('conçue par', 'designed by')}{' '}
+        <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="font-medium text-text-2 underline decoration-line-strong underline-offset-2">Ilyomix</a>
+        {' · '}
+        <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium text-text-2 underline decoration-line-strong underline-offset-2">GitHub</a>
         <br />
         {L('Programme fondé sur la recherche (rapport du 26 sept. 2026)', 'Research-based program (report of 26 Sept 2026)')}
         <br />
@@ -394,15 +397,15 @@ export function SettingsScreen() {
         </div>
       </Section>
 
-      <Section title={L('Installer sur l’iPhone', 'Install on iPhone')}>
+      <Section title={L('Installer sur le téléphone', 'Install on your phone')}>
         <Card className="p-4">
           {isStandalone() ? (
             <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
           ) : (
             <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
-              <li><span className="font-semibold text-text">1.</span> {L('Ouvre cette page dans Safari.', 'Open this page in Safari.')}</li>
-              <li><span className="font-semibold text-text">2.</span> {L('Touche Partager, puis « Sur l’écran d’accueil ».', 'Tap Share, then “Add to Home Screen”.')}</li>
-              <li><span className="font-semibold text-text">3.</span> {L('Lance Lift depuis l’icône : plein écran, hors ligne, notifications possibles.', 'Open Lift from the icon: full screen, offline, notifications available.')}</li>
+              <li><span className="font-semibold text-text">iPhone</span> · {L('dans Safari, touche Partager, puis « Sur l’écran d’accueil ».', 'in Safari, tap Share, then “Add to Home Screen”.')}</li>
+              <li><span className="font-semibold text-text">Android</span> · {L('dans Chrome, menu ⋮, puis « Installer l’application ».', 'in Chrome, open the ⋮ menu, then “Install app”.')}</li>
+              <li>{L('Lance ensuite Lift depuis l’icône : plein écran, hors ligne, notifications possibles.', 'Then open Lift from the icon: full screen, offline, notifications available.')}</li>
             </ol>
           )}
         </Card>

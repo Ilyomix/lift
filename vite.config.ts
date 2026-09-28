@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Served from GitHub Pages at https://ilyomix.github.io/golgoth/
-const BASE = process.env.GOLGOTH_BASE ?? '/golgoth/'
+// Served from GitHub Pages at https://ilyomix.github.io/lift/
+const BASE = process.env.LIFT_BASE ?? '/lift/'
 
 export default defineConfig({
   base: BASE,

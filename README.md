@@ -124,4 +124,4 @@ The client side is [`src/lib/push.ts`](src/lib/push.ts) and [`public/push-sw.js`
 - Geologica font: SIL Open Font License (`src/assets/fonts/Geologica-LICENSE.txt`).
 - DSEG7 font: SIL Open Font License, © keshikan (`src/assets/fonts/DSEG-LICENSE.txt`).
 
-Author: Ilyes.
+Author: [Ilyomix](https://github.com/Ilyomix).
