@@ -362,7 +362,7 @@ export function SettingsScreen() {
         <Card className="divide-y divide-line">
           <Toggle
             label={L('Charges automatiques', 'Automatic loads')}
-            hint={L('Après chaque séance : charge augmentée quand toutes les séries touchent le haut de la fourchette, baissée quand elles restent sous le bas. Pendant la séance, les séries suivantes s’ajustent. Tout reste annulable.', 'After each session: the load goes up when every set hits the top of the range, down when they stay below the bottom. During the session, the next sets adjust. Everything can be undone.')}
+            hint={L('Après chaque séance : charge augmentée quand toutes les séries touchent le haut de la fourchette à l’effort prévu, baissée quand elles restent sous le bas. Pendant la séance, les séries suivantes s’ajustent. Tout reste annulable.', 'After each session: the load goes up when every set hits the top of the range at the planned effort, down when they stay below the bottom. During the session, the next sets adjust. Everything can be undone.')}
             checked={state.prefs.autoLoad}
             onChange={(v) => setPrefs({ autoLoad: v })}
           />

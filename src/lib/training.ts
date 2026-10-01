@@ -109,19 +109,110 @@ export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
   return done.map((s) => `${unit === 'PDC' ? bodyweightLabel() : fmtNum(s.weight)}×${cleanOf(s)}`).join(' · ')
 }
 
-/** Double progression: all prescribed sets reached the top of the range, clean, without pain. */
-export function progressionFor(ex: WorkoutExercise): { weight: number; text: string } | null {
-  if (ex.unit === 'PDC' || ex.skipped) return null
+// ───────────── Effort ─────────────
+// The report's rule moves a load when the range is reached "at the target RIR". A set
+// pushed further than planned says less about the load than its reps suggest: its reps
+// are counted as if it had stopped at the planned effort.
+
+const rirBounds = (rir: string | undefined): number[] => (rir ?? '').match(/\d+/g)?.map(Number) ?? []
+
+/** Upper bound of an effort target such as "1–2" or "3". */
+export function rirUpper(rir: string | undefined): number | null {
+  const n = rirBounds(rir)
+  return n.length ? Math.max(...n) : null
+}
+
+/** Lower bound of an effort target: the hardest effort the plan asks for. */
+function rirLower(rir: string | undefined): number | null {
+  const n = rirBounds(rir)
+  return n.length ? Math.min(...n) : null
+}
+
+/** Effort logged on a set: its RIR, or 0 for a set flagged as a failure. Null when nothing was logged. */
+function setRir(s: WorkoutSet): number | null {
+  return typeof s.rir === 'number' ? s.rir : s.flags.includes('failure') ? 0 : null
+}
+
+/** A RIR is an estimate: one rep short of the plan still counts as on plan. */
+const EFFORT_TOLERANCE = 1
+
+type Planned = Pick<WorkoutExercise, 'prescription' | 'target'>
+
+/** Hardest effort (lowest RIR) that still counts as the planned one for this exercise. */
+function allowedRir(ex: Planned): number | null {
+  const planned = rirLower(ex.prescription?.rir ?? ex.target.rir)
+  return planned === null ? null : Math.max(0, planned - EFFORT_TOLERANCE)
+}
+
+/** Reps in reserve a set went past the planned effort (0 when on plan, or when no effort was logged). */
+function effortOvershoot(ex: Planned, s: WorkoutSet): number {
+  const allowed = allowedRir(ex)
+  const done = setRir(s)
+  return allowed === null || done === null ? 0 : Math.max(0, allowed - done)
+}
+
+/** Clean reps of a set at the planned effort: pushed further than planned, it would have stopped earlier. */
+function repsAtPlannedEffort(ex: Planned, s: WorkoutSet): number {
+  return Math.max(0, cleanOf(s) - effortOvershoot(ex, s))
+}
+
+/**
+ * Heaviest load that should hold the bottom of the range at the planned effort, estimated
+ * (Epley) from the weakest of the sets that only held it by going further.
+ * Null when every set held the range at the planned effort.
+ */
+function effortCap(ex: WorkoutExercise, sets: WorkoutSet[], inc: number): { weight: number; rir: number } | null {
+  const lo = ex.target.minReps
+  const pushed = sets.filter((s) => repsAtPlannedEffort(ex, s) < lo)
+  const allowed = allowedRir(ex)
+  if (!pushed.length || allowed === null) return null
+  const loads = pushed.map((s) => e1rm(s.weight as number, cleanOf(s) + (setRir(s) ?? 0)) / (1 + (lo + allowed) / 30))
+  const raw = Math.min(...loads)
+  return { weight: inc > 0 ? Math.floor(raw / inc + 1e-9) * inc : raw, rir: Math.min(...pushed.map((s) => setRir(s) ?? 0)) }
+}
+
+/** Sets of a session pushed further than the planned effort, among those with a logged effort. */
+export function sessionEffort(w: Workout): { pushed: number; logged: number; planned: string | null } {
+  let pushed = 0
+  let logged = 0
+  const plans = new Set<string>()
+  for (const ex of w.exercises) {
+    if (ex.skipped) continue
+    for (const s of doneSets(ex)) {
+      if (setRir(s) === null) continue
+      logged++
+      if (effortOvershoot(ex, s) > 0) {
+        pushed++
+        plans.add(ex.prescription?.rir ?? ex.target.rir ?? '')
+      }
+    }
+  }
+  return { pushed, logged, planned: plans.size === 1 ? [...plans][0] : null }
+}
+
+/** Every prescribed set at the target load reached the top of the range, without pain; `repsOf` says which reps count. */
+function topReached(ex: WorkoutExercise, repsOf: (s: WorkoutSet) => number): boolean {
+  if (ex.unit === 'PDC' || ex.skipped) return false
   const sets = doneSets(ex)
   const needed = ex.prescription?.sets ?? ex.target.sets
   const weight = ex.target.weight
-  if (weight === null || weight === undefined || sets.length < needed) return null
-  if (ex.prescription && ex.prescription.loadFactor < 1) return null
-  const ok = sets.slice(0, needed).every((s) => (s.weight ?? 0) >= weight && cleanOf(s) >= ex.target.maxReps && !s.flags.includes('pain'))
-  if (!ok) return null
+  if (weight === null || weight === undefined || sets.length < needed) return false
+  if (ex.prescription && ex.prescription.loadFactor < 1) return false
+  return sets.slice(0, needed).every((s) => (s.weight ?? 0) >= weight && repsOf(s) >= ex.target.maxReps && !s.flags.includes('pain'))
+}
+
+/** Double progression: all prescribed sets reached the top of the range at the planned effort, clean, without pain. */
+export function progressionFor(ex: WorkoutExercise): { weight: number; text: string } | null {
+  if (!topReached(ex, (s) => repsAtPlannedEffort(ex, s))) return null
+  const weight = ex.target.weight as number
   const inc = incrementFor(ex)
   const next = roundTo(weight + Math.max(inc, weight * 0.025), inc)
   return { weight: next, text: L(`${fmtLoad(next, ex.unit)} la prochaine fois`, `${fmtLoad(next, ex.unit)} next time`) }
+}
+
+/** The top of the range was reached, but only by going past the planned effort: the load stays where it is. */
+export function heldByEffort(ex: WorkoutExercise): boolean {
+  return topReached(ex, cleanOf) && !topReached(ex, (s) => repsAtPlannedEffort(ex, s))
 }
 
 export interface LoadDecision {
@@ -137,6 +228,9 @@ export interface LoadDecision {
  * 2. The load was changed during the session and held the range → it becomes the target.
  * 3. Every set at the target under the bottom of the range → lighter.
  * Deload and re-entry weeks never move the target.
+ * Effort only holds a load back: reps count at the planned effort for rules 1 and 2
+ * (a heavier load held by going further is brought down to what that effort allows),
+ * and never make a load lighter.
  */
 export function loadDecision(ex: WorkoutExercise): LoadDecision | null {
   if (ex.unit === 'PDC' || ex.skipped) return null
@@ -153,7 +247,19 @@ export function loadDecision(ex: WorkoutExercise): LoadDecision | null {
   const last = sets[sets.length - 1].weight as number
   const atLast = sets.filter((s) => s.weight === last)
   if (last !== W && atLast.length >= Math.min(2, needed) && atLast.every((s) => cleanOf(s) >= lo && !s.flags.includes('pain'))) {
-    return { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the session: ${fmtLoad(last, ex.unit)} becomes the target`) }
+    const cap = last > W ? effortCap(ex, atLast, inc) : null
+    if (!cap) return { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the session: ${fmtLoad(last, ex.unit)} becomes the target`) }
+    // Held only by going further than planned: the target is what the planned effort allows, if that is still heavier.
+    if (cap.weight > W) {
+      const planned = ex.prescription?.rir ?? ex.target.rir
+      return {
+        weight: cap.weight, kind: 'up',
+        text: L(
+          `${fmtLoad(last, ex.unit)} à RIR ${cap.rir} pour RIR ${planned} prévu : ${fmtLoad(cap.weight, ex.unit)} la prochaine fois`,
+          `${fmtLoad(last, ex.unit)} at RIR ${cap.rir} with RIR ${planned} planned: ${fmtLoad(cap.weight, ex.unit)} next time`,
+        ),
+      }
+    }
   }
   const atW = sets.filter((s) => (s.weight as number) >= W)
   if (inc > 0 && atW.length >= Math.min(2, needed) && atW.every((s) => cleanOf(s) < lo)) {
@@ -163,30 +269,24 @@ export function loadDecision(ex: WorkoutExercise): LoadDecision | null {
   return null
 }
 
-/** Trial session (no target yet): the heaviest load that held the range becomes the starting load. */
+/** Trial session (no target yet): the heaviest load that held the range at the planned effort becomes the starting load. */
 export function baselineFor(ex: WorkoutExercise): LoadDecision | null {
   if (ex.unit === 'PDC' || ex.skipped) return null
   if (ex.target.weight !== null && ex.target.weight !== undefined) return null
   const sets = doneSets(ex).filter((s) => typeof s.weight === 'number' && (s.weight as number) > 0)
   if (!sets.length) return null
   const inc = incrementFor(ex)
-  const inRange = sets.filter((s) => cleanOf(s) >= ex.target.minReps)
+  const inRange = sets.filter((s) => repsAtPlannedEffort(ex, s) >= ex.target.minReps)
   let weight: number
   if (inRange.length) {
     const best = Math.max(...inRange.map((s) => s.weight as number))
-    const topHit = inRange.filter((s) => s.weight === best).every((s) => cleanOf(s) >= ex.target.maxReps)
+    const topHit = inRange.filter((s) => s.weight === best).every((s) => repsAtPlannedEffort(ex, s) >= ex.target.maxReps)
     weight = topHit && inc > 0 ? roundTo(best + inc, inc) : best
   } else {
     const lightest = Math.min(...sets.map((s) => s.weight as number))
     weight = inc > 0 ? Math.max(inc, roundTo(lightest - inc, inc)) : lightest
   }
   return { weight, kind: 'baseline', text: L(`Charge de départ : ${fmtLoad(weight, ex.unit)}`, `Starting load: ${fmtLoad(weight, ex.unit)}`) }
-}
-
-/** Upper bound of an effort target such as "1–2" or "3". */
-export function rirUpper(rir: string | undefined): number | null {
-  const n = (rir ?? '').match(/\d+/g)?.map(Number)
-  return n?.length ? Math.max(...n) : null
 }
 
 /**

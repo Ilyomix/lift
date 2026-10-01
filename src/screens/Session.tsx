@@ -14,7 +14,7 @@ import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATI
 import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
-import { cleanOf, doneSets, previousPerformance, progressionFor, sessionDurationMin, sessionSetCount, setsSummary, type AutoChange } from '../lib/training'
+import { cleanOf, doneSets, heldByEffort, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionSetCount, setsSummary, type AutoChange } from '../lib/training'
 import type { SetFlag, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { GymSheet } from '../components/GymSheet'
@@ -575,6 +575,10 @@ export function SessionSummary() {
   const minutes = sessionDurationMin(w)
   const volume = w.exercises.reduce((a, e) => a + (e.comparison?.volume ?? 0), 0)
   const early = !!lastFinish?.generalDrop && !state.manualDeload && !contextAt(todayISO()).deload
+  // Effort beyond the plan: worth a word when it is a habit of the session, or when it kept a load from going up.
+  const effort = sessionEffort(w)
+  const pushedOften = effort.pushed >= 2 && effort.pushed * 3 >= effort.logged
+  const held = w.exercises.filter(heldByEffort)
 
   return (
     <Screen>
@@ -603,6 +607,26 @@ export function SessionSummary() {
           </p>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} applied={applied.includes(c.id)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
+          </Card>
+        </Section>
+      )}
+
+      {(pushedOften || held.length > 0) && (
+        <Section title="Effort">
+          <Card className="p-4">
+            <p className="flex gap-2 text-[14px] leading-[1.45]">
+              <TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <span>
+                {pushedOften && L(
+                  `${effort.pushed} séries sur ${sessionSetCount(w)} poussées plus loin que l’effort prévu${effort.planned ? ` (RIR ${effort.planned})` : ''}. `,
+                  `${effort.pushed} of ${sessionSetCount(w)} sets pushed past the planned effort${effort.planned ? ` (RIR ${effort.planned})` : ''}. `,
+                )}
+                {w.deload
+                  ? L('En décharge, garde cette marge : c’est elle qui fait récupérer.', 'On a deload, keep that margin: it is what lets you recover.')
+                  : L('Une charge ne monte que si la fourchette est tenue à l’effort prévu.', 'A load only goes up when the range is held at the planned effort.')}
+                {held.length > 0 && L(` Maintenue cette fois : ${held.map((e) => e.name).join(', ')}.`, ` Held this time: ${held.map((e) => e.name).join(', ')}.`)}
+              </span>
+            </p>
           </Card>
         </Section>
       )}

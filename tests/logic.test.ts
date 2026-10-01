@@ -13,7 +13,8 @@ import {
 } from '../src/lib/program'
 import { calorieAdvice, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor } from '../src/lib/stats'
 import {
-  applyChange, baselineFor, compareExercise, exerciseHistory, finalizeWorkout, intraSessionAdjust, loadDecision, plannedVolume, progressionFor,
+  applyChange, baselineFor, compareExercise, exerciseHistory, finalizeWorkout, heldByEffort, intraSessionAdjust, loadDecision, plannedVolume, progressionFor,
+  sessionEffort,
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
 import type { AppState, Workout, WorkoutExercise, WorkoutSet } from '../src/lib/types'
@@ -251,6 +252,52 @@ test('a trial session sets the starting load', () => {
   assert.equal(baselineFor(trial)?.weight, 70)
   const easy = exo([set(70, 12), set(70, 12)], { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 } })
   assert.equal(baselineFor(easy)?.weight, 75)
+})
+
+test('effort: a set pushed past the planned RIR counts for fewer reps, and never lowers a load', () => {
+  const rx = { sets: 3, minReps: 8, maxReps: 12, rir: '3', restSeconds: 150, weight: 100, loadFactor: 1, notes: [] }
+  const week1 = { prescription: rx }
+  const all = (w: number, reps: number, rir: number | null) => [0, 1, 2].map(() => set(w, reps, { rir }))
+  // The top of the range reached at failure, in a week planned at RIR 3: the load stays.
+  const pushed = exo(all(100, 12, 0), week1)
+  assert.equal(loadDecision(pushed), null)
+  assert.equal(heldByEffort(pushed), true)
+  // One rep short of the plan, or no effort logged: the reps count as they are.
+  assert.equal(loadDecision(exo(all(100, 12, 2), week1))?.weight, 105)
+  assert.equal(loadDecision(exo(all(100, 12, null), week1))?.weight, 105)
+  assert.equal(heldByEffort(exo(all(100, 12, null), week1)), false)
+  // Above the range even once brought back to the planned effort: the load goes up.
+  assert.equal(loadDecision(exo(all(100, 14, 0), week1))?.weight, 105)
+  // Later in the block, the plan itself asks for that effort.
+  assert.equal(loadDecision(exo(all(100, 12, 0)))?.weight, 105)
+  // A set flagged as a failure is a set at RIR 0.
+  assert.equal(loadDecision(exo([0, 1, 2].map(() => set(100, 12, { flags: ['failure'] })), week1)), null)
+
+  // A heavier load held only at failure: the target is what the planned effort allows, not the load itself.
+  const jump = loadDecision(exo(all(120, 8, 0), week1))
+  assert.deepEqual([jump?.kind, jump?.weight], ['up', 110])
+  assert.match(jump!.text, /RIR 0 .* RIR 3/)
+  assert.equal(loadDecision(exo(all(120, 8, 3), week1))?.weight, 120, 'held at the planned effort: adopted as it is')
+  assert.equal(loadDecision(exo(all(105, 8, 0), week1)), null, 'no heavier than the target once brought back to the planned effort')
+  // The case that showed the gap: a chest press taken from 60 to 80 kg, 3 × 6 at failure, with RIR 3 planned.
+  const chest = exo(all(80, 6, 0), {
+    exerciseId: 'chest-press',
+    target: { weight: 60, sets: 3, minReps: 6, maxReps: 10, restSeconds: 150 },
+    prescription: { ...rx, minReps: 6, maxReps: 10, weight: 60 },
+  })
+  assert.equal(loadDecision(chest)?.weight, 75)
+
+  // Effort never makes a load lighter: bottom of the range at failure, nothing moves.
+  assert.equal(loadDecision(exo(all(100, 8, 0), week1)), null)
+  // A trial session keeps a load that holds the range at the planned effort.
+  const trial = { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 }, prescription: { ...rx, weight: null } }
+  assert.equal(baselineFor(exo(all(70, 12, 0), trial))?.weight, 70, 'top of the range at failure: no step up')
+  assert.equal(baselineFor(exo(all(70, 12, 3), trial))?.weight, 75)
+  assert.equal(baselineFor(exo(all(70, 8, 0), trial))?.weight, 65, 'bottom of the range at failure: one step lighter')
+
+  // The session summary counts the sets pushed past the plan.
+  const w = workout('e', '2026-10-06', undefined, [pushed, exo(all(100, 10, 3), week1), exo(all(100, 10, null), week1)], 1)
+  assert.deepEqual(sessionEffort(w), { pushed: 3, logged: 6, planned: '3' })
 })
 
 test('in session: far above the range → heavier next sets, far below → lighter', () => {
