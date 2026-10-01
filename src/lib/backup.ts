@@ -6,8 +6,8 @@ import {
   ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
-  AppState, Backup, BodyEntry, Equipment, Gym, NutritionEntry, Photo, Prefs, ProgramPause, Template, TrainingSetup, VisualGoal, Workout, WorkoutExercise,
-  WorkoutSet, WorkoutType,
+  AppState, Backup, BodyEntry, Equipment, Gym, NutritionEntry, Photo, PlanUpdateRecord, Prefs, ProgramPause, Template, TrainingSetup, VisualGoal, Workout,
+  WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
 
@@ -197,6 +197,11 @@ function normPause(p: any): ProgramPause {
   }
 }
 
+/** Updates pasted back from an AI assistant used to be recorded under the name of one assistant: they are 'coach' updates. */
+function normPlanUpdates(raw: any): PlanUpdateRecord[] {
+  return (Array.isArray(raw) ? raw : []).map((u: any) => (u?.source === 'claude' ? { ...u, source: 'coach' } : u))
+}
+
 /** Accepts the previous tracker's state (version 1) or this app's state, and returns a complete, typed state. */
 export function normalizeState(raw: any): AppState {
   const d = defaultState()
@@ -255,7 +260,7 @@ export function normalizeState(raw: any): AppState {
     templates: fullTemplates,
     activeWorkout: active,
     lastCompletedWorkoutId: typeof raw.lastCompletedWorkoutId === 'string' ? raw.lastCompletedWorkoutId : null,
-    appliedPlanUpdates: Array.isArray(raw.appliedPlanUpdates) ? raw.appliedPlanUpdates : [],
+    appliedPlanUpdates: normPlanUpdates(raw.appliedPlanUpdates),
     programPause: normPause(raw.programPause),
     reentry: raw.reentry ?? null,
     nutritionTargets: {

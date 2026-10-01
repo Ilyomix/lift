@@ -23,7 +23,7 @@ You tell Lift where you train, on which days, a few body measurements and the lo
 - **Visual goal**: four looks, from athletic to shredded, each defined by a body-fat range. Lift estimates your body fat and derives a target weight and a cut length. It then checks that the cut fits before your goal date (or proposes a later date) and gives up to three priority zones an extra set.
 - **Nutrition**: protein follows your 7-day average weight. Calorie changes (±150 kcal) are suggested from the weight trend against the phase's target rate, and from the waist during recomposition. Body weight never changes training loads.
 - **Progress**: estimated 1RM per exercise, 7-day average weight against the plan's path, body measurements, hard sets per muscle per week against the 10–20 band, and before/after photos.
-- **AI coach**: send a session or whole-program brief to Claude, then paste its reply back. The JSON plan update is previewed before it applies.
+- **AI coach** (optional): send a session or whole-program brief to the AI assistant of your choice, then paste its reply back. The JSON plan update is previewed before it applies.
 - **Exercise sheets**: demo images, technique cues, the evidence behind the exercise, and a YouTube search or your own video.
 - **Backups**: JSON export and import, photos included. Golgoth backups import as they are. Data from the older Golgoth Tracker can be moved onto the research program with loads and history kept.
 

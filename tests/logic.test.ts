@@ -168,7 +168,10 @@ test('coach update: parse a fenced JSON reply, preview, apply', () => {
   assert.equal(next.templates.PUSH.exercises.find((e) => e.exerciseId === 'incline-db-press')!.target.weight, 22)
   assert.ok(next.templates.PUSH.exercises.some((e) => e.exerciseId === 'cable-fly'))
   assert.ok(!next.templates.UPPER.exercises.some((e) => e.exerciseId === 'dips'))
-  assert.equal(next.appliedPlanUpdates.at(-1)!.source, 'claude')
+  assert.equal(next.appliedPlanUpdates.at(-1)!.source, 'coach')
+  // Updates recorded under the former source name are read back as coach updates.
+  const legacy = normalizeState({ ...next, appliedPlanUpdates: [{ ...next.appliedPlanUpdates.at(-1)!, source: 'claude' }] })
+  assert.equal(legacy.appliedPlanUpdates[0].source, 'coach')
 })
 
 test('ics export is valid RFC 5545 with folded lines', () => {

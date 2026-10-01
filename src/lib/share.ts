@@ -1,7 +1,7 @@
 import { L } from './i18n'
 import { useStore } from './store'
 
-/** Shares text through the iOS share sheet (straight into the Claude app), or copies it. */
+/** Shares a coach brief through the phone's share sheet (straight into an AI assistant app), or copies it. */
 export async function shareText(text: string, title: string): Promise<void> {
   const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }
   if (nav.share && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
@@ -15,10 +15,12 @@ export async function shareText(text: string, title: string): Promise<void> {
   await copyText(text)
 }
 
+const copied = () => L('Copié. Colle-le dans ton assistant IA.', 'Copied. Paste it into your AI assistant.')
+
 export async function copyText(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
-    useStore.getState().notify(L('Copié. Colle-le dans Claude.', 'Copied. Paste it into Claude.'), 'good')
+    useStore.getState().notify(copied(), 'good')
   } catch {
     const ta = document.createElement('textarea')
     ta.value = text
@@ -28,7 +30,7 @@ export async function copyText(text: string): Promise<void> {
     ta.select()
     try {
       document.execCommand('copy')
-      useStore.getState().notify(L('Copié. Colle-le dans Claude.', 'Copied. Paste it into Claude.'), 'good')
+      useStore.getState().notify(copied(), 'good')
     } catch {
       useStore.getState().notify(L('Copie impossible sur cet appareil.', 'Copying isn’t possible on this device.'), 'bad')
     }
@@ -64,6 +66,10 @@ export function isStandalone(): boolean {
 
 export function isIOS(): boolean {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+export function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent)
 }
 
 /** Downscales a photo to keep IndexedDB and backups light. */

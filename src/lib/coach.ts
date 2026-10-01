@@ -1,4 +1,4 @@
-// Coach loop with Claude: export a precise brief, paste back a structured plan update.
+// Coach loop with an AI assistant of the user's choice: export a precise brief, paste back a structured plan update.
 // The brief is written in the interface language (the coach answers in it); the JSON
 // protocol (keys, "golgoth-plan-update" type) is the same in both languages.
 import { fmtDate, todayISO } from './date'
@@ -297,12 +297,12 @@ export function applyPlanUpdate(state: AppState, u: PlanUpdate): AppState {
     appliedPlanUpdates: [
       ...state.appliedPlanUpdates,
       {
-        updateId: u.updateId ?? `claude-${Date.now()}`,
+        updateId: u.updateId ?? `coach-${Date.now()}`,
         basedOnSession: u.basedOnSession ?? null,
         summary: u.summary,
         appliedAt: new Date().toISOString(),
         changeCount: u.changes.length,
-        source: 'claude',
+        source: 'coach',
       },
     ],
   }

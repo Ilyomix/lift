@@ -1,4 +1,4 @@
-// iCalendar export: native iPhone reminders (Calendar alerts) without any server.
+// iCalendar export: native reminders (alerts of the phone's calendar) without any server.
 // Event texts follow the interface language; UIDs stay the same so a re-import updates the events.
 import { addDays, parseISO, todayISO, weekday } from './date'
 import { L } from './i18n'

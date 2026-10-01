@@ -13,7 +13,7 @@ import { contextAt, GOAL_DATE, MAINTENANCE, trainingDays, TYPE_META } from '../l
 import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
 import { SOURCES } from '../lib/research'
 import { navigate } from '../lib/router'
-import { isIOS, isStandalone, saveFile, shareText } from '../lib/share'
+import { isAndroid, isIOS, isStandalone, saveFile, shareText } from '../lib/share'
 import { calorieAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
 import { lookInfo, ZONES, goalApplied } from '../lib/visual'
 import { useStore } from '../lib/store'
@@ -29,9 +29,9 @@ export function MoreScreen() {
   const items = [
     { to: 'plus/nutrition', icon: Apple, label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
     { to: 'plus/programme', icon: FlaskConical, label: L('Programme et preuves', 'Program and evidence'), hint: L(`${Object.keys(SOURCES).length} études citées`, `${Object.keys(SOURCES).length} studies cited`) },
-    { to: 'plus/coach', icon: Sparkles, label: 'Coach Claude', hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
+    { to: 'plus/coach', icon: Sparkles, label: L('Coach IA', 'AI coach'), hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
     { to: 'plus/pause', icon: CirclePause, label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
-    { to: 'plus/rappels', icon: BellRing, label: L('Rappels iPhone', 'iPhone reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
+    { to: 'plus/rappels', icon: BellRing, label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
     { to: 'plus/donnees', icon: Download, label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
     { to: 'plus/reglages', icon: Settings, label: L('Réglages', 'Settings'), hint: L('Objectifs, minuteur, apparence', 'Goals, timer, appearance') },
   ]
@@ -213,9 +213,9 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header backTo="plus" eyebrow="Coach" title="Claude" sub={L('Envoie un bilan précis à Claude, colle sa réponse : tes cibles se mettent à jour, avec un aperçu avant de valider.', 'Send Claude a detailed summary, paste its reply: your targets update, with a preview before you confirm.')} />
+      <Header backTo="plus" eyebrow={L('Optionnel', 'Optional')} title={L('Coach IA', 'AI coach')} sub={L('Envoie un bilan précis à l’assistant IA de ton choix, colle sa réponse : tes cibles se mettent à jour, avec un aperçu avant de valider.', 'Send a detailed summary to the AI assistant of your choice, paste its reply: your targets update, with a preview before you confirm.')} />
       <ol className="space-y-2">
-        {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('Claude analyse et répond avec un bloc JSON.', 'Claude analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
+        {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
           <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>
         ))}
       </ol>
@@ -226,7 +226,7 @@ export function CoachScreen() {
         <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), L('Bilan Lift', 'Lift summary'))}>{L('Bilan global du programme', 'Overall program summary')}</Button>
       </div>
 
-      <Section title={L('Réponse de Claude', 'Claude’s reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
+      <Section title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
         <textarea className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => setText(e.target.value)} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Analyser', 'Analyze')}</Button>
@@ -258,7 +258,7 @@ export function CoachScreen() {
           <Card className="divide-y divide-line">
             {[...state.appliedPlanUpdates].reverse().slice(0, 12).map((u) => (
               <div key={u.updateId + u.appliedAt} className="px-4 py-3">
-                <p className="text-[12px] text-muted">{fmtDate(u.appliedAt.slice(0, 10), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'claude' ? 'Claude' : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
+                <p className="text-[12px] text-muted">{fmtDate(u.appliedAt.slice(0, 10), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'coach' ? L('coach IA', 'AI coach') : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
                 <p className="mt-0.5 text-[14px] leading-[1.45]">{u.summary}</p>
               </div>
             ))}
@@ -378,7 +378,7 @@ export function SettingsScreen() {
           {!state.prefs.push && (
             <Row
               label={L('Alerte dans l’app', 'In-app alert')}
-              hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages iOS', 'Denied in iOS Settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
+              hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages de l’appareil', 'Denied in your device settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
               right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>{L('Activer', 'Turn on')}</Button> : undefined}
             />
           )}
@@ -413,8 +413,9 @@ export function SettingsScreen() {
             <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
           ) : (
             <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
-              <li><span className="font-semibold text-text">iPhone</span> · {L('dans Safari, touche Partager, puis « Sur l’écran d’accueil ».', 'in Safari, tap Share, then “Add to Home Screen”.')}</li>
-              <li><span className="font-semibold text-text">Android</span> · {L('dans Chrome, menu ⋮, puis « Installer l’application ».', 'in Chrome, open the ⋮ menu, then “Install app”.')}</li>
+              {/* Named after the browser, not the phone; a phone only sees the line that applies to it. */}
+              {!isAndroid() && <li><span className="font-semibold text-text">Safari</span> · {L('touche Partager, puis « Sur l’écran d’accueil ».', 'tap Share, then “Add to Home Screen”.')}</li>}
+              {!isIOS() && <li><span className="font-semibold text-text">Chrome</span> · {L('menu ⋮, puis « Installer l’application ».', 'open the ⋮ menu, then “Install app”.')}</li>}
               <li>{L('Lance ensuite Lift depuis l’icône : plein écran, hors ligne, notifications possibles.', 'Then open Lift from the icon: full screen, offline, notifications available.')}</li>
             </ol>
           )}
@@ -458,7 +459,7 @@ function PushRow() {
         setPrefs({ push: true })
         notify(L('Activées. Touche « Tester » puis verrouille le téléphone.', 'On. Tap “Test”, then lock your phone.'), 'good')
       } else if (r === 'denied') {
-        notify(L('Notifications refusées : Réglages iOS → Notifications → Lift.', 'Notifications denied: iOS Settings → Notifications → Lift.'), 'bad')
+        notify(L('Notifications refusées : autorise-les pour Lift dans les réglages de ton appareil.', 'Notifications denied: allow them for Lift in your device settings.'), 'bad')
       } else {
         notify(L('Notifications non disponibles ici.', 'Notifications not available here.'), 'bad')
       }

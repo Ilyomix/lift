@@ -203,7 +203,8 @@ export interface PlanUpdateRecord {
   summary: string
   appliedAt: string
   changeCount: number
-  source?: 'claude' | 'program' | 'progression'
+  /** 'coach': a plan update pasted back from an AI assistant. */
+  source?: 'coach' | 'program' | 'progression'
 }
 
 export interface NutritionTargets {

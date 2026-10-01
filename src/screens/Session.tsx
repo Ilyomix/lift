@@ -628,13 +628,14 @@ export function SessionSummary() {
         <WorkoutExercises w={w} />
       </Section>
 
+      {/* The session is over at this point: the AI summary is an extra, never a step of the flow. */}
       <div className="mt-8 grid gap-2">
-        <Button variant="primary" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>
-          {L('Bilan pour Claude', 'Summary for Claude')}
+        <Button variant="primary" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
+        <Button variant="outline" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>
+          {L('Bilan pour une IA', 'Summary for an AI')}
         </Button>
-        <Button variant="outline" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
       </div>
-      <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Le bilan s’ouvre dans la feuille de partage : envoie-le à Claude, puis colle sa réponse dans Plus → Coach pour mettre tes cibles à jour.', 'The summary opens in the share sheet: send it to Claude, then paste the reply in More → Coach to update your targets.')}</p>
+      <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Optionnel : envoie ce bilan à l’assistant IA de ton choix, puis colle sa réponse dans Plus → Coach IA pour ajuster tes cibles.', 'Optional: send this summary to the AI assistant of your choice, then paste its reply in More → AI coach to adjust your targets.')}</p>
     </Screen>
   )
 }
@@ -717,7 +718,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
       <div className="mt-8 grid gap-2">
-        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>{L('Bilan pour Claude', 'Summary for Claude')}</Button>
+        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>{L('Bilan pour une IA', 'Summary for an AI')}</Button>
         <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>{L('Supprimer la séance', 'Delete session')}</Button>
       </div>
       <Sheet

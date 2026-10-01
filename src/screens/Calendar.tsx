@@ -9,7 +9,7 @@ import {
   gapSinceLastSession, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
-import { saveFile } from '../lib/share'
+import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
 import { PhaseTrack } from '../components/Program'
@@ -144,7 +144,7 @@ export function CalendarScreen() {
       )}
 
       <div className="mt-8 grid gap-2">
-        <Button variant="outline" size="lg" full icon={<CalendarPlus size={18} aria-hidden />} onClick={() => navigate('plus/rappels')}>{L('Rappels dans Calendrier (iPhone)', 'Reminders in Calendar (iPhone)')}</Button>
+        <Button variant="outline" size="lg" full icon={<CalendarPlus size={18} aria-hidden />} onClick={() => navigate('plus/rappels')}>{L('Rappels dans ton calendrier', 'Reminders in your calendar')}</Button>
         <Button variant="outline" size="lg" full icon={<CirclePause size={18} aria-hidden />} onClick={() => navigate('plus/pause')}>{state.programPause.active ? L('Gérer la pause', 'Manage the pause') : L('Mettre le programme en pause', 'Pause the program')}</Button>
       </div>
 
@@ -312,7 +312,7 @@ export function RemindersScreen() {
   const set = (k: keyof IcsOptions) => (v: boolean) => setO((x) => ({ ...x, [k]: v }))
   return (
     <Screen>
-      <Header backTo="plus" eyebrow="Notifications" title={L('Rappels iPhone', 'iPhone reminders')} sub={L('Un fichier calendrier ajoute tes rappels à l’app Calendrier : notifications natives, même application fermée, sans serveur.', 'A calendar file adds your reminders to the Calendar app: native notifications, even with the app closed, no server needed.')} />
+      <Header backTo="plus" eyebrow="Notifications" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Un fichier ajoute tes rappels au calendrier de ton téléphone : notifications natives, même application fermée, sans serveur.', 'A file adds your reminders to your phone’s calendar: native notifications, even with the app closed, no server needed.')} />
       <Card className="divide-y divide-line">
         <Toggle label={L('Séances', 'Sessions')} hint={L(`Chaque jour d’entraînement, alerte 30 min avant`, `Every training day, alert 30 min before`)} checked={o.training} onChange={set('training')} />
         <Toggle label={L('Pesée à jeun', 'Fasted weigh-in')} hint={L('Chaque matin : la moyenne sur 7 jours guide les calories', 'Every morning: the 7-day average guides calories')} checked={o.weighIn} onChange={set('weighIn')} />
@@ -334,10 +334,11 @@ export function RemindersScreen() {
       <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile(L('lift-rappels.ics', 'lift-reminders.ics'), ics, 'text/calendar')}>
         {L('Ajouter', 'Add')} {plural(n, L('rappel', 'reminder'), L('rappels', 'reminders'))}
       </Button>
-      <Section title={L('Sur iPhone', 'On iPhone')}>
+      <Section title={L('Comment faire', 'How it works')}>
         <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
-          <li><span className="font-semibold text-text">1.</span> {L('Touche « Ajouter » puis « Enregistrer dans Fichiers ».', 'Tap “Add”, then “Save to Files”.')}</li>
-          <li><span className="font-semibold text-text">2.</span> {L('Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.', 'Open the file from Files, then tap “Add All” in Calendar.')}</li>
+          {/* “Save to Files” is an entry of the iOS share sheet; other devices download the file or hand it to their calendar app. */}
+          <li><span className="font-semibold text-text">1.</span> {isIOS() ? L('Touche « Ajouter » puis « Enregistrer dans Fichiers ».', 'Tap “Add”, then “Save to Files”.') : L('Touche « Ajouter » : le fichier calendrier s’enregistre sur ton appareil.', 'Tap “Add”: the calendar file is saved to your device.')}</li>
+          <li><span className="font-semibold text-text">2.</span> {isIOS() ? L('Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.', 'Open the file from Files, then tap “Add All” in Calendar.') : L('Ouvre-le : ton application de calendrier propose d’ajouter les rappels.', 'Open it: your calendar app offers to add the reminders.')}</li>
           <li><span className="font-semibold text-text">3.</span> {L('Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.', 'Sessions follow your training days; the exact rotation is in the app.')}</li>
         </ol>
         <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest timer.')}</p>
