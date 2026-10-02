@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, SkipForward, X } from 'lucide-react'
+import { ChevronDown, Plus, SkipForward, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -71,11 +71,31 @@ function splitNext(next: string | undefined): { step: string; name: string } | n
   return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { step: L('Exercice suivant', 'Next exercise'), name: next }
 }
 
-function SegDigits({ value, className }: { value: string; className?: string }) {
-  const ghost = value.replace(/\d/g, '8')
+/** « 1:45 », « 0:30 »: a rest is read in minutes, without the leading zero. */
+const restClock = (seconds: number) => fmtClock(seconds).replace(/^0(\d:)/, '$1')
+
+/** One character of a seven-segment readout: when it changes, the old figure fades out as the new one fades in. */
+function SegChar({ ch }: { ch: string }) {
+  const [cur, setCur] = useState(ch)
+  const [old, setOld] = useState<string | null>(null)
+  if (ch !== cur) {
+    setOld(cur)
+    setCur(ch)
+  }
   return (
-    <span className={cx('seg seg-ghost tnum', className)} data-ghost={ghost} aria-hidden>
-      {value}
+    <span className="relative inline-block">
+      {old !== null && <span key={`out-${cur}`} className="seg-out absolute inset-0">{old}</span>}
+      <span key={`in-${cur}`} className={old !== null ? 'seg-in inline-block' : 'inline-block'}>{cur}</span>
+    </span>
+  )
+}
+
+/** Seven-segment clock: unlit segments shown faintly behind, each figure cross-fading when it changes. */
+function SegDigits({ value, className }: { value: string; className?: string }) {
+  return (
+    <span className={cx('seg seg-ghost tnum whitespace-nowrap', className)} data-ghost={value.replace(/\d/g, '8')} aria-hidden>
+      {/* Keyed from the right: the seconds keep their place when the minutes gain or lose a figure. */}
+      {[...value].map((ch, i) => <SegChar key={value.length - i} ch={ch} />)}
     </span>
   )
 }
@@ -107,7 +127,7 @@ export function RestDock() {
       >
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
-            <SegDigits value={clock} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
+            <SegDigits value={restClock(Math.ceil(remaining))} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
             <span className="min-w-0">
               <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
@@ -141,7 +161,11 @@ function DockButton({ label, onClick, children, accent }: { label: string; onCli
   )
 }
 
-/** Full-screen dial: the Cadran-style face of the rest timer. */
+/**
+ * Full-screen rest: the time left in seven-segment figures inside a bezel of sixty graduations
+ * that go out one by one, what comes next under it, and the three actions within thumb reach.
+ * It follows the app's theme and accent.
+ */
 function RestOverlay({ remaining, progress, onClose }: { remaining: number; progress: number; onClose: () => void }) {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const { adjustRest, stopRest } = useStore.getState()
@@ -152,39 +176,56 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   }, [onClose])
   if (!timer) return null
   const done = remaining <= 0
-  const R = 132
-  const C = 2 * Math.PI * R
+  const next = splitNext(timer.next)
+  // Sixty graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
+  const lit = done ? 60 : Math.ceil((1 - progress) * 60)
+  const side = 'pressable h-14 rounded-[14px] border border-line-strong text-[16px] font-semibold tnum disabled:opacity-40'
   return (
-    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-inst-bg text-white safe-top safe-bottom">
-      <div className="flex items-center justify-between px-4 pt-2">
-        <span className="text-[11px] font-semibold tracking-[0.1em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : L('Repos', 'Rest')}</span>
-        <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable inline-flex h-11 w-11 items-center justify-center rounded-[10px] text-inst-text hover:bg-inst-btn">
-          <X size={20} />
+    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-bg text-text safe-top safe-bottom">
+      <div className="flex items-center justify-between px-5 pt-2">
+        <span className="text-[15px] font-semibold text-text-2">{L('Repos', 'Rest')}</span>
+        <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
+          <ChevronDown size={24} />
         </button>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative h-[300px] w-[300px]">
-          <svg viewBox="0 0 300 300" className="absolute inset-0 -rotate-90" aria-hidden>
-            <circle cx="150" cy="150" r={R} fill="none" stroke="var(--inst-track)" strokeWidth="18" />
-            <circle
-              cx="150" cy="150" r={R} fill="none" stroke={done ? 'var(--inst-done)' : 'var(--accent-bright)'} strokeWidth="18"
-              strokeDasharray={C} strokeDashoffset={C * progress} className="transition-[stroke-dashoffset] duration-200 ease-linear"
-            />
-            {Array.from({ length: 60 }, (_, i) => (
-              <line key={i} x1="150" x2="150" y1={i % 5 === 0 ? 6 : 9} y2={i % 5 === 0 ? 14 : 12} stroke="var(--inst-tick)" strokeWidth={i % 5 === 0 ? 2 : 1} transform={`rotate(${i * 6} 150 150)`} />
-            ))}
+        <div className="relative aspect-square w-[min(78vw,320px)]">
+          <svg viewBox="0 0 300 300" className="absolute inset-0 h-full w-full" aria-hidden>
+            {Array.from({ length: 60 }, (_, i) => {
+              const major = i % 5 === 0
+              const on = i < lit
+              return (
+                <line
+                  key={i} x1="150" x2="150" y1="4" y2={major ? 24 : 16} strokeLinecap="round" strokeWidth={major ? 3 : 2}
+                  stroke={on ? 'var(--signal)' : 'var(--line-strong)'} opacity={on ? (major ? 1 : 0.8) : 0.55}
+                  className="transition-[stroke,opacity] duration-500 ease-out" transform={`rotate(${i * 6} 150 150)`}
+                />
+              )
+            })}
           </svg>
-          <div className={cx('absolute inset-0 flex flex-col items-center justify-center', done && 'rest-flash')}>
-            <SegDigits value={fmtClock(Math.ceil(remaining))} className={cx('text-[64px] leading-none', done ? 'text-inst-done' : 'text-white')} />
-            <span className="mt-3 max-w-[200px] truncate text-center text-[13px] text-inst-label">{timer.label}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <SegDigits value={restClock(Math.ceil(remaining))} className={cx('text-[68px] leading-none', done && 'text-signal-text')} />
+            <span className="mt-4 text-[14px] text-muted tnum">{done ? L('Repos terminé', 'Rest over') : L(`sur ${restClock(timer.total)}`, `of ${restClock(timer.total)}`)}</span>
           </div>
         </div>
-        <p className="mt-8 min-h-[22px] px-4 text-center text-[15px] font-medium text-inst-text">{timer.next ? L(`Ensuite : ${timer.next}`, `Next: ${timer.next}`) : ''}</p>
+        <div className="mt-9 min-h-[76px] max-w-full px-2 text-center">
+          {next ? (
+            <>
+              <p className="text-[13px] text-muted">{L('Ensuite', 'Next')}</p>
+              <p className="mt-1 truncate text-[20px] leading-[1.25] font-semibold">{next.name}</p>
+              <p className="mt-0.5 text-[15px] text-text-2">{next.step}</p>
+            </>
+          ) : (
+            <p className="truncate text-[17px] font-semibold">{timer.label}</p>
+          )}
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-3 px-6 pb-6">
-        <button type="button" onClick={() => adjustRest(-15)} disabled={done} className="pressable h-14 rounded-[12px] bg-inst-btn text-[15px] font-semibold disabled:opacity-40">−15 s</button>
-        <button type="button" onClick={() => adjustRest(15)} className="pressable h-14 rounded-[12px] bg-inst-btn text-[15px] font-semibold">+15 s</button>
-        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable h-14 rounded-[12px] bg-signal text-[15px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer', 'Skip')}</button>
+      <div className="px-5 pb-5">
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => adjustRest(-15)} disabled={done} className={side}>−15 s</button>
+          <button type="button" onClick={() => adjustRest(15)} className={side}>+15 s</button>
+        </div>
+        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer le repos', 'Skip rest')}</button>
       </div>
     </div>
   )

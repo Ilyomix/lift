@@ -52,8 +52,6 @@
   --inst-btn-hover: #1f2734;
   --inst-label: #8a93a6;
   --inst-text: #e6ebf5;
-  --inst-track: #151c28;
-  --inst-tick: #2b3446;
   --inst-done: #7aa7ff;
   --status-band: #060a13;
 }
@@ -74,8 +72,6 @@
   --inst-btn-hover: #26262c;
   --inst-label: #8b8b91;
   --inst-text: #e8e8e6;
-  --inst-track: #1f1f24;
-  --inst-tick: #3a3a40;
   --inst-done: #ff9a3d;
   --status-band: #0b0b0e;
 }
@@ -417,12 +413,16 @@
   animation: fade 200ms ease-out both;
 }
 
-@keyframes flash {
-  0%, 100% { opacity: 0; }
-  12%, 60% { opacity: 1; }
+/* A seven-segment figure that changes: the old one fades out while the new one fades in. */
+@keyframes seg-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
-.rest-flash {
-  animation: flash 1.6s ease-out both;
+.seg-in {
+  animation: fade 320ms ease-out both;
+}
+.seg-out {
+  animation: seg-out 320ms ease-out both;
 }
 
 /* Two-frame exercise demo, crossfaded like a slow loop. */
