@@ -205,7 +205,9 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   // 180 graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
   const TICKS = 180
   const lit = done ? TICKS : Math.ceil((1 - progress) * TICKS)
-  const side = 'pressable h-14 rounded-[14px] border border-line-strong text-[16px] font-semibold tnum disabled:opacity-40'
+  const side = 'pressable h-12 rounded-[12px] border border-line-strong text-[15px] font-semibold tnum disabled:opacity-40'
+  // Fifteen seconds, one minute, five minutes: taken off on the first row, added on the second.
+  const steps = [{ s: 15, label: '15 s' }, { s: 60, label: '1 min' }, { s: 300, label: '5 min' }]
   return (
     <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-bg text-text safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
@@ -215,7 +217,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
         </button>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative aspect-square w-[min(84vw,340px)]">
+        <div className="relative aspect-square w-[min(84vw,340px,42vh)]">
           <svg viewBox="0 0 300 300" className="absolute inset-0 h-full w-full" aria-hidden>
             {Array.from({ length: TICKS }, (_, i) => {
               // Three lengths, as on a watch bezel: twelve long marks, the sixty of a minute, and two fine ones between each.
@@ -237,7 +239,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
           </div>
           <span className="absolute inset-x-0 top-[calc(50%+48px)] text-center text-[14px] leading-5 text-muted tnum">{done ? L('Repos terminé', 'Rest over') : L(`sur ${fmtClock(timer.total)}`, `of ${fmtClock(timer.total)}`)}</span>
         </div>
-        <div className="mt-9 min-h-[76px] max-w-full px-2 text-center">
+        <div className="mt-7 min-h-[76px] max-w-full px-2 text-center">
           {next ? (
             <>
               <p className="text-[13px] text-muted">{L('Ensuite', 'Next')}</p>
@@ -250,9 +252,9 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
         </div>
       </div>
       <div className="px-5 pb-5">
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => adjustRest(-15)} disabled={done} className={side}>−15 s</button>
-          <button type="button" onClick={() => adjustRest(15)} className={side}>+15 s</button>
+        <div className="grid grid-cols-3 gap-2">
+          {steps.map((x) => <button key={`-${x.s}`} type="button" onClick={() => adjustRest(-x.s)} disabled={done} className={side}>−{x.label}</button>)}
+          {steps.map((x) => <button key={`+${x.s}`} type="button" onClick={() => adjustRest(x.s)} className={side}>+{x.label}</button>)}
         </div>
         <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer le repos', 'Skip rest')}</button>
       </div>
