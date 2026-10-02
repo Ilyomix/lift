@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, Flag, FlaskConical, Infinity as InfinityIcon, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
+  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, ExternalLink, Flag, FlaskConical, Infinity as InfinityIcon, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
@@ -50,27 +50,22 @@ export function MoreScreen() {
           </button>
         ))}
       </Card>
-      <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" aria-label={L('Ilyomix sur GitHub', 'Ilyomix on GitHub')} className="pressable mx-auto mt-8 block h-11 w-11 overflow-hidden rounded-full border border-line-strong">
-        <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={44} height={44} loading="lazy" className="h-full w-full object-cover" />
-      </a>
-      <p className="mt-2.5 text-center text-[12px] leading-[1.5] text-muted">
-        <span className="font-semibold text-text-2">Lift</span> · {L('conçue par', 'designed by')}{' '}
-        <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="font-medium text-text-2 underline decoration-line-strong underline-offset-2">Ilyomix</a>
-        {' · '}
-        <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium text-text-2 underline decoration-line-strong underline-offset-2">GitHub</a>
-        <br />
-        {L('Programme fondé sur la recherche (rapport du 26 sept. 2026)', 'Research-based program (report of 26 Sept 2026)')}
-        <br />
-        {L('Données stockées sur cet appareil uniquement.', 'Data stored on this device only.')}
-        <br />
-        <span className="tnum">
-          {L('Version', 'Version')} {__APP_VERSION__}
-          {' · '}
-          {__APP_BUILD__ ? `build ${__APP_BUILD__}` : L('build local', 'local build')}
-          {__APP_COMMIT__ && ` (${__APP_COMMIT__})`}
-          {' · '}
-          {fmtDate(isoFromTimestamp(__APP_BUILT__), { long: true, year: true })}
-        </span>
+      {/* About: who made it and which build this is, as one row; the two notes under it. */}
+      <Card className="mt-3">
+        <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
+          <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-full border border-line-strong object-cover" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium">{L('Conçue par Ilyomix', 'Designed by Ilyomix')}</span>
+            <span className="block truncate text-[13px] text-muted tnum" title={__APP_COMMIT__ || undefined}>
+              Lift {__APP_VERSION__} · {__APP_BUILD__ ? `build ${__APP_BUILD__}` : L('build local', 'local build')} · {fmtDate(isoFromTimestamp(__APP_BUILT__), { year: true })}
+            </span>
+          </span>
+          <ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
+        </a>
+      </Card>
+      <p className="mt-3 px-1 text-[12px] leading-[1.5] text-muted">
+        {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Données stockées sur cet appareil uniquement.', 'Research-based program (report of 26 Sept 2026). Data stored on this device only.')}{' '}
+        <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium whitespace-nowrap text-text-2 underline decoration-line-strong underline-offset-2">{L('Code source sur GitHub', 'Source code on GitHub')}</a>
       </p>
     </Screen>
   )
