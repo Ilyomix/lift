@@ -1248,9 +1248,12 @@ function guessGroups(muscle: string): Partial<Record<MuscleGroup, number>> {
   const words = m.split(/[^\p{L}]+/u)
   const has = (...keys: string[]) => keys.some((k) => m.includes(k))
   const word = (...keys: string[]) => keys.some((k) => words.includes(k))
+  // Before the back: "abdos" contains "dos".
+  if (has('abdo') || word('abs')) return { abs: 1 }
   if (has('pector', 'chest')) return { chest: 1 }
   if (has('dors', 'dos', 'back') || word('lat', 'lats')) return { back: 1 }
-  if (has('arrière') || word('rear')) return { rearDelts: 1 }
+  // "Deltoïdes postérieurs" are rear delts; "chaîne postérieure" alone is not.
+  if (has('arrière') || word('rear') || (has('postérieur', 'posterior') && has('épaule', 'deltoïde', 'shoulder', 'delt'))) return { rearDelts: 1 }
   if (has('épaule', 'deltoïde', 'shoulder', 'delt')) return { sideDelts: 1 }
   if (has('triceps')) return { triceps: 1 }
   if (has('biceps')) return { biceps: 1 }
@@ -1258,7 +1261,6 @@ function guessGroups(muscle: string): Partial<Record<MuscleGroup, number>> {
   if (has('ischio', 'hamstring')) return { hams: 1 }
   if (has('fess', 'glute')) return { glutes: 1 }
   if (has('mollet', 'calf', 'calves')) return { calves: 1 }
-  if (has('abdo') || word('abs')) return { abs: 1 }
   return {}
 }
 

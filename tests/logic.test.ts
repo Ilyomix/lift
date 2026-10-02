@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 import { setLang } from '../src/lib/i18n'
 import { defaultState, normalizeState, parseBackup, upgradeToResearchProgram } from '../src/lib/backup'
-import { applyPlanUpdate, parsePlanUpdate, previewPlanUpdate, sessionPrompt } from '../src/lib/coach'
+import { applyPlanUpdate, globalPrompt, parsePlanUpdate, previewPlanUpdate, sessionPrompt } from '../src/lib/coach'
 import { buildIcs, icsEventCount } from '../src/lib/ics'
 import * as program from '../src/lib/program'
 import {
@@ -17,6 +17,7 @@ import {
   progressionFor, sessionEffort, sessionNotes, setScore, setsSummary, toppedOut,
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
+import { infoFor } from '../src/lib/library'
 import type { AppState, Workout, WorkoutExercise, WorkoutSet } from '../src/lib/types'
 
 // Tests read the French wording (the app's original language).
@@ -121,6 +122,153 @@ test('planned weekly volume sits in the 10–20 evidence band for the main muscl
   for (const m of ['chest', 'back', 'sideDelts', 'triceps', 'biceps', 'quads', 'hams', 'glutes'] as const) {
     assert.ok(v[m] >= 10 && v[m] <= 20, `${m} = ${v[m]}`)
   }
+})
+
+test('fewer than five training days: sessions take more sets and the week keeps its volume', () => {
+  const MAIN = ['chest', 'back', 'sideDelts', 'triceps', 'biceps', 'quads', 'hams', 'glutes'] as const
+  const s = defaultState()
+  const slots = (type: 'UPPER' | 'LOWER' | 'PUSH' | 'PULL' | 'LEGS') => program.sessionSlots(s.templates[type].exercises)
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
+  // The multiplier: the plan from five days, 5/4 at four, 5/3 at three and below.
+  assert.deepEqual([7, 6, 5, 4].map((d) => program.daysFactorFor(d)), [1, 1, 1, 1.25])
+  assert.equal(program.daysFactorFor(3), 5 / 3)
+  assert.equal(program.daysFactorFor(2), 5 / 3, 'no further: one session can only use so many sets for a muscle')
+  assert.equal(program.daysFactorFor(3, false), 1, 'turned off: the plan’s sessions')
+
+  // A session is scaled as a whole: its total is the nearest whole number, the larger remainders first.
+  assert.deepEqual(program.scaledSession(slots('UPPER'), 1), [3, 3, 2, 3, 3, 2, 2, 2])
+  // 20 sets become 25: the four exercises of 3 sets go to 4; of those of 2, the one whose muscle has the least (triceps).
+  assert.deepEqual(program.scaledSession(slots('UPPER'), 1.25), [4, 4, 2, 4, 4, 3, 2, 2])
+  // 18 sets become 23: calves and abs are served before a second quadriceps exercise.
+  assert.deepEqual(program.scaledSession(slots('LOWER'), 1.25), [4, 4, 4, 3, 4, 4])
+  // Sheets of two sets, or of one, are scaled too (each exercise alone would round to nothing).
+  const custom = (sets: number[]) => sets.map((n, i) => ({ exerciseId: `custom-${i}`, muscle: '', sets: n }))
+  assert.deepEqual(program.scaledSession(custom([2, 2, 2, 2]), 1.25), [3, 3, 2, 2])
+  assert.deepEqual(program.scaledSession(custom([1, 1, 1, 1]), 1.25), [2, 1, 1, 1])
+  assert.deepEqual(program.scaledSession(custom([1, 1, 1]), 5 / 3), [2, 2, 1])
+  // Equal remainders stay equal whatever the arithmetic says: 2 × 5/3 and 5 × 5/3 both leave a third.
+  assert.deepEqual(program.scaledSession(custom([2, 5]), 5 / 3), [4, 8])
+  assert.deepEqual(program.scaledSession(custom([1, 4]), 5 / 3), [2, 6])
+  // No muscle past about 11 sets in one session: added sets are taken back, never the plan's.
+  assert.deepEqual(program.scaledSession(slots('PULL'), 5 / 3), [4, 4, 3, 5, 5, 5, 5], 'back: 4 + 4 + 3 = 11, not 13')
+  assert.deepEqual(program.scaledSession(slots('UPPER'), 5 / 3), [5, 5, 3, 5, 5, 3, 4, 3], 'the spare set goes to the biceps, chest is at 11')
+  assert.deepEqual(program.scaledSession(slots('PUSH'), 5 / 3), [5, 3, 5, 7, 4, 3], 'triceps: 2.5 + 1.5 + 4 + 3 = 11, not 12')
+  assert.deepEqual(program.scaledSession([{ exerciseId: 'chest-press', sets: 12 }], 5 / 3), [12], 'a sheet above the ceiling keeps its sets')
+  for (const days of [4, 3, 2]) {
+    for (const type of ROTATION) {
+      const out = program.scaledSession(slots(type), program.daysFactorFor(days))
+      const perMuscle: Record<string, number> = {}
+      s.templates[type].exercises.forEach((e, i) => {
+        assert.ok(out[i] >= e.target.sets, `${type} ${e.exerciseId}`)
+        for (const [g, f] of Object.entries(infoFor(e.exerciseId, e).groups)) perMuscle[g] = (perMuscle[g] ?? 0) + out[i] * (f ?? 0)
+      })
+      for (const [g, n] of Object.entries(perMuscle)) assert.ok(n <= program.SESSION_MUSCLE_CAP, `${days} days, ${type} ${g} = ${n}`)
+    }
+  }
+
+  // The week: the plan's volume at four days, about 97 % at three, muscle by muscle in the 10–20 band.
+  const five = plannedVolume(s.templates)
+  for (const days of [4, 3]) {
+    const v = plannedVolume(s.templates, days)
+    for (const m of MAIN) {
+      assert.ok(v[m] >= 10 && v[m] <= 20, `${days} days, ${m} = ${v[m]}`)
+      assert.ok(Math.abs(v[m] - five[m]) <= 1.5, `${days} days, ${m}: ${v[m]} against ${five[m]} at five days`)
+    }
+  }
+  // At four days no muscle is left behind, the small ones included.
+  for (const m of [...MAIN, 'rearDelts', 'calves', 'abs'] as const) {
+    const ratio = plannedVolume(s.templates, 4)[m] / five[m]
+    assert.ok(ratio >= 0.95 && ratio <= 1.08, `${m}: ${Math.round(ratio * 100)} % of the plan at four days`)
+  }
+  const week = (days: number, keep = true) => program.weekShape(program.templateSets(s.templates), days, keep)
+  assert.deepEqual([week(5).sets, week(5).minutes, week(5).share], [[17, 20], [60, 65], 1])
+  assert.deepEqual([week(4).sets, week(4).minutes, week(4).share], [[21, 25], [70, 80], 1])
+  assert.deepEqual([week(3).sets, week(3).minutes, Math.round(week(3).share * 100)], [[27, 33], [90, 100], 97])
+  assert.deepEqual(program.weekShape(program.planSets(), 3), week(3), 'the report’s plan and the default sheets are the same sessions')
+  // Below three days, and with the choice turned off, the week holds less; above five days, more.
+  assert.equal(Math.round(week(2).share * 100), 64)
+  assert.ok(MAIN.every((m) => plannedVolume(s.templates, 2)[m] < 10 && plannedVolume(s.templates, 2)[m] >= 4))
+  assert.equal(week(3, false).share, 0.6)
+  assert.equal(plannedVolume(s.templates, 3, false).chest, (five.chest * 3) / 5)
+  assert.equal(plannedVolume(s.templates, 6).back, five.back * 1.2)
+  assert.equal(program.sharePhrase(1), 'le volume prévu')
+  assert.equal(program.sharePhrase(0.96), 'environ 96 % du volume prévu')
+  assert.deepEqual([program.keepsPlan(0.97), program.keepsPlan(1.03), program.keepsPlan(0.965), program.keepsPlan(1.07)], [true, true, false, false])
+  assert.equal(program.sharePhrase(week(3).share), 'environ 97 % du volume prévu', 'three days: close to the plan, and said so')
+  assert.equal(program.sharePhrase(week(4).share), 'le volume prévu')
+  // Custom exercises: the muscle is read from its label ("abdos" is not a back, rear delts are not side delts).
+  assert.deepEqual(['Abdos', 'Abs', 'Dos', 'Deltoïdes postérieurs', 'Rear delts', 'Deltoïdes latéraux', 'Chaîne postérieure'].map((m) => Object.keys(infoFor('custom-x', { muscle: m }).groups)), [['abs'], ['abs'], ['back'], ['rearDelts'], ['rearDelts'], ['sideDelts'], []])
+  assert.equal(program.sessionMinutes('UPPER', 20), 65, 'the plan’s session keeps its length')
+  assert.equal(program.sessionMinutes('UPPER', 10), 40, 'a deload session is shorter')
+  assert.equal(program.sessionMinutes('UPPER', 40), 120, 'a sheet twice as long is not an hour either')
+
+  // In a session: the prescriptions follow the training days of the plan.
+  const upper = s.templates.UPPER.exercises
+  const origin = { start: '2026-09-28', foundation: '2026-08-10' }
+  const setsOf = (date: string, list = upper) => program.prescribeSession(list, date, null).map((p) => p.sets)
+  try {
+    configurePlan(DEFAULT_GOAL, null, null, null, { ...origin, days: 4 })
+    assert.deepEqual(setsOf('2026-10-06'), [4, 4, 2, 4, 4, 3, 2, 2])
+    // What the plan asks at five days is kept aside: loads are judged on those sets.
+    assert.deepEqual(program.prescribeSession(upper, '2026-10-06', null).map((p) => p.planSets), [3, 3, undefined, 3, 3, 2, undefined, undefined])
+    assert.deepEqual(setsOf('2026-11-03'), [2, 2, 1, 2, 2, 2, 1, 1], 'deload: half of the session’s sets')
+    // The priority set is scaled with the session: 21 sets become 26.
+    const priority = program.prescribeSession(upper, '2026-11-24', null)
+    assert.equal(priority.reduce((a, p) => a + p.sets, 0), 26)
+    assert.equal(priority[4].sets, 5)
+    assert.deepEqual(priority[4].notes, ['+1 série (muscle prioritaire)'])
+    // Two drops in a row take one set off what is really done.
+    const dropped = upper.map((e, i) => (i === 0 ? { ...e, autoAdjust: { sets: -1, since: '2026-10-06', reason: 'baisse 2 séances de suite' } } : e))
+    assert.equal(setsOf('2026-10-13', dropped)[0], 3)
+    // The brief for an AI says so, and the calendar event lasts as long as the session.
+    assert.match(globalPrompt(s), /Je m’entraîne 4\sjours par semaine : .*×1,25 sur l’ensemble.* la semaine tient le volume prévu/)
+    assert.ok(buildIcs(s, { training: true, weighIn: false, waist: false, photos: false, deloads: false, phases: false }, '2026-09-26').includes('DURATION:PT80M'), 'Upper: 25 sets, 80 min')
+
+    configurePlan(DEFAULT_GOAL, null, null, null, { ...origin, days: 3 })
+    assert.deepEqual(setsOf('2026-10-06'), [5, 5, 3, 5, 5, 3, 4, 3])
+    assert.deepEqual(setsOf('2026-11-03'), [3, 3, 2, 3, 3, 2, 2, 2], 'deload')
+    const priority3 = program.prescribeSession(upper, '2026-11-24', null)
+    assert.equal(priority3[4].sets, 7, 'priority: (3 + 1) × 5/3, side delts stay under the ceiling')
+    assert.deepEqual(priority3[4].notes, ['+2 séries (muscle prioritaire)'])
+    configurePlan(DEFAULT_GOAL, null, null, null, { ...origin, days: 2 })
+    assert.deepEqual(setsOf('2026-10-06'), [5, 5, 3, 5, 5, 3, 4, 3], 'two days: no more than at three')
+    configurePlan(DEFAULT_GOAL, null, null, null, { ...origin, days: 3, keepVolume: false })
+    assert.deepEqual(setsOf('2026-10-06'), [3, 3, 2, 3, 3, 2, 2, 2], 'turned off')
+    assert.match(globalPrompt(s), /Je m’entraîne 3\sjours par semaine avec les séances de base : .* environ 60 % du volume prévu/)
+    configurePlan(DEFAULT_GOAL, null, null, null, { ...origin, days: 6 })
+    assert.deepEqual(setsOf('2026-10-06'), [3, 3, 2, 3, 3, 2, 2, 2], 'six days: the plan’s sessions')
+  } finally {
+    configurePlan(DEFAULT_GOAL)
+  }
+  assert.deepEqual(setsOf('2026-10-06'), [3, 3, 2, 3, 3, 2, 2, 2], 'five days: the plan')
+  assert.ok(program.prescribeSession(upper, '2026-10-06', null).every((p) => !('planSets' in p)), 'five days: nothing added to the prescription')
+  assert.deepEqual(program.prescribeSession(upper, '2026-10-06', null)[0], prescribe(upper[0], '2026-10-06', null), 'one exercise or the whole session: the same at five days')
+  assert.doesNotMatch(globalPrompt(s), /Je m’entraîne/)
+
+  // Loads: the top of the range is asked of the plan's sets, not of the sets added to keep the volume.
+  const five3 = { prescription: { sets: 5, planSets: 3, minReps: 8, maxReps: 12, rir: '1–2', restSeconds: 150, weight: 100, loadFactor: 1, notes: [] } }
+  const up = loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 10), set(100, 9)], five3))
+  assert.deepEqual([up?.kind, up?.weight], ['up', 105])
+  assert.match(up!.text, /^3 × 12 atteint/)
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12)], five3))?.weight, 105, 'out of time after the plan’s sets: the load still goes up')
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 11), set(100, 12), set(100, 12)], five3)), null, 'the third set is one of the plan’s')
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 10), set(100, 9)], { prescription: { ...five3.prescription, planSets: undefined } })), null, 'without it, every prescribed set counts')
+  // The other rules read the plan's sets too: what happens on the added sets does not move the target.
+  assert.equal(loadDecision(exo([set(100, 10), set(100, 9), set(100, 8), set(95, 9), set(95, 9)], five3)), null, 'added sets done lighter: the target stays')
+  assert.equal(loadDecision(exo([set(100, 10), set(100, 9), set(100, 8), set(105, 8), set(105, 8)], five3)), null, 'added sets done heavier: the target stays')
+  const held = loadDecision(exo([set(105, 9), set(105, 8), set(105, 8), set(100, 9), set(100, 8)], five3))
+  assert.deepEqual([held?.kind, held?.weight], ['up', 105], 'a heavier load held on the plan’s sets becomes the target, as at five days')
+  const under = loadDecision(exo([set(100, 6), set(100, 5), set(100, 5), set(95, 9), set(95, 8)], five3))
+  assert.deepEqual([under?.kind, under?.weight], ['down', 95], 'the plan’s sets under the range: lighter, whatever the added sets did')
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 10, { flags: ['pain'] }), set(100, 9)], five3)), null, 'pain counts on every set')
+
+  // One session a week is a rhythm, not a break after each of them.
+  const only = (days: number[]) => ({ schedule: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [d, days.includes(d) ? ('UPPER' as const) : null])) })
+  assert.deepEqual([[1], [1, 4], [6, 0], [1, 2, 4, 5, 6]].map((d) => program.scheduledGap(only(d))), [7, 4, 6, 2])
+
+  // The choice survives a backup, and is on unless turned off.
+  assert.equal(normalizeState({ ...s, prefs: { ...s.prefs, keepWeeklyVolume: false } }).prefs.keepWeeklyVolume, false)
+  assert.equal(normalizeState({ ...s, prefs: { theme: 'dark' } }).prefs.keepWeeklyVolume, true)
 })
 
 test('re-entry after a pause follows the report thresholds', () => {

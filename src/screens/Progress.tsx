@@ -387,7 +387,7 @@ function VolumeTab() {
   const [offset, setOffset] = useState(0)
   const weekStart = addDays(monday, -7 * offset)
   const vol = weekVolume(state.workouts, weekStart)
-  const planned = plannedVolume(state.templates)
+  const planned = plannedVolume(state.templates, trainingDays(state).length, state.prefs.keepWeeklyVolume !== false)
   const counts = weeklySessionCounts(state.workouts, 12, today)
   const recent = state.workouts.slice(-8)
   const rirs = recent.map((w) => ({ w, r: averageRir(w) })).filter((x) => x.r !== null)
@@ -400,7 +400,7 @@ function VolumeTab() {
         </div>
       }>
         <p className="-mt-1 mb-4 text-[13px] leading-[1.45] text-text-2">
-          {L('Semaine du', 'Week of')} {fmtDate(weekStart)} {L('· comptage fractionnaire (série directe = 1, indirecte = 0,5). Zone visée : 10–20 séries (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme.', '· fractional counting (direct set = 1, indirect = 0.5). Target range: 10–20 sets (Schoenfeld 2017; Pelland 2025). The line marks the volume planned by the program.')}
+          {L('Semaine du', 'Week of')} {fmtDate(weekStart)} {L('· comptage fractionnaire (série directe = 1, indirecte = 0,5). Zone visée : 10–20 séries (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme pour tes jours d’entraînement, en moyenne sur la rotation.', '· fractional counting (direct set = 1, indirect = 0.5). Target range: 10–20 sets (Schoenfeld 2017; Pelland 2025). The line marks the volume planned by the program for your training days, on average over the rotation.')}
         </p>
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: vol[m.id], planned: planned[m.id] }))} />

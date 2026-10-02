@@ -15,7 +15,7 @@ You tell Lift where you train, on which days, a few body measurements and the lo
 ## Features
 
 - **Onboarding**: language; gym or home training (home equipment: dumbbells, bench, pull-up bar, bands; body weight is always available); training days; body (sex, age, height, weight, optional waist); then either a look and a goal date, or maintenance mode with no date, with a preview of the plan. You can also start by importing a backup.
-- **Program**: an Upper / Lower / Push / Pull / Legs rotation that runs continuously over your training days (five a week is the program's pace). At home, each gym exercise of the program is replaced by the best version your equipment allows; you can switch between gym and home in Settings, and your gym sessions come back as they were. Sessions are editable.
+- **Program**: an Upper / Lower / Push / Pull / Legs rotation that runs continuously over your training days (five a week is the program's pace). With four or three days, each session takes more sets so that the week keeps its volume (the “Longer sessions” setting, on by default; off keeps one-hour sessions). At home, each gym exercise of the program is replaced by the best version your equipment allows; you can switch between gym and home in Settings, and your gym sessions come back as they were. Sessions are editable.
 - **Guided sessions**: the day's prescription for each exercise (sets, rep range, RIR (reps in reserve), rest, load), your last performance, clean reps, failure / technique / pain flags, supersets and exercise swaps. Machine loads and history are kept per gym; free weights are shared.
 - **Automatic loads**: double progression after each session. When every set reaches the top of the range, the load goes one step above the load really lifted; when every set falls under it, the load goes down. A set pushed past the planned effort (logged RIR, or a failure) counts for fewer reps, so effort alone never raises a load. On a machine whose loads fall off the standard 2.5 kg steps, the loads already used on it are proposed again. Dips, pull-ups, chin-ups and back extensions take added load: 2.5 kg more at the top of the range. A trial session sets the starting load. Within a session, the next sets follow the one just done. Sessions are compared on the sets they share, and on the estimated level when a load changed: two drops in a row remove a set until the end of the block, and a general drop offers an early deload. Pain that comes back and four sessions without progress are flagged at the end of the session. Every change can be undone.
 - **Rest timer**: seven-segment dial, sound and vibration, screen kept awake, and a push notification that arrives even with the phone locked.
@@ -29,12 +29,13 @@ You tell Lift where you train, on which days, a few body measurements and the lo
 
 ## Evidence base
 
-The rules come from a research report dated 26 September 2026. It cites 31 publications, all checked; studies the report could not verify are left out. They are listed in the app and in [`src/lib/research.ts`](src/lib/research.ts), each rule tagged with its level of evidence.
+The rules come from a research report dated 26 September 2026. It cites 31 publications, all checked; studies the report could not verify are left out. Three more, checked since, support the rule for weeks of fewer than five sessions, which the report does not cover. They are all listed in the app and in [`src/lib/research.ts`](src/lib/research.ts), each rule tagged with its level of evidence.
 
 | Topic | Rule in Lift | Evidence |
 |---|---|---|
 | Volume | 10–20 hard sets per muscle per week, counted fractionally (direct set 1, indirect 0.5) | Strong |
 | Frequency, split | Each muscle twice a week; Upper / Lower / Push / Pull / Legs | Strong |
+| Fewer than 5 days | Same weekly volume in fewer sessions: sets ×1.25 at four days, ×1.67 at three, at most about 11 per muscle per session | Moderate |
 | Effort | RIR 1–2 on compound lifts, 0–1 on isolation; within a block, week 1 at RIR 3, week 2 at RIR 2, last week 0–1 | Strong |
 | Reps | 6–12 on compound lifts, 10–20 on isolation | Strong |
 | Rest | At least 90 s; 2–3 min on compound lifts | Moderate |
@@ -47,7 +48,7 @@ The rules come from a research report dated 26 September 2026. It cites 31 publi
 | Protein | ≥ 1.6 g/kg/day (Lift aims for about 2 g/kg, a little more during the cut) | Strong |
 | Creatine | 5 g/day | Moderate |
 
-Five sessions a week are not optimal in themselves: at equal volume, training a muscle once, twice or three times a week gives similar growth. The five sessions spread the volume and keep each one around an hour.
+Five sessions a week are not optimal in themselves: at equal volume, training a muscle once, twice or three times a week gives similar growth. The five sessions spread the volume and keep each one around an hour. With four or three training days, Lift keeps the rotation and moves the sets of the missing sessions into the others (about 70–80 and 90–100 minutes a session), on average over a turn of the rotation. One limit: past about 11 sets for a muscle in one session no extra gain can be detected (a preprint, not yet peer-reviewed), so added sets stop there. Three days hold about 97 % of the planned volume, two days about 64 %. Loads still go up on the sets of the session sheet, not on the added ones. Supersets of opposing exercises shorten a session by about a third for similar growth (from only three long-term studies), at a higher perceived effort.
 
 **The plan** is built backwards from the goal date, which can be 8 weeks to 5 years away:
 

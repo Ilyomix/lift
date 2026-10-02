@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
 import { dayName } from '../lib/date'
-import { fmtLoad, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
+import { fmtLoad, fmtNum, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
 import { fmtDate } from '../lib/date'
-import { doableAt, GOAL_DATE, MAINTENANCE, PERIODS, ROTATION, takesLest, TYPE_META } from '../lib/program'
+import { daysFactor, DEFAULT_SCHEDULE, doableAt, GOAL_DATE, keepsPlan, MAINTENANCE, PERIODS, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { caveats, PRINCIPLES, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -19,8 +19,17 @@ import { Button, Card, cx, Empty, Eyebrow, Field, Header, IconButton, inputClass
 export function ProgramScreen() {
   const state = useStore((s) => s.state)
   const setSchedule = useStore((s) => s.setSchedule)
-  const planned = plannedVolume(state.templates)
-  const weekly = Object.values(state.schedule).filter(Boolean).length
+  // The week as it is trained: with fewer than five days, sessions take more sets to keep the weekly volume.
+  const weekly = trainingDays(state).length
+  const keepVolume = state.prefs.keepWeeklyVolume !== false
+  const planned = plannedVolume(state.templates, weekly, keepVolume)
+  const week = weekShape(templateSets(state.templates), weekly, keepVolume)
+  const weekPct = Math.round(week.share * 100)
+  const rhythm = weekly === PLAN_DAYS
+    ? L('2 passages par muscle', 'each muscle trained twice')
+    : week.factor > 1 && keepsPlan(week.share)
+      ? L('le même volume par semaine qu’à 5 séances', 'the same weekly volume as with 5 sessions')
+      : L(`environ ${weekPct} % du volume prévu`, `about ${weekPct}% of the planned volume`)
   const recomp = PERIODS.filter((p) => p.phase === 'recomp')
   const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
   const holidays = PERIODS.filter((p) => p.kind === 'holiday')
@@ -41,8 +50,8 @@ export function ProgramScreen() {
         eyebrow={L('Fondé sur la recherche', 'Research-based')}
         title={L('Programme', 'Program')}
         sub={L(
-          `Upper · Lower · Push · Pull · Legs — ${weekly} séances par semaine, 2 passages par muscle, blocs de 5 semaines + décharge, ${cutText}.`,
-          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, each muscle trained twice, 5-week blocks + deload, ${cutText}.`,
+          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'séance', 'séances')} par semaine, ${rhythm}, blocs de 5 semaines + décharge, ${cutText}.`,
+          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, ${rhythm}, 5-week blocks + deload, ${cutText}.`,
         )}
       />
 
@@ -71,30 +80,44 @@ export function ProgramScreen() {
             </div>
           ))}
         </Card>
-        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Jambes mardi et samedi (3–4 jours d’écart), haut du corps lundi, jeudi, vendredi. La rotation se décale si tu manques un jour.', 'Legs on Tuesday and Saturday (3–4 days apart), upper body on Monday, Thursday and Friday. The rotation shifts if you miss a day.')}</p>
+        <p className="mt-2 text-[12px] leading-[1.45] text-muted">
+          {[0, 1, 2, 3, 4, 5, 6].every((d) => (state.schedule[d] ?? null) === DEFAULT_SCHEDULE[d])
+            ? L('Jambes mardi et samedi (3–4 jours d’écart), haut du corps lundi, jeudi, vendredi. La rotation se décale si tu manques un jour.', 'Legs on Tuesday and Saturday (3–4 days apart), upper body on Monday, Thursday and Friday. The rotation shifts if you miss a day.')
+            : weekly < PLAN_DAYS
+              ? L('Ce tableau fixe tes jours. Avec moins de 5 séances par semaine, la rotation continue d’une semaine à l’autre : la séance du jour est celle qu’affiche l’accueil.', 'This table sets your days. With fewer than 5 sessions a week, the rotation carries on from one week to the next: the session of the day is the one shown on the home screen.')
+              : L('La rotation se décale si tu manques un jour.', 'The rotation shifts if you miss a day.')}
+        </p>
       </Section>
 
       <Section title={L('Séances', 'Sessions')}>
         <Card className="divide-y divide-line">
           {ROTATION.map((t) => {
             const tpl = state.templates[t]
-            const sets = tpl.exercises.reduce((a, e) => a + e.target.sets, 0)
+            const sets = scaledSession(sessionSlots(tpl.exercises), week.factor).reduce((a, n) => a + n, 0)
             return (
               <button key={t} type="button" onClick={() => navigate(`plus/programme/${t}`)} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
                 <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-[8px] bg-text text-[11px] font-bold text-bg">{TYPE_META[t].code}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-medium">{TYPE_META[t].label}{TYPE_META[t].fr !== TYPE_META[t].label && <> <span className="font-normal text-text-2">· {TYPE_META[t].fr}</span></>}</span>
-                  <span className="block text-[13px] text-muted">{plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · {L(`${sets} séries`, `${sets} sets`)} · ~{TYPE_META[t].minutes} min</span>
+                  <span className="block text-[13px] text-muted">{plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · {L(`${sets} séries`, `${sets} sets`)} · ~{sessionMinutes(t, sets)} min</span>
                 </span>
                 <ChevronRight size={16} className="text-muted" aria-hidden />
               </button>
             )
           })}
         </Card>
+        {week.factor > 1 && (
+          <p className="mt-2 text-[12px] leading-[1.45] text-muted">
+            {L(
+              `${plural(weekly, 'séance', 'séances')} par semaine : chaque séance prend plus de séries (×${fmtNum(week.factor, 2)} sur l’ensemble, au plus ${SESSION_MUSCLE_CAP} par muscle) et la semaine tient ${sharePhrase(week.share)}. Les fiches gardent la base du programme à 5 séances. Réglable dans Plus → Réglages.`,
+              `${plural(weekly, 'session', 'sessions')} a week: each session takes more sets (×${fmtNum(week.factor, 2)} overall, ${SESSION_MUSCLE_CAP} per muscle at most) and the week holds ${sharePhrase(week.share)}. The session sheets keep the program’s base at 5 sessions. Change it in More → Settings.`,
+            )}
+          </p>
+        )}
       </Section>
 
       <Section title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
-        <p className="-mt-1 mb-4 text-[13px] leading-[1.45] text-text-2">{L('Volume prévu par le programme (comptage fractionnaire). Zone visée : 10–20.', 'Volume planned by the program (fractional counting). Target zone: 10–20.')}</p>
+        <p className="-mt-1 mb-4 text-[13px] leading-[1.45] text-text-2">{L(`Volume prévu par le programme pour ${plural(weekly, 'séance', 'séances')} par semaine, en moyenne sur la rotation (comptage fractionnaire). Zone visée : 10–20.`, `Volume planned by the program for ${plural(weekly, 'session', 'sessions')} a week, on average over the rotation (fractional counting). Target zone: 10–20.`)}</p>
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: planned[m.id] }))} />
         </Card>
@@ -123,7 +146,7 @@ export function ProgramScreen() {
 
       <Section title={L('Règles', 'Rules')}>
         <Card className="divide-y divide-line text-[14px] leading-[1.45]">
-          <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, au RIR visé, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, at the target RIR, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.')} />
+          <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, au RIR visé, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, at the target RIR, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 sessions a week, the sheet’s sets are the ones that count: those added in the session come after, with fewer reps.') : '')} />
           <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('S1 RIR 3 · S2 RIR 2 · S3–S4 RIR 1–2 (polyarticulaire) et 0–1 (isolation) · S5 RIR 0–1, dernière série d’isolation à l’échec technique.', 'W1 RIR 3 · W2 RIR 2 · W3–W4 RIR 1–2 (compound) and 0–1 (isolation) · W5 RIR 0–1, last isolation set to technical failure.')} />
           <RuleRow title="Volume" text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
           <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que le RIR prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned RIR counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
@@ -178,6 +201,8 @@ function RuleRow({ title, text }: { title: string; text: string }) {
 }
 
 export function SourcesScreen() {
+  const added = Object.values(SOURCES).filter((x) => x.added).length
+  const reported = Object.keys(SOURCES).length - added
   return (
     <Screen>
       <Header
@@ -185,8 +210,8 @@ export function SourcesScreen() {
         eyebrow={L('Preuves', 'Evidence')}
         title="Sources"
         sub={L(
-          `${Object.keys(SOURCES).length} publications vérifiées dans le rapport de recherche. Méta-analyses et essais randomisés en priorité.`,
-          `${Object.keys(SOURCES).length} publications checked in the research report. Meta-analyses and randomized trials first.`,
+          `${reported} publications vérifiées dans le rapport de recherche${added ? `, ${added} ajoutées depuis` : ''}. Méta-analyses et essais randomisés en priorité.`,
+          `${reported} publications checked in the research report${added ? `, ${added} added since` : ''}. Meta-analyses and randomized trials first.`,
         )}
       />
       <Card className="divide-y divide-line">
@@ -197,7 +222,7 @@ export function SourcesScreen() {
               <ExternalLink size={14} className="mt-1 shrink-0 text-muted" aria-hidden />
             </div>
             <p className="mt-1 text-[13px] text-text-2">{s.authors} ({s.year}) · {s.journal}</p>
-            <p className="mt-0.5 text-[12px] text-muted">{s.kind} · {s.id}</p>
+            <p className="mt-0.5 text-[12px] text-muted">{s.kind} · {s.id}{s.added ? L(' · ajoutée après le rapport', ' · added after the report') : ''}</p>
           </a>
         ))}
       </Card>
@@ -215,7 +240,10 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const addable = Object.values(LIBRARY).filter((x) => !setup || doableAt(x.id, setup))
   const [edit, setEdit] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  // The plan's live values: set from the training days on every change of the state.
+  const factor = daysFactor()
   if (!tpl) return <Screen><Empty title={L('Séance inconnue', 'Unknown session')} /></Screen>
+  const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
   const meta = TYPE_META[type]
   return (
     <Screen>
@@ -225,6 +253,14 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         title={meta.label}
         sub={L('Touchez un exercice pour ajuster ses cibles. Les règles du bloc (RIR, décharges, reprises) s’appliquent automatiquement par-dessus.', 'Tap an exercise to adjust its targets. The block rules (RIR, deloads, returns) are applied automatically on top.')}
       />
+      {factor > 1 && (
+        <p className="-mt-2 mb-4 text-[13px] leading-[1.45] text-text-2">
+          {L(
+            `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance prend plus de séries que la fiche (×${fmtNum(factor, 2)} sur l’ensemble), indiquées entre parenthèses.`,
+            `${plural(WEEK_DAYS, 'session', 'sessions')} a week: the session takes more sets than the sheet (×${fmtNum(factor, 2)} overall), shown in brackets.`,
+          )}
+        </p>
+      )}
       <Card className="divide-y divide-line">
         {tpl.exercises.map((e, i) => (
           <div key={`${e.exerciseId}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
@@ -235,7 +271,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
                   <span className="ml-1 inline-block border border-signal/50 bg-signal-soft px-1.5 align-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap text-signal-text">{L('Prioritaire', 'Priority')}</span>
                 )}
               </span>
-              <span className="block text-[13px] text-text-2 tnum">{e.target.sets} × {e.target.minReps}–{e.target.maxReps} · RIR {e.target.rir ?? '—'} · {fmtRest(e.target.restSeconds)} · {fmtLoad(e.target.weight, e.unit)}</span>
+              <span className="block text-[13px] text-text-2 tnum">{e.target.sets}{inSession[i] !== e.target.sets ? L(` (${inSession[i]} en séance)`, ` (${inSession[i]} in session)`) : ''} × {e.target.minReps}–{e.target.maxReps} · <span className="whitespace-nowrap">RIR {e.target.rir ?? '—'}</span> · {fmtRest(e.target.restSeconds)} · {fmtLoad(e.target.weight, e.unit)}</span>
             </button>
             <IconButton label={L('Monter', 'Move up')} disabled={i === 0} onClick={() => moveTemplateExercise(type, i, -1)} className="h-9 w-9"><ArrowUp size={16} /></IconButton>
             <IconButton label={L('Descendre', 'Move down')} disabled={i === tpl.exercises.length - 1} onClick={() => moveTemplateExercise(type, i, 1)} className="h-9 w-9"><ArrowDown size={16} /></IconButton>

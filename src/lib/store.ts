@@ -7,8 +7,8 @@ import { fmtLoad, roundTo, uid } from './format'
 import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
-  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribe,
-  reentryForGap, takesLest, trainingDays,
+  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribeSession,
+  reentryForGap, scheduledGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
 import { applyChange, finalizeWorkout, intraSessionAdjust, knownLoads, previousPerformance, type AutoChange, type FinishResult } from './training'
@@ -18,7 +18,7 @@ import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from
 import { weightStatus } from './stats'
 import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
-  ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs,
+  ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs, Prescription,
   Look, SetFlag, Template, TemplateExercise, TrainingSetup, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
 
@@ -163,8 +163,7 @@ function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadF
   return { weight: last, trial: undefined }
 }
 
-function buildExercise(t: TemplateExercise, date: ISODate, state: AppState, gymId: string): WorkoutExercise {
-  const p = prescribe(t, date, state.reentry, gymId, state.workouts)
+function buildExercise(t: TemplateExercise, p: Prescription, state: AppState, gymId: string): WorkoutExercise {
   const start = startingLoad(t, gymId, state, p.loadFactor)
   return {
     ...t,
@@ -202,13 +201,15 @@ function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
   }
 }
 
-/** The plan (periods, deloads) follows the goal date — or maintenance mode — and an early deload stored in the state. */
+/** The plan (periods, deloads) follows the goal date — or maintenance mode — and an early deload stored in the state; the sets follow the training days. */
 function syncPlan(s: AppState) {
   const vg = s.visualGoal
   configurePlan(s.settings.goalDate, s.manualDeload, vg?.cutWeeks, vg?.zones?.length ? zonesText(vg.zones) : null, {
     start: s.settings.programStart,
     foundation: s.settings.foundationStart ?? null,
     maintenance: !!s.settings.maintenance,
+    days: trainingDays(s).length,
+    keepVolume: s.prefs.keepWeeklyVolume !== false,
   })
 }
 
@@ -376,7 +377,8 @@ export const useStore = create<Store>((set, get) => ({
       const ctx = contextAt(today)
       const gap = gapSinceLastSession(s, today)
       let reentry = s.reentry
-      if (!reentry && gap >= 7) reentry = reentryForGap(gap)
+      // A week without training is a break. With a single session a week, a missed one is (two weeks).
+      if (!reentry && gap >= (scheduledGap(s) >= 7 ? 14 : 7)) reentry = reentryForGap(gap)
       let programPause = s.programPause
       if (programPause.active && programPause.startedAt) {
         programPause = {
@@ -391,6 +393,8 @@ export const useStore = create<Store>((set, get) => ({
       }
       const gymId = s.gyms.some((g) => g.id === s.gymId) ? s.gymId : HOME_GYM
       const base = { ...s, reentry, programPause }
+      // The whole session at once: with fewer than five days its sets are scaled together.
+      const rx = prescribeSession(s.templates[t].exercises, today, reentry, gymId, s.workouts)
       const active: ActiveWorkout = {
         id: uid(`workout-${t.toLowerCase()}`),
         type: t,
@@ -399,7 +403,7 @@ export const useStore = create<Store>((set, get) => ({
         notes: '',
         timerEndAt: null,
         timer: null,
-        exercises: s.templates[t].exercises.map((e) => buildExercise(e, today, base, gymId)),
+        exercises: s.templates[t].exercises.map((e, i) => buildExercise(e, rx[i], base, gymId)),
         periodId: ctx.period?.id,
         week: ctx.week || undefined,
         deload: ctx.deload,

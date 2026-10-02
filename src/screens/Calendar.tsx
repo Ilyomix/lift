@@ -5,7 +5,7 @@ import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
-  calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, milestones, PERIODS, periodRangeLabel, PHASES, prescribe, projectSessions, reentryForGap, TYPE_META,
+  calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, milestones, PERIODS, periodRangeLabel, PHASES, prescribeSession, projectSessions, reentryForGap, TYPE_META,
   gapSinceLastSession, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
@@ -186,10 +186,9 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
         <div className="mt-4">
           <p className="text-[15px]"><span className="font-semibold">{TYPE_META[planned.type].label}</span> {L('prévue', 'planned')} {planned.tentative ? L('(si reprise du programme)', '(if the program resumes)') : ''}</p>
           <ul className="mt-3 space-y-1.5 text-[14px] text-text-2">
-            {state.templates[planned.type].exercises.map((e, i) => {
-              const p = prescribe(e, date, state.reentry, undefined, state.workouts)
-              return <li key={i} className="flex justify-between gap-3"><span>{e.name}</span><span className="shrink-0 tnum text-muted">{p.sets} × {p.minReps}–{p.maxReps}</span></li>
-            })}
+            {prescribeSession(state.templates[planned.type].exercises, date, state.reentry, undefined, state.workouts).map((p, i) => (
+              <li key={i} className="flex justify-between gap-3"><span>{state.templates[planned.type].exercises[i].name}</span><span className="shrink-0 tnum text-muted">{p.sets} × {p.minReps}–{p.maxReps}</span></li>
+            ))}
           </ul>
           {date === today && !state.activeWorkout && (
             <Button variant="primary" size="lg" full className="mt-5" icon={<Play size={18} aria-hidden />} onClick={() => { onClose(); onStart(planned.type) }}>{L('Commencer maintenant', 'Start now')}</Button>

@@ -3,7 +3,7 @@ import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound } from './gyms'
 import { L } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, contextAt, incrementFor, nextTargetText, SET_DROP_REASON, takesLest } from './program'
+import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextTargetText, PLAN_DAYS, scaledSession, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
   Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -283,16 +283,25 @@ export function sessionEffort(w: Workout): { pushed: number; logged: number; pla
 // ───────────── Load decisions ─────────────
 
 /**
- * Double progression test: every prescribed set, at the target load or heavier, reached the
- * top of the range without pain (`repsOf` says which reps count). Gives the lightest load used
- * on those sets, which the progression starts from, or null.
+ * Sets the double progression is judged on: the session's sets, or the plan's sets at five days
+ * when the session has more (fewer training days). The sets added to keep the weekly volume
+ * come after them, with fewer reps: asking them all for the top of the range would hold the load back.
+ */
+function setsToMaster(ex: WorkoutExercise): number {
+  return ex.prescription?.planSets ?? ex.prescription?.sets ?? ex.target.sets
+}
+
+/**
+ * Double progression test: every set the plan asks for (setsToMaster), at the target load or
+ * heavier, reached the top of the range without pain (`repsOf` says which reps count). Gives the
+ * lightest load used on those sets, which the progression starts from, or null.
  */
 function topBase(ex: WorkoutExercise, repsOf: (s: WorkoutSet) => number): number | null {
   if (ex.skipped) return null
   const W = targetLoad(ex)
   if (W === null) return null
   if (ex.prescription && ex.prescription.loadFactor < 1) return null
-  const needed = ex.prescription?.sets ?? ex.target.sets
+  const needed = setsToMaster(ex)
   const sets = doneSets(ex)
   if (sets.length < needed) return null
   let base = Infinity
@@ -331,7 +340,7 @@ export function heldByEffort(ex: WorkoutExercise): boolean {
 export function toppedOut(ex: WorkoutExercise): boolean {
   if (ex.unit !== 'PDC' || takesLest(ex) || ex.skipped) return false
   if (ex.prescription && ex.prescription.loadFactor < 1) return false
-  const needed = ex.prescription?.sets ?? ex.target.sets
+  const needed = setsToMaster(ex)
   const sets = doneSets(ex)
   return sets.length >= needed && sets.slice(0, needed).every((s) => repsAtPlannedEffort(ex, s) >= ex.target.maxReps && !s.flags.includes('pain'))
 }
@@ -353,6 +362,8 @@ export interface LoadDecision {
  * Effort only holds a load back: reps count at the planned effort for rules 1 and 2
  * (a heavier load held by going further is brought down to what that effort allows),
  * and never make a load lighter.
+ * With fewer than five training days, the three rules read the plan's sets (setsToMaster),
+ * not the sets added to keep the weekly volume.
  * `known` lists the loads already used on the equipment (see stepsFor).
  */
 export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDecision | null {
@@ -360,14 +371,17 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
   if (ex.prescription && ex.prescription.loadFactor < 1) return null
   const W = targetLoad(ex)
   if (W === null) return null
-  const sets = doneSets(ex).filter((s) => loadOf(ex, s) !== null)
-  if (!sets.length) return null
+  const done = doneSets(ex).filter((s) => loadOf(ex, s) !== null)
+  if (!done.length) return null
   const load = (s: WorkoutSet) => loadOf(ex, s) as number
-  const needed = ex.prescription?.sets ?? ex.target.sets
+  const needed = setsToMaster(ex)
+  // With sets added to keep the weekly volume, the load is judged on the plan's sets only: the
+  // added ones come after, with fewer reps or a load the app corrected on the way.
+  const sets = ex.prescription?.planSets ? done.slice(0, needed) : done
   const { minReps: lo, maxReps: hi } = ex.target
   const steps = stepsFor(ex, known)
-  // Pain on any set of the exercise: its load does not go up this time.
-  const hurt = sets.some((s) => s.flags.includes('pain'))
+  // Pain on any set of the exercise, added ones included: its load does not go up this time.
+  const hurt = done.some((s) => s.flags.includes('pain'))
 
   const top = progressionFor(ex, known)
   // The range is mastered at the target, but it hurt: the load stays where it is.
@@ -776,13 +790,21 @@ export function weekVolume(workouts: Workout[], monday: ISODate): MuscleVolume {
   return v
 }
 
-export function plannedVolume(templates: Record<WorkoutType, Template>): MuscleVolume {
+/**
+ * Hard sets per muscle the program plans for a week of `days` sessions: the five sessions of the
+ * rotation come round every 5/days weeks, each with its sets scaled when the week keeps its volume.
+ * An average over a turn of the rotation: a given week holds the sessions that fall in it.
+ */
+export function plannedVolume(templates: Record<WorkoutType, Template>, days: number = PLAN_DAYS, keep = true): MuscleVolume {
   const v = emptyVolume()
+  const factor = daysFactorFor(days, keep)
   for (const t of Object.values(templates)) {
-    for (const ex of t.exercises) {
+    const scaled = scaledSession(sessionSlots(t.exercises), factor)
+    t.exercises.forEach((ex, i) => {
       const groups = infoFor(ex.exerciseId, ex).groups
-      for (const [g, f] of Object.entries(groups)) v[g as MuscleGroup] += ex.target.sets * (f ?? 0)
-    }
+      const sets = (scaled[i] * days) / PLAN_DAYS
+      for (const [g, f] of Object.entries(groups)) v[g as MuscleGroup] += sets * (f ?? 0)
+    })
   }
   return v
 }

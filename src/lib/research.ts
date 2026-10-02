@@ -1,5 +1,6 @@
 // Evidence base of the program. Every entry below was checked in the research
-// report (26 Sept 2026). Studies the report could not verify are not cited.
+// report (26 Sept 2026), except those marked `added`: publications checked since,
+// for a rule the report does not cover. Studies that could not be verified are not cited.
 // Texts are getters (L(fr, en)): they follow the language when they are read.
 import { L } from './i18n'
 
@@ -20,16 +21,18 @@ export interface Source {
   kind: string
   url: string
   id: string
+  /** Checked after the research report, for a rule it does not cover. */
+  added?: boolean
 }
 
 const doi = (d: string) => `https://doi.org/${d}`
 
 export const SOURCES: Record<string, Source> = {
   pelland2025: {
-    authors: 'Pelland, Remmert, Robinson, Hinson, Zourdos et al.',
+    authors: 'Pelland, Remmert, Robinson, Hinson, Zourdos',
     year: '2025',
     title: 'The Resistance Training Dose Response: Meta-Regressions Exploring the Effects of Weekly Volume and Frequency on Muscle Hypertrophy and Strength Gains',
-    journal: 'Sports Medicine 56:481–505',
+    get journal() { return L('Sports Medicine 56(2):481–505 (en ligne déc. 2025)', 'Sports Medicine 56(2):481–505 (online Dec 2025)') },
     get kind() { return L('Méta-régressions · 67 études', 'Meta-regressions · 67 studies') },
     url: doi('10.1007/s40279-025-02344-w'),
     id: 'DOI 10.1007/s40279-025-02344-w · PMID 41343037',
@@ -304,6 +307,37 @@ export const SOURCES: Record<string, Source> = {
     url: doi('10.3390/nu15092116'),
     id: 'DOI 10.3390/nu15092116 · PMID 37432300',
   },
+  // Added on 2 Oct 2026 with the rule for weeks of fewer than five sessions.
+  iversen2021: {
+    authors: 'Iversen, Norum, Schoenfeld, Fimland',
+    year: '2021',
+    title: 'No Time to Lift? Designing Time-Efficient Training Programs for Strength and Hypertrophy: A Narrative Review',
+    journal: 'Sports Medicine 51(10):2079–2095',
+    get kind() { return L('Revue narrative', 'Narrative review') },
+    url: doi('10.1007/s40279-021-01490-1'),
+    id: 'DOI 10.1007/s40279-021-01490-1',
+    added: true,
+  },
+  zhang2025: {
+    authors: 'Zhang, Weakley, Li, Li, García-Ramos',
+    year: '2025',
+    title: 'Superset Versus Traditional Resistance Training Prescriptions: A Systematic Review and Meta-analysis Exploring Acute and Chronic Effects on Mechanical, Metabolic, and Perceptual Variables',
+    journal: 'Sports Medicine 55(4):953–975',
+    get kind() { return L('Méta-analyse · 19 études', 'Meta-analysis · 19 studies') },
+    url: doi('10.1007/s40279-025-02176-8'),
+    id: 'DOI 10.1007/s40279-025-02176-8 · PMID 39903375',
+    added: true,
+  },
+  remmert2025: {
+    authors: 'Remmert, Pelland, Robinson, Hinson, Zourdos',
+    year: '2025',
+    title: 'Is There Too Much of a Good Thing? Meta-Regressions of the Effect of Per-Session Volume on Hypertrophy and Strength',
+    journal: 'SportRxiv',
+    get kind() { return L('Méta-régressions · prépublication, non relue par les pairs', 'Meta-regressions · preprint, not peer-reviewed') },
+    url: doi('10.51224/SRXIV.537'),
+    id: 'DOI 10.51224/SRXIV.537',
+    added: true,
+  },
 }
 
 export interface Principle {
@@ -325,8 +359,8 @@ export const VERDICT_FREQUENCY = {
   },
   get keep() {
     return L(
-      "On garde 5 séances parce qu'elles permettent 2 passages par muscle et des séances de 60–65 min au lieu de séances interminables. Une semaine à 4 séances ? Passe en haut/bas/haut/bas : c'est équivalent.",
-      'We keep 5 sessions because they hit each muscle twice with 60–65 min sessions instead of endless ones. A 4-session week? Switch to upper/lower/upper/lower: it’s equivalent.',
+      "On garde 5 séances parce qu'elles permettent 2 passages par muscle et des séances de 60–65 min au lieu de séances interminables. Avec 4 ou 3 jours, la rotation reste la même et chaque séance peut prendre plus de séries pour garder le volume de la semaine (réglage « Séances allongées ») : c'est équivalent.",
+      'We keep 5 sessions because they hit each muscle twice with 60–65 min sessions instead of endless ones. With 4 or 3 days, the rotation stays the same and each session can take more sets to keep the weekly volume (the “Longer sessions” setting): it’s equivalent.',
     )
   },
   refs: ['pelland2025', 'schoenfeld2019', 'schoenfeld2016', 'ramosCampo2024'],
@@ -356,6 +390,19 @@ export const PRINCIPLES: Principle[] = [
     get detail() { return L('Split et full body sont équivalents à volume égal. Aucun essai ne teste cet hybride : son intérêt est logistique.', 'Split and full body are equivalent with equal volume. No trial tests this hybrid: its benefit is logistical.') },
     level: 'fort',
     refs: ['ramosCampo2024'],
+  },
+  {
+    id: 'days',
+    get title() { return L('Moins de 5 jours', 'Fewer than 5 days') },
+    get rule() { return L('Même volume par semaine, plus de séries par séance', 'Same weekly volume, more sets per session') },
+    get detail() {
+      return L(
+        "Les gains suivent le nombre de séries par muscle et par semaine, pas le nombre de séances : la rotation ne change pas, les séances prennent plus de séries (×1,25 à 4 jours, ×1,67 à 3 jours). Avec une limite : passé environ 11 séries pour un muscle dans une séance, le gain n'est plus mesurable, d'après une prépublication pas encore relue par les pairs. Les séries ajoutées s'arrêtent là : à 3 jours la semaine tient environ 97 % du volume, à 2 jours environ 64 %, et 4 séries par muscle et par semaine sont le minimum conseillé. La charge monte sur les séries de la fiche, pas sur celles ajoutées. Pour raccourcir une séance : les supersets d'exercices opposés prennent environ un tiers de temps en moins pour une croissance comparable (d'après trois études de long terme seulement), avec un effort ressenti plus élevé et une récupération qui peut être plus longue.",
+        'Gains follow the number of sets per muscle per week, not the number of sessions: the rotation does not change, sessions take more sets (×1.25 at 4 days, ×1.67 at 3 days). With a limit: past about 11 sets for a muscle in one session, the gain can no longer be measured, according to a preprint not yet peer-reviewed. Added sets stop there: at 3 days the week holds about 97% of the volume, at 2 days about 64%, and 4 sets per muscle per week are the recommended minimum. Loads go up on the sheet’s sets, not on the added ones. To shorten a session: supersets of opposing exercises take about a third less time for similar growth (from only three long-term studies), with a higher perceived effort and a recovery that may take longer.',
+      )
+    },
+    level: 'modere',
+    refs: ['pelland2025', 'schoenfeld2019', 'ramosCampo2024', 'remmert2025', 'iversen2021', 'zhang2025'],
   },
   {
     id: 'effort',

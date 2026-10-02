@@ -2,7 +2,7 @@
 import { addDays, diffDays, mondayOf, shiftMonths, todayISO, weekday, isoFromTimestamp, fmtDate } from './date'
 import { fmtLoad, roundTo } from './format'
 import { loadAt } from './gyms'
-import { LIBRARY } from './library'
+import { infoFor, LIBRARY } from './library'
 import { L, lang } from './i18n'
 import type {
   AppState, ISODate, Prescription, ReentryInfo, Template, TemplateExercise, TrainingSetup, Workout, WorkoutType,
@@ -49,6 +49,123 @@ export const TYPE_META: Record<WorkoutType, { label: string; fr: string; code: s
   PUSH: { label: 'Push', get fr() { return L('Poussée', 'Push') }, code: 'PS', minutes: 60 },
   PULL: { label: 'Pull', get fr() { return L('Tirage', 'Pull') }, code: 'PL', minutes: 65 },
   LEGS: { label: 'Legs', get fr() { return L('Jambes', 'Legs') }, code: 'LG', minutes: 60 },
+}
+
+// ───────────────────────── Fewer than five days ─────────────────────────
+// The plan is written for five sessions a week. Gains follow the weekly number of hard sets
+// per muscle, and at equal volume the number of sessions makes no detectable difference
+// (Pelland 2025, Schoenfeld 2019, Ramos-Campo 2024): with fewer days the rotation stays the
+// same and each session takes the sets of the missing ones. Past about 11 sets for a muscle
+// in one session no further gain is detected (Remmert 2025, a preprint): added sets stop
+// there, and the sets are never scaled for fewer than three days. Below that, and where
+// that ceiling bites, the week holds less than the plan.
+
+/** Sessions a week the plan is written for. */
+export const PLAN_DAYS = 5
+/** Fewest days the sets are scaled for. */
+const MIN_SCALED_DAYS = 3
+/** Sets for one muscle in one session (direct 1, indirect 0.5) past which adding sets is not worth it. */
+export const SESSION_MUSCLE_CAP = 11
+/** Warm-up and moving between stations, in the length of a session (minutes). */
+const SESSION_OVERHEAD_MIN = 12
+
+// Set by configurePlan() from the weekly schedule and the user's choice (ES module live bindings).
+/** Training days per week. */
+export let WEEK_DAYS = PLAN_DAYS
+/** Whether a week of fewer than five sessions keeps the plan's weekly volume (longer sessions). */
+export let KEEP_WEEKLY_VOLUME = true
+
+/** Sets multiplier for a number of training days: 1 from five days, 5/4 at four, 5/3 at three or fewer. */
+export function daysFactorFor(days: number, keep = true): number {
+  if (!keep || days >= PLAN_DAYS) return 1
+  return PLAN_DAYS / Math.max(MIN_SCALED_DAYS, days)
+}
+
+/** Sets multiplier of the current plan. */
+export function daysFactor(): number {
+  return daysFactorFor(WEEK_DAYS, KEEP_WEEKLY_VOLUME)
+}
+
+/** An exercise of a session with its sets: what the scaling reads (the muscles come from the library). */
+export interface SessionSlot {
+  exerciseId: string
+  sets: number
+  name?: string
+  muscle?: string
+  unit?: TemplateExercise['unit']
+}
+
+/**
+ * Sets of a session scaled by a factor, exercise by exercise.
+ * The session total is the nearest whole number, shared out by largest remainder: 3 sets become
+ * 4 at ×1.25 before 2 sets become 3. Between equal remainders, the set goes to the exercise whose
+ * main muscle has the fewest sets in the session so far (the earlier exercise on a tie), so that
+ * no muscle is left out. Then no muscle goes past SESSION_MUSCLE_CAP sets in the session: added
+ * sets are taken back, on direct work first, where the most were added (the later exercise on a
+ * tie). An exercise never gets fewer sets than given.
+ */
+export function scaledSession(slots: SessionSlot[], factor: number = daysFactor()): number[] {
+  const given = slots.map((x) => x.sets)
+  if (factor === 1) return given
+  const groups = slots.map((x) => infoFor(x.exerciseId, x).groups as Record<string, number | undefined>)
+  const exact = given.map((n) => n * factor)
+  const out = exact.map((x) => Math.floor(x + 1e-9))
+  const total = (m: string) => out.reduce((a, n, i) => a + n * (groups[i][m] ?? 0), 0)
+  // Main muscle of an exercise: the one it works most (the first listed on a tie).
+  const main = groups.map((g) => Object.keys(g).reduce<string | null>((best, m) => (best === null || (g[m] ?? 0) > (g[best] ?? 0) ? m : best), null))
+  const crowd = (i: number) => (main[i] === null ? out[i] : total(main[i] as string))
+
+  const rest = exact.map((x, i) => x - out[i])
+  const served = new Set<number>()
+  for (let left = Math.round(exact.reduce((a, b) => a + b, 0)) - out.reduce((a, b) => a + b, 0); left > 0; left--) {
+    const open = rest.map((r, i) => ({ i, r })).filter((x) => !served.has(x.i) && x.r > 1e-9)
+    if (!open.length) break
+    const top = Math.max(...open.map((x) => x.r))
+    // Remainders are compared with a tolerance: 2 × 5/3 and 5 × 5/3 leave the same third.
+    const pick = open.filter((x) => x.r >= top - 1e-9).reduce((best, x) => (crowd(x.i) < crowd(best.i) - 1e-9 ? x : best))
+    out[pick.i] += 1
+    served.add(pick.i)
+  }
+
+  const muscles = [...new Set(groups.flatMap((g) => Object.keys(g)))]
+  for (let guard = 0; guard < 500; guard++) {
+    let pick = -1
+    for (const m of muscles) {
+      if (total(m) <= SESSION_MUSCLE_CAP + 1e-9) continue
+      for (let i = 0; i < out.length; i++) {
+        const share = groups[i][m] ?? 0
+        if (share <= 0 || out[i] <= given[i]) continue
+        const best = pick < 0 ? null : { share: groups[pick][m] ?? 0, added: out[pick] - given[pick] }
+        const added = out[i] - given[i]
+        if (!best || share > best.share || (share === best.share && added >= best.added)) pick = i
+      }
+      if (pick >= 0) break
+    }
+    if (pick < 0) break
+    out[pick] -= 1
+  }
+  return out
+}
+
+/** Whether a share of the plan's weekly volume counts as the plan itself: within 3 %. */
+export function keepsPlan(share: number): boolean {
+  return share >= 0.97 - 1e-9 && share <= 1.03 + 1e-9
+}
+
+/** A share of the plan's weekly volume in words: "the planned volume" within 3 %, else "about N% of the planned volume". */
+export function sharePhrase(share: number): string {
+  return keepsPlan(share) ? L('le volume prévu', 'the planned volume') : L(`environ ${Math.round(share * 100)} % du volume prévu`, `about ${Math.round(share * 100)}% of the planned volume`)
+}
+
+/**
+ * Length of a session from its number of sets (rounded to 5 min): the report's session of that
+ * type, with its own number of sets, is the yardstick; warm-up and moving around stay fixed.
+ */
+export function sessionMinutes(type: WorkoutType, sets: number): number {
+  const base = TYPE_META[type].minutes
+  const planned = PLAN[type].reduce((a, item) => a + item.sets, 0)
+  if (planned <= 0 || sets === planned) return base
+  return Math.max(15, Math.round((SESSION_OVERHEAD_MIN + ((base - SESSION_OVERHEAD_MIN) * sets) / planned) / 5) * 5)
 }
 
 /** Mon UPPER · Tue LOWER · Wed rest · Thu PUSH · Fri PULL · Sat LEGS · Sun rest */
@@ -357,8 +474,10 @@ export function configurePlan(
   manualDeload: { start: ISODate; end: ISODate } | null = null,
   cutWeeks: number | null | undefined = null,
   priorities: string | null | undefined = null,
-  origin: { start?: ISODate | null; foundation?: ISODate | null; maintenance?: boolean; today?: ISODate } = { start: REPORT_START, foundation: REPORT_FOUNDATION },
+  origin: { start?: ISODate | null; foundation?: ISODate | null; maintenance?: boolean; today?: ISODate; days?: number; keepVolume?: boolean } = { start: REPORT_START, foundation: REPORT_FOUNDATION },
 ): void {
+  WEEK_DAYS = typeof origin.days === 'number' && origin.days >= 1 ? Math.min(7, Math.round(origin.days)) : PLAN_DAYS
+  KEEP_WEEKLY_VOLUME = origin.keepVolume !== false
   const start = origin.start && /^\d{4}-\d{2}-\d{2}$/.test(origin.start) ? origin.start : REPORT_START
   const foundation = origin.foundation && origin.foundation < start ? origin.foundation : null
   const maintenance = !!origin.maintenance
@@ -536,61 +655,93 @@ export function autoAdjustActive(ex: Pick<TemplateExercise, 'autoAdjust'>, date:
 }
 
 /**
- * Sets, reps, effort and load for one exercise on a given date, all program rules applied.
+ * Sets, reps, effort and load for every exercise of a session on a given date, all program rules applied.
  * With a gym, the load is the one of that gym (machines differ between gyms).
  * With the session history, the priority set of a building block waits for rising performance
  * (judged as of `today`: a block that has not reached that point keeps the planned set).
+ * With fewer than five training days, the sets of the session are scaled to keep the weekly
+ * volume (scaledSession); `planSets` keeps what the plan asks at five days, which is what the
+ * load progression is judged on.
  */
-export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null, gymId?: string, workouts?: Workout[], today: ISODate = todayISO()): Prescription {
+export function prescribeSession(exercises: TemplateExercise[], date: ISODate, reentry: ReentryInfo | null, gymId?: string, workouts?: Workout[], today: ISODate = todayISO()): Prescription[] {
   const ctx = contextAt(date)
   const p = ctx.period
-  const notes: string[] = []
-  let sets = ex.target.sets
-  if (p && (ex.volumeTag === 'priority' || ex.focus) && p.priorityFromWeek && ctx.week >= p.priorityFromWeek) {
-    if (!p.priorityIfRising || !workouts || risingIn(p, workouts, ex.exerciseId, today)) {
-      sets += 1
-      notes.push(ex.focus ? L('+1 série (zone prioritaire)', '+1 set (priority area)') : L('+1 série (muscle prioritaire)', '+1 set (priority muscle)'))
-    } else {
-      notes.push(L('Série prioritaire en attente : pas de progression en début de bloc', 'Priority set on hold: no progress early in the block'))
+  const factor = daysFactor()
+  // The sheet's sets, plus the sets the period adds (priority muscles, calves).
+  const extra = exercises.map((ex) => {
+    let priority: 'set' | 'hold' | null = null
+    if (p && (ex.volumeTag === 'priority' || ex.focus) && p.priorityFromWeek && ctx.week >= p.priorityFromWeek) {
+      priority = !p.priorityIfRising || !workouts || risingIn(p, workouts, ex.exerciseId, today) ? 'set' : 'hold'
     }
-  }
-  if (p?.calves && ex.volumeTag === 'calves') {
-    sets += 1
-    notes.push(L('+1 série (mollets à 8/semaine)', '+1 set (calves at 8/week)'))
-  }
-  if (autoAdjustActive(ex, date) && ex.autoAdjust) {
-    sets = Math.max(1, sets + ex.autoAdjust.sets)
-    const sign = ex.autoAdjust.sets > 0 ? '+' : '−'
-    const n = Math.abs(ex.autoAdjust.sets)
-    const reason = SET_DROP_REASON.includes(ex.autoAdjust.reason) ? L(...SET_DROP_REASON) : ex.autoAdjust.reason
-    notes.push(L(`${sign}${n} série (${reason})`, `${sign}${n} ${n === 1 ? 'set' : 'sets'} (${reason})`))
-  }
-  if (p?.volumeFactor) sets = Math.max(1, Math.round(sets * p.volumeFactor))
-  let loadFactor = 1
-  let rir = effortFor(ex, ctx)
-  if (ctx.deload) {
-    sets = Math.max(1, Math.ceil(ex.target.sets / 2))
-    loadFactor = 0.9
-    notes.push(L('Décharge : moitié des séries, −10 %', 'Deload: half the sets, −10%'))
-  }
-  if (reentry && reentry.sessionsLeft > 0) {
-    sets = Math.max(1, Math.round(sets * reentry.setsFactor))
-    loadFactor = Math.min(loadFactor, reentry.loadFactor)
-    rir = reentry.rir
-    notes.push(reentry.label)
-  }
-  const inc = incrementFor(ex)
-  const base = gymId === undefined ? (ex.target.weight ?? null) : loadAt(ex, gymId)
-  const weight =
-    base === null
-      ? null
-      : loadFactor < 1 && inc > 0
-        ? Math.max(inc, roundTo(base * loadFactor, inc))
-        : base
-  return {
-    sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir,
-    restSeconds: ex.target.restSeconds, weight, loadFactor, notes,
-  }
+    return { priority, calves: !!p?.calves && ex.volumeTag === 'calves' }
+  })
+  const sheet = exercises.map((ex) => ex.target.sets)
+  const planned = exercises.map((ex, i) => ex.target.sets + (extra[i].priority === 'set' ? 1 : 0) + (extra[i].calves ? 1 : 0))
+  const slot = (sets: number[]): SessionSlot[] => exercises.map((ex, i) => ({ exerciseId: ex.exerciseId, name: ex.name, muscle: ex.muscle, unit: ex.unit, sets: sets[i] }))
+  // Fewer than five days: the week keeps its volume, the session takes more sets.
+  const scaledSheet = scaledSession(slot(sheet), factor)
+  const scaledPlanned = scaledSession(slot(planned), factor)
+
+  return exercises.map((ex, i) => {
+    const notes: string[] = []
+    const priority = extra[i].priority === 'set' ? (ex.focus ? L('zone prioritaire', 'priority area') : L('muscle prioritaire', 'priority muscle')) : null
+    const calves = extra[i].calves ? L('mollets à 8/semaine', 'calves at 8/week') : null
+    if (extra[i].priority === 'hold') notes.push(L('Série prioritaire en attente : pas de progression en début de bloc', 'Priority set on hold: no progress early in the block'))
+    if (factor === 1) {
+      for (const why of [priority, calves]) if (why) notes.push(L(`+1 série (${why})`, `+1 set (${why})`))
+    } else if (priority || calves) {
+      // Scaled with the rest of the session, within the ceiling per muscle: what is really added here.
+      const added = scaledPlanned[i] - scaledSheet[i]
+      const why = [priority, calves].filter(Boolean).join(', ')
+      if (added > 0) notes.push(L(`+${added} série${added > 1 ? 's' : ''} (${why})`, `+${added} ${added === 1 ? 'set' : 'sets'} (${why})`))
+    }
+    // The same rules on the session's sets and on the plan's sets at five days.
+    const through = (sets: number, deloadFrom: number): number => {
+      // One set less after two drops in a row is one set less than what was really done.
+      if (autoAdjustActive(ex, date) && ex.autoAdjust) sets = Math.max(1, sets + ex.autoAdjust.sets)
+      if (p?.volumeFactor) sets = Math.max(1, Math.round(sets * p.volumeFactor))
+      if (ctx.deload) sets = Math.max(1, Math.ceil(deloadFrom / 2))
+      if (reentry && reentry.sessionsLeft > 0) sets = Math.max(1, Math.round(sets * reentry.setsFactor))
+      return sets
+    }
+    const sets = through(scaledPlanned[i], scaledSheet[i])
+    const planSets = Math.min(sets, through(planned[i], sheet[i]))
+    if (autoAdjustActive(ex, date) && ex.autoAdjust) {
+      const sign = ex.autoAdjust.sets > 0 ? '+' : '−'
+      const n = Math.abs(ex.autoAdjust.sets)
+      const reason = SET_DROP_REASON.includes(ex.autoAdjust.reason) ? L(...SET_DROP_REASON) : ex.autoAdjust.reason
+      notes.push(L(`${sign}${n} série (${reason})`, `${sign}${n} ${n === 1 ? 'set' : 'sets'} (${reason})`))
+    }
+    let loadFactor = 1
+    let rir = effortFor(ex, ctx)
+    if (ctx.deload) {
+      loadFactor = 0.9
+      notes.push(L('Décharge : moitié des séries, −10 %', 'Deload: half the sets, −10%'))
+    }
+    if (reentry && reentry.sessionsLeft > 0) {
+      loadFactor = Math.min(loadFactor, reentry.loadFactor)
+      rir = reentry.rir
+      notes.push(reentry.label)
+    }
+    const inc = incrementFor(ex)
+    const base = gymId === undefined ? (ex.target.weight ?? null) : loadAt(ex, gymId)
+    const weight =
+      base === null
+        ? null
+        : loadFactor < 1 && inc > 0
+          ? Math.max(inc, roundTo(base * loadFactor, inc))
+          : base
+    return {
+      sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir,
+      restSeconds: ex.target.restSeconds, weight, loadFactor, notes,
+      ...(planSets < sets ? { planSets } : {}),
+    }
+  })
+}
+
+/** One exercise on its own (a session of one): prescribeSession() is the one that knows the whole session. */
+export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null, gymId?: string, workouts?: Workout[], today: ISODate = todayISO()): Prescription {
+  return prescribeSession([ex], date, reentry, gymId, workouts, today)[0]
 }
 
 // ───────────────────────── Research templates ─────────────────────────
@@ -777,6 +928,58 @@ export function buildResearchTemplates(
   return out
 }
 
+// ───────────────────────── A week of sessions ─────────────────────────
+
+/** What a week of `days` sessions looks like: sets and length of the sessions, share of the plan's weekly volume. */
+export interface WeekShape {
+  days: number
+  /** Sets multiplier applied to each session. */
+  factor: number
+  /** Weekly sets against the plan at five days (1 = the plan). */
+  share: number
+  /** Fewest and most sets among the five sessions. */
+  sets: [number, number]
+  /** Shortest and longest session, in minutes. */
+  minutes: [number, number]
+}
+
+/** The exercises of a session sheet as scaledSession() reads them. */
+export function sessionSlots(exercises: TemplateExercise[]): SessionSlot[] {
+  return exercises.map((e) => ({ exerciseId: e.exerciseId, name: e.name, muscle: e.muscle, unit: e.unit, sets: e.target.sets }))
+}
+
+/** The sessions as weekShape() reads them: from the user's sheets… */
+export function templateSets(templates: Record<WorkoutType, Template>): Record<WorkoutType, SessionSlot[]> {
+  return Object.fromEntries(ROTATION.map((t) => [t, sessionSlots(templates[t]?.exercises ?? [])])) as Record<WorkoutType, SessionSlot[]>
+}
+
+/** …or from the report's plan, before the user has any. */
+export function planSets(): Record<WorkoutType, SessionSlot[]> {
+  return Object.fromEntries(ROTATION.map((t) => [t, PLAN[t].map((item) => ({ exerciseId: item.id, sets: item.sets }))])) as Record<WorkoutType, SessionSlot[]>
+}
+
+export function weekShape(sessions: Record<WorkoutType, SessionSlot[]> = planSets(), days: number = WEEK_DAYS, keep: boolean = KEEP_WEEKLY_VOLUME): WeekShape {
+  const factor = daysFactorFor(days, keep)
+  let base = 0
+  let scaled = 0
+  const sets: number[] = []
+  const minutes: number[] = []
+  for (const type of ROTATION) {
+    const b = sessions[type].reduce((a, e) => a + e.sets, 0)
+    const n = scaledSession(sessions[type], factor).reduce((a, x) => a + x, 0)
+    base += b
+    scaled += n
+    sets.push(n)
+    minutes.push(sessionMinutes(type, n))
+  }
+  return {
+    days, factor,
+    share: base ? (scaled * days) / (base * PLAN_DAYS) : 0,
+    sets: [Math.min(...sets), Math.max(...sets)],
+    minutes: [Math.min(...minutes), Math.max(...minutes)],
+  }
+}
+
 // ───────────────────────── Calendar engine ─────────────────────────
 
 /** Weekdays with a session (0 = Sunday), from the weekly schedule. */
@@ -791,6 +994,12 @@ export function scheduleFromDays(days: number[]): Record<number, WorkoutType | n
   const out: Record<number, WorkoutType | null> = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
   order.forEach((d, i) => (out[d] = ROTATION[i % ROTATION.length]))
   return out
+}
+
+/** Longest stretch between two training days of the weekly schedule, in days (7 with a single day a week). */
+export function scheduledGap(state: Pick<AppState, 'schedule'>): number {
+  const days = trainingDays(state).sort((a, b) => a - b)
+  return Math.max(...days.map((d, i) => ((days[(i + 1) % days.length] - d + 7) % 7) || 7))
 }
 
 export function nextInRotation(t: WorkoutType): WorkoutType {

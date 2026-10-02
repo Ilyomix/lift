@@ -88,6 +88,8 @@ export interface Comparison {
 
 export interface Prescription {
   sets: number
+  /** Sets the plan asks at five days, when the session has more (fewer training days): the load progression is judged on these. */
+  planSets?: number
   minReps: number
   maxReps: number
   rir: string
@@ -233,6 +235,8 @@ export interface Prefs {
   accent: 'blue' | 'orange'
   /** Loads follow the performance automatically after each session (undo available). */
   autoLoad: boolean
+  /** With fewer than five training days, sessions take more sets to keep the plan's weekly volume (on unless set to false). */
+  keepWeeklyVolume?: boolean
   /** End-of-rest notifications sent by the push server, delivered with the phone locked. */
   push: boolean
   sound: boolean

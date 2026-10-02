@@ -5,7 +5,7 @@ import { addDays, capitalize, dayLetter, dayName, fmtDate, shiftMonths, todayISO
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L, lang, setLang, type Lang } from '../lib/i18n'
 import { onboardingPreview, type OnboardingAnswers } from '../lib/onboarding'
-import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, programStartFor, ROTATION, TYPE_META } from '../lib/program'
+import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
 import { SOURCES } from '../lib/research'
 import { useStore } from '../lib/store'
 import type { Look, TrainingSetup } from '../lib/types'
@@ -210,6 +210,9 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
   }
   const n = days.length
   const perMuscle = (n * 2) / 5
+  // Fewer than five days: sessions take more sets to keep the weekly volume.
+  const week = weekShape(planSets(), n, true)
+  const pct = Math.round(week.share * 100)
   return (
     <div>
       <div className="grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
@@ -236,10 +239,17 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
       <p className="mt-2 text-[13px] leading-[1.5] text-text-2">
         {n < 2
           ? L('Choisis au moins 2 jours.', 'Pick at least 2 days.')
-          : L(
-              'Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). Avec 5 jours, chaque muscle travaille 2 fois par semaine ; avec moins, la rotation s’étale. Une séance manquée décale la rotation, elle n’est jamais sautée.',
-              'The program rotates 5 sessions (Upper, Lower, Push, Pull, Legs). With 5 days, each muscle works twice a week; with fewer, the rotation spreads out. A missed session shifts the rotation, it is never skipped.',
-            )}
+          : <>
+              {L('Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). ', 'The program rotates 5 sessions (Upper, Lower, Push, Pull, Legs). ')}
+              {n === PLAN_DAYS
+                ? L('Avec 5 jours, chaque muscle travaille 2 fois par semaine. ', 'With 5 days, each muscle works twice a week. ')
+                : n > PLAN_DAYS
+                  ? L(`Avec ${n} jours, la rotation tourne plus vite : environ ${pct} % du volume prévu, surveille ta récupération. `, `With ${n} days, the rotation turns faster: about ${pct}% of the planned volume, keep an eye on recovery. `)
+                  : n >= 3
+                    ? L(`Avec ${n} jours, chaque séance prend plus de séries (environ ${week.minutes[0]} à ${week.minutes[1]} min) et la semaine garde ${sharePhrase(week.share)}. Les réglages permettent de revenir à des séances d’une heure, avec moins de volume. `, `With ${n} days, each session takes more sets (about ${week.minutes[0]} to ${week.minutes[1]} min) and the week keeps ${sharePhrase(week.share)}. Settings let you go back to one-hour sessions, with less volume. `)
+                    : L(`Avec ${n} jours, chaque séance prend plus de séries (environ ${week.minutes[0]} à ${week.minutes[1]} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier. `, `With ${n} days, each session takes more sets (about ${week.minutes[0]} to ${week.minutes[1]} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it. `)}
+              {L('Une séance manquée décale la rotation, elle n’est jamais sautée.', 'A missed session shifts the rotation, it is never skipped.')}
+            </>}
       </p>
     </div>
   )

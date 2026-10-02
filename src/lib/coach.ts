@@ -2,10 +2,10 @@
 // The brief is written in the interface language (the coach answers in it); the JSON
 // protocol (keys, "golgoth-plan-update" type) is the same in both languages.
 import { fmtDate, todayISO } from './date'
-import { fmtLoad, fmtNum } from './format'
+import { fmtLoad, fmtNum, plural } from './format'
 import { gymName, gymOf, isGymBound } from './gyms'
 import { L } from './i18n'
-import { contextAt, GOAL_DATE, MAINTENANCE, nextTargetText, sessionPlan, TYPE_META } from './program'
+import { contextAt, daysFactor, GOAL_DATE, MAINTENANCE, nextTargetText, PLAN_DAYS, SESSION_MUSCLE_CAP, sessionPlan, sharePhrase, templateSets, TYPE_META, WEEK_DAYS, weekShape } from './program'
 import { exerciseHistory, setsSummary } from './training'
 import { weightStatus } from './stats'
 import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutType } from './types'
@@ -21,7 +21,9 @@ function exerciseLines(state: AppState, w: Workout): string[] {
   const lines: string[] = []
   for (const ex of w.exercises) {
     const t = ex.prescription ?? { sets: ex.target.sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir: ex.target.rir ?? '', weight: ex.target.weight }
-    const scheme = `${t.sets} × ${t.minReps}–${t.maxReps}${t.rir ? `, RIR ${t.rir}` : ''}`
+    // The session's sets can differ from the sheet's (deload, priority set, fewer than five days): the coach answers on the sheet.
+    const sheet = t.sets !== ex.target.sets ? L(` (fiche : ${ex.target.sets})`, ` (sheet: ${ex.target.sets})`) : ''
+    const scheme = `${t.sets}${sheet} × ${t.minReps}–${t.maxReps}${t.rir ? `, RIR ${t.rir}` : ''}`
     lines.push(L(`- ${ex.name} [${ex.exerciseId}] · cible ${scheme} à ${fmtLoad(t.weight, ex.unit)}`, `- ${ex.name} [${ex.exerciseId}] · target ${scheme} at ${fmtLoad(t.weight, ex.unit)}`))
     if (ex.skipped) {
       const reason = ex.skipReason ? ` (${ex.skipReason})` : ''
@@ -64,10 +66,22 @@ const schema = () => `{
   "nutritionTargets": { "calories": 2300 }
 }`
 
-const rules = () =>
+/** `share`: the part of the plan's weekly volume the week holds, with the user's sheets and training days. */
+const rules = (share: number) =>
   [
     L('Règles du programme (rapport de recherche) :', 'Program rules (research report):'),
     L('- 10–20 séries difficiles par muscle et par semaine (comptage fractionnaire), 2 passages par muscle.', '- 10–20 hard sets per muscle per week (fractional counting), each muscle trained twice a week.'),
+    ...(WEEK_DAYS < PLAN_DAYS
+      ? [daysFactor() > 1
+          ? L(
+              `- Je m’entraîne ${plural(WEEK_DAYS, 'jour', 'jours')} par semaine : la rotation des 5 séances continue et l’app ajoute des séries en séance (×${fmtNum(daysFactor(), 2)} sur l’ensemble, au plus ${SESSION_MUSCLE_CAP} séries par muscle et par séance) : la semaine tient ${sharePhrase(share)}. Dans ta réponse JSON, « sets » est le nombre de séries de la fiche, avant cet ajout.`,
+              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week: the 5-session rotation continues and the app adds sets in each session (×${fmtNum(daysFactor(), 2)} overall, ${SESSION_MUSCLE_CAP} sets per muscle per session at most): the week holds ${sharePhrase(share)}. In your JSON answer, "sets" is the sheet’s number of sets, before that addition.`,
+            )
+          : L(
+              `- Je m’entraîne ${plural(WEEK_DAYS, 'jour', 'jours')} par semaine avec les séances de base : la rotation des 5 séances s’étale, la semaine tient ${sharePhrase(share)}.`,
+              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week with the base sessions: the 5-session rotation spreads out, the week holds ${sharePhrase(share)}.`,
+            )]
+      : []),
     L('- RIR 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc RIR 3, S2 RIR 2, dernière semaine RIR 0–1.', '- RIR 1–2 on compounds, 0–1 on isolation; block week 1 RIR 3, week 2 RIR 2, last week RIR 0–1.'),
     L('- Double progression : quand toutes les séries atteignent le haut de la fourchette au RIR visé, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range at the target RIR, about +2.5% (smallest increment).'),
     L('- Performance en baisse 2 séances de suite sur un exercice : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.', '- Performance down 2 sessions in a row on an exercise: remove 1 set for that muscle; general drop: bring the deload forward.'),
@@ -100,7 +114,7 @@ export function sessionPrompt(state: AppState, w: Workout): string {
     '',
     ...exerciseLines(state, w),
     '',
-    rules(),
+    rules(weekShape(templateSets(state.templates)).share),
     '',
     L('Réponds en deux parties :', 'Answer in English, in two parts:'),
     L('1. Une analyse courte (5 lignes max).', '1. A short analysis (5 lines max).'),
@@ -163,7 +177,7 @@ export function globalPrompt(state: AppState): string {
     const done = w.exercises.filter((e) => !e.skipped).map((e) => `${e.name} ${setsSummary(e.sets, e.unit)}`)
     lines.push(L(`${fmtDate(w.date)} · ${w.type} : ${done.join(' ; ')}`, `${fmtDate(w.date)} · ${w.type}: ${done.join('; ')}`))
   }
-  lines.push('', rules(), '', L('Réponds avec une analyse courte puis un bloc JSON unique à ce format :', 'Answer in English with a short analysis, then a single JSON block in this format:'), schema())
+  lines.push('', rules(weekShape(templateSets(state.templates)).share), '', L('Réponds avec une analyse courte puis un bloc JSON unique à ce format :', 'Answer in English with a short analysis, then a single JSON block in this format:'), schema())
   return lines.join('\n')
 }
 

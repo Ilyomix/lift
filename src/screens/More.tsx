@@ -9,7 +9,7 @@ import { L } from '../lib/i18n'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { HOME_GYM } from '../lib/gyms'
-import { contextAt, GOAL_DATE, MAINTENANCE, trainingDays, TYPE_META } from '../lib/program'
+import { contextAt, GOAL_DATE, MAINTENANCE, PLAN_DAYS, sharePhrase, templateSets, trainingDays, TYPE_META, weekShape } from '../lib/program'
 import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
 import { SOURCES } from '../lib/research'
 import { navigate } from '../lib/router'
@@ -282,6 +282,13 @@ export function SettingsScreen() {
   const [setupOpen, setSetupOpen] = useState(false)
   const days = trainingDays(state)
   const perWeek = days.length
+  // With fewer than five days, sessions take more sets to keep the weekly volume (unless turned off).
+  const keepVolume = state.prefs.keepWeeklyVolume !== false
+  const week = weekShape(templateSets(state.templates), perWeek, keepVolume)
+  const span = (a: number, b: number) => (a === b ? String(a) : L(`${a} à ${b}`, `${a} to ${b}`))
+  const weekPct = Math.round(week.share * 100)
+  const weekSets = span(week.sets[0], week.sets[1])
+  const weekMinutes = span(week.minutes[0], week.minutes[1])
   return (
     <Screen>
       <Header backTo="plus" title={L('Réglages', 'Settings')} />
@@ -338,13 +345,26 @@ export function SettingsScreen() {
               })}
             </div>
             <p className="mt-2.5 text-[13px] leading-[1.45] text-text-2">
-              {plural(perWeek, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine.', 'per week.')} {perWeek === 5
+              {plural(perWeek, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine.', 'per week.')} {perWeek === PLAN_DAYS
                 ? L('Le rythme du programme : chaque muscle 2 fois par semaine.', 'The program’s pace: each muscle twice a week.')
-                : perWeek < 5
-                  ? L(`La rotation Upper → Legs continue sur ${perWeek} jours : chaque séance revient moins souvent, environ ${Math.round((perWeek / 5) * 100)} % du volume hebdomadaire prévu.`, `The Upper → Legs rotation continues over ${perWeek} days: each session comes around less often, about ${Math.round((perWeek / 5) * 100)}% of the planned weekly volume.`)
-                  : L(`Environ ${Math.round((perWeek / 5) * 100)} % du volume prévu : surveille la récupération (sommeil, performances).`, `About ${Math.round((perWeek / 5) * 100)}% of the planned volume: keep an eye on recovery (sleep, performance).`)}
+                : perWeek > PLAN_DAYS
+                  ? L(`Environ ${weekPct} % du volume prévu : surveille la récupération (sommeil, performances).`, `About ${weekPct}% of the planned volume: keep an eye on recovery (sleep, performance).`)
+                  : week.factor === 1
+                    ? L(`Séances du programme (${weekSets} séries, environ ${weekMinutes} min) : environ ${weekPct} % du volume hebdomadaire prévu.`, `The program’s sessions (${weekSets} sets, about ${weekMinutes} min): about ${weekPct}% of the planned weekly volume.`)
+                    : perWeek >= 3
+                      ? L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min) : la semaine garde ${sharePhrase(week.share)}, en moyenne sur la rotation.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min): the week keeps ${sharePhrase(week.share)}, on average over the rotation.`)
+                      : L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it.`)}
+              {week.factor > 1 && week.minutes[1] >= 85 && L(' Pour raccourcir : enchaîne deux exercices opposés (superset). Croissance comparable, effort ressenti plus élevé.', ' To save time: alternate two opposing exercises (superset). Similar growth, higher perceived effort.')}
             </p>
           </div>
+          {perWeek < PLAN_DAYS && (
+            <Toggle
+              label={L('Séances allongées', 'Longer sessions')}
+              hint={L('Plus de séries par séance : ce sont les séries par muscle et par semaine qui font progresser, pas le nombre de séances. Désactivé : séances d’une heure, volume réduit.', 'More sets per session: progress comes from the sets per muscle per week, not from the number of sessions. Off: one-hour sessions, reduced volume.')}
+              checked={keepVolume}
+              onChange={(v) => setPrefs({ keepWeeklyVolume: v })}
+            />
+          )}
         </Card>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Field label={L('Poids cible min (kg)', 'Target weight min (kg)')} hint={goal?.computed ? L(`Plan : ${fmtNum(goal.min, 0)} kg`, `Plan: ${fmtNum(goal.min, 0)} kg`) : undefined}>

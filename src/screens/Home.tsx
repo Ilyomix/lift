@@ -5,7 +5,7 @@ import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
-  contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribe, projectSessions, PROGRAM_START, sessionPlan, trainingDays, TYPE_META,
+  contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
@@ -59,7 +59,8 @@ export function Home() {
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
   const nextDate = next?.date ?? today
   const nextCtx = contextAt(nextDate < PROGRAM_START ? PROGRAM_START : nextDate)
-  const nextSets = state.templates[nextType].exercises.reduce((a, e) => a + prescribe(e, nextCtx.date, state.reentry, undefined, state.workouts).sets, 0)
+  const nextSets = prescribeSession(state.templates[nextType].exercises, nextCtx.date, state.reentry, undefined, state.workouts).reduce((a, p) => a + p.sets, 0)
+  const nextMinutes = sessionMinutes(nextType, nextSets)
 
   const begin = () => {
     startSession(nextType)
@@ -172,7 +173,7 @@ export function Home() {
               <div>
                 <p className="text-[26px] leading-none font-semibold tracking-[-0.03em]">{TYPE_META[nextType].label}</p>
                 <p className="mt-1.5 text-[14px] text-text-2">
-                  {TYPE_META[nextType].fr} · {active ? `${active.exercises.reduce((a, e) => a + doneSets(e).length, 0)} / ${active.exercises.reduce((a, e) => a + e.sets.length, 0)} ${L('séries', 'sets')}` : `${L(`${nextSets} séries`, plural(nextSets, 'set', 'sets'))} · ~${TYPE_META[nextType].minutes} min`}
+                  {TYPE_META[nextType].fr} · {active ? `${active.exercises.reduce((a, e) => a + doneSets(e).length, 0)} / ${active.exercises.reduce((a, e) => a + e.sets.length, 0)} ${L('séries', 'sets')}` : `${L(`${nextSets} séries`, plural(nextSets, 'set', 'sets'))} · ~${nextMinutes} min`}
                 </p>
               </div>
               <Tag tone="outline">{active ? L('En cours', 'In progress') : capitalize(fmtRelativeDay(nextDate, today))}</Tag>

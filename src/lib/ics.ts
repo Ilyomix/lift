@@ -2,7 +2,7 @@
 // Event texts follow the interface language; UIDs stay the same so a re-import updates the events.
 import { addDays, parseISO, todayISO, weekday } from './date'
 import { L } from './i18n'
-import { GOAL_DATE, keyPeriods, MAINTENANCE, PERIODS, PROGRAM_START, TYPE_META } from './program'
+import { GOAL_DATE, keyPeriods, MAINTENANCE, PERIODS, PROGRAM_START, scaledSession, sessionMinutes, sessionSlots, TYPE_META } from './program'
 import type { AppState, ISODate } from './types'
 
 export interface IcsOptions {
@@ -96,11 +96,13 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
       if (!type) continue
       const first = firstOnOrAfter(from, dow)
       const meta = TYPE_META[type]
+      // With fewer than five days, sessions take more sets: the event lasts as long as they do.
+      const sets = scaledSession(sessionSlots(state.templates[type].exercises)).reduce((a, n) => a + n, 0)
       lines.push(...timed(
         `golgoth-training-${BYDAY[dow]}@golgoth`,
         first,
         state.prefs.trainingTime,
-        meta.minutes,
+        sessionMinutes(type, sets),
         L(`Séance ${meta.label} · Lift`, `${meta.label} session · Lift`),
         L(
           `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,

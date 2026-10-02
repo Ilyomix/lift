@@ -10,7 +10,7 @@ import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
-import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATION, takesLest, TYPE_META } from '../lib/program'
+import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
@@ -46,8 +46,12 @@ function SessionPreview() {
   const date = today < PROGRAM_START ? PROGRAM_START : today
   const ctx = contextAt(date)
   const tpl = state.templates[type]
-  const rx = tpl.exercises.map((e) => prescribe(e, date, state.reentry, state.gymId, state.workouts))
+  const rx = prescribeSession(tpl.exercises, date, state.reentry, state.gymId, state.workouts)
   const totalSets = rx.reduce((a, p) => a + p.sets, 0)
+  const sheetSets = tpl.exercises.reduce((a, e) => a + e.target.sets, 0)
+  // The reason is given when it is the case: with two days, or sheets the ceiling cuts into, the week holds clearly less than the plan.
+  const keepsWeek = weekShape(templateSets(state.templates)).share >= 0.95
+  const minutes = sessionMinutes(type, totalSets)
   const isNext = type === (planned[0]?.type ?? state.nextWorkoutType)
 
   const begin = () => {
@@ -61,7 +65,7 @@ function SessionPreview() {
       <Header
         eyebrow={isNext ? `${L('Prochaine séance', 'Next session')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Other session')}
         title={TYPE_META[type].label}
-        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${TYPE_META[type].minutes} min`}
+        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
       <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={setType} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
@@ -71,6 +75,14 @@ function SessionPreview() {
         <span className="text-[13px] text-text-2">{ctx.effortDetail}</span>
       </div>
       {state.reentry && <p className="mt-2 text-[13px] text-text-2">{L(`${state.reentry.label} : ${state.reentry.advice}`, `${state.reentry.label}: ${state.reentry.advice}`)}</p>}
+      {daysFactor() > 1 && totalSets > sheetSets && (
+        <p className="mt-2 text-[13px] leading-[1.45] text-text-2">
+          {L(
+            `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance prend plus de séries que la fiche${keepsWeek ? ', pour garder le volume de la semaine' : ''}.`,
+            `${plural(WEEK_DAYS, 'session', 'sessions')} a week: the session takes more sets than the sheet${keepsWeek ? ', to keep the weekly volume' : ''}.`,
+          )}
+        </p>
+      )}
       {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this session: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
 
       <ol className="mt-5 divide-y divide-line rounded-[12px] border border-line bg-surface">
@@ -274,7 +286,8 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const p = ex.prescription
   const target = p?.weight ?? ex.target.weight
   const prevSets = prev ? doneSets(prev) : []
-  const sameLoad = prevSets.length > 0 && prevSets.every((s) => s.weight === target)
+  // "To beat" counts the reps of the whole exercise: it only means something with as many sets as last time.
+  const sameLoad = prevSets.length > 0 && prevSets.length === ex.sets.length && prevSets.every((s) => s.weight === target)
   const prevClean = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   // The next load is one the equipment has: the loads already used on it, today's included.
