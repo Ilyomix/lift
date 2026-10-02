@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Infinity as InfinityIcon, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
 import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
-import { gymName, gymOf, isGymBound } from '../lib/gyms'
+import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
   contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
@@ -185,7 +185,7 @@ export function Home() {
             {!active && (
               <button type="button" onClick={() => setGymOpen(true)} className="pressable -mx-1 mt-2 inline-flex h-9 items-center gap-1.5 rounded-[8px] px-1 text-[13px] font-medium text-text-2 hover:text-text">
                 <MapPin size={14} aria-hidden />
-                {gymName(state, state.gymId)}
+                {placeName(state, state.gymId)}
                 <ChevronDown size={14} className="text-muted" aria-hidden />
               </button>
             )}

@@ -13,6 +13,11 @@ export function gymName(state: Pick<AppState, 'gyms'>, id: string | undefined): 
   return state.gyms.find((g) => g.id === (id || HOME_GYM))?.name ?? L('Salle supprimée', 'Deleted gym')
 }
 
+/** Where the next session takes place: « Maison » when training at home, the gym's name otherwise. */
+export function placeName(state: Pick<AppState, 'gyms' | 'settings'>, id: string | undefined): string {
+  return state.settings.setup?.place === 'home' ? L('Maison', 'Home') : gymName(state, id)
+}
+
 export function isGymBound(ex: Pick<TemplateExercise, 'exerciseId' | 'unit'>): boolean {
   return gymBound(ex.exerciseId, ex.unit)
 }

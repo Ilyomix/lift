@@ -6,7 +6,7 @@ import { unlockAudio } from '../lib/alerts'
 import { sessionPrompt } from '../lib/coach'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
-import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
+import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
@@ -116,9 +116,9 @@ function SessionPreview() {
 }
 
 function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
-  const name = useStore((s) => gymName(s.state, id))
+  const name = useStore((s) => placeName(s.state, id))
   return (
-    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Salle : ${name}, changer`, `Gym: ${name}, change`)}>
+    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Lieu : ${name}, changer`, `Place: ${name}, change`)}>
       <MapPin size={14} className="shrink-0" aria-hidden />
       <span className="truncate">{name}</span>
       <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
