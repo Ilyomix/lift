@@ -3,7 +3,7 @@ import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
 import { L, lang } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, sessionSlots, SET_DROP_REASON, takesLest } from './program'
+import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
   ActiveWorkout, AppState, AutoChange, Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -1236,4 +1236,28 @@ export function sessionDurationMin(w: Workout): number | null {
   const ms = new Date(w.completedAt).getTime() - new Date(w.startedAt).getTime()
   if (!(ms > 0) || ms > 4 * 3600_000) return null
   return Math.round(ms / 60_000)
+}
+
+/** Sessions the pace is read from, how many it takes to trust it, and how many of one type speak for that type. */
+const PACE_SESSIONS = 10
+export const PACE_MIN_SESSIONS = 5
+const PACE_TYPE_SESSIONS = 3
+
+/**
+ * The lifter's real pace: minutes per set once the warm-up is taken off, as the median of the
+ * last sessions whose length is known (a real session: 20 minutes and six sets at least). The
+ * sessions of the same type speak first when there are three of them. Null until five sessions
+ * are known: the report's lengths stand until then.
+ */
+export function sessionPace(workouts: Workout[], type?: WorkoutType): number | null {
+  const usable = workouts
+    .map((w) => ({ w, minutes: sessionDurationMin(w), sets: sessionSetCount(w) }))
+    .filter((x): x is { w: Workout; minutes: number; sets: number } => x.minutes !== null && x.minutes >= 20 && x.sets >= 6)
+    .sort((a, b) => (a.w.startedAt < b.w.startedAt ? -1 : 1))
+  if (usable.length < PACE_MIN_SESSIONS) return null
+  const same = type ? usable.filter((x) => x.w.type === type).slice(-PACE_TYPE_SESSIONS - 1) : []
+  const sample = same.length >= PACE_TYPE_SESSIONS ? same : usable.slice(-PACE_SESSIONS)
+  const paces = sample.map((x) => Math.max(0.5, (x.minutes - SESSION_OVERHEAD_MIN) / x.sets)).sort((a, b) => a - b)
+  const mid = paces.length >> 1
+  return paces.length % 2 ? paces[mid] : (paces[mid - 1] + paces[mid]) / 2
 }

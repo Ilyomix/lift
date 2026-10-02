@@ -67,7 +67,7 @@ const MIN_SCALED_DAYS = 3
 /** Sets for one muscle in one session (direct 1, indirect 0.5) past which adding sets is not worth it. */
 export const SESSION_MUSCLE_CAP = 11
 /** Warm-up and moving between stations, in the length of a session (minutes). */
-const SESSION_OVERHEAD_MIN = 12
+export const SESSION_OVERHEAD_MIN = 12
 
 // Set by configurePlan() from the weekly schedule and the user's choice (ES module live bindings).
 /** Training days per week. */
@@ -160,8 +160,11 @@ export function sharePhrase(share: number): string {
 /**
  * Length of a session from its number of sets (rounded to 5 min): the report's session of that
  * type, with its own number of sets, is the yardstick; warm-up and moving around stay fixed.
+ * With the lifter's own pace (minutes per set, from the sessions already done — sessionPace),
+ * the estimate is theirs instead of the report's.
  */
-export function sessionMinutes(type: WorkoutType, sets: number): number {
+export function sessionMinutes(type: WorkoutType, sets: number, pace?: number | null): number {
+  if (pace && pace > 0) return Math.max(15, Math.round((SESSION_OVERHEAD_MIN + sets * pace) / 5) * 5)
   const base = TYPE_META[type].minutes
   const planned = PLAN[type].reduce((a, item) => a + item.sets, 0)
   if (planned <= 0 || sets === planned) return base

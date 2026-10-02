@@ -13,7 +13,7 @@ import {
   calorieAdvice, goalWeightRange, measureSeries, movingAverage7, nutritionFor, proteinTargetFor, recentPace, sessionsThisWeek, weekStrip, weightStatus,
 } from '../lib/stats'
 import { useStore } from '../lib/store'
-import { dropAlert, doneSets, strengthSummary } from '../lib/training'
+import { dropAlert, doneSets, sessionPace, strengthSummary } from '../lib/training'
 import { Sparkline } from '../components/charts'
 import { GoalSheet } from '../components/GoalSheet'
 import { GymSheet } from '../components/GymSheet'
@@ -63,7 +63,7 @@ export function Home() {
   const nextDate = next?.date ?? today
   const nextCtx = contextAt(nextDate < PROGRAM_START ? PROGRAM_START : nextDate)
   const nextSets = prescribeSession(state.templates[nextType].exercises, nextCtx.date, state.reentry, undefined, state.workouts).reduce((a, p) => a + p.sets, 0)
-  const nextMinutes = sessionMinutes(nextType, nextSets)
+  const nextMinutes = sessionMinutes(nextType, nextSets, sessionPace(state.workouts, nextType))
 
   const begin = () => {
     startSession(nextType)

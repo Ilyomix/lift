@@ -3,6 +3,7 @@
 import { addDays, parseISO, todayISO, weekday } from './date'
 import { L } from './i18n'
 import { GOAL_DATE, keyPeriods, MAINTENANCE, PERIODS, PROGRAM_START, scaledSession, sessionMinutes, sessionSlots, TYPE_META } from './program'
+import { sessionPace } from './training'
 import type { AppState, ISODate } from './types'
 
 export interface IcsOptions {
@@ -102,7 +103,7 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
         `golgoth-training-${BYDAY[dow]}@golgoth`,
         first,
         state.prefs.trainingTime,
-        sessionMinutes(type, sets),
+        sessionMinutes(type, sets, sessionPace(state.workouts, type)),
         L(`Séance ${meta.label} · Lift`, `${meta.label} session · Lift`),
         L(
           `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,

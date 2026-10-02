@@ -1591,6 +1591,42 @@ test('priority zones: asked at the onboarding, and the goal screen says what the
   assert.equal(prioritySetsStart('2027-06-20'), null, 'the stabilization adds none')
 })
 
+test('session length: the clock keeps its leading zero, and the estimate follows the real pace once five sessions are known', async () => {
+  const { fmtClock } = await import('../src/lib/format')
+  const { sessionPace, sessionDurationMin } = await import('../src/lib/training')
+  assert.equal(fmtClock(95), '01:35')
+  assert.equal(fmtClock(5649), '01:34:09')
+  // A finished session of `sets` sets that took `minutes`.
+  const done = (i: number, type: 'UPPER' | 'PUSH', sets: number, minutes: number): Workout => {
+    const startedAt = new Date(Date.UTC(2026, 9, 1 + i, 17, 0)).toISOString()
+    return {
+      id: `w${i}`, sessionNumber: i + 1, type, date: startedAt.slice(0, 10), startedAt, completedAt: new Date(Date.parse(startedAt) + minutes * 60_000).toISOString(), notes: '',
+      exercises: [{ exerciseId: 'x', name: 'X', muscle: '', unit: 'kg', target: { sets, minReps: 8, maxReps: 12, weight: 20 }, notes: '', skipped: false, validated: true, comparison: null,
+        sets: Array.from({ length: sets }, () => ({ weight: 20, reps: 10, cleanReps: 10, flags: [], note: '', completed: true })) }],
+    } as unknown as Workout
+  }
+  const upper = [0, 1, 2, 3].map((i) => done(i, 'UPPER', 20, 92))
+  assert.equal(sessionDurationMin(upper[0]), 92, 'the real length is kept with the session')
+  // Four sessions: not enough, the report's length stands.
+  assert.equal(sessionPace(upper, 'UPPER'), null)
+  assert.equal(program.sessionMinutes('UPPER', 20, sessionPace(upper, 'UPPER')), 65)
+  // Five: (92 − 12) / 20 = 4 min a set → 12 + 20 × 4 = 92, shown as 90; a deload of 10 sets, 50.
+  const five = [...upper, done(4, 'UPPER', 20, 92)]
+  assert.equal(sessionPace(five, 'UPPER'), 4)
+  assert.equal(program.sessionMinutes('UPPER', 20, 4), 90)
+  assert.equal(program.sessionMinutes('UPPER', 10, 4), 50)
+  // Another type has no session of its own yet: the overall pace speaks for it.
+  assert.equal(sessionPace(five, 'PUSH'), 4)
+  // Three sessions of the type: its own pace, (63 − 12) / 17 = 3.
+  const push = [...five, done(5, 'PUSH', 17, 63), done(6, 'PUSH', 17, 63), done(7, 'PUSH', 17, 63)]
+  assert.equal(sessionPace(push, 'PUSH'), 3)
+  assert.equal(program.sessionMinutes('PUSH', 17, 3), 65)
+  assert.equal(sessionPace(push, 'UPPER'), 4)
+  // A session left open for hours, or one of a few minutes, says nothing of the pace.
+  const noisy = [...five, done(8, 'UPPER', 20, 300), done(9, 'UPPER', 3, 10)]
+  assert.equal(sessionPace(noisy, 'UPPER'), 4)
+})
+
 test('home training: each gym exercise becomes the best version the equipment allows', async () => {
   const { sessionItems, doableAt, buildResearchTemplates } = program
   const ids = (setup: { place: 'home'; equipment: ('dumbbells' | 'bench' | 'pullupBar' | 'bands')[] }, t: 'UPPER' | 'LOWER' | 'PULL') => sessionItems(t, setup).map((i) => i.id)

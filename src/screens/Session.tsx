@@ -15,7 +15,7 @@ import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
 import {
-  changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort,
+  changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionPace,
   sessionNotes, sessionSetCount, setsSummary, toppedOut, type AutoChange,
 } from '../lib/training'
 import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
@@ -51,7 +51,8 @@ function SessionPreview() {
   const sheetSets = tpl.exercises.reduce((a, e) => a + e.target.sets, 0)
   // The reason is given when it is the case: with two days, or sheets the ceiling cuts into, the week holds clearly less than the plan.
   const keepsWeek = weekShape(templateSets(state.templates)).share >= 0.95
-  const minutes = sessionMinutes(type, totalSets)
+  // The lifter's own pace once five sessions are known, the report's lengths until then.
+  const minutes = sessionMinutes(type, totalSets, sessionPace(state.workouts, type))
   const isNext = type === (planned[0]?.type ?? state.nextWorkoutType)
 
   const begin = () => {
