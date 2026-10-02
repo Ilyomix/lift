@@ -97,6 +97,34 @@ function SegDigits({ value, className }: { value: string; className?: string }) 
   )
 }
 
+/** The current tenth of a second, read on every frame: the state only changes when the tenth does. */
+function useTenths(): number {
+  const [tenth, setTenth] = useState(() => Math.floor(Date.now() / 100))
+  useEffect(() => {
+    let id = requestAnimationFrame(function tick() {
+      setTenth(Math.floor(Date.now() / 100))
+      id = requestAnimationFrame(tick)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [])
+  return tenth
+}
+
+/**
+ * The full-screen readout, to the tenth of a second as on a stopwatch: minutes and seconds in
+ * large figures, the tenths smaller beside them. It runs on its own clock, so the seconds and
+ * the tenths always turn together.
+ */
+function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
+  const tenths = Math.max(0, Math.floor((endAt - useTenths() * 100) / 100))
+  return (
+    <span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
+      <SegDigits value={fmtClock(Math.floor(tenths / 10))} className="text-[60px] leading-none" />
+      <span className="seg seg-ghost tnum ml-1.5 text-[30px] leading-none" data-ghost="8">{tenths % 10}</span>
+    </span>
+  )
+}
+
 export function RestDock() {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const { adjustRest, stopRest } = useStore.getState()
@@ -205,7 +233,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
           </svg>
           {/* The figures sit at the exact centre of the dial; the label hangs under them without moving them. */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <SegDigits value={fmtClock(Math.ceil(remaining))} className={cx('text-[60px] leading-none', done && 'text-signal-text')} />
+            <StopwatchDigits endAt={timer.endAt} done={done} />
           </div>
           <span className="absolute inset-x-0 top-[calc(50%+48px)] text-center text-[14px] leading-5 text-muted tnum">{done ? L('Repos terminé', 'Rest over') : L(`sur ${fmtClock(timer.total)}`, `of ${fmtClock(timer.total)}`)}</span>
         </div>
