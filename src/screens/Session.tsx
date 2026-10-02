@@ -195,10 +195,13 @@ function ActiveSession() {
       <div className="sticky top-[var(--top-bar)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
         <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? L(`Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}`, `Current exercise: ${cur.name}, set ${curSet + 1} of ${cur.sets.length}`) : L('Toutes les séries sont faites', 'All sets done')}>
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
-            <span className="block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : L('Toutes les séries sont faites', 'All sets done')}</span>
+            {/* The set and the session clock share the first line; the exercise name has the whole width under them. */}
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
+              {elapsed !== null && <span className="shrink-0 text-[13px] leading-none font-semibold text-text-2 tnum" aria-label={L('Durée de la séance', 'Session duration')}>{fmtClock(elapsed)}</span>}
+            </span>
+            <span className="mt-0.5 block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : L('Toutes les séries sont faites', 'All sets done')}</span>
           </span>
-          {elapsed !== null && <span className="seg seg-ghost shrink-0 text-[17px] text-text-2 tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-label={L('Durée de la séance', 'Session duration')}>{fmtClock(elapsed)}</span>}
         </button>
         <div className="mt-2.5 flex items-center gap-3">
           <ProgressBar value={total ? done / total : 0} label={L('Séries validées', 'Sets logged')} />
