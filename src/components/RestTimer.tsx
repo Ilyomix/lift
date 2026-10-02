@@ -71,9 +71,6 @@ function splitNext(next: string | undefined): { step: string; name: string } | n
   return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { step: L('Exercice suivant', 'Next exercise'), name: next }
 }
 
-/** « 1:45 », « 0:30 »: a rest is read in minutes, without the leading zero. */
-const restClock = (seconds: number) => fmtClock(seconds).replace(/^0(\d:)/, '$1')
-
 /** One character of a seven-segment readout: when it changes, the old figure fades out as the new one fades in. */
 function SegChar({ ch }: { ch: string }) {
   const [cur, setCur] = useState(ch)
@@ -127,7 +124,7 @@ export function RestDock() {
       >
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
-            <SegDigits value={restClock(Math.ceil(remaining))} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
+            <SegDigits value={fmtClock(Math.ceil(remaining))} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
             <span className="min-w-0">
               <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
@@ -162,7 +159,7 @@ function DockButton({ label, onClick, children, accent }: { label: string; onCli
 }
 
 /**
- * Full-screen rest: the time left in seven-segment figures inside a bezel of sixty graduations
+ * Full-screen rest: the time left in seven-segment figures inside a bezel of 180 graduations
  * that go out one by one, what comes next under it, and the three actions within thumb reach.
  * It follows the app's theme and accent.
  */
@@ -177,8 +174,9 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   if (!timer) return null
   const done = remaining <= 0
   const next = splitNext(timer.next)
-  // Sixty graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
-  const lit = done ? 60 : Math.ceil((1 - progress) * 60)
+  // 180 graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
+  const TICKS = 180
+  const lit = done ? TICKS : Math.ceil((1 - progress) * TICKS)
   const side = 'pressable h-14 rounded-[14px] border border-line-strong text-[16px] font-semibold tnum disabled:opacity-40'
   return (
     <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-bg text-text safe-top safe-bottom">
@@ -189,24 +187,27 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
         </button>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative aspect-square w-[min(78vw,320px)]">
+        <div className="relative aspect-square w-[min(84vw,340px)]">
           <svg viewBox="0 0 300 300" className="absolute inset-0 h-full w-full" aria-hidden>
-            {Array.from({ length: 60 }, (_, i) => {
-              const major = i % 5 === 0
+            {Array.from({ length: TICKS }, (_, i) => {
+              // Three lengths, as on a watch bezel: twelve long marks, the sixty of a minute, and two fine ones between each.
+              const long = i % 15 === 0
+              const mid = !long && i % 3 === 0
               const on = i < lit
               return (
                 <line
-                  key={i} x1="150" x2="150" y1="4" y2={major ? 24 : 16} strokeLinecap="round" strokeWidth={major ? 3 : 2}
-                  stroke={on ? 'var(--signal)' : 'var(--line-strong)'} opacity={on ? (major ? 1 : 0.8) : 0.55}
-                  className="transition-[stroke,opacity] duration-500 ease-out" transform={`rotate(${i * 6} 150 150)`}
+                  key={i} x1="150" x2="150" y1="4" y2={long ? 24 : mid ? 15 : 10} strokeLinecap="round" strokeWidth={long ? 3 : mid ? 1.75 : 1}
+                  stroke={on ? 'var(--signal)' : 'var(--line-strong)'} opacity={on ? (long ? 1 : mid ? 0.85 : 0.6) : 0.5}
+                  className="transition-[stroke,opacity] duration-500 ease-out" transform={`rotate(${i * (360 / TICKS)} 150 150)`}
                 />
               )
             })}
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <SegDigits value={restClock(Math.ceil(remaining))} className={cx('text-[68px] leading-none', done && 'text-signal-text')} />
-            <span className="mt-4 text-[14px] text-muted tnum">{done ? L('Repos terminé', 'Rest over') : L(`sur ${restClock(timer.total)}`, `of ${restClock(timer.total)}`)}</span>
+          {/* The figures sit at the exact centre of the dial; the label hangs under them without moving them. */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <SegDigits value={fmtClock(Math.ceil(remaining))} className={cx('text-[60px] leading-none', done && 'text-signal-text')} />
           </div>
+          <span className="absolute inset-x-0 top-[calc(50%+48px)] text-center text-[14px] leading-5 text-muted tnum">{done ? L('Repos terminé', 'Rest over') : L(`sur ${fmtClock(timer.total)}`, `of ${fmtClock(timer.total)}`)}</span>
         </div>
         <div className="mt-9 min-h-[76px] max-w-full px-2 text-center">
           {next ? (
