@@ -644,7 +644,9 @@ function risingIn(p: Period, workouts: Workout[], exerciseId: string, today: ISO
 }
 
 /** Reason of the automatic one-set cut (training.ts), French then English: stored in the templates, shown in the current language. */
-export const SET_DROP_REASON: [string, string] = ['baisse 2 séances de suite', 'down 2 sessions in a row']
+export const SET_DROP_REASON: [string, string] = ['nette baisse 2 séances de suite', 'clear drop 2 sessions in a row']
+/** The same reason as it was stored before the signal had a margin: still recognized, and shown with today's words. */
+const SET_DROP_REASONS = [...SET_DROP_REASON, 'baisse 2 séances de suite', 'down 2 sessions in a row']
 
 /** An automatic set change stays active until the end of the period in which it was made. */
 export function autoAdjustActive(ex: Pick<TemplateExercise, 'autoAdjust'>, date: ISODate): boolean {
@@ -709,7 +711,7 @@ export function prescribeSession(exercises: TemplateExercise[], date: ISODate, r
     if (autoAdjustActive(ex, date) && ex.autoAdjust) {
       const sign = ex.autoAdjust.sets > 0 ? '+' : '−'
       const n = Math.abs(ex.autoAdjust.sets)
-      const reason = SET_DROP_REASON.includes(ex.autoAdjust.reason) ? L(...SET_DROP_REASON) : ex.autoAdjust.reason
+      const reason = SET_DROP_REASONS.includes(ex.autoAdjust.reason) ? L(...SET_DROP_REASON) : ex.autoAdjust.reason
       notes.push(L(`${sign}${n} série (${reason})`, `${sign}${n} ${n === 1 ? 'set' : 'sets'} (${reason})`))
     }
     let loadFactor = 1

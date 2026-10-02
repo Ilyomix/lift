@@ -6,7 +6,7 @@ import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
 import { fmtDate } from '../lib/date'
 import { daysFactor, DEFAULT_SCHEDULE, doableAt, GOAL_DATE, keepsPlan, MAINTENANCE, PERIODS, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
-import { caveats, PRINCIPLES, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
+import { caveats, PRINCIPLES, sourceCounts, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
 import { plannedVolume } from '../lib/training'
@@ -150,8 +150,10 @@ export function ProgramScreen() {
           <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('S1 RIR 3 · S2 RIR 2 · S3–S4 RIR 1–2 (polyarticulaire) et 0–1 (isolation) · S5 RIR 0–1, dernière série d’isolation à l’échec technique.', 'W1 RIR 3 · W2 RIR 2 · W3–W4 RIR 1–2 (compound) and 0–1 (isolation) · W5 RIR 0–1, last isolation set to technical failure.')} />
           <RuleRow title="Volume" text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
           <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que le RIR prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned RIR counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
-          <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Performance en baisse 2 séances de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'Performance down 2 sessions in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 sessions without progress: flagged at the end of the session.')} />
+          <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Une baisse compte à partir d’une rep par série en moyenne : en dessous, c’est la variation normale d’une séance à l’autre. Deux baisses de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'A drop counts from one rep per set on average: below that, it is the normal variation from one session to the next. Two drops in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 sessions without progress: flagged at the end of the session.')} />
+          <RuleRow title={L('Exercice dans deux séances', 'Exercise in two sessions')} text={L('Même fourchette de reps : une seule charge, qui suit dans les deux séances. Fourchettes différentes (lourd dans l’une, plus léger dans l’autre) : chaque version garde sa charge et se compare à elle-même.', 'Same rep range: one load, which follows in both sessions. Different ranges (heavy in one, lighter in the other): each version keeps its own load and is compared with itself.')} />
           <RuleRow title={L('Décharge', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')} />
+          <RuleRow title={L('Corrections', 'Corrections')} text={L('Un ajustement s’annule ou s’applique depuis la séance qui l’a fait (Progrès → Séances), tant que la fiche n’a pas changé et que l’exercice n’a pas été refait. La dernière séance terminée peut être rouverte pour corriger une série : tout est recalculé. Une décharge avancée s’annule depuis l’accueil.', 'An adjustment can be undone or applied from the session that made it (Progress → Sessions), as long as the sheet has not changed and the exercise has not been done again. The last finished session can be reopened to fix a set: everything is worked out again. An early deload can be cancelled from the home screen.')} />
         </Card>
       </Section>
 
@@ -201,8 +203,7 @@ function RuleRow({ title, text }: { title: string; text: string }) {
 }
 
 export function SourcesScreen() {
-  const added = Object.values(SOURCES).filter((x) => x.added).length
-  const reported = Object.keys(SOURCES).length - added
+  const { reported, added, guidance } = sourceCounts()
   return (
     <Screen>
       <Header
@@ -210,8 +211,8 @@ export function SourcesScreen() {
         eyebrow={L('Preuves', 'Evidence')}
         title="Sources"
         sub={L(
-          `${reported} publications vérifiées dans le rapport de recherche${added ? `, ${added} ajoutées depuis` : ''}. Méta-analyses et essais randomisés en priorité.`,
-          `${reported} publications checked in the research report${added ? `, ${added} added since` : ''}. Meta-analyses and randomized trials first.`,
+          `${reported} publications vérifiées dans le rapport de recherche${added ? `, ${added} ajoutée${added > 1 ? 's' : ''} depuis` : ''}${guidance ? `, et ${guidance} recommandation${guidance > 1 ? 's' : ''} de santé` : ''}. Méta-analyses et essais randomisés en priorité.`,
+          `${reported} publications checked in the research report${added ? `, ${added} added since` : ''}${guidance ? `, and ${guidance} piece${guidance > 1 ? 's' : ''} of health guidance` : ''}. Meta-analyses and randomized trials first.`,
         )}
       />
       <Card className="divide-y divide-line">

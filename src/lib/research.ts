@@ -23,6 +23,8 @@ export interface Source {
   id: string
   /** Checked after the research report, for a rule it does not cover. */
   added?: boolean
+  /** General guidance, not a study: counted apart from the publications. */
+  guidance?: boolean
 }
 
 const doi = (d: string) => `https://doi.org/${d}`
@@ -338,7 +340,51 @@ export const SOURCES: Record<string, Source> = {
     id: 'DOI 10.51224/SRXIV.537',
     added: true,
   },
+  // Added on 2 Oct 2026 with the margin of the fatigue signal.
+  mitter2022: {
+    authors: 'Mitter, Csapo, Bauer, Tschan',
+    year: '2022',
+    title: 'Reproducibility of strength performance and strength-endurance profiles: A test-retest study',
+    journal: 'PLOS ONE 17(5):e0268074',
+    get kind() { return L('Étude de reproductibilité · 24 pratiquants entraînés', 'Test-retest study · 24 trained lifters') },
+    url: doi('10.1371/journal.pone.0268074'),
+    id: 'DOI 10.1371/journal.pone.0268074 · PMID 35511896',
+    added: true,
+  },
+  hopkins2000: {
+    authors: 'Hopkins',
+    year: '2000',
+    title: 'Measures of Reliability in Sports Medicine and Science',
+    journal: 'Sports Medicine 30(1):1–15',
+    get kind() { return L('Article de méthode', 'Methods paper') },
+    url: doi('10.2165/00007256-200030010-00001'),
+    id: 'DOI 10.2165/00007256-200030010-00001 · PMID 10907753',
+    added: true,
+  },
+  // Added on 2 Oct 2026 with the floor of the calorie advice: general guidance, not a study.
+  harvard2024: {
+    authors: 'Harvard Health Publishing',
+    year: '2024',
+    title: 'Calorie counting made easy',
+    journal: 'Harvard Medical School',
+    get kind() { return L('Recommandation de santé, pas une étude', 'Health guidance, not a study') },
+    url: 'https://www.health.harvard.edu/staying-healthy/calorie-counting-made-easy',
+    get id() { return L('Mise à jour du 3 avril 2024', 'Updated 3 April 2024') },
+    added: true,
+    guidance: true,
+  },
 }
+
+/** How the sources split: publications checked in the research report, publications added since, general guidance. */
+export function sourceCounts(): { reported: number; added: number; guidance: number } {
+  const all = Object.values(SOURCES)
+  const guidance = all.filter((x) => x.guidance).length
+  const added = all.filter((x) => x.added && !x.guidance).length
+  return { reported: all.length - added - guidance, added, guidance }
+}
+
+/** Studies cited: those of the report and those added since, without the general guidance. */
+export const studyCount = (): number => sourceCounts().reported + sourceCounts().added
 
 export interface Principle {
   id: string
@@ -453,6 +499,19 @@ export const PRINCIPLES: Principle[] = [
     refs: ['moesgaard2022'],
   },
   {
+    id: 'alert',
+    get title() { return L('Signal d’alerte', 'Warning sign') },
+    get rule() { return L('Deux nettes baisses de suite : 1 série de moins', 'Two clear drops in a row: 1 set fewer') },
+    get detail() {
+      return L(
+        "À charge égale, les reps d'une série à l'échec varient de 0,7 à 1,1 d'une semaine à l'autre sans que le niveau ait changé (24 pratiquants entraînés, développé couché). Chez une personne, un changement n'est probablement réel qu'au-delà de 1,5 à 2 fois cette variation. L'app en tire son seuil : une baisse compte à partir d'une rep par série en moyenne, et de 2 reps au total ; en dessous, c'est la variation normale. C'est une application de ces deux chiffres, pas un résultat d'étude : elle suppose que les séries varient en partie chacune de leur côté. Retirer une série après deux baisses de suite, et avancer la décharge quand la baisse est générale, reste une règle d'experts.",
+        'At the same load, the reps of a set taken to failure vary by 0.7 to 1.1 from one week to the next with no change of level (24 trained lifters, bench press). In one person, a change is likely real only beyond 1.5 to 2 times that variation. The app derives its threshold from them: a drop counts from one rep per set on average, and from 2 reps in all; below that, it is normal variation. This applies the two figures, it is not a study result: it assumes that sets vary partly on their own. Removing a set after two drops in a row, and bringing the deload forward when the drop is general, remains an expert rule.',
+      )
+    },
+    level: 'opinion',
+    refs: ['mitter2022', 'hopkins2000'],
+  },
+  {
     id: 'deload',
     get title() { return L('Décharges', 'Deloads') },
     get rule() { return L('1 semaine allégée toutes les 6 semaines', '1 lighter week every 6 weeks') },
@@ -472,9 +531,14 @@ export const PRINCIPLES: Principle[] = [
     id: 'cut',
     get title() { return L('Sèche', 'Cut') },
     get rule() { return L('−0,5 à −0,7 % du poids par semaine, déficit ≤ 500 kcal/j', '−0.5 to −0.7% of body weight per week, deficit ≤ 500 kcal/day') },
-    get detail() { return L('Un déficit d’environ 500 kcal/j supprime les gains de masse maigre ; une perte lente préserve mieux le muscle.', 'A deficit of about 500 kcal/day wipes out lean mass gains; slow loss preserves muscle better.') },
+    get detail() {
+      return L(
+        'Un déficit d’environ 500 kcal/j supprime les gains de masse maigre ; une perte lente préserve mieux le muscle. Le conseil de calories suit ta moyenne de poids ; en sèche, plus lent que −0,5 %/sem, il baisse de 150 kcal, une fois que la tendance sur 3 semaines est bien celle de la sèche. Garde-fou, qui ne vient pas d’une étude : il ne descend jamais sous ta dépense au repos estimée, ni sous 1 500 kcal (1 200 pour une femme), le minimum conseillé sans suivi médical.',
+        'A deficit of about 500 kcal/day wipes out lean mass gains; slow loss preserves muscle better. The calorie advice follows your weight average; in a cut, slower than −0.5%/wk, it goes down by 150 kcal, once the 3-week trend is the cut’s own. A guard that does not come from a study: it never goes under your estimated energy at rest, nor under 1,500 kcal (1,200 for a woman), the minimum advised without medical supervision.',
+      )
+    },
     level: 'modere',
-    refs: ['murphy2022', 'garthe2011', 'helms2014'],
+    refs: ['murphy2022', 'garthe2011', 'helms2014', 'mifflin1990', 'harvard2024'],
   },
   {
     id: 'protein',

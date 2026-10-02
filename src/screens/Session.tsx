@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Play, Plus, Replace, Sparkles, StickyNote, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, Replace, Sparkles, StickyNote, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { sessionPrompt } from '../lib/coach'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
-import { L } from '../lib/i18n'
+import { L, lang } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
 import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
@@ -15,10 +15,10 @@ import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
 import {
-  cleanOf, doneSets, heldByEffort, knownLoads, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort,
+  changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort,
   sessionNotes, sessionSetCount, setsSummary, toppedOut, type AutoChange,
 } from '../lib/training'
-import type { SetFlag, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
+import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { GymSheet } from '../components/GymSheet'
 import { RecordTag, StatusTag } from '../components/Status'
@@ -146,7 +146,9 @@ function currentIndexOf(exercises: WorkoutExercise[]): number {
 function ActiveSession() {
   const a = useStore((s) => s.state.activeWorkout)!
   const { finishSession, discardSession, setSessionField } = useStore.getState()
-  const elapsed = useElapsed(a.startedAt)
+  // No clock on a finished session reopened to be corrected: nothing is being timed.
+  const running = useElapsed(a.startedAt)
+  const elapsed = a.reopened ? null : running
   const [menu, setMenu] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -203,6 +205,13 @@ function ActiveSession() {
         </div>
       </div>
 
+      {a.reopened && (
+        <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
+          <Pencil size={14} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
+          {L('Correction d’une séance terminée : ouvre un exercice, corrige ses séries, puis termine. Les comparaisons et les charges sont recalculées.', 'Correcting a finished session: open an exercise, fix its sets, then finish. Comparisons and loads are worked out again.')}
+        </p>
+      )}
+
       {(a.deload || a.reentry) && (
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
           {a.deload ? L('Semaine de décharge : moitié des séries, charges −10 %, RIR 3–4.', 'Deload week: half the sets, loads −10%, RIR 3–4.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
@@ -234,9 +243,9 @@ function ActiveSession() {
         <DateInput label={L('Date de la séance', 'Session date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
         <div className="mt-5">
           <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
-            {L('Abandonner la séance', 'Discard session')}
+            {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard session')}
           </Button>
-          <p className="mt-2 text-[12px] text-muted">{L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
+          <p className="mt-2 text-[12px] text-muted">{a.reopened ? L('La séance reste telle qu’elle était enregistrée.', 'The session stays as it was logged.') : L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
         </div>
       </Sheet>
       {gymOpen && <GymSheet session onClose={() => setGymOpen(false)} />}
@@ -280,7 +289,11 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const [menu, setMenu] = useState(false)
   const [open, setOpen] = useState(false)
   const bound = isGymBound(ex)
-  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, undefined, bound ? gymId : undefined), [workouts, ex.exerciseId, bound, gymId])
+  // The reference is the last session in the same rep range: an exercise two sessions have in two ranges is followed like for like.
+  const { minReps, maxReps } = ex.target
+  // (A session reopened to be corrected is still in the history: it is not its own reference.)
+  const self = useStore((s) => s.state.activeWorkout?.id)
+  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined, { minReps, maxReps }), [workouts, ex.exerciseId, self, bound, gymId, minReps, maxReps])
   const prev = prevPerf?.exercise ?? null
   const prevDate = prevPerf?.workout.date ?? null
   const p = ex.prescription
@@ -298,7 +311,8 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const noLoadLeft = allDone && toppedOut(ex)
   const lest = takesLest(ex)
   const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? (lest ? L('Lest', '+ kg') : L('Charge', 'Load')) : 'kg'
-  const hurtLastTime = prevSets.some((s) => s.flags.includes('pain'))
+  // Pain is about the exercise, whatever the range: the last time it was done at all.
+  const hurtLastTime = useMemo(() => !!previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined)?.exercise.sets.some((s) => s.completed && s.flags.includes('pain')), [workouts, ex.exerciseId, self, bound, gymId])
   const currentSet = current ? ex.sets.findIndex((s) => !s.completed) : -1
 
   if (ex.skipped) {
@@ -593,7 +607,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
 export function SessionSummary() {
   const lastFinish = useStore((s) => s.lastFinish)
   const state = useStore((s) => s.state)
-  const { applyChanges, revertChange, bringDeloadForward } = useStore.getState()
+  const { applyChanges, revertChange, bringDeloadForward, cancelEarlyDeload } = useStore.getState()
   const w = lastFinish?.workout ?? state.workouts.find((x) => x.id === state.lastCompletedWorkoutId) ?? null
   if (!w) {
     return (
@@ -603,13 +617,17 @@ export function SessionSummary() {
       </Screen>
     )
   }
-  const changes = lastFinish?.changes ?? []
-  const applied = lastFinish?.applied ?? []
-  const waiting = changes.filter((c) => !applied.includes(c.id))
+  // The changes live with the session and their state is read on the sheets: still there once the app was closed.
+  const changes = w.changes ?? []
+  const stateOf = (c: AutoChange) => changeState(state.templates, c, w, state.workouts)
+  const waiting = changes.filter((c) => stateOf(c) === 'open')
   const records = w.exercises.filter((e) => e.comparison?.isRecord)
   const minutes = sessionDurationMin(w)
   const volume = w.exercises.reduce((a, e) => a + (e.comparison?.volume ?? 0), 0)
-  const early = !!lastFinish?.generalDrop && !state.manualDeload && !contextAt(todayISO()).deload
+  const today = todayISO()
+  const early = !!lastFinish?.generalDrop && !state.manualDeload && !contextAt(today).deload
+  // An early deload still ahead, or running: it can be called off here.
+  const advanced = state.manualDeload && today <= state.manualDeload.end ? state.manualDeload : null
   // Effort beyond the plan: worth a word when it is a habit of the session, or when it kept a load from going up.
   const effort = sessionEffort(w)
   const pushedOften = effort.pushed >= 2 && effort.pushed * 3 >= effort.logged
@@ -658,7 +676,7 @@ export function SessionSummary() {
             {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next sessions start from these loads. Undo a change if this session wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
           </p>
           <Card className="divide-y divide-line">
-            {changes.map((c) => <ChangeRow key={c.id} c={c} applied={applied.includes(c.id)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
+            {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
           </Card>
         </Section>
       )}
@@ -686,8 +704,17 @@ export function SessionSummary() {
       {early && (
         <Section title={L('Récupération', 'Recovery')}>
           <Card className="p-4">
-            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices baissent deux séances de suite : c’est le signal pour avancer la décharge.', 'Several exercises dropped two sessions in a row: that’s the signal to bring the deload forward.')}</p>
+            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices sont en nette baisse deux séances de suite : c’est le signal pour avancer la décharge.', 'Several exercises clearly dropped two sessions in a row: that’s the signal to bring the deload forward.')}</p>
             <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Décharge avancée : 7 jours dès demain.', 'Deload brought forward: 7 days starting tomorrow.'), 'good') }}>{L('Décharge dès demain (7 jours)', 'Deload from tomorrow (7 days)')}</Button>
+          </Card>
+        </Section>
+      )}
+
+      {advanced && (
+        <Section title={L('Récupération', 'Recovery')}>
+          <Card className="flex items-center gap-3 p-4">
+            <p className="min-w-0 flex-1 text-[14px] leading-[1.45]">{L(`Décharge avancée : du ${fmtDate(advanced.start, { long: true })} au ${fmtDate(advanced.end, { long: true })}.`, `Deload brought forward: ${fmtDate(advanced.start, { long: true })} to ${fmtDate(advanced.end, { long: true })}.`)}</p>
+            <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={() => { cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) }}>{L('Annuler', 'Cancel')}</Button>
           </Card>
         </Section>
       )}
@@ -716,20 +743,27 @@ export function SessionSummary() {
   )
 }
 
-function ChangeRow({ c, applied, onApply, onRevert }: { c: AutoChange; applied: boolean; onApply: () => void; onRevert: () => void }) {
+/** Unit of the exercise a change is about, as the session logged it. */
+const unitOf = (w: Workout, c: AutoChange): Unit => w.exercises.find((e) => e.exerciseId === c.exerciseId)?.unit ?? 'kg'
+
+/** A change a session made to the plan: undone while the sheet still holds it, applied while it still holds what the change started from. */
+function ChangeRow({ c, unit, state, onApply, onRevert }: { c: AutoChange; unit: Unit; state: 'applied' | 'open' | 'gone'; onApply: () => void; onRevert: () => void }) {
   const icon = c.kind === 'up' ? <ArrowUp size={15} aria-hidden /> : c.kind === 'down' || c.kind === 'sets' ? <ArrowDown size={15} aria-hidden /> : <Check size={15} aria-hidden />
+  // Its sentence was written when the session ended: in another language since, the figures speak instead.
+  const text = c.lang && c.lang !== lang() ? changeLabel(c, unit) : c.text
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <span className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', c.kind === 'up' ? 'bg-good-mark/12 text-good' : c.kind === 'baseline' ? 'bg-surface-2 text-text-2' : 'bg-warn-mark/12 text-warn')}>{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-medium">{c.name}</p>
-        <p className={cx('text-[13px] text-text-2', !applied && 'text-muted')}>{c.text}</p>
+        <p className={cx('text-[13px] text-text-2', state !== 'applied' && 'text-muted')}>{text}</p>
+        {state === 'gone' && <p className="text-[12px] text-muted">{L('Plus d’actualité : fiche modifiée ou exercice refait depuis.', 'No longer current: sheet edited or exercise done again since.')}</p>}
       </div>
-      {applied ? (
+      {state === 'applied' ? (
         <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>{L('Annuler', 'Undo')}</Button>
-      ) : (
+      ) : state === 'open' ? (
         <Button size="sm" variant="primary" onClick={onApply}>{L('Appliquer', 'Apply')}</Button>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -775,8 +809,9 @@ export function WorkoutExercises({ w }: { w: Workout }) {
 
 export function WorkoutDetail({ id }: { id: string }) {
   const state = useStore((s) => s.state)
-  const deleteWorkout = useStore((s) => s.deleteWorkout)
+  const { deleteWorkout, reopenWorkout, applyChanges, revertChange, notify } = useStore.getState()
   const [confirm, setConfirm] = useState(false)
+  const [fix, setFix] = useState(false)
   const w = state.workouts.find((x) => x.id === id)
   if (!w) {
     return (
@@ -788,15 +823,53 @@ export function WorkoutDetail({ id }: { id: string }) {
   }
   const minutes = sessionDurationMin(w)
   const ctx = contextAt(w.date)
+  // What the session changed in the plan, and where each change stands on the sheets today.
+  const changes = w.changes ?? []
+  const stateOf = (c: AutoChange) => changeState(state.templates, c, w, state.workouts)
+  // What a deletion would undo (a session logged before changes were kept has its load changes worked out again).
+  const inPlace = changesOf(state, w).filter((c) => stateOf(c) === 'applied')
+  // Only the last session finished can be put back in progress: later sessions were compared with it.
+  const isLast = lastFinished(state.workouts)?.id === w.id
+  // Its correction may already be under way: the session in progress is then this one, reopened.
+  const correcting = !!state.activeWorkout?.reopened && state.activeWorkout.id === w.id
   return (
     <Screen>
       <Header eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Session #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true, year: true }))}`} title={TYPE_META[w.type].label} backTo="progres/seances" sub={`${TYPE_META[w.type].fr} · ${L(`${sessionSetCount(w)} séries`, plural(sessionSetCount(w), 'set', 'sets'))}${minutes ? ` · ${minutes} min` : ''}${ctx.period ? ` · ${ctx.title}` : ''}`} />
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
+      {changes.length > 0 && (
+        <Section title={L('Plan ajusté après cette séance', 'Plan adjusted after this session')}>
+          <Card className="divide-y divide-line">
+            {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
+          </Card>
+        </Section>
+      )}
       <div className="mt-8 grid gap-2">
         <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>{L('Bilan pour une IA', 'Summary for an AI')}</Button>
+        {isLast && (correcting ? (
+          <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} onClick={() => navigate('seance')}>{L('Reprendre la correction', 'Resume the correction')}</Button>
+        ) : (
+          <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} disabled={!!state.activeWorkout} onClick={() => setFix(true)}>{L('Corriger la séance', 'Correct this session')}</Button>
+        ))}
         <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>{L('Supprimer la séance', 'Delete session')}</Button>
       </div>
+      {isLast && state.activeWorkout && !correcting && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Une séance est en cours : termine-la avant de corriger celle-ci.', 'A session is in progress: finish it before correcting this one.')}</p>}
+      <Sheet
+        open={fix}
+        onClose={() => setFix(false)}
+        title={L('Corriger cette séance ?', 'Correct this session?')}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg" className="flex-1" onClick={() => setFix(false)}>{L('Annuler', 'Cancel')}</Button>
+            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setFix(false); if (reopenWorkout(w.id)) { notify(L('Séance rouverte : corrige, puis termine-la.', 'Session reopened: correct it, then finish it.')); navigate('seance', { replace: true }) } }}>{L('Corriger', 'Correct')}</Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] text-text-2">
+          {L('Elle s’ouvre avec ses séries : corrige ce qu’il faut, puis termine-la à nouveau. Tant que tu n’as pas terminé, rien ne change.', 'It opens with its sets: fix what needs fixing, then finish it again. Until you finish, nothing changes.')}
+          {inPlace.length > 0 && L(` Ses ajustements (${inPlace.map((c) => c.name).join(', ')}) sont recalculés à la fin.`, ` Its adjustments (${inPlace.map((c) => c.name).join(', ')}) are worked out again at the end.`)}
+        </p>
+      </Sheet>
       <Sheet
         open={confirm}
         onClose={() => setConfirm(false)}
@@ -808,7 +881,10 @@ export function WorkoutDetail({ id }: { id: string }) {
           </div>
         }
       >
-        <p className="text-[15px] text-text-2">{L('Elle disparaît de l’historique et des graphiques. Pense à exporter une sauvegarde avant.', 'It disappears from your history and charts. Consider exporting a backup first.')}</p>
+        <p className="text-[15px] text-text-2">
+          {L('Elle disparaît de l’historique et des graphiques. Pense à exporter une sauvegarde avant.', 'It disappears from your history and charts. Consider exporting a backup first.')}
+          {inPlace.length > 0 && L(` Ses ajustements encore en place sont annulés : ${inPlace.map((c) => c.name).join(', ')}.`, ` Its adjustments still in place are undone: ${inPlace.map((c) => c.name).join(', ')}.`)}
+        </p>
       </Sheet>
     </Screen>
   )

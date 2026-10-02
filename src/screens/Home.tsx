@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Infinity as InfinityIcon, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
 import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
-import { gymName } from '../lib/gyms'
+import { gymName, gymOf, isGymBound } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
   contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
@@ -20,7 +20,7 @@ import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { Dial } from './Onboarding'
-import { lookInfo, goalApplied } from '../lib/visual'
+import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
 export function Home() {
   const state = useStore((s) => s.state)
@@ -47,8 +47,11 @@ export function Home() {
   const nut = nutritionFor(state, today)
   const protein = proteinTargetFor(state, today)
   const cal = calorieAdvice(state, today)
+  // The cut was sized when the goal was applied: say so when today's weight asks for another length.
+  const drift = useMemo(() => cutDrift(state, today), [state, today])
   const lastWorkout = state.workouts[state.workouts.length - 1]
-  const drops = !state.prefs.autoLoad && lastWorkout ? lastWorkout.exercises.map((e) => dropAlert(state.workouts, e.exerciseId)).filter((x): x is string => !!x) : []
+  const drops = !state.prefs.autoLoad && lastWorkout ? lastWorkout.exercises.filter((e) => !e.skipped).map((e) => dropAlert(state.workouts, e.exerciseId, isGymBound(e) ? gymOf(lastWorkout) : undefined, e.target)).filter((x): x is string => !!x) : []
+  const earlyDeload = state.manualDeload && today <= state.manualDeload.end ? state.manualDeload : null
   const lastPhoto = photos[photos.length - 1]
   const daysSinceBackup = state.meta.lastBackupAt ? Math.floor((Date.now() - new Date(state.meta.lastBackupAt).getTime()) / 86_400_000) : null
   const weeksLeft = Math.max(0, Math.ceil(diffDays(today, GOAL_DATE) / 7))
@@ -209,7 +212,7 @@ export function Home() {
           <Tile
             label={L('Poids', 'Weight')}
             value={ws.current !== null ? <><Num value={ws.current} digits={1} /><span className="ml-0.5 text-[15px] font-medium text-text-2">kg</span></> : '—'}
-            foot={ws.current === null ? L('Ajoute une pesée', 'Add a weigh-in') : ws.isAverage ? L('Moyenne 7 jours', '7-day average') : L(`Pesée ${fmtRelativeDay(ws.currentDate!, today)}`, `Weighed ${fmtRelativeDay(ws.currentDate!, today)}`)}
+            foot={ws.current === null ? L('Ajoute une pesée', 'Add a weigh-in') : ws.isAverage && !ws.stale ? L('Moyenne 7 jours', '7-day average') : L(`Pesée ${fmtRelativeDay(ws.currentDate!, today)}`, `Weighed ${fmtRelativeDay(ws.currentDate!, today)}`)}
             detail={goal ? `${L('Cible', 'Target')} ${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg${goalApplied(state.visualGoal) ? ` · ${lookInfo(state.visualGoal.look).label}` : ''}` : undefined}
             chart={ma.length > 1 ? <Sparkline values={ma} /> : undefined}
             onClick={() => navigate('progres/corps')}
@@ -250,9 +253,31 @@ export function Home() {
 
       <Reminders
         items={[
+          // An early deload still ahead or running can be called off: the plan goes back to its calendar.
+          ...(earlyDeload
+            ? [{
+                icon: <CirclePause size={18} aria-hidden />,
+                text: L(`Décharge avancée : du ${fmtDate(earlyDeload.start, { long: true })} au ${fmtDate(earlyDeload.end, { long: true })}.`, `Deload brought forward: ${fmtDate(earlyDeload.start, { long: true })} to ${fmtDate(earlyDeload.end, { long: true })}.`),
+                action: L('Annuler', 'Cancel'),
+                run: () => { useStore.getState().cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) },
+              }]
+            : []),
           ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: L('Programme', 'Program'), to: 'plus/programme' })),
           ...(cal.status === 'lower' || cal.status === 'raise'
             ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
+            : []),
+          ...(drift
+            ? [{
+                icon: <Flag size={18} aria-hidden />,
+                text: drift.needed === 0
+                  ? L(`Ton dernier tour de taille te place déjà dans ton objectif : la sèche de ${drift.planned} semaines n’est plus nécessaire. Mets ton objectif à jour.`, `Your latest waist measurement already puts you at your goal: the cut of ${drift.planned} weeks is no longer needed. Update your goal.`)
+                  : drift.planned === 0
+                    ? L(`Ton dernier tour de taille demande ${drift.needed} semaines de sèche, le plan n’en prévoit pas : mets ton objectif à jour.`, `Your latest waist measurement calls for a cut of ${drift.needed} weeks, the plan has none: update your goal.`)
+                    : drift.needed > drift.planned
+                      ? L(`Ton dernier tour de taille demande ${drift.needed} semaines de sèche, le plan en prévoit ${drift.planned} : mets ton objectif à jour.`, `Your latest waist measurement calls for a cut of ${drift.needed} weeks, the plan has ${drift.planned}: update your goal.`)
+                      : L(`Ton dernier tour de taille ne demande plus que ${drift.needed} semaines de sèche, le plan en prévoit ${drift.planned} : mets ton objectif à jour.`, `Your latest waist measurement now calls for a cut of ${drift.needed} weeks, the plan has ${drift.planned}: update your goal.`),
+                action: L('Objectif', 'Goal'), to: 'plus/objectif',
+              }]
             : []),
           ...(ws.daysSinceLast === null || ws.daysSinceLast >= 2
             ? [{ icon: <Scale size={18} aria-hidden />, text: ws.daysSinceLast === null ? L('Aucune pesée : la moyenne sur 7 jours guide tes calories.', 'No weigh-ins yet: the 7-day average guides your calories.') : L(`Dernière pesée il y a ${ws.daysSinceLast} jours. Pèse-toi chaque matin, à jeun.`, `Last weigh-in ${ws.daysSinceLast} days ago. Weigh yourself every morning, fasted.`), action: L('Peser', 'Weigh in'), to: 'progres/corps/mesure' }]
@@ -303,7 +328,8 @@ function NutriCell({ label, value, unit, target, ratio }: { label: string; value
   )
 }
 
-function Reminders({ items }: { items: { icon: React.ReactNode; text: string; action: string; to: string }[] }) {
+/** A reminder leads to a screen (`to`), or acts on the spot (`run`). */
+function Reminders({ items }: { items: { icon: React.ReactNode; text: string; action: string; to?: string; run?: () => void }[] }) {
   if (!items.length) return null
   return (
     <Section title={L('À faire', 'To do')}>
@@ -312,7 +338,7 @@ function Reminders({ items }: { items: { icon: React.ReactNode; text: string; ac
           <div key={i} className="flex items-center gap-3 px-4 py-3">
             <span className={cx('shrink-0 text-text-2')}>{it.icon}</span>
             <p className="min-w-0 flex-1 text-[14px] leading-[1.4]">{it.text}</p>
-            <Button size="sm" variant="soft" onClick={() => navigate(it.to)}>{it.action}</Button>
+            <Button size="sm" variant="soft" onClick={() => (it.run ? it.run() : it.to !== undefined && navigate(it.to))}>{it.action}</Button>
           </div>
         ))}
       </Card>

@@ -6,8 +6,8 @@ import {
   ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
-  AppState, Backup, BodyEntry, Equipment, Gym, NutritionEntry, Photo, PlanUpdateRecord, Prefs, ProgramPause, Template, TrainingSetup, VisualGoal, Workout,
-  WorkoutExercise, WorkoutSet, WorkoutType,
+  AppState, AutoChange, Backup, BodyEntry, Equipment, Gym, NutritionEntry, Photo, PlanUpdateRecord, Prefs, ProgramPause, ReentryInfo, Template, TrainingSetup,
+  VisualGoal, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
 
@@ -104,7 +104,29 @@ function normWorkout(w: any, i: number): Workout | null {
     week: num(w.week) ?? undefined,
     deload: !!w.deload,
     gymId: typeof w.gymId === 'string' && w.gymId ? w.gymId : undefined,
+    // An empty list is kept: it says the session changed nothing, where no list says it was logged before changes were kept.
+    ...(Array.isArray(w.changes) ? { changes: normChanges(w.changes) } : {}),
+    ...(w.reentry === null || isReentry(w.reentry) ? { reentry: w.reentry } : {}),
   }
+}
+
+const CHANGE_KINDS = ['up', 'down', 'baseline', 'sets']
+
+/** The changes a session made to the plan: kept when they are complete, dropped otherwise (a session without them is still a session). */
+function normChanges(raw: any): AutoChange[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((c: any) => c && typeof c.id === 'string' && isType(c.type) && typeof c.exerciseId === 'string' && CHANGE_KINDS.includes(c.kind) && typeof c.date === 'string')
+    .map((c: any) => ({
+      id: c.id, type: c.type, exerciseId: c.exerciseId, name: str(c.name, c.exerciseId), gymId: str(c.gymId, HOME_GYM), date: c.date.slice(0, 10),
+      kind: c.kind, from: num(c.from), to: num(c.to), text: str(c.text),
+      ...(c.lang === 'fr' || c.lang === 'en' ? { lang: c.lang } : {}),
+      ...(Array.isArray(c.also) && c.also.some(isType) ? { also: c.also.filter(isType) } : {}),
+    }))
+}
+
+function isReentry(r: any): r is ReentryInfo {
+  return !!r && typeof r === 'object' && typeof r.sessionsLeft === 'number' && typeof r.setsFactor === 'number' && typeof r.loadFactor === 'number' && typeof r.rir === 'string'
 }
 
 function normGyms(raw: any): Gym[] {
@@ -246,6 +268,9 @@ export function normalizeState(raw: any): AppState {
         timer,
         gymId: typeof raw.activeWorkout.gymId === 'string' && raw.activeWorkout.gymId ? raw.activeWorkout.gymId : undefined,
         exercises: Array.isArray(raw.activeWorkout.exercises) ? raw.activeWorkout.exercises.map(normExercise) : [],
+        reopened: raw.activeWorkout.reopened && typeof raw.activeWorkout.reopened === 'object'
+          ? { completedAt: typeof raw.activeWorkout.reopened.completedAt === 'string' ? raw.activeWorkout.reopened.completedAt : null }
+          : undefined,
       }
     : null
   const fullTemplates = { ...d.templates, ...templates } as Record<WorkoutType, Template>

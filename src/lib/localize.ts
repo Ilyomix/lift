@@ -3,7 +3,7 @@
 import { L } from './i18n'
 import { LIBRARY } from './library'
 import { planNote, reentryForGap, TYPE_META } from './program'
-import type { AppState, Template, TemplateExercise, WorkoutType } from './types'
+import type { AppState, ReentryInfo, Template, TemplateExercise, WorkoutType } from './types'
 
 const DEFAULT_GYM_NAMES: [string, string][] = [
   ['Ma salle', 'My gym'],
@@ -37,14 +37,23 @@ export function localizeState(s: AppState): AppState {
     }
   }
   // The return-after-a-break rule keeps its progress; its label and advice follow the language.
-  const fresh = s.reentry ? reentryForGap(s.reentry.days) : null
-  const reentry = s.reentry && fresh ? { ...s.reentry, label: fresh.label, advice: fresh.advice } : s.reentry
+  const relabel = (r: ReentryInfo): ReentryInfo => {
+    const fresh = reentryForGap(r.days)
+    return fresh ? { ...r, label: fresh.label, advice: fresh.advice } : r
+  }
+  const reentry = s.reentry ? relabel(s.reentry) : s.reentry
   return {
     ...s,
     reentry,
     templates,
-    workouts: s.workouts.map((w) => ({ ...w, exercises: w.exercises.map(named) })),
-    activeWorkout: s.activeWorkout ? { ...s.activeWorkout, exercises: s.activeWorkout.exercises.map(named) } : null,
+    workouts: s.workouts.map((w) => ({
+      ...w,
+      exercises: w.exercises.map(named),
+      // The changes a session made name the exercise, and a return after a break its rule: both follow the language.
+      ...(w.changes ? { changes: w.changes.map((c) => ({ ...c, name: LIBRARY[c.exerciseId]?.name ?? c.name })) } : {}),
+      ...(w.reentry ? { reentry: relabel(w.reentry) } : {}),
+    })),
+    activeWorkout: s.activeWorkout ? { ...s.activeWorkout, exercises: s.activeWorkout.exercises.map(named), ...(s.activeWorkout.reentry ? { reentry: relabel(s.activeWorkout.reentry) } : {}) } : null,
     gyms: s.gyms.map((g) => ({ ...g, name: localizeGymName(g.name) })),
   }
 }

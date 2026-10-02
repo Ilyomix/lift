@@ -1,11 +1,11 @@
-import { addDays, diffDays, mondayOf } from './date'
+import { addDays, diffDays, mondayOf, todayISO } from './date'
 import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
-import { gymOf, HOME_GYM, isGymBound } from './gyms'
-import { L } from './i18n'
+import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
+import { L, lang } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextTargetText, PLAN_DAYS, scaledSession, sessionSlots, SET_DROP_REASON, takesLest } from './program'
+import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
-  Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
+  ActiveWorkout, AppState, AutoChange, Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 
 /** Epley estimate; clean reps only. */
@@ -54,15 +54,25 @@ export interface HistoryPoint {
 }
 
 /**
+ * Rep range an exercise is done in. The program has some exercises in two sessions with two
+ * ranges (heavy in one, lighter in the other): two prescriptions, each followed on its own.
+ */
+export type RepRange = { minReps: number; maxReps: number }
+
+const sameRange = (a: RepRange, b: RepRange): boolean => a.minReps === b.minReps && a.maxReps === b.maxReps
+
+/**
  * Every session of an exercise. With a gym, machine and cable work is limited to
  * that gym (a machine elsewhere is another machine); free weights ignore the filter.
+ * With a rep range (`like`), only the sessions where it was done in that range.
  */
-export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?: string): HistoryPoint[] {
+export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?: string, like?: RepRange): HistoryPoint[] {
   const out: HistoryPoint[] = []
   for (const w of workouts) {
     for (const ex of w.exercises) {
       if (ex.exerciseId !== exerciseId || ex.skipped) continue
       if (gymId !== undefined && isGymBound(ex) && gymOf(w) !== gymId) continue
+      if (like && !sameRange(ex.target, like)) continue
       const sets = doneSets(ex)
       if (!sets.length) continue
       let best = 0
@@ -95,16 +105,23 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?:
   return out.sort((a, b) => (a.date === b.date ? a.sessionNumber - b.sessionNumber : a.date < b.date ? -1 : 1))
 }
 
-export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string): { workout: Workout; exercise: WorkoutExercise } | null {
+/**
+ * Last performance of an exercise. With a rep range (`like`), the last one done in that range
+ * comes first, so that an exercise the program has in two sessions with two ranges is followed
+ * like for like; without any in that range, the last one anywhere.
+ */
+export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string, like?: RepRange): { workout: Workout; exercise: WorkoutExercise } | null {
+  let other: { workout: Workout; exercise: WorkoutExercise } | null = null
   for (let i = workouts.length - 1; i >= 0; i--) {
     const w = workouts[i]
     if (w.id === excludeId) continue
     const ex = w.exercises.find((e) => e.exerciseId === exerciseId && !e.skipped && doneSets(e).length > 0)
     if (!ex) continue
     if (gymId !== undefined && isGymBound(ex) && gymOf(w) !== gymId) continue
-    return { workout: w, exercise: ex }
+    if (!like || sameRange(ex.target, like)) return { workout: w, exercise: ex }
+    other ??= { workout: w, exercise: ex }
   }
-  return null
+  return other
 }
 
 export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
@@ -484,6 +501,17 @@ export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number, known:
  */
 const LEVEL_TOLERANCE = 0.05
 
+/**
+ * Normal variation between two sessions, in clean reps over the sets they share. At a fixed
+ * load, the reps of a set move by 0.7 to 1.1 from one week to the next with no change of level
+ * (typical error; Mitter et al. 2022, trained lifters), and a change in one person is likely
+ * real only beyond 1.5 to 2 times that error (Hopkins 2000). A drop therefore counts from one
+ * rep per set on average, and from two reps in all; under that, it says nothing.
+ */
+export function dropMargin(sets: number): number {
+  return Math.max(2, sets)
+}
+
 /** A stretch of this many days without any session, since an exercise was last done, makes that session no reference for it. */
 const BREAK_DAYS = 14
 
@@ -503,6 +531,10 @@ const lightened = (ex: WorkoutExercise | null): boolean => !!ex?.prescription &&
  *   are expected;
  * - reps kept in reserve beyond last time's (RIR logged on both sides, else what the two plans
  *   asked for) are added back. They excuse a drop and never create one.
+ * A drop is `marked` when it is beyond normal variation (dropMargin at the same loads; at
+ * different loads the level tolerance already is): only those count for the fatigue signal.
+ * `prev` is the last performance in the same rep range when there is one (previousPerformance):
+ * at other loads in another range, the session is the baseline of its own range.
  */
 export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | null, history: HistoryPoint[], deload: boolean, prevDeload = false, breakDays = 0): Comparison {
   const sets = doneSets(ex)
@@ -558,6 +590,10 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   }
   const sameLoads = now.every((s, i) => (s.weight ?? 0) === (before[i].weight ?? 0))
   if (!sameLoads) {
+    // Another rep range at other loads (the exercise as another session has it, or a sheet just edited): no verdict between two prescriptions.
+    if (!sameRange(ex.target, prev.target)) {
+      return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première séance dans cette fourchette de reps.', 'First session in this rep range.') }
+    }
     const level = (xs: WorkoutSet[], extra: (s: WorkoutSet, i: number) => number) => xs.reduce((a, s, i) => a + setScore({ ...s, cleanReps: cleanOf(s) + extra(s, i) }, ex.unit), 0) / k
     const was = level(before, () => 0)
     const change = was > 0 ? level(now, spared) / was - 1 : 0
@@ -565,7 +601,7 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
     const step = now.every((s, i) => (s.weight ?? 0) > (before[i].weight ?? 0) && cleanOf(s) >= ex.target.minReps)
     if (!step && change < -LEVEL_TOLERANCE) {
       return {
-        ...base, status: 'down', headline: L(`NIVEAU ESTIMÉ −${Math.max(1, Math.round(-change * 100))} %`, `ESTIMATED LEVEL −${Math.max(1, Math.round(-change * 100))}%`),
+        ...base, status: 'down', marked: true, headline: L(`NIVEAU ESTIMÉ −${Math.max(1, Math.round(-change * 100))} %`, `ESTIMATED LEVEL −${Math.max(1, Math.round(-change * 100))}%`),
         detail: L('Charges différentes : comparé sur le niveau estimé.', 'Different loads: compared on the estimated level.') + common,
       }
     }
@@ -585,24 +621,49 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   base.deltaCleanReps = delta
   if (delta > 0) return { ...base, status: 'progress', headline: `+${delta} REP${delta > 1 ? 'S' : ''}`, detail: L('Progression à charge égale.', 'Progress at the same load.') + common }
   if (delta === 0) return { ...base, status: 'stable', headline: L('PERFORMANCE ÉGALE', 'SAME PERFORMANCE'), detail: L('Niveau maintenu.', 'Level maintained.') + common }
-  if (delta + now.reduce((a, s, i) => a + spared(s, i), 0) >= 0) {
+  // Reps lost once the reserve kept is counted.
+  const kept = now.reduce((a, s, i) => a + spared(s, i), 0)
+  const lost = -(delta + kept)
+  if (lost <= 0) {
     return { ...base, status: 'stable', headline: L('MOINS DE REPS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'), detail: L('Plus de marge gardée que la dernière fois : pas une baisse.', 'More kept in reserve than last time: not a drop.') + common }
   }
-  return { ...base, status: 'down', headline: L(`−${-delta} REP${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, `−${-delta} REP${-delta > 1 ? 'S' : ''} VS LAST TIME`), detail: L('Variation ponctuelle.', 'One-off dip.') + common }
+  const marked = lost >= dropMargin(k)
+  const detail = marked
+    ? L('Nette baisse : au-delà de la variation normale.', 'Clear drop: beyond normal variation.')
+    : kept > 0
+      ? L('Plus de marge gardée que la dernière fois : le reste est une variation normale.', 'More kept in reserve than last time: the rest is normal variation.')
+      : L('Variation normale d’une séance à l’autre.', 'Normal variation from one session to the next.')
+  return { ...base, status: 'down', marked, headline: L(`−${-delta} REP${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, `−${-delta} REP${-delta > 1 ? 'S' : ''} VS LAST TIME`), detail: detail + common }
 }
 
-/** Report rule: performance down two sessions in a row → remove one set for that muscle. */
-export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: string): string | null {
-  const hist = exerciseHistory(workouts, exerciseId, gymId).slice(-2)
-  if (hist.length < 2) return null
-  if (hist.every((h) => h.comparison?.status === 'down')) {
-    const info = infoFor(exerciseId)
-    return L(
-      `${info.name} : performance en baisse 2 fois de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`,
-      `${info.name}: performance down 2 times in a row. Remove 1 set for this muscle. If the drop is general, bring the deload forward.`,
-    )
-  }
-  return null
+/**
+ * A drop that counts for the fatigue signal: beyond normal variation. Comparisons stored before
+ * the margin existed carry no verdict: at the same loads the reps lost are measured again; at
+ * different loads the drop may have been read against the exercise's other rep range, so it
+ * does not count.
+ */
+export function countedDrop(h: Pick<HistoryPoint, 'sets' | 'comparison'>): boolean {
+  const c = h.comparison
+  if (c?.status !== 'down') return false
+  if (c.marked !== undefined) return c.marked
+  if (c.deltaCleanReps === null) return false
+  const shared = Math.min(h.sets.length, c.previousSetReps?.length ?? h.sets.length)
+  return -c.deltaCleanReps >= dropMargin(shared)
+}
+
+/**
+ * Report rule: performance down two sessions in a row → remove one set for that muscle.
+ * Both drops have to be beyond normal variation (countedDrop): a rep lost here and there is not fatigue.
+ * With a rep range (`like`), the two sessions are the last two in that range.
+ */
+export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: string, like?: RepRange): string | null {
+  const hist = exerciseHistory(workouts, exerciseId, gymId, like).slice(-2)
+  if (hist.length < 2 || !hist.every(countedDrop)) return null
+  const info = infoFor(exerciseId)
+  return L(
+    `${info.name} : nette baisse 2 séances de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`,
+    `${info.name}: clear drop 2 sessions in a row. Remove 1 set for this muscle. If the drop is general, bring the deload forward.`,
+  )
 }
 
 /** Sessions in a row without any progress on an exercise before it is called a plateau. */
@@ -619,7 +680,8 @@ const stalled = (c: Comparison | null): boolean =>
  * it was already there last time), and exercises without progress for several sessions.
  * Nothing changes in the plan: these are the cases where a human look is worth it.
  * A plateau is not looked for during a cut (holding the loads is the goal there), on a deload,
- * or where two drops in a row already removed a set.
+ * or where two drops in a row already removed a set. It is read on the sessions done in the
+ * same rep range.
  */
 export function sessionNotes(workouts: Workout[], w: Workout): { pain: string[]; painAgain: string[]; plateau: string[] } {
   const gym = gymOf(w)
@@ -638,27 +700,15 @@ export function sessionNotes(workouts: Workout[], w: Workout): { pain: string[];
     if (!building) continue
     // Sessions without a verdict (deload, lightened) are skipped, unless they showed progress themselves.
     const judged = (c: Comparison | null) => c?.status !== 'deload' || c.isRecord || c.chargeValidated
-    const recent = exerciseHistory(all, ex.exerciseId, g).filter((h) => judged(h.comparison)).slice(-PLATEAU_SESSIONS)
-    const dropping = recent.slice(-2).every((h) => h.comparison?.status === 'down')
+    const recent = exerciseHistory(all, ex.exerciseId, g, ex.target).filter((h) => judged(h.comparison)).slice(-PLATEAU_SESSIONS)
+    const dropping = recent.length >= 2 && recent.slice(-2).every(countedDrop)
     const flat = recent.length === PLATEAU_SESSIONS && recent[recent.length - 1].best <= recent[0].best + 1e-9
     if (flat && !dropping && recent.every((h) => stalled(h.comparison))) out.plateau.push(ex.name)
   }
   return out
 }
 
-/** A change of the plan made after a session: load up or down, starting load, or one set less. */
-export interface AutoChange {
-  id: string
-  type: WorkoutType
-  exerciseId: string
-  name: string
-  gymId: string
-  date: ISODate
-  kind: 'up' | 'down' | 'baseline' | 'sets'
-  from: number | null
-  to: number | null
-  text: string
-}
+export type { AutoChange } from './types'
 
 export interface FinishResult {
   workout: Workout
@@ -675,6 +725,21 @@ function longestBreak(workouts: Workout[], from: ISODate, to: ISODate): number {
   return days.reduce((max, d, i) => (i === 0 ? 0 : Math.max(max, diffDays(days[i - 1], d))), 0)
 }
 
+/** A load stored as "none" is null: added load back to nothing, or a sheet not set yet. */
+const noLoad = (x: number | null | undefined): number | null => x || null
+
+/**
+ * Other sessions whose sheet has the exercise in the same rep range and at the same load (at that
+ * gym): one exercise in one range has one load, so they follow the change. A sheet with another
+ * range (heavy in one session, lighter in the other) or another load keeps its own.
+ */
+function twinSheets(templates: Record<WorkoutType, Template> | undefined, type: WorkoutType, ex: WorkoutExercise, gymId: string, from: number | null): WorkoutType[] {
+  if (!templates) return []
+  return (Object.keys(templates) as WorkoutType[]).filter(
+    (t) => t !== type && templates[t].exercises.some((e) => e.exerciseId === ex.exerciseId && sameRange(e.target, ex.target) && noLoad(loadAt(e, gymId)) === noLoad(from)),
+  )
+}
+
 export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Record<WorkoutType, Template>): FinishResult {
   const gym = gymOf(w)
   const changes: AutoChange[] = []
@@ -684,7 +749,8 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   const exercises = w.exercises.map((ex) => {
     const completedOnly = { ...ex, sets: ex.sets.filter((s) => s.completed) }
     const g = isGymBound(ex) ? gym : undefined
-    const before = previousPerformance(workouts, ex.exerciseId, w.id, g)
+    // Compared like for like: with the last session where the exercise had this rep range.
+    const before = previousPerformance(workouts, ex.exerciseId, w.id, g, ex.target)
     const prev = before?.exercise ?? null
     const others = workouts.filter((x) => x.id !== w.id)
     const history = exerciseHistory(others, ex.exerciseId, g)
@@ -692,9 +758,11 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
     if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First session on this machine at this gym.') }
     const decision = !ex.replacement && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g)) ?? baselineFor(completedOnly)) : null
     if (decision) {
+      const from = completedOnly.target.weight ?? null
+      const also = twinSheets(templates, w.type, ex, g ?? HOME_GYM, from)
       changes.push({
         id: `${w.id}-${ex.exerciseId}-load`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: g ?? HOME_GYM, date: w.date,
-        kind: decision.kind, from: completedOnly.target.weight ?? null, to: decision.weight, text: decision.text,
+        kind: decision.kind, from, to: decision.weight, text: decision.text, lang: lang(), ...(also.length ? { also } : {}),
       })
     }
     if (comparison.isRecord) records.push(ex.name)
@@ -704,7 +772,9 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   const all = [...workouts.filter((x) => x.id !== w.id), workout]
   const alerts: string[] = []
   for (const ex of exercises) {
-    const alert = dropAlert(all, ex.exerciseId, isGymBound(ex) ? gym : undefined)
+    // The signal belongs to the session in which the second drop happens: an exercise left out today says nothing new.
+    if (ex.skipped) continue
+    const alert = dropAlert(all, ex.exerciseId, isGymBound(ex) ? gym : undefined, ex.target)
     if (!alert) continue
     alerts.push(alert)
     const t = tpl?.exercises.find((e) => e.exerciseId === ex.exerciseId)
@@ -712,11 +782,255 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
       changes.push({
         id: `${w.id}-${ex.exerciseId}-sets`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: HOME_GYM, date: w.date,
         kind: 'sets', from: t.target.sets, to: t.target.sets - 1,
-        text: L('En baisse 2 séances de suite : 1 série de moins jusqu’à la fin du bloc', 'Down 2 sessions in a row: 1 set fewer until the end of the block'),
+        text: L('Nette baisse 2 séances de suite : 1 série de moins jusqu’à la fin du bloc', 'Clear drop 2 sessions in a row: 1 set fewer until the end of the block'), lang: lang(),
       })
     }
   }
-  return { workout, changes, alerts, records, generalDrop: alerts.length >= 2 }
+  // The changes stay with the session: they can still be undone or applied once the app was closed.
+  // An empty list says the session changed nothing; no list at all, that it was logged before they were kept.
+  return { workout: { ...workout, changes }, changes, alerts, records, generalDrop: alerts.length >= 2 }
+}
+
+/** A change in a few words, from its figures: shown when its sentence was written in another language. */
+export function changeLabel(c: AutoChange, unit: Unit = 'kg'): string {
+  if (c.kind === 'sets') return L('1 série de moins jusqu’à la fin du bloc', '1 set fewer until the end of the block')
+  // Bodyweight work has a load to start from with nothing added: a first added load is a raise, not a starting load.
+  if (c.kind === 'baseline' || (c.from === null && unit !== 'PDC')) return L(`Charge de départ : ${fmtLoad(c.to, unit)}`, `Starting load: ${fmtLoad(c.to, unit)}`)
+  return L(`${fmtLoad(c.from, unit)} → ${fmtLoad(c.to, unit)} la prochaine fois`, `${fmtLoad(c.from, unit)} → ${fmtLoad(c.to, unit)} next time`)
+}
+
+/**
+ * The changes a session made to the plan. A session logged before they were kept has none stored:
+ * its load changes are worked out again from its sets, on its own sheet only (one set less cannot
+ * be: it depends on sheets that have moved since).
+ */
+export function changesOf(s: Pick<AppState, 'workouts' | 'templates'>, w: Workout): AutoChange[] {
+  if (w.changes) return w.changes
+  return finalizeWorkout(s.workouts, w, s.templates).changes.filter((c) => c.kind !== 'sets').map(({ also: _a, ...c }) => c)
+}
+
+/**
+ * Where a change made after a session stands today, read on the sheet itself:
+ * - `applied`: the sheet holds what the change set, so it can be undone;
+ * - `open`: the sheet still holds what the change started from, so it can be applied;
+ * - `gone`: the sheet moved on (edited since, exercise removed, block over for one set less), or a
+ *   later session did the exercise again in that rep range and gym: its verdict replaced this one.
+ * `source` is the session the change comes from.
+ */
+export function changeState(templates: Record<WorkoutType, Template>, c: AutoChange, source: Pick<Workout, 'id' | 'date' | 'sessionNumber' | 'exercises'>, workouts: Workout[], today: ISODate = todayISO()): 'applied' | 'open' | 'gone' {
+  const e = templates[c.type]?.exercises.find((x) => x.exerciseId === c.exerciseId)
+  if (!e) return 'gone'
+  if (c.kind === 'sets') {
+    if (e.autoAdjust) return e.autoAdjust.since === c.date && autoAdjustActive(e, today) ? 'applied' : 'gone'
+    // One set less lasts until the end of the block it was decided in.
+    return autoAdjustActive({ autoAdjust: { sets: -1, since: c.date, reason: '' } }, today) ? 'open' : 'gone'
+  }
+  const done = source.exercises.find((x) => x.exerciseId === c.exerciseId)
+  const later = (w: Workout) => w.id !== source.id && (w.date > source.date || (w.date === source.date && w.sessionNumber > source.sessionNumber))
+  const again = workouts.some((w) => later(w) && (!isGymBound(e) || gymOf(w) === c.gymId) && w.exercises.some((x) => x.exerciseId === c.exerciseId && !x.skipped && doneSets(x).length > 0 && (!done || sameRange(x.target, done.target))))
+  if (again) return 'gone'
+  const now = noLoad(loadAt(e, c.gymId))
+  return now === noLoad(c.to) ? 'applied' : now === noLoad(c.from) ? 'open' : 'gone'
+}
+
+// ───────────── After the fact ─────────────
+// A finished session can still be put right: its changes undone or applied, the session itself
+// corrected (the last one) or deleted. All of it is read from what the session and the sheets hold.
+
+/** The session finished last (the highest number), whatever its date. */
+export function lastFinished(workouts: Workout[]): Workout | null {
+  return workouts.reduce<Workout | null>((best, w) => (!best || w.sessionNumber > best.sessionNumber ? w : best), null)
+}
+
+/** A change made by a finished session, with the session it comes from. */
+export function findChange(workouts: Workout[], id: string): { change: AutoChange; source: Workout } | null {
+  for (const w of workouts) {
+    const change = w.changes?.find((c) => c.id === id)
+    if (change) return { change, source: w }
+  }
+  return null
+}
+
+/**
+ * The state without a finished session, as if it had not taken place: the changes it made that
+ * the sheets still hold are undone; if it was the last one finished, the rotation and the return
+ * after a break go back to where they stood.
+ */
+export function withoutWorkout(s: AppState, id: string, today: ISODate = todayISO()): AppState {
+  const w = s.workouts.find((x) => x.id === id)
+  if (!w) return s
+  let templates = s.templates
+  for (const c of changesOf(s, w)) if (changeState(templates, c, w, s.workouts, today) === 'applied') templates = applyChange(templates, c, true)
+  const workouts = s.workouts.filter((x) => x.id !== id)
+  const wasLast = lastFinished(s.workouts)?.id === id
+  return {
+    ...s,
+    workouts,
+    templates,
+    completedSessions: workouts.length,
+    lastCompletedWorkoutId: s.lastCompletedWorkoutId === id ? (lastFinished(workouts)?.id ?? null) : s.lastCompletedWorkoutId,
+    ...(wasLast
+      ? { nextWorkoutType: s.nextWorkoutType === nextInRotation(w.type) ? w.type : s.nextWorkoutType, reentry: w.reentry !== undefined ? w.reentry : s.reentry }
+      : {}),
+    appliedPlanUpdates: s.appliedPlanUpdates.filter((u) => u.updateId !== `auto-${id}`),
+  }
+}
+
+/**
+ * The last finished session opened again as the session in progress, to be corrected: its sets
+ * come back as logged. The session itself stays where it is until the corrected one is finished
+ * and takes its place (finishedState), so dropping the correction loses nothing. Only the
+ * last one can be reopened: the sessions after it were compared with it. Null when it cannot be
+ * done (another session in progress, or not the last one).
+ */
+export function reopenedState(s: AppState, id: string): AppState | null {
+  const w = s.workouts.find((x) => x.id === id)
+  if (!w || s.activeWorkout || lastFinished(s.workouts)?.id !== id) return null
+  const active: ActiveWorkout = {
+    id: w.id,
+    type: w.type,
+    date: w.date,
+    startedAt: w.startedAt,
+    notes: w.notes,
+    timerEndAt: null,
+    timer: null,
+    // The verdicts are worked out again when the session is finished.
+    exercises: w.exercises.map((e) => ({ ...e, comparison: null, validated: false })),
+    periodId: w.periodId,
+    week: w.week,
+    deload: w.deload,
+    reentry: w.reentry ?? null,
+    gymId: gymOf(w),
+    reopened: { completedAt: w.completedAt },
+  }
+  return { ...s, activeWorkout: active }
+}
+
+/**
+ * A corrected session takes the place of the one it was reopened from: what that one changed and
+ * the sheets still hold is undone first, so that the corrected sets are judged on the sheets as
+ * they stood. Gives those sheets, the load each undone change had set (`inPlace`) with the twin
+ * sheets put back along with it (`back`), and the load of each change that was waiting or had been
+ * undone by hand (`open`).
+ */
+export function beforeCorrection(
+  s: Pick<AppState, 'templates' | 'workouts'>, original: Workout, today: ISODate = todayISO(),
+): { templates: Record<WorkoutType, Template>; inPlace: Map<string, number | null>; open: Map<string, number | null>; back: Map<string, WorkoutType[]> } {
+  let templates = s.templates
+  const inPlace = new Map<string, number | null>()
+  const open = new Map<string, number | null>()
+  const back = new Map<string, WorkoutType[]>()
+  for (const c of changesOf(s, original)) {
+    const state = changeState(templates, c, original, s.workouts, today)
+    if (state === 'open') open.set(c.id, c.to)
+    if (state !== 'applied') continue
+    back.set(c.id, twinsToMove(templates, c, true))
+    templates = applyChange(templates, c, true)
+    inPlace.set(c.id, c.to)
+  }
+  return { templates, inPlace, open, back }
+}
+
+/** « Presse à cuisses 100 → 105 kg, Leg curl −1 série »: the changes of a session in one line, for the history of the plan. */
+export function describeChanges(changes: AutoChange[]): string {
+  return changes
+    .map((c) => (c.kind === 'sets' ? L(`${c.name} −1 série`, `${c.name} −1 set`) : `${c.name} ${c.from !== null ? `${fmtNum(c.from)} → ` : ''}${fmtLoad(c.to, 'kg')}`))
+    .join(', ')
+}
+
+/**
+ * The state once the session in progress is finished: the session joins the history with its
+ * verdicts and its changes, the automatic ones are applied to the sheets, the rotation moves on
+ * and a return after a break counts one session down.
+ * A session reopened to be corrected takes the place of the one it comes from: same number, same
+ * end time, the rotation and the return after a break are left alone (they moved the first time),
+ * and what the original changed is undone before the corrected sets are judged. Finished without
+ * a change, it leaves the sheets as they were; the session keeps the changes that are still
+ * current (one whose exercise left the sheet, or whose block is over, is no longer listed).
+ */
+export function finishedState(s: AppState, now: string = new Date().toISOString(), today: ISODate = todayISO()): { state: AppState; result: FinishResult } | null {
+  const a = s.activeWorkout
+  if (!a) return null
+  const original = a.reopened ? (s.workouts.find((w) => w.id === a.id) ?? null) : null
+  const sessionNumber = original?.sessionNumber ?? Math.max(0, ...s.workouts.map((w) => w.sessionNumber)) + 1
+  const workout: Workout = {
+    id: a.id,
+    sessionNumber,
+    type: a.type,
+    date: a.date,
+    startedAt: a.startedAt,
+    completedAt: a.reopened?.completedAt ?? now,
+    notes: a.notes,
+    exercises: a.exercises.map(({ hint: _h, ...e }) => e),
+    periodId: a.periodId,
+    week: a.week,
+    deload: a.deload,
+    gymId: a.gymId && a.gymId !== HOME_GYM ? a.gymId : undefined,
+    // The return after a break as it stood before this session: restored if the session is deleted.
+    reentry: original ? original.reentry : s.reentry,
+  }
+  const none = new Map<string, number | null>()
+  const before = original ? beforeCorrection(s, original, today) : { templates: s.templates, inPlace: none, open: none, back: new Map<string, WorkoutType[]>() }
+  const judged = finalizeWorkout(s.workouts, workout, before.templates)
+  // The change the corrected session asks for is the one the session made the first time: same exercise, gym and loads.
+  const first = new Map((original ? changesOf(s, original) : []).map((c) => [c.id, c]))
+  const asFirst = (c: AutoChange) => {
+    const was = first.get(c.id)
+    return !!was && was.kind === c.kind && was.gymId === c.gymId && noLoad(was.from) === noLoad(c.from) && noLoad(was.to) === noLoad(c.to)
+  }
+  // Such a change moves the twin sheets it had moved, not those of today: the ones just put back with
+  // it, or the ones it named if it was not in place. A twin put back by hand in between stays out of it.
+  const changes = judged.changes.map((c) => {
+    if (!asFirst(c)) return c
+    const twins = before.back.get(c.id) ?? first.get(c.id)?.also ?? []
+    const { also: _a, ...bare } = c
+    return twins.length ? { ...bare, also: twins } : bare
+  })
+  const result: FinishResult = { ...judged, changes, workout: { ...judged.workout, changes } }
+  const workouts = [...s.workouts.filter((x) => x.id !== workout.id), result.workout].sort((x, y) => (x.date === y.date ? x.sessionNumber - y.sessionNumber : x.date < y.date ? -1 : 1))
+  const reentry = original ? s.reentry : s.reentry ? (s.reentry.sessionsLeft > 1 ? { ...s.reentry, sessionsLeft: s.reentry.sessionsLeft - 1 } : null) : null
+  // What the lifter had decided stands when the corrected session asks for the same change: one undone
+  // stays undone (automatic loads), one applied by hand stays applied (without them).
+  const same = (was: Map<string, number | null>, c: AutoChange) => was.has(c.id) && asFirst(c)
+  // A session logged before its changes were kept says nothing of a set removal the lifter had refused:
+  // the sheet without it is the only trace, so the corrected session offers the removal and does not apply it.
+  const refusable = (c: AutoChange) => !!original && !original.changes && c.kind === 'sets'
+  const wanted = result.changes.filter((c) => !refusable(c) && (s.prefs.autoLoad ? !same(before.open, c) : same(before.inPlace, c)))
+  // A corrected session only moves a sheet that still holds what the session started from: a load typed since stays.
+  const auto = original ? wanted.filter((c) => changeState(before.templates, c, result.workout, s.workouts, today) === 'open') : wanted
+  let templates = before.templates
+  for (const c of auto) templates = applyChange(templates, c)
+  // A correction that puts back exactly what was in place has not changed the plan: its history stays as written.
+  const asBefore = !!original && auto.length === before.inPlace.size && auto.every((c) => before.inPlace.has(c.id) && asFirst(c))
+  const updates = s.appliedPlanUpdates.filter((u) => u.updateId !== `auto-${workout.id}`)
+  return {
+    result,
+    state: {
+      ...s,
+      workouts,
+      templates,
+      completedSessions: workouts.length,
+      nextWorkoutType: original ? s.nextWorkoutType : nextInRotation(a.type),
+      lastCompletedWorkoutId: workout.id,
+      activeWorkout: null,
+      reentry,
+      appliedPlanUpdates: asBefore
+        ? s.appliedPlanUpdates
+        : auto.length
+        ? [
+            ...updates,
+            {
+              updateId: `auto-${workout.id}`,
+              basedOnSession: sessionNumber,
+              summary: L(`Ajustement automatique : ${describeChanges(auto)}.`, `Automatic adjustment: ${describeChanges(auto)}.`),
+              appliedAt: now,
+              changeCount: auto.length,
+              source: 'progression' as const,
+            },
+          ]
+        : updates,
+    },
+  }
 }
 
 /** Load of an exercise at a gym, written in the template (the first gym uses the main target). */
@@ -729,22 +1043,80 @@ export function withLoadAt(ex: TemplateExercise, gymId: string, weight: number |
   return { ...ex, gymLoads: { ...(ex.gymLoads ?? {}), [gymId]: weight } }
 }
 
-/** Applies (or reverts) an automatic change on the template of the session type. */
+/**
+ * The other sheets a load change moves with the session's own, when it is applied (or put back,
+ * when it is undone): those it names (`also`) that have the exercise in the same rep range as that
+ * sheet and still hold the load the move starts from.
+ */
+export function twinsToMove(templates: Record<WorkoutType, Template>, c: AutoChange, revert = false): WorkoutType[] {
+  const own = templates[c.type]?.exercises.find((e) => e.exerciseId === c.exerciseId)
+  if (!own || c.kind === 'sets') return []
+  const start = noLoad(revert ? c.to : c.from)
+  return (c.also ?? []).filter((t) => t !== c.type && !!templates[t]?.exercises.some((e) => e.exerciseId === c.exerciseId && sameRange(e.target, own.target) && noLoad(loadAt(e, c.gymId)) === start))
+}
+
+/**
+ * Applies (or reverts) an automatic change on the template of the session type. A load also moves
+ * in the other sessions that have the exercise in the same rep range (twinsToMove), as long as
+ * their sheet still holds the load the change starts from. One set less stays in the session it came from.
+ */
 export function applyChange(templates: Record<WorkoutType, Template>, c: AutoChange, revert = false): Record<WorkoutType, Template> {
-  const tpl = templates[c.type]
-  if (!tpl) return templates
-  const exercises = tpl.exercises.map((e) => {
-    if (e.exerciseId !== c.exerciseId) return e
-    if (c.kind === 'sets') {
-      if (revert) {
-        const { autoAdjust: _a, ...rest } = e
-        return rest
+  if (!templates[c.type]) return templates
+  const out = { ...templates }
+  for (const type of [c.type, ...twinsToMove(templates, c, revert)]) {
+    const tpl = out[type]
+    const exercises = tpl.exercises.map((e) => {
+      if (e.exerciseId !== c.exerciseId) return e
+      if (c.kind === 'sets') {
+        if (revert) {
+          const { autoAdjust: _a, ...rest } = e
+          return rest
+        }
+        return { ...e, autoAdjust: { sets: (c.to ?? e.target.sets) - (c.from ?? e.target.sets), since: c.date, reason: L(...SET_DROP_REASON) } }
       }
-      return { ...e, autoAdjust: { sets: (c.to ?? e.target.sets) - (c.from ?? e.target.sets), since: c.date, reason: L(...SET_DROP_REASON) } }
-    }
-    return withLoadAt(e, c.gymId, revert ? c.from : c.to)
-  })
-  return { ...templates, [c.type]: { ...tpl, exercises } }
+      return withLoadAt(e, c.gymId, revert ? c.from : c.to)
+    })
+    out[type] = { ...tpl, exercises }
+  }
+  return out
+}
+
+/**
+ * The state once changes a session proposed are applied by hand: only those the sheets are still
+ * open to. The change keeps the twin sheets it really moved, so that undoing it later puts back
+ * those and no other (a twin typed by hand in between is not one of them).
+ */
+export function appliedState(s: AppState, ids: string[], now: string = new Date().toISOString(), today: ISODate = todayISO()): AppState {
+  let templates = s.templates
+  let workouts = s.workouts
+  const done: AutoChange[] = []
+  for (const id of ids) {
+    const found = findChange(workouts, id)
+    if (!found || changeState(templates, found.change, found.source, workouts, today) !== 'open') continue
+    const moved = twinsToMove(templates, found.change)
+    const { also: _a, ...bare } = found.change
+    const change: AutoChange = moved.length ? { ...bare, also: moved } : bare
+    templates = applyChange(templates, change)
+    workouts = workouts.map((w) => (w.id === found.source.id ? { ...w, changes: w.changes?.map((c) => (c.id === id ? change : c)) } : w))
+    done.push(change)
+  }
+  if (!done.length) return s
+  return {
+    ...s,
+    templates,
+    workouts,
+    appliedPlanUpdates: [
+      ...s.appliedPlanUpdates,
+      { updateId: `manual-${Date.parse(now)}`, basedOnSession: s.workouts.length, summary: L(`Charges mises à jour : ${describeChanges(done)}.`, `Loads updated: ${describeChanges(done)}.`), appliedAt: now, changeCount: done.length, source: 'progression' },
+    ],
+  }
+}
+
+/** The state once a change a session made is undone: only while the sheet still holds it. */
+export function revertedState(s: AppState, id: string, today: ISODate = todayISO()): AppState {
+  const found = findChange(s.workouts, id)
+  if (!found || changeState(s.templates, found.change, found.source, s.workouts, today) !== 'applied') return s
+  return { ...s, templates: applyChange(s.templates, found.change, true) }
 }
 
 /** Legacy helper kept for the coach flow: raises the load everywhere the exercise appears. */

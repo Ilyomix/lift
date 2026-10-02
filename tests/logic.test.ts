@@ -5,16 +5,18 @@ import { readFileSync, existsSync } from 'node:fs'
 import { setLang } from '../src/lib/i18n'
 import { defaultState, normalizeState, parseBackup, upgradeToResearchProgram } from '../src/lib/backup'
 import { applyPlanUpdate, globalPrompt, parsePlanUpdate, previewPlanUpdate, sessionPrompt } from '../src/lib/coach'
+import { addDays } from '../src/lib/date'
 import { buildIcs, icsEventCount } from '../src/lib/ics'
 import * as program from '../src/lib/program'
 import {
   buildPeriods, configurePlan, contextAt, DEFAULT_GOAL, isValidGoal, milestones, planShape, prescribe, projectSessions, PROGRAM_START,
   reentryForGap, ROTATION, sessionPlan,
 } from '../src/lib/program'
-import { calorieAdvice, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor } from '../src/lib/stats'
+import { calorieAdvice, calorieFloor, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor, restingCalories, TREND_DAYS, weightStatus } from '../src/lib/stats'
 import {
-  applyChange, baselineFor, compareExercise, exerciseHistory, finalizeWorkout, heldByEffort, intraSessionAdjust, knownLoads, loadDecision, plannedVolume,
-  progressionFor, sessionEffort, sessionNotes, setScore, setsSummary, toppedOut,
+  appliedState, applyChange, baselineFor, changeLabel, changesOf, changeState, compareExercise, countedDrop, dropAlert, dropMargin, exerciseHistory, finalizeWorkout, findChange, finishedState,
+  heldByEffort, intraSessionAdjust, knownLoads, lastFinished, loadDecision, plannedVolume, previousPerformance, progressionFor, reopenedState, revertedState, sessionEffort, sessionNotes, setScore,
+  setsSummary, toppedOut, withoutWorkout,
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
 import { infoFor } from '../src/lib/library'
@@ -636,6 +638,373 @@ test('a drop is only called when the plan or the effort does not explain it', ()
   assert.equal(compareExercise(weak, hard, [], false).status, 'down')
 })
 
+test('the fatigue signal has a margin: a drop counts from one rep per set on average', () => {
+  // Mitter 2022: at a fixed load a set moves by about one rep between two weeks; Hopkins 2000: real beyond 1.5–2 times that.
+  assert.deepEqual([1, 2, 3, 4, 7].map(dropMargin), [2, 2, 3, 4, 7])
+  const reps = (...r: number[]) => exo(r.map((n) => set(100, n)))
+  const ref = reps(10, 10, 9)
+  // One or two reps lost over three sets: shown, and inside normal variation.
+  const dip = compareExercise(reps(10, 9, 9), ref, [], false)
+  assert.deepEqual([dip.status, dip.marked, dip.headline, dip.detail], ['down', false, '−1 REP VS DERNIÈRE FOIS', 'Variation normale d’une séance à l’autre.'])
+  assert.equal(compareExercise(reps(9, 9, 9), ref, [], false).marked, false)
+  // One rep per set: a clear drop.
+  const clear = compareExercise(reps(9, 9, 8), ref, [], false)
+  assert.deepEqual([clear.status, clear.marked, clear.detail], ['down', true, 'Nette baisse : au-delà de la variation normale.'])
+  // The margin follows the sets both sessions have, with two reps as a floor.
+  assert.deepEqual([compareExercise(reps(9, 10), ref, [], false).marked, compareExercise(reps(9, 9), ref, [], false).marked], [false, true])
+  assert.deepEqual([compareExercise(reps(9), ref, [], false).marked, compareExercise(reps(8), ref, [], false).marked], [false, true])
+  const four = reps(10, 10, 9, 9)
+  assert.deepEqual([compareExercise(reps(9, 9, 8, 9), four, [], false).marked, compareExercise(reps(9, 9, 8, 8), four, [], false).marked], [false, true])
+  // Reps kept in reserve come off first: four reps fewer, two of them explained, is normal variation.
+  const rx = { prescription: { sets: 3, minReps: 8, maxReps: 12, rir: '1', restSeconds: 150, weight: 100, loadFactor: 1, notes: [] } }
+  const tight = exo([set(100, 10, { rir: 1 }), set(100, 10, { rir: 1 }), set(100, 9, { rir: 1 })], rx)
+  const partly = compareExercise(exo([set(100, 9, { rir: 2 }), set(100, 8, { rir: 2 }), set(100, 8, { rir: 1 })], rx), tight, [], false)
+  assert.deepEqual([partly.status, partly.marked, partly.deltaCleanReps], ['down', false, -4])
+  assert.match(partly.detail, /^Plus de marge gardée .* variation normale\.$/)
+  // At different loads a drop is only called beyond the level tolerance: it always counts.
+  assert.equal(compareExercise(exo([set(102.5, 8), set(100, 8), set(100, 7)]), exo([set(100, 12), set(100, 11), set(100, 10)]), [], false).marked, true)
+  // Progress and equal performance carry no verdict of that kind.
+  assert.equal(compareExercise(reps(10, 10, 10), ref, [], false).marked, undefined)
+
+  // Two drops in a row remove a set only when both are clear.
+  const s = defaultState()
+  const sessions = (list: WorkoutExercise[]) => {
+    let ws: Workout[] = []
+    let last = finalizeWorkout(ws, workout('m0', '2026-10-05', undefined, [list[0]], 1), s.templates)
+    ws = [last.workout]
+    for (const [i, ex] of list.slice(1).entries()) {
+      last = finalizeWorkout(ws, workout(`m${i + 1}`, addDays('2026-10-05', 7 * (i + 1)), undefined, [ex], i + 2), s.templates)
+      ws = [...ws, last.workout]
+    }
+    return { last, ws }
+  }
+  const block = (list: number[][]) => sessions(list.map((r) => reps(...r)))
+  const alerted = (list: number[][]) => block(list).last.alerts.length
+  assert.equal(alerted([[10, 10, 9], [10, 9, 9], [9, 9, 9]]), 0, 'a rep lost twice is normal variation')
+  assert.equal(alerted([[10, 10, 9], [9, 9, 9], [9, 8, 8]]), 0, 'two reps lost twice: still under one rep per set')
+  assert.equal(alerted([[11, 11, 10], [10, 10, 9], [10, 9, 9]]), 0, 'a clear drop, then a dip')
+  assert.equal(alerted([[11, 11, 10], [11, 10, 10], [10, 9, 9]]), 0, 'a dip, then a clear drop: one bad day')
+  const tired = block([[11, 11, 10], [10, 10, 9], [9, 9, 8]])
+  assert.equal(tired.last.alerts.length, 1)
+  assert.match(tired.last.alerts[0], /nette baisse 2 séances de suite/)
+  assert.deepEqual(tired.last.changes.filter((c) => c.kind === 'sets').map((c) => [c.from, c.to, c.text]), [[3, 2, 'Nette baisse 2 séances de suite : 1 série de moins jusqu’à la fin du bloc']])
+  assert.equal(tired.last.generalDrop, false)
+  // On the sheet the set comes off with today's words, whatever the words it was stored with.
+  const sheet = applyChange(s.templates, tired.last.changes.find((c) => c.kind === 'sets')!).LOWER.exercises.find((e) => e.exerciseId === 'leg-press')!
+  assert.deepEqual([sheet.autoAdjust?.sets, sheet.autoAdjust?.reason], [-1, 'nette baisse 2 séances de suite'])
+  assert.ok(prescribe(sheet, '2026-10-20', null).notes.includes('−1 série (nette baisse 2 séances de suite)'))
+  assert.ok(prescribe({ ...sheet, autoAdjust: { ...sheet.autoAdjust!, reason: 'down 2 sessions in a row' } }, '2026-10-20', null).notes.includes('−1 série (nette baisse 2 séances de suite)'))
+  // The signal belongs to the session of the second drop: left out of the next one, the exercise does not raise it again.
+  const skipped = finalizeWorkout(tired.ws, workout('m9', '2026-10-26', undefined, [{ ...reps(9, 9, 8), sets: [], skipped: true }], 4), s.templates)
+  assert.deepEqual([skipped.alerts.length, skipped.changes.length], [0, 0])
+
+  // Sessions logged before the margin existed carry no verdict: the reps they kept are measured again.
+  const legacy = (ws: Workout[]): Workout[] => ws.map((w) => ({ ...w, exercises: w.exercises.map((e) => { const { marked: _m, ...c } = e.comparison!; return { ...e, comparison: c } }) }))
+  const next = (ws: Workout[], r: number[]) => [...ws, finalizeWorkout(ws, workout('m9', '2026-10-19', undefined, [reps(...r)], 3), s.templates).workout]
+  const old = legacy(block([[10, 10, 9], [10, 9, 9]]).ws)
+  assert.equal(old[1].exercises[0].comparison?.marked, undefined)
+  assert.equal(countedDrop(exerciseHistory(old, 'leg-press')[1]), false)
+  assert.equal(dropAlert(next(old, [9, 8, 8]), 'leg-press'), null)
+  const oldClear = legacy(block([[11, 11, 10], [10, 10, 9]]).ws)
+  assert.equal(countedDrop(exerciseHistory(oldClear, 'leg-press')[1]), true)
+  assert.ok(dropAlert(next(oldClear, [9, 9, 8]), 'leg-press'))
+  const oldLevel = legacy(sessions([reps(12, 11, 10), exo([set(102.5, 8), set(100, 8), set(100, 7)])]).ws)
+  assert.equal(oldLevel[1].exercises[0].comparison?.headline, 'NIVEAU ESTIMÉ −7 %')
+  assert.equal(countedDrop(exerciseHistory(oldLevel, 'leg-press')[1]), false, 'at different loads it may have been read against the other rep range: not counted')
+  assert.equal(dropAlert(next(oldLevel, [6, 6, 5]), 'leg-press'), null)
+
+  // Four sessions without progress whose last two are small dips: a plateau, no longer hidden behind a drop that is none.
+  configurePlan(DEFAULT_GOAL)
+  const stall = block([[10, 10, 10], [10, 10, 10], [10, 10, 10], [10, 10, 9], [10, 9, 9]])
+  assert.deepEqual(sessionNotes(stall.ws, stall.last.workout).plateau, ['Presse à cuisses'])
+  const falling = block([[11, 11, 11], [11, 11, 11], [11, 11, 11], [10, 10, 10], [9, 9, 9]])
+  assert.deepEqual(sessionNotes(falling.ws, falling.last.workout).plateau, [], 'two clear drops: the set already came off')
+})
+
+test('an exercise two sessions have: followed like for like, one load per rep range', () => {
+  const base = defaultState().templates
+  const sheets = (loads: Partial<Record<Workout['type'], Record<string, number | null>>>) =>
+    Object.fromEntries(Object.entries(base).map(([type, t]) => [type, { ...t, exercises: t.exercises.map((e) => (loads[type as Workout['type']]?.[e.exerciseId] !== undefined ? { ...e, target: { ...e.target, weight: loads[type as Workout['type']]![e.exerciseId] } } : e)) }])) as typeof base
+  // The exercise as a session builds it: its target is the sheet's load at the gym of the session.
+  const live = (tpl: typeof base, type: Workout['type'], id: string, sets: WorkoutSet[], gymId = 'main'): WorkoutExercise => {
+    const t = tpl[type].exercises.find((e) => e.exerciseId === id)!
+    const weight = loadAt(t, gymId)
+    return { ...t, target: { ...t.target, weight }, prescription: { sets: t.target.sets, minReps: t.target.minReps, maxReps: t.target.maxReps, rir: t.target.rir ?? '1–2', restSeconds: t.target.restSeconds, weight, loadFactor: 1, notes: [] }, sets, notes: '', skipped: false, validated: true, comparison: null }
+  }
+  const of = (tpl: typeof base, type: Workout['type'], id: string) => tpl[type].exercises.find((e) => e.exerciseId === id)!
+  const play = (tpl: typeof base, plan: [Workout['type'], string, number, number[]][], gymId?: string) => {
+    let ws: Workout[] = []
+    const out = plan.map(([type, id, load, r], i) => {
+      const date = addDays('2026-10-05', 3 * i)
+      const res = finalizeWorkout(ws, { ...workout(`t${i}`, date, gymId, [live(tpl, type, id, r.map((n) => set(load, n)), gymId)], i + 1), type }, tpl)
+      ws = [...ws, res.workout]
+      return res
+    })
+    return { out, ws }
+  }
+
+  // Lat pulldown: 6–10 heavy in Pull, 8–12 lighter in Upper. One rep per set lost at every session.
+  const two = sheets({ PULL: { 'lat-pulldown': 55 }, UPPER: { 'lat-pulldown': 50 } })
+  const lat = play(two, [
+    ['PULL', 'lat-pulldown', 55, [10, 10, 9]], ['UPPER', 'lat-pulldown', 50, [12, 11, 11]],
+    ['PULL', 'lat-pulldown', 55, [9, 9, 8]], ['UPPER', 'lat-pulldown', 50, [11, 10, 10]],
+    ['PULL', 'lat-pulldown', 55, [8, 8, 7]], ['UPPER', 'lat-pulldown', 50, [10, 9, 9]],
+  ])
+  const verdict = (r: ReturnType<typeof finalizeWorkout>) => r.workout.exercises[0].comparison!
+  // The first session in each range is its baseline: no verdict between two prescriptions.
+  assert.deepEqual([verdict(lat.out[1]).status, verdict(lat.out[1]).detail], ['new-baseline', 'Première séance dans cette fourchette de reps.'])
+  // Then each range is compared with itself: Pull with the Pull before, through the Upper session in between.
+  assert.deepEqual([verdict(lat.out[2]).status, verdict(lat.out[2]).deltaCleanReps, verdict(lat.out[2]).previousSetReps], ['down', -3, [10, 10, 9]])
+  assert.deepEqual([verdict(lat.out[3]).status, verdict(lat.out[3]).previousSetReps], ['down', [12, 11, 11]])
+  // Two clear drops in a row in one range: the signal fires there, and the set comes off that session's sheet only.
+  assert.deepEqual(lat.out.map((r) => r.alerts.length), [0, 0, 0, 0, 1, 1])
+  const cut = lat.out[4].changes.find((c) => c.kind === 'sets')!
+  assert.deepEqual([cut.type, cut.also], ['PULL', undefined])
+  const afterCut = applyChange(two, cut)
+  assert.deepEqual([of(afterCut, 'PULL', 'lat-pulldown').autoAdjust?.sets, of(afterCut, 'UPPER', 'lat-pulldown').autoAdjust], [-1, undefined])
+  // previousPerformance: the same range first, the last one anywhere without it.
+  assert.equal(previousPerformance(lat.ws, 'lat-pulldown', undefined, 'main', { minReps: 6, maxReps: 10 })?.workout.id, 't4')
+  assert.equal(previousPerformance(lat.ws, 'lat-pulldown', undefined, 'main', { minReps: 10, maxReps: 15 })?.workout.id, 't5')
+  assert.equal(previousPerformance(lat.ws, 'lat-pulldown', undefined, 'main')?.workout.id, 't5')
+  assert.deepEqual(exerciseHistory(lat.ws, 'lat-pulldown', 'main', { minReps: 8, maxReps: 12 }).map((h) => h.workoutId), ['t1', 't3', 't5'])
+  // Another range at the same loads is still read on the reps.
+  const edited = exo([set(100, 10), set(100, 10), set(100, 10)], { target: { weight: 100, sets: 3, minReps: 6, maxReps: 10, restSeconds: 150, rir: '1–2' } })
+  assert.deepEqual([compareExercise(edited, exo([set(100, 10), set(100, 10), set(100, 9)]), [], false).headline, compareExercise({ ...edited, sets: [set(110, 8), set(110, 8), set(110, 7)] }, exo([set(100, 10), set(100, 10), set(100, 9)]), [], false).status], ['+1 REP', 'new-baseline'])
+  // The heavy range moves its own load: the other sheet keeps its own.
+  const top = play(two, [['PULL', 'lat-pulldown', 55, [10, 10, 10]]]).out[0].changes[0]
+  assert.deepEqual([top.kind, top.to, top.also], ['up', 57.5, undefined])
+  assert.equal(of(applyChange(two, top), 'UPPER', 'lat-pulldown').target.weight, 50)
+
+  // Leg curl: 10–15 in Lower and in Legs. One exercise in one range has one load.
+  const same = sheets({ LOWER: { 'leg-curl': 40 }, LEGS: { 'leg-curl': 40 } })
+  const up = play(same, [['LOWER', 'leg-curl', 40, [15, 15, 15]]]).out[0].changes[0]
+  assert.deepEqual([up.kind, up.from, up.to, up.also], ['up', 40, 42.5, ['LEGS']])
+  const raised = applyChange(same, up)
+  assert.deepEqual([of(raised, 'LOWER', 'leg-curl').target.weight, of(raised, 'LEGS', 'leg-curl').target.weight], [42.5, 42.5])
+  const undone = applyChange(raised, up, true)
+  assert.deepEqual([of(undone, 'LOWER', 'leg-curl').target.weight, of(undone, 'LEGS', 'leg-curl').target.weight], [40, 40])
+  // A sheet edited since keeps what was typed, in both directions.
+  const typed = sheets({ LOWER: { 'leg-curl': 40 }, LEGS: { 'leg-curl': 47.5 } })
+  assert.equal(of(applyChange(typed, up), 'LEGS', 'leg-curl').target.weight, 47.5)
+  assert.equal(of(applyChange({ ...raised, LEGS: typed.LEGS }, up, true), 'LEGS', 'leg-curl').target.weight, 47.5)
+  // Sheets that were not at the same load each keep their own.
+  const apart = sheets({ LOWER: { 'leg-curl': 40 }, LEGS: { 'leg-curl': 45 } })
+  assert.equal(play(apart, [['LOWER', 'leg-curl', 40, [15, 15, 15]]]).out[0].changes[0].also, undefined)
+  // A trial session sets the starting load of both sheets; two sessions in a row are compared with each other.
+  const trial = play(base, [['LOWER', 'leg-curl', 40, [12, 12, 11]], ['LEGS', 'leg-curl', 40, [12, 11, 11]]])
+  const start = trial.out[0].changes[0]
+  assert.deepEqual([start.kind, start.to, start.also], ['baseline', 40, ['LEGS']])
+  assert.equal(of(applyChange(base, start), 'LEGS', 'leg-curl').target.weight, 40)
+  assert.deepEqual([verdict(trial.out[1]).status, verdict(trial.out[1]).deltaCleanReps], ['down', -1])
+  // At a second gym the machine's load there moves in both sheets, and the first gym's stays.
+  const there = Object.fromEntries(Object.entries(same).map(([type, t]) => [type, { ...t, exercises: t.exercises.map((e) => (e.exerciseId === 'leg-curl' ? { ...e, gymLoads: { basic: 30 } } : e)) }])) as typeof base
+  const away = play(there, [['LOWER', 'leg-curl', 30, [15, 15, 15]]], 'basic').out[0].changes[0]
+  assert.deepEqual([away.gymId, away.from, away.to, away.also], ['basic', 30, 32.5, ['LEGS']])
+  const moved = applyChange(there, away)
+  assert.deepEqual([loadAt(of(moved, 'LOWER', 'leg-curl'), 'basic'), loadAt(of(moved, 'LEGS', 'leg-curl'), 'basic'), of(moved, 'LEGS', 'leg-curl').target.weight], [32.5, 32.5, 40])
+})
+
+test('after the fact: changes can be undone later, the last session corrected, a deleted one leaves no trace', () => {
+  configurePlan(DEFAULT_GOAL)
+  const base = defaultState()
+  const withLoads = (loads: Record<string, number>) =>
+    Object.fromEntries(Object.entries(base.templates).map(([type, t]) => [type, { ...t, exercises: t.exercises.map((e) => (loads[e.exerciseId] !== undefined ? { ...e, target: { ...e.target, weight: loads[e.exerciseId] } } : e)) }])) as typeof base.templates
+  const of = (tpl: typeof base.templates, type: Workout['type'], id: string) => tpl[type].exercises.find((e) => e.exerciseId === id)!
+  const live = (tpl: typeof base.templates, type: Workout['type'], id: string, reps: number[]): WorkoutExercise => {
+    const t = of(tpl, type, id)
+    return { ...t, prescription: { sets: t.target.sets, minReps: t.target.minReps, maxReps: t.target.maxReps, rir: t.target.rir ?? '1–2', restSeconds: t.target.restSeconds, weight: t.target.weight ?? null, loadFactor: 1, notes: [] }, sets: reps.map((n) => set(t.target.weight ?? null, n)), notes: '', skipped: false, validated: true, comparison: null }
+  }
+  // The app's own flow: a session in progress, then finished.
+  const finish = (st: AppState, id: string, date: string, type: Workout['type'], exercises: [string, number[]][]): AppState =>
+    finishedState({ ...st, activeWorkout: { id, type, date, startedAt: `${date}T17:00:00.000Z`, notes: '', timerEndAt: null, timer: null, exercises: exercises.map(([ex, reps]) => live(st.templates, type, ex, reps)), reentry: st.reentry } }, `${date}T18:00:00.000Z`, date)!.state
+  const start: AppState = { ...base, templates: withLoads({ 'leg-press': 100, 'leg-curl': 40, 'chest-press': 60 }), nextWorkoutType: 'LOWER' }
+  const s1 = finish(start, 'a1', '2026-10-06', 'LOWER', [['leg-press', [12, 12, 12]], ['leg-curl', [12, 12, 11]]])
+  const a1 = s1.workouts[0]
+  assert.deepEqual([s1.activeWorkout, s1.nextWorkoutType, s1.lastCompletedWorkoutId, s1.completedSessions, a1.sessionNumber, a1.completedAt], [null, 'PUSH', 'a1', 1, 1, '2026-10-06T18:00:00.000Z'])
+  // The change is kept with the session, not only on the screen that follows it.
+  assert.deepEqual(a1.changes?.map((c) => [c.exerciseId, c.kind, c.from, c.to]), [['leg-press', 'up', 100, 105]])
+  assert.equal(of(s1.templates, 'LOWER', 'leg-press').target.weight, 105)
+  assert.deepEqual(s1.appliedPlanUpdates.map((u) => [u.updateId, u.summary]), [['auto-a1', 'Ajustement automatique : Presse à cuisses 100 → 105\u202fkg.']])
+  assert.deepEqual(finalizeWorkout([], workout('z', '2026-10-06', undefined, [exo([set(100, 10), set(100, 9), set(100, 8)])], 1), base.templates).workout.changes, [], 'a session that changes nothing says so with an empty list')
+  const press = a1.changes![0]
+  const stateOf = (st: AppState, c = press, source = a1, today = '2026-10-07') => changeState(st.templates, c, source, st.workouts, today)
+  assert.equal(stateOf(s1), 'applied')
+  assert.deepEqual(findChange(s1.workouts, press.id)?.source.id, 'a1')
+  // Undone: the sheet is back, and the change can be applied again.
+  const undone = { ...s1, templates: applyChange(s1.templates, press, true) }
+  assert.deepEqual([of(undone.templates, 'LOWER', 'leg-press').target.weight, stateOf(undone)], [100, 'open'])
+  assert.equal(stateOf({ ...undone, templates: applyChange(undone.templates, press) }), 'applied')
+  // A sheet edited since, or an exercise taken out of it: nothing left to undo.
+  assert.equal(stateOf({ ...s1, templates: withLoads({ 'leg-press': 110 }) }), 'gone')
+  assert.equal(stateOf({ ...s1, templates: { ...s1.templates, LOWER: { ...s1.templates.LOWER, exercises: s1.templates.LOWER.exercises.filter((e) => e.exerciseId !== 'leg-press') } } }), 'gone')
+  // Another session since does not replace it, unless it did that exercise again.
+  const s2 = finish(s1, 'a2', '2026-10-07', 'UPPER', [['chest-press', [10, 10, 10]]])
+  assert.equal(stateOf(s2), 'applied')
+  const s3 = finish(s2, 'a3', '2026-10-13', 'LOWER', [['leg-press', [9, 9, 8]]])
+  assert.equal(stateOf(s3), 'gone', 'the leg press was done again: its last session has the last word')
+  assert.equal(stateOf(s3, s2.workouts[1].changes![0], s2.workouts[1]), 'applied')
+
+  // One set less after two clear drops: undone while the block lasts, gone once it is over.
+  let d = start
+  for (const [i, reps] of [[11, 11, 10], [10, 10, 9], [9, 9, 8]].entries()) d = finish(d, `d${i}`, addDays('2026-10-06', 7 * i), 'LOWER', [['leg-press', reps]])
+  const cut = d.workouts[2].changes!.find((c) => c.kind === 'sets')!
+  assert.equal(of(d.templates, 'LOWER', 'leg-press').autoAdjust?.sets, -1)
+  assert.equal(changeState(d.templates, cut, d.workouts[2], d.workouts, '2026-10-21'), 'applied')
+  assert.equal(changeState(applyChange(d.templates, cut, true), cut, d.workouts[2], d.workouts, '2026-10-21'), 'open')
+  assert.equal(changeState(d.templates, cut, d.workouts[2], d.workouts, '2026-11-20'), 'gone', 'the block is over')
+  // A set removal the lifter had refused stays refused when the session is corrected, also for a session logged before changes were kept.
+  const noCut: AppState = { ...d, templates: applyChange(d.templates, cut, true) }
+  const corrected = (st: AppState) => finishedState(reopenedState(st, 'd2')!, '2026-10-21T09:00:00.000Z', '2026-10-21')!.state
+  const { changes: _d2, ...d2bare } = d.workouts[2]
+  for (const st of [noCut, { ...noCut, workouts: [d.workouts[0], d.workouts[1], d2bare] }]) {
+    const after = corrected(st)
+    const offered = after.workouts[2].changes!.find((c) => c.kind === 'sets')!
+    assert.deepEqual([of(after.templates, 'LOWER', 'leg-press').autoAdjust, changeState(after.templates, offered, after.workouts[2], after.workouts, '2026-10-21')], [undefined, 'open'])
+  }
+  assert.equal(of(corrected(d).templates, 'LOWER', 'leg-press').autoAdjust?.sets, -1, 'in place, it stays in place')
+
+  // Deleting a session: what it changed and what the sheets still hold goes with it.
+  const gone = withoutWorkout(s1, 'a1', '2026-10-07')
+  assert.deepEqual([gone.workouts.length, gone.completedSessions, gone.lastCompletedWorkoutId, gone.nextWorkoutType], [0, 0, null, 'LOWER'])
+  assert.equal(of(gone.templates, 'LOWER', 'leg-press').target.weight, 100)
+  assert.deepEqual(gone.appliedPlanUpdates, [])
+  // An older one: its change was replaced since and stays; the rotation is not touched.
+  const older = withoutWorkout(s3, 'a1', '2026-10-14')
+  assert.deepEqual([older.workouts.map((w) => w.id), older.nextWorkoutType, older.lastCompletedWorkoutId], [['a2', 'a3'], s3.nextWorkoutType, 'a3'])
+  assert.equal(of(older.templates, 'LOWER', 'leg-press').target.weight, of(s3.templates, 'LOWER', 'leg-press').target.weight)
+  assert.equal(withoutWorkout(s3, 'nope'), s3)
+  assert.equal(lastFinished(s3.workouts)?.id, 'a3')
+
+  // Correcting: only the last session finished opens again, with its sets and without its verdicts.
+  assert.equal(reopenedState(s3, 'a1'), null, 'later sessions were compared with it')
+  const open = reopenedState(s1, 'a1')!
+  assert.equal(reopenedState(open, 'a1'), null, 'not while a session is in progress')
+  // Nothing has moved yet: the session is still in the history, its change still on the sheet.
+  assert.deepEqual([open.workouts.length, open.nextWorkoutType, of(open.templates, 'LOWER', 'leg-press').target.weight], [1, 'PUSH', 105])
+  assert.deepEqual([open.activeWorkout!.id, open.activeWorkout!.date, open.activeWorkout!.type, open.activeWorkout!.reopened], ['a1', '2026-10-06', 'LOWER', { completedAt: a1.completedAt }])
+  assert.deepEqual(open.activeWorkout!.exercises.map((e) => [e.exerciseId, e.sets.map((x) => x.reps), e.comparison]), [['leg-press', [12, 12, 12], null], ['leg-curl', [12, 12, 11], null]])
+  // Dropping the correction (the draft is discarded) leaves everything as it was.
+  assert.deepEqual({ ...open, activeWorkout: null }, s1)
+  // The last set of leg press was 10, not 12: finished again, the session no longer raises the load.
+  const fixed = finishedState({ ...open, activeWorkout: { ...open.activeWorkout!, exercises: open.activeWorkout!.exercises.map((e) => (e.exerciseId === 'leg-press' ? { ...e, sets: [set(100, 12), set(100, 12), set(100, 10)] } : e)) } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  const b1 = fixed.workouts[0]
+  assert.deepEqual([fixed.workouts.length, b1.id, b1.sessionNumber, b1.completedAt, b1.changes], [1, 'a1', 1, '2026-10-06T18:00:00.000Z', []])
+  assert.deepEqual(b1.exercises[0].sets.map((x) => x.reps), [12, 12, 10])
+  assert.equal(of(fixed.templates, 'LOWER', 'leg-press').target.weight, 100)
+  assert.deepEqual([fixed.nextWorkoutType, fixed.completedSessions, fixed.lastCompletedWorkoutId, fixed.appliedPlanUpdates.length, fixed.activeWorkout], ['PUSH', 1, 'a1', 0, null], 'the rotation moved the first time, not again')
+  // The other way round: a set typed too low is fixed, and the load goes up as it should have.
+  const low = finish(start, 'c1', '2026-10-06', 'LOWER', [['leg-press', [12, 12, 2]]])
+  assert.equal(of(low.templates, 'LOWER', 'leg-press').target.weight, 100)
+  const lowOpen = reopenedState(low, 'c1')!
+  const raised = finishedState({ ...lowOpen, activeWorkout: { ...lowOpen.activeWorkout!, exercises: [{ ...lowOpen.activeWorkout!.exercises[0], sets: [set(100, 12), set(100, 12), set(100, 12)] }] } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  assert.deepEqual([of(raised.templates, 'LOWER', 'leg-press').target.weight, raised.workouts[0].changes?.[0].to, raised.appliedPlanUpdates.map((u) => u.updateId)], [105, 105, ['auto-c1']])
+  // A raise the lifter had undone stays undone when the corrected session asks for it again.
+  const refused = revertedState(s1, press.id, '2026-10-07')
+  assert.deepEqual([of(refused.templates, 'LOWER', 'leg-press').target.weight, revertedState(refused, press.id, '2026-10-07') === refused], [100, true])
+  const refusedOpen = reopenedState(refused, 'a1')!
+  const again = finishedState({ ...refusedOpen, activeWorkout: { ...refusedOpen.activeWorkout!, exercises: refusedOpen.activeWorkout!.exercises.map((e) => (e.exerciseId === 'leg-curl' ? { ...e, sets: [set(40, 12), set(40, 12), set(40, 10)] } : e)) } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  assert.deepEqual([of(again.templates, 'LOWER', 'leg-press').target.weight, again.workouts[0].changes?.map((c) => [c.exerciseId, c.to])], [100, [['leg-press', 105]]])
+  assert.deepEqual(again.appliedPlanUpdates, refused.appliedPlanUpdates, 'the plan did not change: neither does its history')
+  assert.equal(changeState(again.templates, again.workouts[0].changes![0], again.workouts[0], again.workouts, '2026-10-08'), 'open', 'still there to be applied')
+  assert.equal(of(appliedState(again, [again.workouts[0].changes![0].id], '2026-10-08T10:00:00.000Z', '2026-10-08').templates, 'LOWER', 'leg-press').target.weight, 105)
+  // A load typed on the sheet since the session stays: the corrected session does not write over it.
+  const typed = { ...low, templates: withLoads({ 'leg-press': 110, 'leg-curl': 40, 'chest-press': 60 }) }
+  const typedOpen = reopenedState(typed, 'c1')!
+  const kept = finishedState({ ...typedOpen, activeWorkout: { ...typedOpen.activeWorkout!, exercises: [{ ...typedOpen.activeWorkout!.exercises[0], sets: [set(100, 12), set(100, 12), set(100, 12)] }] } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  assert.deepEqual([of(kept.templates, 'LOWER', 'leg-press').target.weight, kept.workouts[0].changes?.[0].to, kept.appliedPlanUpdates.length], [110, 105, 0])
+  assert.equal(changeState(kept.templates, kept.workouts[0].changes![0], kept.workouts[0], kept.workouts, '2026-10-08'), 'gone')
+  // A session finished again without a change is the same session: verdicts, changes, sheets.
+  const same = finishedState(reopenedState(s2, 'a2')!, '2026-10-09T09:00:00.000Z', '2026-10-09')!.state
+  assert.deepEqual([same.workouts, same.templates, same.nextWorkoutType], [s2.workouts, s2.templates, s2.nextWorkoutType])
+  // A return after a break is counted down once, the first time.
+  const reentry = program.reentryForGap(10)!
+  const r1 = finish({ ...start, reentry }, 'r1', '2026-10-06', 'LOWER', [['leg-curl', [12, 12, 11]]])
+  assert.deepEqual([r1.reentry?.sessionsLeft ?? 0, r1.workouts[0].reentry], [reentry.sessionsLeft - 1, reentry])
+  const r1again = finishedState(reopenedState(r1, 'r1')!, '2026-10-07T09:00:00.000Z', '2026-10-07')!.state
+  assert.deepEqual(r1again.reentry, r1.reentry)
+  assert.deepEqual(withoutWorkout(r1, 'r1', '2026-10-07').reentry, reentry, 'deleted, the session gives its turn back')
+  // Without automatic loads, a change applied by hand stays applied when the corrected session asks for the same one.
+  const manual: AppState = { ...start, prefs: { ...start.prefs, autoLoad: false } }
+  const m1 = finish(manual, 'm1', '2026-10-06', 'LOWER', [['leg-press', [12, 12, 12]], ['leg-curl', [15, 15, 15]]])
+  assert.deepEqual([of(m1.templates, 'LOWER', 'leg-press').target.weight, m1.workouts[0].changes?.length], [100, 2], 'proposed, not applied')
+  const byHand = { ...m1, templates: applyChange(m1.templates, m1.workouts[0].changes![0]) }
+  const m1again = finishedState(reopenedState(byHand, 'm1')!, '2026-10-07T09:00:00.000Z', '2026-10-07')!.state
+  assert.deepEqual([of(m1again.templates, 'LOWER', 'leg-press').target.weight, of(m1again.templates, 'LOWER', 'leg-curl').target.weight], [105, 40])
+  assert.deepEqual(m1again.appliedPlanUpdates, byHand.appliedPlanUpdates, 'applied by hand: no automatic adjustment appears in the history')
+
+  // Applied by hand, a change moves the twin sheets that are still in step, and remembers which: undone, it puts back those only.
+  const twins: AppState = { ...manual, templates: withLoads({ 'leg-press': 100, 'leg-curl': 40, 'chest-press': 60 }) }
+  const t1 = finish(twins, 't1', '2026-10-06', 'LOWER', [['leg-curl', [15, 15, 15]]])
+  const proposal = t1.workouts[0].changes![0]
+  assert.deepEqual([proposal.also, of(t1.templates, 'LEGS', 'leg-curl').target.weight], [['LEGS'], 40])
+  const both = appliedState(t1, [proposal.id], '2026-10-07T10:00:00.000Z', '2026-10-07')
+  assert.deepEqual([of(both.templates, 'LOWER', 'leg-curl').target.weight, of(both.templates, 'LEGS', 'leg-curl').target.weight, both.workouts[0].changes![0].also], [42.5, 42.5, ['LEGS']])
+  assert.equal(both.appliedPlanUpdates.at(-1)?.summary, 'Charges mises à jour : Leg curl assis 40 → 42,5 kg.')
+  assert.equal(appliedState(both, [proposal.id]), both, 'applied once')
+  const backBoth = revertedState(both, proposal.id, '2026-10-07')
+  assert.deepEqual([of(backBoth.templates, 'LOWER', 'leg-curl').target.weight, of(backBoth.templates, 'LEGS', 'leg-curl').target.weight], [40, 40])
+  // The Legs sheet typed by hand to the same figure before the change was applied is not one the change moved.
+  const legs = (st: AppState, patch: Partial<typeof start.templates.LEGS.exercises[number]['target']>): AppState => ({ ...st, templates: { ...st.templates, LEGS: { ...st.templates.LEGS, exercises: st.templates.LEGS.exercises.map((e) => (e.exerciseId === 'leg-curl' ? { ...e, target: { ...e.target, ...patch } } : e)) } } })
+  const typedTwin = appliedState(legs(t1, { weight: 42.5 }), [proposal.id], '2026-10-07T10:00:00.000Z', '2026-10-07')
+  assert.equal(typedTwin.workouts[0].changes![0].also, undefined)
+  const typedBack = revertedState(typedTwin, proposal.id, '2026-10-07')
+  assert.deepEqual([of(typedBack.templates, 'LOWER', 'leg-curl').target.weight, of(typedBack.templates, 'LEGS', 'leg-curl').target.weight], [40, 42.5])
+  // A twin whose rep range was edited since is another prescription: it keeps its load.
+  const otherRange = appliedState(legs(t1, { minReps: 6, maxReps: 10 }), [proposal.id], '2026-10-07T10:00:00.000Z', '2026-10-07')
+  assert.deepEqual([of(otherRange.templates, 'LOWER', 'leg-curl').target.weight, of(otherRange.templates, 'LEGS', 'leg-curl').target.weight], [42.5, 40])
+
+  // A session logged before changes were kept: its load change is worked out again, so that correcting or deleting it undoes it.
+  const { changes: _kept, ...bare } = a1
+  const before: AppState = { ...s1, workouts: [bare] }
+  assert.deepEqual(changesOf(before, bare).map((c) => [c.exerciseId, c.from, c.to, c.also]), [['leg-press', 100, 105, undefined]])
+  assert.equal(of(withoutWorkout(before, 'a1', '2026-10-07').templates, 'LOWER', 'leg-press').target.weight, 100)
+  const beforeOpen = reopenedState(before, 'a1')!
+  const beforeFixed = finishedState({ ...beforeOpen, activeWorkout: { ...beforeOpen.activeWorkout!, exercises: beforeOpen.activeWorkout!.exercises.map((e) => (e.exerciseId === 'leg-press' ? { ...e, sets: [set(100, 12), set(100, 12), set(100, 10)] } : e)) } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  assert.deepEqual([of(beforeFixed.templates, 'LOWER', 'leg-press').target.weight, beforeFixed.workouts[0].changes], [100, []])
+
+  // Finished untouched, a correction moves no other sheet: the same change keeps the twins it had the first time.
+  const curls = (st: AppState) => [of(st.templates, 'LOWER', 'leg-curl').target.weight, of(st.templates, 'LEGS', 'leg-curl').target.weight]
+  const untouched = (st: AppState, id: string) => finishedState(reopenedState(st, id)!, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  const h1 = finish(start, 'h1', '2026-10-06', 'LOWER', [['leg-curl', [15, 15, 15]]])
+  assert.deepEqual([curls(h1), h1.workouts[0].changes![0].also], [[42.5, 42.5], ['LEGS']])
+  const h1again = untouched(h1, 'h1')
+  assert.deepEqual([h1again.workouts, h1again.templates, h1again.appliedPlanUpdates], [h1.workouts, h1.templates, h1.appliedPlanUpdates], 'both sheets come back to where they were, and the history of the plan is not rewritten')
+  // A session logged before the two sheets moved together: only its own sheet had been raised.
+  const { changes: _h, ...h1bare } = h1.workouts[0]
+  const logged = legs({ ...h1, workouts: [h1bare] }, { weight: 40 })
+  const loggedAgain = untouched(logged, 'h1')
+  assert.deepEqual([curls(loggedAgain), loggedAgain.workouts[0].changes?.map((c) => [c.from, c.to, c.also])], [[42.5, 40], [[40, 42.5, undefined]]])
+  // A twin that came into step since the session (typed by hand) is not one that change moved.
+  const apart = finish(legs(start, { weight: 45 }), 'h2', '2026-10-06', 'LOWER', [['leg-curl', [15, 15, 15]]])
+  assert.deepEqual([curls(apart), apart.workouts[0].changes![0].also], [[42.5, 45], undefined])
+  assert.deepEqual(curls(untouched(legs(apart, { weight: 40 }), 'h2')), [42.5, 40])
+  // A correction that asks for another change is a new verdict: the sheets in step today follow it.
+  const lowered = reopenedState(legs(apart, { weight: 40 }), 'h2')!
+  const otherVerdict = finishedState({ ...lowered, activeWorkout: { ...lowered.activeWorkout!, exercises: [{ ...lowered.activeWorkout!.exercises[0], sets: [set(40, 7), set(40, 7), set(40, 6)] }] } }, '2026-10-08T09:00:00.000Z', '2026-10-08')!.state
+  assert.deepEqual([otherVerdict.workouts[0].changes?.map((c) => [c.kind, c.from, c.also]), curls(otherVerdict)[0] === curls(otherVerdict)[1]], [[['down', 40, ['LEGS']]], true])
+  assert.deepEqual(otherVerdict.appliedPlanUpdates.map((u) => [u.updateId, u.appliedAt]), [['auto-h2', '2026-10-08T09:00:00.000Z']], 'the plan changed: the session’s line in its history is the new one')
+  // A twin the change had moved, put back by hand to the load it came from: the correction puts back what was in place, not that twin.
+  const byHandBack = untouched(legs(h1, { weight: 40 }), 'h1')
+  assert.deepEqual([curls(byHandBack), byHandBack.workouts[0].changes![0].also], [[42.5, 40], undefined])
+  assert.deepEqual(curls(revertedState(byHandBack, byHandBack.workouts[0].changes![0].id, '2026-10-08')), [40, 40])
+
+  // The sentence of a change is in the language it was written in; in the other one its figures speak.
+  assert.deepEqual([press.lang, press.text], ['fr', '3 × 12 atteint : 105 kg la prochaine fois'])
+  assert.equal(changeLabel(press), '100 kg → 105 kg la prochaine fois')
+  assert.equal(changeLabel(cut), '1 série de moins jusqu’à la fin du bloc')
+  assert.equal(changeLabel({ ...press, kind: 'baseline', from: null }), 'Charge de départ : 105 kg')
+  // Bodyweight work starts from the body weight alone: a first added load is a raise.
+  assert.deepEqual([changeLabel({ ...press, from: null, to: 2.5 }, 'PDC'), changeLabel({ ...press, kind: 'down', from: 2.5, to: null }, 'PDC')], ['PDC → PDC +2,5\u202fkg la prochaine fois', 'PDC +2,5\u202fkg → PDC la prochaine fois'])
+
+  // Backups keep the changes and drop what is not one.
+  const saved = normalizeState(JSON.parse(JSON.stringify({ ...s1, workouts: [{ ...a1, changes: [...a1.changes!, { id: 'x' }, null] }] })))
+  assert.deepEqual(saved.workouts[0].changes, a1.changes)
+  assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(fixed))).workouts[0].changes, [], 'an empty list stays one')
+  assert.equal(normalizeState(JSON.parse(JSON.stringify(before))).workouts[0].changes, undefined)
+  assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(r1))).workouts[0].reentry, reentry)
+  assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(open))).activeWorkout?.reopened, { completedAt: a1.completedAt })
+})
+
 test('bodyweight work: added load is proposed at the top of the range and tracked', () => {
   const dips = (sets: WorkoutSet[], lest: number | null = null, rir = '1–2') => exo(sets, {
     exerciseId: 'dips', name: 'Dips', unit: 'PDC',
@@ -815,6 +1184,88 @@ test('calories: rising weight in recomposition asks for less, no data asks to wa
   assert.equal(recent.status, 'wait', 'two weeks between changes')
 })
 
+test('calories in a cut: the pace has to stay in the range, on recent weigh-ins, above a floor', () => {
+  configurePlan(DEFAULT_GOAL)
+  // Forty daily weigh-ins ending on `last`, moving by `pct` % of body weight a week.
+  const weighIns = (last: string, pct: number, from = 86) =>
+    Array.from({ length: 40 }, (_, i) => ({ id: `w${i}`, date: addDays(last, i - 39), weight: from * (1 + (pct / 100) * (i / 7)), waist: null, arm: null, chest: null, shoulders: null }))
+  const base = defaultState()
+  const at = (today: string, pct: number, over: Partial<AppState> = {}, last = today) => calorieAdvice({ ...base, bodyEntries: weighIns(last, pct), ...over }, today)
+  // The cut (−0.5 to −0.7 %/week): under the range is too slow, since its length was sized on −0.6.
+  const slow = at('2027-03-01', -0.4)
+  assert.deepEqual([slow.status, slow.delta, slow.headline], ['lower', -150, 'Perte trop lente'])
+  assert.match(slow.detail, /^−0,4\d? %\/sem \(objectif : −0,5 à −0,7 %\/sem\) : −150 kcal/)
+  assert.deepEqual([at('2027-03-01', -0.6).status, at('2027-03-01', -0.6).headline], ['ok', 'Rythme dans la cible'])
+  assert.deepEqual([at('2027-03-01', -0.85).status, at('2027-03-01', -0.85).headline], ['ok', 'Rythme soutenu'])
+  assert.deepEqual([at('2027-03-01', -1.2).status, at('2027-03-01', -1.2).delta], ['raise', 150])
+  // The end of the cut aims at about −0.5: a tenth on each side.
+  assert.deepEqual([at('2027-05-25', -0.45).headline, at('2027-05-25', -0.3).status, at('2027-05-25', -0.7).headline], ['Rythme dans la cible', 'lower', 'Rythme soutenu'])
+  assert.match(at('2027-05-25', -0.3).detail, /objectif : environ −0,5 %\/sem/)
+
+  // Weigh-ins older than a week say nothing about today: no advice, and no trend shown.
+  const old = at('2027-03-01', 0.5, {}, '2027-02-20')
+  assert.deepEqual([old.status, old.headline], ['wait', 'Pesées trop anciennes'])
+  assert.match(old.detail, /il y a 9 jours/)
+  const ws = weightStatus({ ...base, bodyEntries: weighIns('2027-02-20', 0.5) }, '2027-03-01')
+  assert.deepEqual([ws.stale, ws.weeklyChange, ws.daysSinceLast], [true, null, 9])
+  assert.equal(weightStatus({ ...base, bodyEntries: weighIns('2027-02-22', 0.5) }, '2027-03-01').stale, false, 'a weigh-in a week ago still counts')
+  assert.equal(at('2027-03-01', -0.4, {}, '2027-02-22').status, 'lower')
+
+  // The trend looks back three weeks: until it lies inside the cut and after the last change of calories,
+  // only a clearly slow pace is acted on (about 60 % of a new pace shows after two weeks).
+  assert.equal(TREND_DAYS, 21)
+  const early = at('2027-01-18', -0.4)                                  // day 15 of the cut
+  assert.deepEqual([early.status, early.headline], ['wait', 'Rythme à confirmer'])
+  assert.match(early.detail, /compte encore des jours d’avant la sèche : verdict dans 7 jours\.$/)
+  const first = at('2027-01-18', -0.2)
+  assert.deepEqual([first.status, first.delta, first.headline], ['lower', -150, 'Début de sèche'])
+  assert.match(first.detail, /^−0,2\d? %\/sem sur les 3 dernières semaines \(objectif : −0,5 à −0,7 %\/sem\) : −150 kcal/)
+  assert.equal(at('2027-01-25', -0.4).headline, 'Perte trop lente', 'three weeks in, the trend is the cut’s own')
+  const changed = (days: number): Partial<AppState> => ({ nutritionTargets: { ...base.nutritionTargets, caloriesChangedAt: addDays('2027-03-01', -days) } })
+  assert.equal(at('2027-03-01', -0.4, changed(10)).headline, 'Ajustement récent')
+  const waiting = at('2027-03-01', -0.4, changed(15))
+  assert.deepEqual([waiting.status, waiting.headline], ['wait', 'Rythme à confirmer'])
+  assert.match(waiting.detail, /d’avant ton dernier changement de calories : verdict dans 6 jours\.$/)
+  assert.deepEqual([at('2027-03-01', -0.2, changed(15)).headline, at('2027-03-01', -0.4, changed(21)).headline], ['Perte trop lente', 'Perte trop lente'])
+  assert.equal(at('2027-03-01', -0.6, changed(15)).headline, 'Rythme dans la cible')
+  assert.equal(at('2027-03-01', -1.2, changed(15)).status, 'raise', 'too fast is acted on at once: the trend can only understate it')
+  // After the diet break the cut starts again: the week at maintenance is still in the trend, and the words say it resumes.
+  const back = at('2027-04-05', -0.4)
+  assert.equal(back.headline, 'Rythme à confirmer')
+  assert.match(back.detail, /compte encore des jours d’avant la reprise de la sèche : verdict dans 14 jours\.$/)
+  assert.equal(at('2027-04-05', -0.2).headline, 'Reprise de la sèche')
+  // The verdict is read on the pace as it is shown: −0.497 reads −0.5, which is inside the range.
+  const shown = calorieAdvice({ ...base, bodyEntries: weighIns('2027-03-01', -0.4864) }, '2027-03-01')
+  assert.match(shown.detail, /^−0,5 %\/sem /)
+  assert.equal(shown.headline, 'Rythme dans la cible')
+
+  // The floor: the energy spent at rest (Mifflin–St Jeor) from the profile and the weight of the week,
+  // and never under the minimum advised without medical supervision.
+  const profile = { heightCm: 180, age: 30, sex: 'm' as const }
+  assert.equal(Math.round(restingCalories({ weight: 85, ...profile })), 1830)
+  const state = (calories: number): Partial<AppState> => ({ profile, nutritionTargets: { ...base.nutritionTargets, calories } })
+  assert.deepEqual(calorieFloor({ ...base, ...state(2350), bodyEntries: weighIns('2027-03-01', -0.3) }, '2027-03-01'), { kcal: 1850, from: 'rest' })
+  assert.deepEqual(calorieFloor({ ...base, bodyEntries: weighIns('2027-03-01', -0.3) }, '2027-03-01'), { kcal: 1500, from: 'minimum' }, 'no height: the minimum alone')
+  assert.deepEqual(calorieFloor({ ...base, profile: { heightCm: 150, age: 60, sex: 'f' }, bodyEntries: weighIns('2027-03-01', 0, 50) }, '2027-03-01'), { kcal: 1200, from: 'minimum' }, 'a resting estimate of 1,000 kcal is not a target')
+  assert.deepEqual([at('2027-03-01', -0.3, state(2350)).target, at('2027-03-01', -0.3, state(2350)).floor], [2200, 1850])
+  const last = at('2027-03-01', -0.3, state(1950))
+  assert.deepEqual([last.status, last.delta, last.target], ['lower', -100, 1850])
+  assert.match(last.detail, /−100 kcal .* Pas plus bas : 1850 kcal, c’est ta dépense au repos estimée\.$/)
+  const held = at('2027-03-01', -0.3, state(1850))
+  assert.deepEqual([held.status, held.delta, held.target, held.headline], ['hold', 0, 1850, 'Perte trop lente, calories au plancher'])
+  assert.match(held.detail, /\. Ta cible ne dépasse pas ta dépense au repos estimée \(1850 kcal\) : le conseil ne descend pas plus bas/)
+  assert.equal(at('2027-03-01', -0.3, state(1700)).status, 'hold', 'a target typed under the floor is not lowered either')
+  // Without a height there is no estimate: the minimum is the floor.
+  const bare = at('2027-03-01', -0.3, { nutritionTargets: { ...base.nutritionTargets, calories: 1600 } })
+  assert.deepEqual([bare.target, bare.floor, bare.floorIs], [1500, 1500, 'minimum'])
+  assert.match(bare.detail, /Pas plus bas : 1500 kcal, c’est le minimum conseillé sans suivi médical\.$/)
+  // The floor holds in every phase: a rising weight in the recomposition at the floor is not answered with fewer calories.
+  assert.equal(at('2026-10-21', 0.5, state(1850)).status, 'hold')
+  assert.equal(at('2026-10-21', 0.5, state(2350)).target, 2200)
+  // Calories only go down that far: raising them is never limited.
+  assert.equal(at('2027-03-01', -1.2, state(1850)).target, 2000)
+})
+
 // ───────────────────────── Visual goal ─────────────────────────
 
 test('visual goal: waist-based body fat, target weight, cut length', async () => {
@@ -869,6 +1320,52 @@ test('visual goal: half-kilo targets, looks reached, block notes follow the zone
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3, si les performances montent.')
   configurePlan(DEFAULT_GOAL)
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3, si les performances montent.')
+})
+
+test('visual goal: the cut is re-estimated from the latest measurements before it starts', async () => {
+  const { bodyFatEstimate, cutDrift, visualPlan } = await import('../src/lib/visual')
+  const body = (date: string, weight: number, waist: number | null = null) => ({ id: `b-${date}`, date, weight, waist, arm: null, chest: null, shoulders: null })
+  const s0: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [body('2026-09-20', 93, 98)] }
+  const p = visualPlan(s0, { look: 'taille', bodyFat: bodyFatEstimate(s0)!, today: '2026-09-27' })!
+  assert.equal(p.cutWeeks, 27)
+  try {
+    // The goal as applied: a 27-week cut starting on 7 December.
+    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
+    assert.equal(program.planShape(DEFAULT_GOAL, p.cutWeeks).cutStart, '2026-12-07')
+    const applied = (entries: ReturnType<typeof body>[], cutWeeks = p.cutWeeks): AppState => ({ ...s0, bodyEntries: [...s0.bodyEntries, ...entries], visualGoal: { look: 'taille', zones: [], bodyFat: null, cutWeeks } })
+    // Same measurements, or a small change: nothing to say.
+    assert.equal(cutDrift(applied([body('2026-10-19', 93, 98)]), '2026-10-20'), null)
+    assert.equal(cutDrift(applied([body('2026-10-19', 93, 96)]), '2026-10-20'), null, '25 weeks for 27 planned: under three weeks')
+    // The waist sets the body fat: three centimetres less ask for a shorter cut, three more for a longer one.
+    assert.deepEqual(cutDrift(applied([body('2026-10-19', 92, 95)]), '2026-10-20'), { planned: 27, needed: 24 })
+    assert.deepEqual(cutDrift(applied([body('2026-10-19', 96, 101)]), '2026-10-20'), { planned: 27, needed: 30 })
+    // No recent weigh-in, no visual goal: nothing can be said.
+    assert.equal(cutDrift(applied([body('2026-10-19', 96, 101)]), '2026-11-08'), null, 'last weigh-in three weeks ago')
+    assert.equal(cutDrift({ ...applied([body('2026-10-19', 96, 101)]), visualGoal: null }, '2026-10-20'), null)
+    // Once the cut is under way the pace steers, not its length.
+    assert.equal(cutDrift(applied([body('2026-12-19', 96, 101)]), '2026-12-20'), null)
+    // A goal applied when the look was already reached, and a waist that grew since: a cut is needed now.
+    configurePlan(DEFAULT_GOAL, null, 0)
+    assert.deepEqual(cutDrift(applied([body('2026-10-19', 96, 101)], 0), '2026-10-20'), { planned: 0, needed: 30 })
+    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
+    // At the edge of a look the same three weeks apply, on the need before rounding: one centimetre does not flip the plan.
+    const edge = (waist: number, cutWeeks: number): AppState => ({ ...s0, profile: { heightCm: 180, age: 33, sex: 'm' }, bodyEntries: [body('2026-10-19', 80, waist)], visualGoal: { look: 'athletique', zones: [], bodyFat: null, cutWeeks } })
+    const need = (waist: number) => visualPlan(edge(waist, 0), { look: 'athletique', bodyFat: bodyFatEstimate(edge(waist, 0))!, today: '2026-10-20' })!
+    assert.deepEqual([need(79).cutWeeks, need(80).cutWeeks, need(80).need > 0 && need(80).need < 3], [0, 8, true], 'the look is reached at 79 cm, not at 80')
+    configurePlan(DEFAULT_GOAL, null, 0)
+    assert.equal(cutDrift(edge(80, 0), '2026-10-20'), null, 'a need under three weeks does not ask for a cut the plan has not')
+    assert.deepEqual(cutDrift(edge(84, 0), '2026-10-20'), { planned: 0, needed: need(84).cutWeeks })
+    configurePlan(DEFAULT_GOAL, null, 8)
+    assert.equal(cutDrift(edge(79, 8), '2026-10-20'), null, 'just under the target: the planned cut is not called off')
+    assert.deepEqual(cutDrift(edge(74, 8), '2026-10-20'), { planned: 8, needed: 0 })
+    // What the plan needs is not judged against today: it fits the calendar or not, as when it was applied.
+    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
+    const late = applied([body('2026-12-19', 96, 101)])
+    const fresh = visualPlan(late, { look: 'taille', bodyFat: bodyFatEstimate(late)!, today: '2026-12-20' })!
+    assert.deepEqual([fresh.cutWeeks, fresh.fits, fresh.suggestedGoal], [30, true, null])
+  } finally {
+    configurePlan(DEFAULT_GOAL)
+  }
 })
 
 test('onboarding: a new user starts this week, with the goal and the sessions chosen', async () => {
@@ -953,6 +1450,14 @@ test('English: labels, dates, plurals and stored names follow the language', asy
     const en = localizeState(defaultState())
     assert.equal(en.templates.UPPER.exercises.find((e) => e.exerciseId === 'lat-pulldown')?.name, 'Lat pulldown')
     assert.equal(en.gyms[0].name, 'My gym')
+    // A change kept with a session logged in French: its exercise is named in English, and its figures speak for its sentence.
+    const change = { id: 'c', type: 'LOWER' as const, exerciseId: 'leg-press', name: 'Presse à cuisses', gymId: 'main', date: '2026-10-06', kind: 'up' as const, from: 100, to: 105, text: '3 × 12 atteint : 105 kg la prochaine fois', lang: 'fr' as const }
+    const reentry = { ...reentryForGap(10)!, label: 'Reprise après 10 j', advice: 'conseil' }
+    const logged = localizeState({ ...defaultState(), workouts: [{ ...workout('w', '2026-10-06', undefined, [], 1), changes: [change], reentry }] }).workouts[0]
+    assert.deepEqual([logged.changes?.[0].name, logged.changes?.[0].text, changeLabel(logged.changes![0])], ['Leg press', change.text, '100\u202fkg → 105\u202fkg next time'])
+    assert.equal(changeLabel({ ...change, kind: 'sets' }), '1 set fewer until the end of the block')
+    assert.deepEqual([logged.reentry?.label, logged.reentry?.sessionsLeft], [reentryForGap(10)!.label, reentry.sessionsLeft])
+    assert.notEqual(logged.reentry?.label, reentry.label)
   } finally {
     set('fr')
     configurePlan(DEFAULT_GOAL)
@@ -1070,4 +1575,14 @@ test('maintenance mode: a look brings back the date it needs, not an arbitrary o
   } finally {
     configurePlan(DEFAULT_GOAL)
   }
+})
+
+test('sources: every rule cites known sources, and guidance is not counted as a study', async () => {
+  const { PRINCIPLES, SOURCES, sourceCounts, studyCount } = await import('../src/lib/research')
+  for (const p of PRINCIPLES) for (const ref of p.refs) assert.ok(SOURCES[ref], `${p.id} cites ${ref}`)
+  const urls = Object.values(SOURCES).map((x) => x.url)
+  assert.equal(new Set(urls).size, urls.length, 'one entry per source')
+  assert.deepEqual(sourceCounts(), { reported: 31, added: 5, guidance: 1 })
+  assert.equal(studyCount(), 36)
+  assert.deepEqual(Object.entries(SOURCES).filter(([, x]) => x.guidance).map(([id, x]) => [id, x.added, x.kind]), [['harvard2024', true, 'Recommandation de santé, pas une étude']])
 })

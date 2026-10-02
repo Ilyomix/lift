@@ -3,7 +3,7 @@
 import { addDays, todayISO } from './date'
 import { L } from './i18n'
 import { infoFor, type MuscleGroup } from './library'
-import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, minResumeGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
+import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, MAINTENANCE, MAX_CUT_WEEKS, MIN_CUT_WEEKS, minResumeGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
 import { measureSeries, plannedWeightPath, weightStatus } from './stats'
 import type { AppState, ISODate, Look, Template, TemplateExercise, VisualGoal, WorkoutType, Zone } from './types'
 
@@ -128,6 +128,8 @@ export interface VisualPlan {
   target: [number, number]
   /** Weeks of cut needed at −0.6 %/week to reach the heavier end of the target. */
   cutWeeks: number
+  /** The same need before rounding and before the 8-week minimum: negative when the weight is already under the target. */
+  need: number
   /** Whether that cut fits before the goal date; otherwise the earliest date that allows it. */
   fits: boolean
   suggestedGoal: ISODate | null
@@ -172,7 +174,9 @@ export function visualPlan(
   const fat = weight - lean
   const upper = (lean + MAX_LEAN_GAIN) / (1 - range[1] / 100)
   const target: [number, number] = [half(lean / (1 - range[0] / 100)), half(upper)]
-  const needed = weight <= upper ? 0 : Math.ceil(Math.log(upper / weight) / Math.log(1 - CUT_RATE))
+  // Weeks of cut at the average pace to reach the heavier end of the target: negative when already under it.
+  const need = Math.log(upper / weight) / Math.log(1 - CUT_RATE)
+  const needed = weight <= upper ? 0 : Math.ceil(need)
   // Already within the look: no cut, the recomposition runs until the stabilization.
   const cutWeeks = needed === 0 ? 0 : Math.max(8, needed)
   const goal = input.goal ?? GOAL_DATE
@@ -200,9 +204,43 @@ export function visualPlan(
   const prudent = end('prudent')
   const fast = end('fast')
   return {
-    look, range, weight, bodyFat: input.bodyFat, lean, fat, target, cutWeeks, fits, suggestedGoal,
+    look, range, weight, bodyFat: input.bodyFat, lean, fat, target, cutWeeks, need, fits, suggestedGoal,
     atGoal: { prudent, fast }, reached: prudent.look,
   }
+}
+
+/** A cut re-estimated from the latest measurements differs from the plan's by this many weeks before it is worth a word. */
+const CUT_DRIFT_WEEKS = 3
+
+/**
+ * The cut the plan holds against the one the latest measurements ask for. Its length is set when
+ * the goal is applied, from the body fat estimated that day. That estimate follows the waist: a
+ * new waist measure can ask for another length (the weight alone barely moves it, since lean mass
+ * is a share of it). Before the cut starts, a difference of three weeks or more is worth updating
+ * the goal: the cut would start too late, or sooner than needed. At the edge of a look the same
+ * three weeks apply: a cut the plan does not have is asked for from three weeks of need, a cut it
+ * has is called off from three weeks under the target. Once the cut is under way the pace steers
+ * (calorieAdvice). Null when there is nothing to say: no applied look, no recent weigh-in, no way
+ * to estimate body fat, a cut already started, or a plan that still fits.
+ */
+export function cutDrift(state: AppState, today: ISODate = todayISO()): { planned: number; needed: number } | null {
+  const vg = state.visualGoal
+  if (MAINTENANCE || !goalApplied(vg)) return null
+  const ws = weightStatus(state, today)
+  if (!ws.current || ws.stale) return null
+  const shape = planShape(GOAL_DATE, vg.cutWeeks, PROGRAM_START)
+  if (today >= shape.stabStart || (shape.cutWeeks > 0 && today >= shape.cutStart)) return null
+  const bodyFat = bodyFatEstimate(state, { override: vg.bodyFat })
+  if (!bodyFat) return null
+  const plan = visualPlan(state, { look: vg.look, bodyFat, goal: GOAL_DATE, today })
+  if (!plan) return null
+  // Both lengths as the calendar reads them (planShape): none, or 8 to 40 weeks.
+  const weeks = (n: number) => (n <= 0 ? 0 : Math.max(MIN_CUT_WEEKS, Math.min(MAX_CUT_WEEKS, Math.round(n))))
+  const planned = weeks(vg.cutWeeks)
+  const needed = weeks(plan.cutWeeks)
+  if (planned === 0) return plan.need >= CUT_DRIFT_WEEKS ? { planned, needed } : null
+  if (needed === 0) return plan.need <= -CUT_DRIFT_WEEKS ? { planned, needed } : null
+  return Math.abs(needed - planned) >= CUT_DRIFT_WEEKS ? { planned, needed } : null
 }
 
 /**

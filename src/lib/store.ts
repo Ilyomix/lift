@@ -3,15 +3,17 @@ import { clear, createStore, del, entries, get as idbGet, set as idbSet } from '
 import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
 import { applyPlanUpdate, type PlanUpdate } from './coach'
 import { addDays, diffDays, fmtDate, isoFromTimestamp, todayISO } from './date'
-import { fmtLoad, roundTo, uid } from './format'
+import { roundTo, uid } from './format'
 import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
-  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribeSession,
+  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
   reentryForGap, scheduledGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
-import { applyChange, finalizeWorkout, intraSessionAdjust, knownLoads, previousPerformance, type AutoChange, type FinishResult } from './training'
+import {
+  appliedState, beforeCorrection, finishedState, intraSessionAdjust, knownLoads, previousPerformance, reopenedState, revertedState, withoutWorkout, type FinishResult,
+} from './training'
 import { L, resolveLang, setLang } from './i18n'
 import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
@@ -19,7 +21,7 @@ import { weightStatus } from './stats'
 import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs, Prescription,
-  Look, SetFlag, Template, TemplateExercise, TrainingSetup, Workout, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
+  Look, SetFlag, Template, TemplateExercise, TrainingSetup, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
 
 export const GOAL_PHOTO_ID = 'goal-reference'
@@ -34,18 +36,14 @@ export interface Toast {
   action?: { label: string; run: () => void }
 }
 
-export interface LastFinish extends FinishResult {
-  /** Ids of the automatic changes currently applied (the others were undone, or wait for a tap). */
-  applied: string[]
-}
-
 interface Store {
   ready: boolean
   hasData: boolean
   storage: 'idb' | 'memory'
   state: AppState
   photos: Photo[]
-  lastFinish: LastFinish | null
+  /** What the session just finished led to (alerts, records): shown on its summary until the app is closed. Its changes stay with the session itself. */
+  lastFinish: FinishResult | null
   lastImport: { changes: ProgramChange[] } | null
   toast: Toast | null
 
@@ -80,10 +78,15 @@ interface Store {
   stopRest: () => void
   finishSession: () => string | null
   discardSession: () => void
+  /** Applies changes a session proposed, as long as the sheets still hold what they started from. */
   applyChanges: (ids: string[]) => void
+  /** Undoes a change a session made, as long as the sheet still holds it. */
   revertChange: (id: string) => void
   bringDeloadForward: () => void
   cancelEarlyDeload: () => void
+  /** Opens the last finished session again as the session in progress, to be corrected; finished, it takes the place of the original. */
+  reopenWorkout: (id: string) => boolean
+  /** Removes a session; the changes it made that the sheets still hold are undone. */
   deleteWorkout: (id: string) => void
 
   saveBody: (entry: Omit<BodyEntry, 'id'> & { id?: string }) => void
@@ -158,7 +161,7 @@ function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadF
   const bound = isGymBound(t)
   const elsewhere = bound ? loadElsewhere(t, gymId, state.gyms) : null
   if (elsewhere) return { weight: scale(elsewhere.weight), trial: { fromGym: elsewhere.gym.name, weight: elsewhere.weight } }
-  const prev = previousPerformance(state.workouts, t.exerciseId, undefined, bound ? gymId : undefined)?.exercise
+  const prev = previousPerformance(state.workouts, t.exerciseId, undefined, bound ? gymId : undefined, t.target)?.exercise
   const last = prev?.sets.filter((s) => s.completed).map((s) => s.weight).find((w) => typeof w === 'number') ?? null
   return { weight: last, trial: undefined }
 }
@@ -240,13 +243,6 @@ export function caloriesForMaintenance(s: AppState, today: ISODate = todayISO())
   if (phase !== 'cut' && phase !== 'cut-end' && phase !== 'diet-break') return null
   const kcal = estimatedMaintenance(s)
   return kcal && kcal !== s.nutritionTargets.calories ? kcal : null
-}
-
-/** Types laid on the training days in rotation order, Monday first (display and calendar reminders). */
-function describeChanges(changes: AutoChange[]): string {
-  return changes
-    .map((c) => (c.kind === 'sets' ? L(`${c.name} −1 série`, `${c.name} −1 set`) : `${c.name} ${c.from !== null ? `${fmtLoad(c.from, 'kg').replace(' kg', '')} → ` : ''}${fmtLoad(c.to, 'kg')}`))
-    .join(', ')
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -472,6 +468,8 @@ export const useStore = create<Store>((set, get) => ({
       }),
     )
     const after = get().state.activeWorkout!
+    // Correcting a finished session: nothing is being lifted, no rest to time.
+    if (after.reopened) return
     const cur = after.exercises[ex]
     const lastSetOfExercise = i >= cur.sets.length - 1
     if (cur.supersetWithNext && after.exercises[ex + 1]) {
@@ -566,12 +564,17 @@ export const useStore = create<Store>((set, get) => ({
     get().update((s) => {
       if (!s.activeWorkout || !s.gyms.some((g) => g.id === gymId)) return s
       const a = s.activeWorkout
-      const tpl = s.templates[a.type]
+      // The gym it already has: nothing to rebuild.
+      if (gymId === (a.gymId ?? HOME_GYM)) return a.reopened ? s : { ...s, gymId }
+      // A finished session being corrected reads the sheets as they stood before its own changes, and is not its own history.
+      const original = a.reopened ? s.workouts.find((w) => w.id === a.id) : undefined
+      const from = original ? { ...s, templates: beforeCorrection(s, original).templates, workouts: s.workouts.filter((w) => w.id !== a.id) } : s
+      const tpl = from.templates[a.type]
       const exercises = a.exercises.map((e) => {
         if (!isGymBound(e) || e.replacement) return e
         const t = tpl.exercises.find((x) => x.exerciseId === e.exerciseId)
         if (!t) return e
-        const start = startingLoad(t, gymId, s, e.prescription?.loadFactor ?? 1)
+        const start = startingLoad(t, gymId, from, e.prescription?.loadFactor ?? 1)
         const { gymTrial: _t, hint: _h, ...rest } = e
         return {
           ...rest,
@@ -581,7 +584,8 @@ export const useStore = create<Store>((set, get) => ({
           gymTrial: start.trial,
         }
       })
-      return { ...s, gymId, activeWorkout: { ...a, gymId, exercises } }
+      // The gym of a corrected session is that session's: the gym chosen for the next ones does not move.
+      return { ...s, gymId: a.reopened ? s.gymId : gymId, activeWorkout: { ...a, gymId, exercises } }
     }),
 
   startRest: (seconds, label, next) => {
@@ -613,52 +617,11 @@ export const useStore = create<Store>((set, get) => ({
     const a = s.activeWorkout
     if (!a) return null
     if (a.timer && a.timer.endAt > Date.now() && s.prefs.push) cancelRestPush()
-    const sessionNumber = Math.max(0, ...s.workouts.map((w) => w.sessionNumber)) + 1
-    const workout: Workout = {
-      id: a.id,
-      sessionNumber,
-      type: a.type,
-      date: a.date,
-      startedAt: a.startedAt,
-      completedAt: new Date().toISOString(),
-      notes: a.notes,
-      exercises: a.exercises.map(({ hint: _h, ...e }) => e),
-      periodId: a.periodId,
-      week: a.week,
-      deload: a.deload,
-      gymId: a.gymId && a.gymId !== HOME_GYM ? a.gymId : undefined,
-    }
-    const result = finalizeWorkout(s.workouts, workout, s.templates)
-    const workouts = [...s.workouts, result.workout].sort((x, y) => (x.date === y.date ? x.sessionNumber - y.sessionNumber : x.date < y.date ? -1 : 1))
-    const reentry = s.reentry ? (s.reentry.sessionsLeft > 1 ? { ...s.reentry, sessionsLeft: s.reentry.sessionsLeft - 1 } : null) : null
-    const auto = s.prefs.autoLoad ? result.changes : []
-    let templates = s.templates
-    for (const c of auto) templates = applyChange(templates, c)
-    get().update(() => ({
-      ...s,
-      workouts,
-      templates,
-      completedSessions: workouts.length,
-      nextWorkoutType: nextInRotation(a.type),
-      lastCompletedWorkoutId: workout.id,
-      activeWorkout: null,
-      reentry,
-      appliedPlanUpdates: auto.length
-        ? [
-            ...s.appliedPlanUpdates,
-            {
-              updateId: `auto-${workout.id}`,
-              basedOnSession: sessionNumber,
-              summary: L(`Ajustement automatique : ${describeChanges(auto)}.`, `Automatic adjustment: ${describeChanges(auto)}.`),
-              appliedAt: new Date().toISOString(),
-              changeCount: auto.length,
-              source: 'progression' as const,
-            },
-          ]
-        : s.appliedPlanUpdates,
-    }))
-    set({ lastFinish: { ...result, applied: auto.map((c) => c.id) } })
-    return workout.id
+    const done = finishedState(s)
+    if (!done) return null
+    get().update(() => done.state)
+    set({ lastFinish: done.result })
+    return done.result.workout.id
   },
 
   discardSession: () => {
@@ -667,33 +630,9 @@ export const useStore = create<Store>((set, get) => ({
     get().update((s) => ({ ...s, activeWorkout: null }))
   },
 
-  applyChanges: (ids) => {
-    const lf = get().lastFinish
-    if (!lf) return
-    const todo = lf.changes.filter((c) => ids.includes(c.id) && !lf.applied.includes(c.id))
-    if (!todo.length) return
-    get().update((s) => {
-      let templates = s.templates
-      for (const c of todo) templates = applyChange(templates, c)
-      return {
-        ...s,
-        templates,
-        appliedPlanUpdates: [
-          ...s.appliedPlanUpdates,
-          { updateId: `manual-${Date.now()}`, basedOnSession: s.workouts.length, summary: L(`Charges mises à jour : ${describeChanges(todo)}.`, `Loads updated: ${describeChanges(todo)}.`), appliedAt: new Date().toISOString(), changeCount: todo.length, source: 'progression' },
-        ],
-      }
-    })
-    set({ lastFinish: { ...lf, applied: [...lf.applied, ...todo.map((c) => c.id)] } })
-  },
+  applyChanges: (ids) => get().update((s) => appliedState(s, ids)),
 
-  revertChange: (id) => {
-    const lf = get().lastFinish
-    const c = lf?.changes.find((x) => x.id === id)
-    if (!lf || !c || !lf.applied.includes(id)) return
-    get().update((s) => ({ ...s, templates: applyChange(s.templates, c, true) }))
-    set({ lastFinish: { ...lf, applied: lf.applied.filter((x) => x !== id) } })
-  },
+  revertChange: (id) => get().update((s) => revertedState(s, id)),
 
   bringDeloadForward: () => {
     const start = addDays(todayISO(), 1)
@@ -702,11 +641,23 @@ export const useStore = create<Store>((set, get) => ({
 
   cancelEarlyDeload: () => get().update((s) => ({ ...s, manualDeload: null })),
 
-  deleteWorkout: (id) =>
+  reopenWorkout: (id) => {
+    const next = reopenedState(get().state, id)
+    if (!next) return false
+    get().update(() => next)
+    set({ lastFinish: null })
+    void get().flush()
+    return true
+  },
+
+  deleteWorkout: (id) => {
+    // A correction in progress on that session goes with it.
     get().update((s) => {
-      const workouts = s.workouts.filter((w) => w.id !== id)
-      return { ...s, workouts, completedSessions: workouts.length }
-    }),
+      const next = withoutWorkout(s, id)
+      return next.activeWorkout?.reopened && next.activeWorkout.id === id ? { ...next, activeWorkout: null } : next
+    })
+    if (get().lastFinish?.workout.id === id) set({ lastFinish: null })
+  },
 
   // ───────────────────────── Body & nutrition ─────────────────────────
 

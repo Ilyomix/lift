@@ -5,6 +5,7 @@ import { HOME_GYM } from './gyms'
 import { detectLang, L } from './i18n'
 import { buildMaintenancePeriods, buildResearchTemplates, maintenanceHorizon, planShape, programStartFor, scheduleFromDays, type PlanShape } from './program'
 import type { AppState, ISODate, Look, TrainingSetup } from './types'
+import { restingCalories } from './stats'
 import { relativeFatMass, tagPriorities, visualPlan, type BodyFat, type VisualPlan } from './visual'
 
 export interface OnboardingAnswers {
@@ -43,9 +44,8 @@ export function onboardingBodyFat(a: Pick<OnboardingAnswers, 'weight' | 'heightC
 
 /** Maintenance: resting expenditure (Mifflin–St Jeor 1990) × activity from the sessions per week. */
 export function maintenanceCalories(a: Pick<OnboardingAnswers, 'weight' | 'heightCm' | 'age' | 'sex' | 'days'>): number {
-  const bmr = 10 * a.weight + 6.25 * a.heightCm - 5 * (a.age || 30) + (a.sex === 'm' ? 5 : -161)
   const factor = a.days.length <= 3 ? 1.375 : a.days.length <= 5 ? 1.55 : 1.725
-  return round(bmr * factor, 50)
+  return round(restingCalories(a) * factor, 50)
 }
 
 export interface OnboardingPreview {

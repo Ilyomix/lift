@@ -6,7 +6,7 @@ import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L, lang, setLang, type Lang } from '../lib/i18n'
 import { onboardingPreview, type OnboardingAnswers } from '../lib/onboarding'
 import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
-import { SOURCES } from '../lib/research'
+import { studyCount } from '../lib/research'
 import { useStore } from '../lib/store'
 import type { Look, TrainingSetup } from '../lib/types'
 import { LOOKS, reachesLook } from '../lib/visual'
@@ -145,6 +145,8 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
   const [parsed, setParsed] = useState<ParsedBackup | null>(null)
   const [upgrade, setUpgrade] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Studies only: general health guidance is listed with the sources, not counted as one.
+  const studies = studyCount()
   const onFile = async (f: File | undefined) => {
     if (!f) return
     try {
@@ -195,7 +197,7 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
         {error && <p className="mt-3 text-center text-[13px] text-bad">{error}</p>}
         <p className="mt-4 text-center text-[12px] leading-[1.5] text-muted">
-          {L(`${Object.keys(SOURCES).length} publications citées · données stockées sur ce téléphone uniquement`, `${Object.keys(SOURCES).length} studies cited · data stored on this phone only`)}
+          {L(`${studies} publications citées · données stockées sur ce téléphone uniquement`, `${studies} studies cited · data stored on this phone only`)}
         </p>
       </div>
       <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={() => void importBackup(parsed!, { upgrade })} />

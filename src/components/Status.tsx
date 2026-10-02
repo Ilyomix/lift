@@ -48,7 +48,8 @@ export function StatusTag({ c: raw }: { c: Comparison | null }) {
     case 'progress':
       return <Tag tone="good" icon={<ArrowUpRight {...i} />}>{c.headline}</Tag>
     case 'down':
-      return <Tag tone="bad" icon={<ArrowDownRight {...i} />}>{c.headline}</Tag>
+      // A drop within normal variation is shown, without the colour of a warning.
+      return <Tag tone={raw.marked === false ? 'outline' : 'bad'} icon={<ArrowDownRight {...i} />}>{c.headline}</Tag>
     case 'stable':
       return <Tag tone="outline" icon={<Equal {...i} />}>{c.headline}</Tag>
     case 'load-change':

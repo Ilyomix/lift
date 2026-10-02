@@ -84,6 +84,12 @@ export interface Comparison {
   chargeValidated: boolean
   suggestion: string | null
   isRecord: boolean
+  /**
+   * On a drop: true when it is beyond the normal variation between two sessions, so that it
+   * counts for the fatigue signal (training.ts, dropMargin). Absent on comparisons made before
+   * the margin existed.
+   */
+  marked?: boolean
 }
 
 export interface Prescription {
@@ -115,6 +121,24 @@ export interface WorkoutExercise extends TemplateExercise {
   gymTrial?: { fromGym: string; weight: number | null }
 }
 
+/** A change of the plan made after a session: load up or down, starting load, or one set less. */
+export interface AutoChange {
+  id: string
+  type: WorkoutType
+  exerciseId: string
+  name: string
+  gymId: string
+  date: ISODate
+  kind: 'up' | 'down' | 'baseline' | 'sets'
+  from: number | null
+  to: number | null
+  text: string
+  /** Language `text` was written in: shown as it is in that language, rebuilt from the figures in the other. */
+  lang?: 'fr' | 'en'
+  /** Other sessions that have the exercise in the same rep range, at the same load: their sheets take the new load too. */
+  also?: WorkoutType[]
+}
+
 export interface Workout {
   id: string
   sessionNumber: number
@@ -129,6 +153,13 @@ export interface Workout {
   deload?: boolean
   /** Gym where the session took place (absent = the first gym). */
   gymId?: string
+  /**
+   * Changes of the plan this session led to: kept with it, so that they can be undone or applied after the app was closed.
+   * An empty list when it changed nothing; absent on sessions logged before they were kept.
+   */
+  changes?: AutoChange[]
+  /** The return after a break as it stood when the session was finished: restored if the session is reopened or deleted. */
+  reentry?: ReentryInfo | null
 }
 
 export interface RestTimer {
@@ -162,6 +193,8 @@ export interface ActiveWorkout {
   deload?: boolean
   reentry?: ReentryInfo | null
   gymId?: string
+  /** A finished session reopened to be corrected: it keeps the time it ended at. */
+  reopened?: { completedAt: string | null }
 }
 
 export interface BodyEntry {

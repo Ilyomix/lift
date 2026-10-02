@@ -11,7 +11,7 @@ import { fmtNum, parseNumber, plural } from '../lib/format'
 import { HOME_GYM } from '../lib/gyms'
 import { contextAt, GOAL_DATE, MAINTENANCE, PLAN_DAYS, sharePhrase, templateSets, trainingDays, TYPE_META, weekShape } from '../lib/program'
 import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
-import { SOURCES } from '../lib/research'
+import { studyCount } from '../lib/research'
 import { navigate } from '../lib/router'
 import { isAndroid, isIOS, isStandalone, saveFile, shareText } from '../lib/share'
 import { calorieAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
@@ -28,7 +28,7 @@ export function MoreScreen() {
   const state = useStore((s) => s.state)
   const items = [
     { to: 'plus/nutrition', icon: Apple, label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
-    { to: 'plus/programme', icon: FlaskConical, label: L('Programme et preuves', 'Program and evidence'), hint: L(`${Object.keys(SOURCES).length} études citées`, `${Object.keys(SOURCES).length} studies cited`) },
+    { to: 'plus/programme', icon: FlaskConical, label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
     { to: 'plus/coach', icon: Sparkles, label: L('Coach IA', 'AI coach'), hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
     { to: 'plus/pause', icon: CirclePause, label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
     { to: 'plus/rappels', icon: BellRing, label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
@@ -101,7 +101,7 @@ export function NutritionScreen() {
               <p className="text-[15px] font-semibold">{advice.headline}</p>
               <p className="mt-1 text-[14px] leading-[1.45] text-text-2">{advice.detail}</p>
             </div>
-            {advice.status !== 'wait' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
+            {advice.status !== 'wait' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : advice.status === 'hold' ? L('Plancher', 'Floor') : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
           </div>
           {(advice.status === 'lower' || advice.status === 'raise') && (
             <Button variant="primary" full className="mt-3" onClick={() => { setNutritionTargets({ calories: advice.target }); notify(L(`Cible : ${advice.target} kcal. Prochain point dans 2 semaines.`, `Target: ${advice.target} kcal. Next check-in in 2 weeks.`), 'good') }}>
@@ -109,7 +109,7 @@ export function NutritionScreen() {
             </Button>
           )}
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal, puis 2 semaines pour que le poids réagisse. Le poids ne change jamais les charges.', 'Steps of 150 kcal, then 2 weeks for your weight to respond. Your weight never changes your loads.')}
+            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal, puis 2 semaines pour que le poids réagisse.', 'Steps of 150 kcal, then 2 weeks for your weight to respond.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
           </p>
         </Card>
       </Section>

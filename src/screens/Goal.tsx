@@ -8,7 +8,7 @@ import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import type { Look, Zone } from '../lib/types'
-import { bodyFatEstimate, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
+import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
 import { RefList } from '../components/Evidence'
 import { Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
 
@@ -48,6 +48,8 @@ export function VisualGoalScreen() {
   const waistAge = bf?.source === 'tour de taille' && bf.waistDate ? diffDays(bf.waistDate, today) : 0
   const waistStale = waistAge > STALE_WAIST_DAYS
   const planDate = plan ? (plan.fits ? goalDate : (plan.suggestedGoal ?? goalDate)) : goalDate
+  // The cut was sized when the goal was applied: the latest measurements may ask for another length.
+  const drift = cutDrift(state, today)
 
   const toggleZone = (z: Zone) => {
     setZones((cur) => (cur.includes(z) ? cur.filter((x) => x !== z) : cur.length >= MAX_ZONES ? cur : [...cur, z]))
@@ -102,6 +104,13 @@ export function VisualGoalScreen() {
             <p className="text-[13px] leading-[1.45] text-text-2">
               {L(`Sèche de ${plural(CUT_LENGTH, 'semaine', 'semaines')}`, `${CUT_LENGTH}-week cut`)}{zonesText(saved.zones) ? L(` · priorités : ${zonesText(saved.zones)}`, ` · priorities: ${zonesText(saved.zones)}`) : ''}
             </p>
+            {drift && (
+              <p className="mt-1 text-[13px] leading-[1.45] text-warn">
+                {drift.needed === 0
+                  ? L('Ton dernier tour de taille te place déjà dans cet objectif : mets le plan à jour plus bas.', 'Your latest waist measurement already puts you at this goal: update the plan below.')
+                  : L(`Ton dernier tour de taille demande ${plural(drift.needed, 'semaine', 'semaines')} de sèche : mets le plan à jour plus bas.`, `Your latest waist measurement calls for a cut of ${drift.needed} weeks: update the plan below.`)}
+              </p>
+            )}
           </div>
         </Card>
       )}
