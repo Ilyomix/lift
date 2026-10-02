@@ -120,7 +120,7 @@ function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
   return (
     <span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
       <SegDigits value={fmtClock(Math.floor(tenths / 10))} className="text-[60px] leading-none" />
-      <span className="seg seg-ghost tnum ml-1.5 text-[30px] leading-none" data-ghost="8">{tenths % 10}</span>
+      <span className="seg seg-ghost tnum ml-1 text-[30px] leading-none" data-ghost=".8">.{tenths % 10}</span>
     </span>
   )
 }
