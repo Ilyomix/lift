@@ -6,7 +6,7 @@ import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
 import { L } from '../lib/i18n'
-import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
+import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, isoFromTimestamp, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { HOME_GYM } from '../lib/gyms'
 import { contextAt, GOAL_DATE, MAINTENANCE, PLAN_DAYS, sharePhrase, templateSets, trainingDays, TYPE_META, weekShape } from '../lib/program'
@@ -50,7 +50,10 @@ export function MoreScreen() {
           </button>
         ))}
       </Card>
-      <p className="mt-8 text-center text-[12px] leading-[1.5] text-muted">
+      <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" aria-label={L('Ilyomix sur GitHub', 'Ilyomix on GitHub')} className="pressable mx-auto mt-8 block h-11 w-11 overflow-hidden rounded-full border border-line-strong">
+        <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={44} height={44} loading="lazy" className="h-full w-full object-cover" />
+      </a>
+      <p className="mt-2.5 text-center text-[12px] leading-[1.5] text-muted">
         <span className="font-semibold text-text-2">Lift</span> · {L('conçue par', 'designed by')}{' '}
         <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="font-medium text-text-2 underline decoration-line-strong underline-offset-2">Ilyomix</a>
         {' · '}
@@ -59,6 +62,15 @@ export function MoreScreen() {
         {L('Programme fondé sur la recherche (rapport du 26 sept. 2026)', 'Research-based program (report of 26 Sept 2026)')}
         <br />
         {L('Données stockées sur cet appareil uniquement.', 'Data stored on this device only.')}
+        <br />
+        <span className="tnum">
+          {L('Version', 'Version')} {__APP_VERSION__}
+          {' · '}
+          {__APP_BUILD__ ? `build ${__APP_BUILD__}` : L('build local', 'local build')}
+          {__APP_COMMIT__ && ` (${__APP_COMMIT__})`}
+          {' · '}
+          {fmtDate(isoFromTimestamp(__APP_BUILT__), { long: true, year: true })}
+        </span>
       </p>
     </Screen>
   )
