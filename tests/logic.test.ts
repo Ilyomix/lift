@@ -1538,6 +1538,59 @@ test('onboarding: a new user starts this week, with the goal and the sessions ch
   assert.ok(sessionItems('UPPER').length === 8)
 })
 
+test('priority zones: asked at the onboarding, and the goal screen says what they change and from when', async () => {
+  const { stateFromOnboarding } = await import('../src/lib/onboarding')
+  const { prioritySets, prioritySetsStart, tagPriorities } = await import('../src/lib/visual')
+  const answers = {
+    lang: 'fr' as const, setup: { place: 'gym' as const, equipment: [] }, days: [1, 2, 4, 5, 6], sex: 'm' as const,
+    age: 30, heightCm: 178, weight: 80, waist: 86, look: 'sec' as const, goalDate: '2027-07-31',
+  }
+  // No answer: the report's priorities, as before.
+  const plain = stateFromOnboarding(answers, '2026-10-07')
+  assert.deepEqual(plain.visualGoal?.zones, [])
+  assert.ok(!Object.values(plain.templates).some((t) => t.exercises.some((e) => e.focus)))
+  assert.ok(plain.templates.UPPER.exercises.some((e) => e.volumeTag === 'priority'))
+  // Zones chosen: stored, tagged in the sessions, and they replace the report's tags.
+  const s = stateFromOnboarding({ ...answers, zones: ['bras', 'jambes'] }, '2026-10-07')
+  assert.deepEqual(s.visualGoal?.zones, ['bras', 'jambes'])
+  assert.deepEqual(s.templates, tagPriorities(plain.templates, ['bras', 'jambes']))
+  assert.ok(s.templates.UPPER.exercises.some((e) => e.focus) && s.templates.LEGS.exercises.some((e) => e.focus))
+  assert.ok(!Object.values(s.templates).some((t) => t.exercises.some((e) => e.volumeTag === 'priority')))
+  // Anything else than three known zones, each once, is dropped.
+  const odd = stateFromOnboarding({ ...answers, zones: ['bras', 'bras', 'cou', 'dos', 'abdos', 'mollets'] as never }, '2026-10-07')
+  assert.deepEqual(odd.visualGoal?.zones, ['bras', 'dos', 'abdos'])
+  // Maintenance mode has no visual goal: nothing tagged.
+  assert.equal(stateFromOnboarding({ ...answers, zones: ['bras'], maintenance: true }, '2026-10-07').visualGoal, null)
+
+  // What the zones change: exactly the exercises the sessions tag, one per zone and per session.
+  const sets = prioritySets(s.templates, ['bras', 'jambes'])
+  const tagged = Object.values(s.templates).flatMap((t) => t.exercises.filter((e) => e.focus).map((e) => `${t.type}:${e.name}`)).sort()
+  assert.deepEqual(sets.map((x) => `${x.type}:${x.name}`).sort(), tagged)
+  assert.ok(sets.every((x) => x.zone === 'bras' || x.zone === 'jambes'))
+  assert.ok(new Set(sets.map((x) => `${x.type}:${x.zone}`)).size === sets.length, 'one exercise per zone and per session')
+  // Without zones: the report's priority exercises.
+  const report = prioritySets(plain.templates, [])
+  assert.deepEqual(report.map((x) => `${x.type}:${x.name}`).sort(), Object.values(plain.templates).flatMap((t) => t.exercises.filter((e) => e.volumeTag === 'priority').map((e) => `${t.type}:${e.name}`)).sort())
+  assert.ok(report.length > 0 && report.every((x) => x.zone === null))
+
+  // From when: block 1 adds nothing, block 2 from week 3 if performance rises, the cut from week 1.
+  configurePlan(DEFAULT_GOAL)
+  const b2 = PERIODS().find((p) => p.id === 'b2')!
+  const cut = PERIODS().find((p) => p.kind === 'block' && p.phase === 'cut')!
+  const early = prioritySetsStart('2026-10-02')!
+  assert.deepEqual([early.date, early.week, early.ifRising, early.running], [addDays(b2.start, 14), 3, true, false])
+  assert.equal(early.label, b2.label)
+  assert.deepEqual([early.sure?.date, early.sure?.ifRising], [cut.start, false])
+  assert.equal(prioritySetsStart(addDays(b2.start, 20))!.running, true)
+  const inCut = prioritySetsStart(addDays(cut.start, 3))!
+  assert.deepEqual([inCut.date, inCut.week, inCut.ifRising, inCut.running, inCut.sure], [cut.start, 1, false, true, null])
+  // The date is the week the prescription really adds the set.
+  const lateral = plain.templates.UPPER.exercises.find((e) => e.volumeTag === 'priority')!
+  assert.equal(prescribe(lateral, addDays(early.date, -1), null).sets, lateral.target.sets)
+  assert.equal(prescribe(lateral, early.date, null).sets, lateral.target.sets + 1)
+  assert.equal(prioritySetsStart('2027-06-20'), null, 'the stabilization adds none')
+})
+
 test('home training: each gym exercise becomes the best version the equipment allows', async () => {
   const { sessionItems, doableAt, buildResearchTemplates } = program
   const ids = (setup: { place: 'home'; equipment: ('dumbbells' | 'bench' | 'pullupBar' | 'bands')[] }, t: 'UPPER' | 'LOWER' | 'PULL') => sessionItems(t, setup).map((i) => i.id)

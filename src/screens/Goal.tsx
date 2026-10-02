@@ -3,13 +3,14 @@ import { Camera, Check, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target,
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
-import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, resumeGoalFor } from '../lib/program'
+import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, resumeGoalFor, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
-import type { Look, Zone } from '../lib/types'
-import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
+import type { Look, WorkoutType, Zone } from '../lib/types'
+import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, prioritySets, prioritySetsStart, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
 import { RefList } from '../components/Evidence'
+import { ZonePicker } from '../components/ZonePicker'
 import { Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
 
 const kg = (x: number) => `${fmtNum(x, 1)} kg`
@@ -51,9 +52,16 @@ export function VisualGoalScreen() {
   // The cut was sized when the goal was applied: the latest measurements may ask for another length.
   const drift = cutDrift(state, today)
 
-  const toggleZone = (z: Zone) => {
-    setZones((cur) => (cur.includes(z) ? cur.filter((x) => x !== z) : cur.length >= MAX_ZONES ? cur : [...cur, z]))
-  }
+  // What the chosen zones change: the exercises that take one more set, zone by zone, and from which week.
+  const effects = useMemo(() => {
+    const sets = prioritySets(state.templates, zones)
+    const groups: { zone: Zone | null; label: string; sets: { type: WorkoutType; name: string }[] }[] = zones.length
+      ? zones.map((z) => ({ zone: z, label: ZONES.find((x) => x.id === z)!.label, sets: [] }))
+      : [{ zone: null, label: L('Priorités du programme', 'The program’s priorities'), sets: [] }]
+    for (const x of sets) groups.find((g) => g.zone === x.zone)?.sets.push({ type: x.type, name: x.name })
+    return groups
+  }, [state.templates, zones])
+  const start = prioritySetsStart(today)
   const apply = (goal?: string) => {
     if (!plan) return
     applyVisualGoal({ look, zones, bodyFat: override ?? null, heightCm, sex }, { cutWeeks: plan.cutWeeks, target: plan.target, goal: goal ?? (MAINTENANCE ? goalDate : undefined) })
@@ -148,28 +156,31 @@ export function VisualGoalScreen() {
       </Section>
 
       <Section title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
-        <div className="flex flex-wrap gap-2" role="group" aria-label={L('Zones prioritaires', 'Priority areas')}>
-          {ZONES.map((z) => {
-            const on = zones.includes(z.id)
-            const full = !on && zones.length >= MAX_ZONES
-            return (
-              <button
-                key={z.id}
-                type="button"
-                aria-pressed={on}
-                disabled={full}
-                onClick={() => toggleZone(z.id)}
-                className={cx('pressable h-10 rounded-full border px-4 text-[14px] font-semibold disabled:opacity-35', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2')}
-              >
-                {z.label}
-              </button>
-            )
-          })}
-        </div>
+        <ZonePicker value={zones} onChange={setZones} />
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">
-          {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille, dès la S3 du bloc 2. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One extra set on one exercise per area, in every session that trains it, from W3 of block 2. Three areas at most: prioritizing everything means prioritizing nothing.')}
-          {zones.length === 0 && L(` Sans choix : ${DEFAULT_ZONES.map((z) => ZONES.find((x) => x.id === z)!.label.toLowerCase()).join(', ')} (le V du programme).`, ` If none is chosen: ${DEFAULT_ZONES.map((z) => ZONES.find((x) => x.id === z)!.label.toLowerCase()).join(', ')} (the program’s V shape).`)}
+          {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every session that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
+          {zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)} (le V du programme).`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)} (the program’s V shape).`)}
         </p>
+        <Card className="mt-3 divide-y divide-line">
+          {effects.map((g) => (
+            <div key={g.zone ?? 'programme'} className="px-4 py-3">
+              <p className="text-[14px] font-semibold">{g.label} <span className="font-normal text-text-2">· {g.sets.length ? L(`+1 série sur ${plural(g.sets.length, 'exercice', 'exercices')}`, `+1 set on ${plural(g.sets.length, 'exercise', 'exercises')}`) : L('aucun exercice dans tes séances', 'no exercise in your sessions')}</span></p>
+              {g.sets.map((x, i) => (
+                <p key={i} className="mt-0.5 text-[13px] leading-[1.45] text-text-2">{TYPE_META[x.type].label}{L(' : ', ': ')}{x.name}</p>
+              ))}
+            </div>
+          ))}
+          <p className="px-4 py-3 text-[13px] leading-[1.45] text-text-2">
+            <span className="block text-[14px] font-semibold text-text">{L('À partir de quand', 'From when')}</span>
+            {!start
+              ? L('Plus aucune semaine du plan n’ajoute ces séries.', 'No remaining week of the plan adds these sets.')
+              : start.running
+                ? L(`En cours depuis le ${nb(fmtDate(start.date, { long: true }))} (${start.label})${start.ifRising ? ', sur les exercices dont les performances ont monté en début de bloc' : ''}.`, `Running since ${nb(fmtDate(start.date, { long: true }))} (${start.label})${start.ifRising ? ', on the exercises whose performance went up early in the block' : ''}.`)
+                : L(`Le ${nb(fmtDate(start.date, { long: true, year: true }))} (${start.label}, semaine ${start.week})${start.ifRising ? ', sur les exercices dont les performances montent les deux premières semaines du bloc' : ''}.`, `On ${nb(fmtDate(start.date, { long: true, year: true }))} (${start.label}, week ${start.week})${start.ifRising ? ', on the exercises whose performance goes up in the first two weeks of the block' : ''}.`)}
+            {start?.sure && L(` Sans condition à partir du ${nb(fmtDate(start.sure.date, { long: true, year: true }))} (${start.sure.label}, sèche).`, ` With no condition from ${nb(fmtDate(start.sure.date, { long: true, year: true }))} (${start.sure.label}, cut).`)}
+            {start && !start.running && L(' D’ici là, tes séances ne changent pas.', ' Until then, your sessions don’t change.')}
+          </p>
+        </Card>
       </Section>
 
       <Section title={L('Où tu en es', 'Where you stand')}>

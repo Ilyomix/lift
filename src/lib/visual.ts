@@ -3,7 +3,7 @@
 import { addDays, todayISO } from './date'
 import { L } from './i18n'
 import { infoFor, type MuscleGroup } from './library'
-import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, MAINTENANCE, MAX_CUT_WEEKS, MIN_CUT_WEEKS, minResumeGoal, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
+import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, MAINTENANCE, MAX_CUT_WEEKS, MIN_CUT_WEEKS, minResumeGoal, PERIODS, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
 import { measureSeries, plannedWeightPath, weightStatus } from './stats'
 import type { AppState, ISODate, Look, Template, TemplateExercise, VisualGoal, WorkoutType, Zone } from './types'
 
@@ -271,26 +271,7 @@ export function tagPriorities(templates: Record<WorkoutType, Template>, zones: Z
   for (const type of ROTATION) {
     const tpl = templates[type]
     if (!tpl) continue
-    const chosen = new Set<number>()
-    for (const zone of zones) {
-      const z = ZONES.find((x) => x.id === zone)
-      if (!z) continue
-      let bestIndex = -1
-      let bestKey = Infinity
-      for (let i = 0; i < tpl.exercises.length; i++) {
-        if (chosen.has(i)) continue
-        const e = tpl.exercises[i]
-        const info = infoFor(e.exerciseId, e)
-        const rank = z.groups.findIndex((g) => info.groups[g] === 1)
-        if (rank < 0) continue
-        const key = rank * 100 + (info.role === 'isolation' ? 0 : 50) + i
-        if (key < bestKey) {
-          bestKey = key
-          bestIndex = i
-        }
-      }
-      if (bestIndex >= 0) chosen.add(bestIndex)
-    }
+    const chosen = new Set(zonePicks(tpl, zones).map((x) => x.index))
     // Without zones, back to the report's tags.
     const report = new Set(zones.length ? [] : PLAN[type].filter((p) => p.tag === 'priority').map((p) => p.id))
     out[type] = {
@@ -303,6 +284,76 @@ export function tagPriorities(templates: Record<WorkoutType, Template>, zones: Z
     }
   }
   return out
+}
+
+/** The exercise of a session each chosen zone adds its set to: isolation first, the zone's main muscle first, one exercise a zone. */
+function zonePicks(tpl: Template, zones: Zone[]): { zone: Zone; index: number }[] {
+  const picks: { zone: Zone; index: number }[] = []
+  for (const zone of zones) {
+    const z = ZONES.find((x) => x.id === zone)
+    if (!z) continue
+    let bestIndex = -1
+    let bestKey = Infinity
+    for (let i = 0; i < tpl.exercises.length; i++) {
+      if (picks.some((x) => x.index === i)) continue
+      const e = tpl.exercises[i]
+      const info = infoFor(e.exerciseId, e)
+      const rank = z.groups.findIndex((g) => info.groups[g] === 1)
+      if (rank < 0) continue
+      const key = rank * 100 + (info.role === 'isolation' ? 0 : 50) + i
+      if (key < bestKey) {
+        bestKey = key
+        bestIndex = i
+      }
+    }
+    if (bestIndex >= 0) picks.push({ zone, index: bestIndex })
+  }
+  return picks
+}
+
+/**
+ * What the priority sets change, session by session: the exercises that take one more set, for
+ * the chosen zones, or for the report's priorities when none is chosen.
+ */
+export function prioritySets(templates: Record<WorkoutType, Template>, zones: Zone[]): { type: WorkoutType; zone: Zone | null; name: string }[] {
+  const out: { type: WorkoutType; zone: Zone | null; name: string }[] = []
+  for (const type of ROTATION) {
+    const tpl = templates[type]
+    if (!tpl) continue
+    if (zones.length) for (const x of zonePicks(tpl, zones)) out.push({ type, zone: x.zone, name: tpl.exercises[x.index].name })
+    else {
+      const report = new Set(PLAN[type].filter((p) => p.tag === 'priority').map((p) => p.id))
+      for (const e of tpl.exercises) if (report.has(e.exerciseId)) out.push({ type, zone: null, name: e.name })
+    }
+  }
+  return out
+}
+
+/** The first week of a period that adds the priority sets. */
+export interface PriorityStart {
+  date: ISODate
+  label: string
+  week: number
+  /** Building blocks: only on the exercises whose performance went up in the first weeks. */
+  ifRising: boolean
+  /** Already running today. */
+  running: boolean
+}
+
+/**
+ * When the priority sets start: the first week of the plan, from today on, that adds them, and,
+ * when that one waits for rising performance, the first that adds them without condition (the cut).
+ */
+export function prioritySetsStart(today: ISODate = todayISO()): (PriorityStart & { sure: PriorityStart | null }) | null {
+  const starts: PriorityStart[] = []
+  for (const p of PERIODS) {
+    if (!p.priorityFromWeek || p.end < today) continue
+    const date = addDays(p.start, (p.priorityFromWeek - 1) * 7)
+    if (date > p.end) continue
+    starts.push({ date, label: p.label, week: p.priorityFromWeek, ifRising: !!p.priorityIfRising, running: date <= today })
+  }
+  if (!starts.length) return null
+  return { ...starts[0], sure: starts[0].ifRising ? (starts.find((x) => !x.ifRising) ?? null) : null }
 }
 
 /** Weeks between two dates, for display. */

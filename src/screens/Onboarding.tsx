@@ -8,9 +8,10 @@ import { onboardingPreview, type OnboardingAnswers } from '../lib/onboarding'
 import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
 import { studyCount } from '../lib/research'
 import { useStore } from '../lib/store'
-import type { Look, TrainingSetup } from '../lib/types'
-import { LOOKS, reachesLook } from '../lib/visual'
+import type { Look, TrainingSetup, Zone } from '../lib/types'
+import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
 import { PlanModePicker } from '../components/PlanMode'
+import { ZonePicker } from '../components/ZonePicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
 import { Button, Card, cx, DateInput, Field, inputClass, Sheet, Tag } from '../components/ui'
 import { ImportSheet } from './More'
@@ -48,6 +49,8 @@ interface Draft {
   weight: string
   waist: string
   look: Look
+  /** Priority zones, three at most; none keeps the program's own. */
+  zones: Zone[]
   goalDate: string
   /** Maintenance mode: no goal date, no look. */
   maintenance: boolean
@@ -70,6 +73,7 @@ export function Onboarding() {
     weight: '',
     waist: '',
     look: 'sec',
+    zones: [],
     goalDate: defaultGoalFor(start),
     maintenance: false,
   }))
@@ -85,7 +89,7 @@ export function Onboarding() {
   const waist = parseNumber(d.waist)
   const bodyOk = inRange(age, 14, 90) && inRange(height, 120, 230) && inRange(weight, 35, 250) && (d.waist.trim() === '' || inRange(waist, 50, 200))
   const answers: OnboardingAnswers | null = bodyOk
-    ? { lang: language, setup: d.setup, days: d.days, sex: d.sex, age: age!, heightCm: height!, weight: weight!, waist: d.waist.trim() ? waist : null, look: d.look, goalDate: d.goalDate, maintenance: d.maintenance }
+    ? { lang: language, setup: d.setup, days: d.days, sex: d.sex, age: age!, heightCm: height!, weight: weight!, waist: d.waist.trim() ? waist : null, look: d.look, zones: d.zones, goalDate: d.goalDate, maintenance: d.maintenance }
     : null
   const goalOk = d.maintenance || isValidGoal(d.goalDate, start)
   const preview = useMemo(() => (answers && goalOk ? onboardingPreview(answers, today) : null), [JSON.stringify(answers), goalOk, today]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -355,6 +359,16 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         })}
       </div>
 
+      <div className="mt-5 mb-2 flex items-baseline justify-between gap-3">
+        <p className="text-[13px] font-medium text-text-2">{L('Zones prioritaires (facultatif)', 'Priority areas (optional)')}</p>
+        <span className="text-[13px] text-text-2 tnum">{d.zones.length}/{MAX_ZONES}</span>
+      </div>
+      <ZonePicker value={d.zones} onChange={(zones) => patch({ zones })} />
+      <p className="mt-2 text-[12px] leading-[1.45] text-muted">
+        {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every session that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
+        {d.zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)}.`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)}.`)}
+      </p>
+
       <div className="mt-5">
         <DateInput label={L('Date objectif', 'Goal date')} value={d.goalDate} min={min} max={max} onChange={(goalDate) => patch({ goalDate })} />
         <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5" role="group" aria-label={L('Durée', 'Duration')}>
@@ -442,6 +456,13 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
           <>
             <Line label={L('Objectif', 'Goal')} value={plan ? plan.look.label : '—'} hint={fmtDate(answers.goalDate, { long: true, year: true })} />
             {plan && <Line label={L('Poids cible', 'Target weight')} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />}
+            {plan && (
+              <Line
+                label={L('Zones prioritaires', 'Priority areas')}
+                value={capitalize(zonesText(answers.zones?.length ? answers.zones : DEFAULT_ZONES) ?? '')}
+                hint={L(`+1 série par zone et par séance, à partir du bloc 2${answers.zones?.length ? '' : ' · celles du programme'}`, `+1 set per area and per session, from block 2${answers.zones?.length ? '' : ' · the program’s own'}`)}
+              />
+            )}
             <Line label={L('Séances d’ici là', 'Sessions until then')} value={String(preview.sessions)} />
           </>
         )}

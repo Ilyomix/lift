@@ -4,9 +4,9 @@ import { addDays, todayISO, weekday } from './date'
 import { HOME_GYM } from './gyms'
 import { detectLang, L } from './i18n'
 import { buildMaintenancePeriods, buildResearchTemplates, maintenanceHorizon, planShape, programStartFor, scheduleFromDays, type PlanShape } from './program'
-import type { AppState, ISODate, Look, TrainingSetup } from './types'
+import type { AppState, ISODate, Look, TrainingSetup, Zone } from './types'
 import { restingCalories } from './stats'
-import { relativeFatMass, tagPriorities, visualPlan, type BodyFat, type VisualPlan } from './visual'
+import { MAX_ZONES, relativeFatMass, tagPriorities, visualPlan, ZONES, type BodyFat, type VisualPlan } from './visual'
 
 export interface OnboardingAnswers {
   lang: 'fr' | 'en'
@@ -19,6 +19,8 @@ export interface OnboardingAnswers {
   weight: number
   waist: number | null
   look: Look
+  /** Priority zones (three at most); none keeps the report's priorities. */
+  zones?: Zone[]
   /** Kept in maintenance mode: offered again if the user sets a goal later. */
   goalDate: ISODate
   /** Maintenance mode: no goal date and no look — blocks and deloads with no end, calories at maintenance. */
@@ -122,10 +124,11 @@ export function stateFromOnboarding(a: OnboardingAnswers, today: ISODate = today
     meta: { ...s.meta, createdAt: new Date().toISOString() },
   }
   if (!preview.plan) return withTargets
+  const zones = (a.zones ?? []).filter((z, i, all) => ZONES.some((x) => x.id === z) && all.indexOf(z) === i).slice(0, MAX_ZONES)
   return {
     ...withTargets,
-    visualGoal: { look: a.look, zones: [], bodyFat: null, cutWeeks: preview.plan.cutWeeks },
+    visualGoal: { look: a.look, zones, bodyFat: null, cutWeeks: preview.plan.cutWeeks },
     goals: { ...withTargets.goals, targetWeightMin: preview.plan.target[0], targetWeightMax: preview.plan.target[1] },
-    templates: tagPriorities(withTargets.templates, []),
+    templates: tagPriorities(withTargets.templates, zones),
   }
 }
