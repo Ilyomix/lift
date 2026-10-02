@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, Replace, Sparkles, StickyNote, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, Replace, Sparkles, StickyNote, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { sessionPrompt } from '../lib/coach'
@@ -198,7 +198,12 @@ function ActiveSession() {
             {/* The set and the session clock share the first line; the exercise name has the whole width under them. */}
             <span className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
-              {elapsed !== null && <span className="shrink-0 text-[13px] leading-none font-semibold text-text-2 tnum" aria-label={L('Durée de la séance', 'Session duration')}>{fmtClock(elapsed)}</span>}
+              {elapsed !== null && (
+                <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={L('Durée de la séance', 'Session duration')}>
+                  <Timer size={14} className="text-muted" aria-hidden />
+                  <span className="seg seg-ghost text-[15px] leading-none text-text tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-hidden>{fmtClock(elapsed)}</span>
+                </span>
+              )}
             </span>
             <span className="mt-0.5 block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : L('Toutes les séries sont faites', 'All sets done')}</span>
           </span>
