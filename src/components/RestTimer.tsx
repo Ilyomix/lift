@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Plus, SkipForward, X } from 'lucide-react'
+import { ChevronDown, Minus, Plus, SkipForward, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -117,10 +117,13 @@ function useTenths(): number {
  */
 function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
   const tenths = Math.max(0, Math.floor((endAt - useTenths() * 100) / 100))
+  const value = fmtClock(Math.floor(tenths / 10))
+  // Past an hour the readout takes three pairs of figures: smaller ones, so it stays inside the dial.
+  const hours = value.length > 5
   return (
     <span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
-      <SegDigits value={fmtClock(Math.floor(tenths / 10))} className="text-[60px] leading-none" />
-      <span className="seg seg-ghost tnum ml-1 text-[30px] leading-none" data-ghost=".8">.{tenths % 10}</span>
+      <SegDigits value={value} className={cx('leading-none', hours ? 'text-[40px]' : 'text-[60px]')} />
+      <span className={cx('seg seg-ghost tnum ml-1 leading-none', hours ? 'text-[22px]' : 'text-[30px]')} data-ghost=".8">.{tenths % 10}</span>
     </span>
   )
 }
@@ -152,7 +155,7 @@ export function RestDock() {
       >
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
-            <SegDigits value={fmtClock(Math.ceil(remaining))} className={cx('text-[30px] leading-none', done ? 'text-inst-done' : 'text-white')} />
+            <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done' : 'text-white')} />
             <span className="min-w-0">
               <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
@@ -205,9 +208,13 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   // 180 graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
   const TICKS = 180
   const lit = done ? TICKS : Math.ceil((1 - progress) * TICKS)
-  const side = 'pressable h-12 rounded-[12px] border border-line-strong text-[15px] font-semibold tnum disabled:opacity-40'
-  // Fifteen seconds, one minute, five minutes: taken off on the first row, added on the second.
-  const steps = [{ s: 15, label: '15 s' }, { s: 60, label: '1 min' }, { s: 300, label: '5 min' }]
+  // Fifteen seconds, one minute, five minutes: one stepper each on a single row, minus on its left, plus on its right.
+  const steps = [
+    { s: 15, label: '15 s', name: L('15 secondes', '15 seconds') },
+    { s: 60, label: '1 min', name: L('1 minute', '1 minute') },
+    { s: 300, label: '5 min', name: L('5 minutes', '5 minutes') },
+  ]
+  const nudge = 'pressable flex h-full w-10 shrink-0 items-center justify-center text-text disabled:opacity-35'
   return (
     <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-bg text-text safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
@@ -253,8 +260,13 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
       </div>
       <div className="px-5 pb-5">
         <div className="grid grid-cols-3 gap-2">
-          {steps.map((x) => <button key={`-${x.s}`} type="button" onClick={() => adjustRest(-x.s)} disabled={done} className={side}>−{x.label}</button>)}
-          {steps.map((x) => <button key={`+${x.s}`} type="button" onClick={() => adjustRest(x.s)} className={side}>+{x.label}</button>)}
+          {steps.map((x) => (
+            <div key={x.s} role="group" aria-label={x.name} className="flex h-12 items-center overflow-hidden rounded-[12px] border border-line-strong">
+              <button type="button" onClick={() => adjustRest(-x.s)} disabled={done} aria-label={L(`Retirer ${x.name}`, `Take off ${x.name}`)} className={nudge}><Minus size={18} strokeWidth={2.25} aria-hidden /></button>
+              <span className="min-w-0 flex-1 text-center text-[13px] font-semibold whitespace-nowrap text-text-2 tnum" aria-hidden>{x.label}</span>
+              <button type="button" onClick={() => adjustRest(x.s)} aria-label={L(`Ajouter ${x.name}`, `Add ${x.name}`)} className={nudge}><Plus size={18} strokeWidth={2.25} aria-hidden /></button>
+            </div>
+          ))}
         </div>
         <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer le repos', 'Skip rest')}</button>
       </div>
