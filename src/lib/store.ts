@@ -598,8 +598,11 @@ export const useStore = create<Store>((set, get) => ({
     get().update((s) =>
       withActive(s, (a) => {
         if (!a.timer) return a
-        const endAt = Math.max(Date.now() + 1000, a.timer.endAt + delta * 1000)
-        return { ...a, timer: { ...a.timer, endAt, total: Math.max(a.timer.total + delta, 5) }, timerEndAt: new Date(endAt).toISOString() }
+        const now = Date.now()
+        // A rest already over starts again from now: the time added is the time left, not a later end to a past deadline.
+        const over = a.timer.endAt <= now
+        const endAt = Math.max(now + 1000, (over ? now : a.timer.endAt) + delta * 1000)
+        return { ...a, timer: { ...a.timer, endAt, total: Math.max(over ? delta : a.timer.total + delta, 5) }, timerEndAt: new Date(endAt).toISOString() }
       }),
     )
     const t = get().state.activeWorkout?.timer
