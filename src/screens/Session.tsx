@@ -10,11 +10,14 @@ import { gymName, gymOf, HOME_GYM, isGymBound } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
-import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATION, TYPE_META } from '../lib/program'
+import { contextAt, GOAL_DATE, prescribe, projectSessions, PROGRAM_START, ROTATION, takesLest, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
-import { cleanOf, doneSets, heldByEffort, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionSetCount, setsSummary, type AutoChange } from '../lib/training'
+import {
+  cleanOf, doneSets, heldByEffort, knownLoads, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort,
+  sessionNotes, sessionSetCount, setsSummary, toppedOut, type AutoChange,
+} from '../lib/training'
 import type { SetFlag, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { GymSheet } from '../components/GymSheet'
@@ -43,7 +46,7 @@ function SessionPreview() {
   const date = today < PROGRAM_START ? PROGRAM_START : today
   const ctx = contextAt(date)
   const tpl = state.templates[type]
-  const rx = tpl.exercises.map((e) => prescribe(e, date, state.reentry, state.gymId))
+  const rx = tpl.exercises.map((e) => prescribe(e, date, state.reentry, state.gymId, state.workouts))
   const totalSets = rx.reduce((a, p) => a + p.sets, 0)
   const isNext = type === (planned[0]?.type ?? state.nextWorkoutType)
 
@@ -274,8 +277,15 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const sameLoad = prevSets.length > 0 && prevSets.every((s) => s.weight === target)
   const prevClean = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
-  const validated = allDone ? progressionFor({ ...ex, sets: ex.sets }) : null
-  const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? L('Charge', 'Load') : 'kg'
+  // The next load is one the equipment has: the loads already used on it, today's included.
+  const known = useMemo(() => knownLoads([...workouts, { exercises: [ex], gymId }], ex.exerciseId, bound ? gymId : undefined), [workouts, ex, bound, gymId])
+  // Announced as it will be applied: a heavier load held during the session can beat the standard step.
+  const next = allDone && progressionFor(ex, known) ? loadDecision(ex, known) : null
+  const validated = next?.kind === 'up' && { text: L(`${fmtLoad(next.weight, ex.unit)} la prochaine fois`, `${fmtLoad(next.weight, ex.unit)} next time`) }
+  const noLoadLeft = allDone && toppedOut(ex)
+  const lest = takesLest(ex)
+  const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? (lest ? L('Lest', '+ kg') : L('Charge', 'Load')) : 'kg'
+  const hurtLastTime = prevSets.some((s) => s.flags.includes('pain'))
   const currentSet = current ? ex.sets.findIndex((s) => !s.completed) : -1
 
   if (ex.skipped) {
@@ -304,7 +314,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-medium">{ex.name}</span>
-          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : ''}</span>
+          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : noLoadLeft ? L(' · haut de la fourchette : variante plus dure', ' · top of the range: harder variation') : ''}</span>
         </span>
         <ChevronDown size={16} className="shrink-0 text-muted" aria-hidden />
       </button>
@@ -332,7 +342,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
         <Tag tone="outline">RIR {p?.rir ?? ex.target.rir ?? '—'}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
-        {ex.unit !== 'PDC' && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
+        {(ex.unit !== 'PDC' || !!target) && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
       <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
         {ex.gymTrial && (
@@ -348,6 +358,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         ) : !ex.gymTrial ? (
           <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L(`Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR 3.`, `Trial session: find a load for ${ex.target.minReps}–${ex.target.maxReps} reps at RIR 3.`) : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
+        {hurtLastTime && (
+          <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, remplace l’exercice (··· → Remplacer par).', 'Pain flagged last time: if it comes back, replace the exercise (··· → Replace with).')}</p>
+        )}
+        {lest && !!target && <p className="text-muted">{L('Lest proposé : saisis-le si tu l’ajoutes, sinon la série compte au poids du corps.', 'Suggested added load: type it in if you use it, otherwise the set counts at body weight.')}</p>}
         {ex.note && <p className="text-muted">{ex.note}</p>}
         {ex.technique && <p className="flex gap-1.5 text-muted"><StickyNote size={13} className="mt-[3px] shrink-0" aria-hidden />{ex.technique}</p>}
         {p?.notes.filter((n) => !isReentryNote(n)).map((n) => <p key={n} className="text-muted">{n}</p>)}
@@ -389,6 +403,12 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
             <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
             <span><span className="font-semibold">{L('Charge validée.', 'Load mastered.')}</span> {validated.text}{autoLoad ? L(' (appliqué à la fin de la séance)', ' (applied at the end of the session)') : ''}.</span>
+          </div>
+        )}
+        {noLoadLeft && (
+          <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
+            <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
+            <span><span className="font-semibold">{L('Haut de la fourchette atteint.', 'Top of the range reached.')}</span> {L('Passe à une variante plus dure ou à un élastique plus fort.', 'Move to a harder variation or a stronger band.')}</span>
           </div>
         )}
       </div>
@@ -492,8 +512,10 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           {setIndex + 1}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
-        {ex.unit === 'PDC' ? (
+        {ex.unit === 'PDC' && !takesLest(ex) ? (
           <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
+        ) : ex.unit === 'PDC' ? (
+          <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} decimal value={s.weight} placeholder={bodyweightLabel()} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
         ) : (
           <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
         )}
@@ -579,6 +601,23 @@ export function SessionSummary() {
   const effort = sessionEffort(w)
   const pushedOften = effort.pushed >= 2 && effort.pushed * 3 >= effort.logged
   const held = w.exercises.filter(heldByEffort)
+  // What the loads cannot settle: pain that comes back, and exercises that stopped progressing.
+  const notes = sessionNotes(state.workouts, w)
+  const watch = [
+    ...(state.prefs.autoLoad ? [] : (lastFinish?.alerts ?? [])),
+    ...(notes.pain.length
+      ? [L(
+          `Douleur signalée : ${notes.pain.join(', ')}. La charge n’y monte pas tant qu’elle est là.${notes.painAgain.length ? ` Deuxième séance de suite sur ${notes.painAgain.join(', ')} : remplace l’exercice (··· → Remplacer par), et fais-toi examiner si elle persiste.` : ' Si elle revient à la prochaine séance, remplace l’exercice (··· → Remplacer par).'}`,
+          `Pain flagged: ${notes.pain.join(', ')}. The load does not go up there while it hurts.${notes.painAgain.length ? ` Second session in a row on ${notes.painAgain.join(', ')}: replace the exercise (··· → Replace with), and have it checked if it lasts.` : ' If it comes back next session, replace the exercise (··· → Replace with).'}`,
+        )]
+      : []),
+    ...(notes.plateau.length
+      ? [L(
+          `Pas de progrès depuis ${PLATEAU_SESSIONS} séances : ${notes.plateau.join(', ')}. Bon moment pour faire le point : sommeil, calories, technique, ou une variante de l’exercice.`,
+          `No progress for ${PLATEAU_SESSIONS} sessions: ${notes.plateau.join(', ')}. A good time to take stock: sleep, calories, technique, or a variation of the exercise.`,
+        )]
+      : []),
+  ]
 
   return (
     <Screen>
@@ -640,10 +679,10 @@ export function SessionSummary() {
         </Section>
       )}
 
-      {(lastFinish?.alerts.length ?? 0) > 0 && !state.prefs.autoLoad && (
+      {watch.length > 0 && (
         <Section title={L('À surveiller', 'To watch')}>
           <Card className="space-y-2 p-4">
-            {lastFinish!.alerts.map((a) => <p key={a} className="text-[14px] leading-[1.45]">{a}</p>)}
+            {watch.map((a) => <p key={a} className="text-[14px] leading-[1.45]">{a}</p>)}
           </Card>
         </Section>
       )}

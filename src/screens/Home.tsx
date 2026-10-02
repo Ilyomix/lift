@@ -59,7 +59,7 @@ export function Home() {
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
   const nextDate = next?.date ?? today
   const nextCtx = contextAt(nextDate < PROGRAM_START ? PROGRAM_START : nextDate)
-  const nextSets = state.templates[nextType].exercises.reduce((a, e) => a + prescribe(e, nextCtx.date, state.reentry).sets, 0)
+  const nextSets = state.templates[nextType].exercises.reduce((a, e) => a + prescribe(e, nextCtx.date, state.reentry, undefined, state.workouts).sets, 0)
 
   const begin = () => {
     startSession(nextType)

@@ -8,6 +8,10 @@ const HEADLINES: [string, string][] = [
   ['NON RÉALISÉ', 'NOT DONE'],
   ['NOUVELLE BASELINE', 'NEW BASELINE'],
   ['DÉCHARGE', 'DELOAD'],
+  ['SÉANCE ALLÉGÉE', 'LIGHTER SESSION'],
+  ['APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER SESSION'],
+  ['APRÈS UNE PAUSE', 'AFTER A BREAK'],
+  ['MOINS DE REPS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'],
   ['CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'],
   ['NOMBRE DE SÉRIES DIFFÉRENT', 'DIFFERENT NUMBER OF SETS'],
   ['CHARGE SUPÉRIEURE', 'HEAVIER LOAD'],
@@ -20,7 +24,9 @@ function localHeadline(h: string): string {
   const pair = HEADLINES.find(([fr, en]) => h === fr || h === en)
   if (pair) return L(pair[0], pair[1])
   const down = h.match(/^(−\d+ REPS?) VS (?:DERNIÈRE FOIS|LAST TIME)$/)
-  return down ? L(`${down[1]} VS DERNIÈRE FOIS`, `${down[1]} VS LAST TIME`) : h
+  if (down) return L(`${down[1]} VS DERNIÈRE FOIS`, `${down[1]} VS LAST TIME`)
+  const level = h.match(/^(?:NIVEAU ESTIMÉ|ESTIMATED LEVEL) (−\d+) ?%$/)
+  return level ? L(`NIVEAU ESTIMÉ ${level[1]} %`, `ESTIMATED LEVEL ${level[1]}%`) : h
 }
 
 /** "Heavier load" headline, in either language (stored headlines keep the language they were logged in). */

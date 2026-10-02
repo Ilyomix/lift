@@ -145,6 +145,8 @@ export interface Period {
   volumeFactor?: number
   /** Priority muscles get +1 set from this week of the block on. */
   priorityFromWeek?: number
+  /** The report adds that set only "if performance is going up": the first weeks of the block decide. */
+  priorityIfRising?: boolean
   calves?: boolean
   fixedRir?: string
 }
@@ -320,7 +322,8 @@ function noteBuildBlocks(blocks: Period[]) {
     if (i === 0) p.note = L('Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.', 'New split. Learning the Romanian deadlift and the hip thrust.')
     else {
       p.priorityFromWeek = 3
-      p.note = L(`+1 série sur ${PRIORITY_TEXT} à partir de S3.`, `+1 set for ${PRIORITY_TEXT} from W3.`)
+      p.priorityIfRising = true
+      p.note = L(`+1 série sur ${PRIORITY_TEXT} à partir de S3, si les performances montent.`, `+1 set for ${PRIORITY_TEXT} from W3, if performance is going up.`)
     }
   })
 }
@@ -493,6 +496,34 @@ export function incrementFor(ex: { exerciseId: string; unit: TemplateExercise['u
   return ex.unit === 'kg/main' ? 2 : ex.unit === 'PDC' ? 0 : 2.5
 }
 
+/**
+ * Bodyweight exercises that take added load (belt, plate, dumbbell: dips, pull-ups…).
+ * Their load is the added weight: none (null or 0) until the top of the range is reached.
+ */
+export function takesLest(ex: { exerciseId: string; unit: TemplateExercise['unit'] }): boolean {
+  return ex.unit === 'PDC' && incrementFor(ex) > 0
+}
+
+/**
+ * "If performance is going up": in the weeks of the block before the priority set, the
+ * exercise progressed at least once (more reps, a validated load or a heavier one), and
+ * more often than it dropped. Until those weeks are over, the plan shows the set.
+ */
+function risingIn(p: Period, workouts: Workout[], exerciseId: string, today: ISODate): boolean {
+  const from = p.priorityFromWeek ?? 1
+  if (today < addDays(p.start, (from - 1) * 7)) return true
+  let ups = 0
+  let downs = 0
+  for (const w of workouts) {
+    if (w.date < p.start || w.date > p.end || weekIn(p, w.date) >= from) continue
+    const c = w.exercises.find((e) => e.exerciseId === exerciseId && !e.skipped)?.comparison
+    if (!c) continue
+    if (c.status === 'progress' || c.chargeValidated || (c.status === 'load-change' && /^(CHARGE SUP|HEAVIER LOAD)/.test(c.headline))) ups++
+    else if (c.status === 'down') downs++
+  }
+  return ups > 0 && ups > downs
+}
+
 /** Reason of the automatic one-set cut (training.ts), French then English: stored in the templates, shown in the current language. */
 export const SET_DROP_REASON: [string, string] = ['baisse 2 séances de suite', 'down 2 sessions in a row']
 
@@ -507,15 +538,21 @@ export function autoAdjustActive(ex: Pick<TemplateExercise, 'autoAdjust'>, date:
 /**
  * Sets, reps, effort and load for one exercise on a given date, all program rules applied.
  * With a gym, the load is the one of that gym (machines differ between gyms).
+ * With the session history, the priority set of a building block waits for rising performance
+ * (judged as of `today`: a block that has not reached that point keeps the planned set).
  */
-export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null, gymId?: string): Prescription {
+export function prescribe(ex: TemplateExercise, date: ISODate, reentry: ReentryInfo | null, gymId?: string, workouts?: Workout[], today: ISODate = todayISO()): Prescription {
   const ctx = contextAt(date)
   const p = ctx.period
   const notes: string[] = []
   let sets = ex.target.sets
   if (p && (ex.volumeTag === 'priority' || ex.focus) && p.priorityFromWeek && ctx.week >= p.priorityFromWeek) {
-    sets += 1
-    notes.push(ex.focus ? L('+1 série (zone prioritaire)', '+1 set (priority area)') : L('+1 série (muscle prioritaire)', '+1 set (priority muscle)'))
+    if (!p.priorityIfRising || !workouts || risingIn(p, workouts, ex.exerciseId, today)) {
+      sets += 1
+      notes.push(ex.focus ? L('+1 série (zone prioritaire)', '+1 set (priority area)') : L('+1 série (muscle prioritaire)', '+1 set (priority muscle)'))
+    } else {
+      notes.push(L('Série prioritaire en attente : pas de progression en début de bloc', 'Priority set on hold: no progress early in the block'))
+    }
   }
   if (p?.calves && ex.volumeTag === 'calves') {
     sets += 1
@@ -717,7 +754,7 @@ export function buildResearchTemplates(
       const info = LIBRARY[item.id]
       const carried = old?.[type]?.exercises.find((e) => e.exerciseId === item.id) ?? oldAll.find((e) => e.exerciseId === item.id)
       const unit = info.unit
-      const weight = unit === 'PDC' ? null : (carried?.target?.weight ?? lastWorkingWeight(workouts, item.id) ?? null)
+      const weight = unit === 'PDC' ? (takesLest({ exerciseId: item.id, unit }) ? carried?.target?.weight ?? null : null) : (carried?.target?.weight ?? lastWorkingWeight(workouts, item.id) ?? null)
       const technique = carried?.technique && SETUP_NOTE.test(carried.technique) ? carried.technique : undefined
       const ex: TemplateExercise = {
         exerciseId: item.id,

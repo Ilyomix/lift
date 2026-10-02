@@ -8,10 +8,10 @@ import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
   buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextInRotation, nextTargetText, prescribe,
-  reentryForGap, trainingDays,
+  reentryForGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
-import { applyChange, finalizeWorkout, intraSessionAdjust, previousPerformance, type AutoChange, type FinishResult } from './training'
+import { applyChange, finalizeWorkout, intraSessionAdjust, knownLoads, previousPerformance, type AutoChange, type FinishResult } from './training'
 import { L, resolveLang, setLang } from './i18n'
 import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
@@ -147,12 +147,13 @@ function emptySet(weight: number | null): WorkoutSet {
 
 /** Starting load of an exercise at a gym, with the deload / re-entry factor. */
 function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadFactor: number): { weight: number | null; trial: WorkoutExercise['gymTrial'] } {
-  if (t.unit === 'PDC') return { weight: null, trial: undefined }
-  const here = loadAt(t, gymId)
   const scale = (w: number) => {
     const inc = incrementFor(t)
     return loadFactor < 1 && inc > 0 ? Math.max(inc, roundTo(w * loadFactor, inc)) : w
   }
+  // Bodyweight work: the added load, if any; never a trial session.
+  if (t.unit === 'PDC') return { weight: takesLest(t) && t.target.weight ? scale(t.target.weight) : null, trial: undefined }
+  const here = loadAt(t, gymId)
   if (here !== null) return { weight: scale(here), trial: undefined }
   const bound = isGymBound(t)
   const elsewhere = bound ? loadElsewhere(t, gymId, state.gyms) : null
@@ -163,13 +164,14 @@ function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadF
 }
 
 function buildExercise(t: TemplateExercise, date: ISODate, state: AppState, gymId: string): WorkoutExercise {
-  const p = prescribe(t, date, state.reentry, gymId)
+  const p = prescribe(t, date, state.reentry, gymId, state.workouts)
   const start = startingLoad(t, gymId, state, p.loadFactor)
   return {
     ...t,
-    target: { ...t.target, weight: t.unit === 'PDC' ? null : loadAt(t, gymId) },
+    target: { ...t.target, weight: t.unit === 'PDC' ? (takesLest(t) ? t.target.weight || null : null) : loadAt(t, gymId) },
     prescription: { ...p, weight: p.weight ?? start.weight },
-    sets: Array.from({ length: p.sets }, () => emptySet(start.weight)),
+    // The added load of a bodyweight exercise is shown as a suggestion, not filled in.
+    sets: Array.from({ length: p.sets }, () => emptySet(t.unit === 'PDC' ? null : start.weight)),
     notes: '',
     skipped: false,
     validated: false,
@@ -439,6 +441,7 @@ export const useStore = create<Store>((set, get) => ({
       get().notify(L('Indique le nombre de répétitions.', 'Enter the number of reps.'), 'bad')
       return
     }
+    // Added load on bodyweight work is typed, never assumed: an empty field is body weight alone.
     const weight = exercise.unit === 'PDC' ? st.weight : (st.weight ?? fallback.weight)
     const clean = st.cleanReps ?? (st.flags.includes('bad-technique') ? Math.max(0, reps - 1) : reps)
     get().update((s) =>
@@ -449,7 +452,7 @@ export const useStore = create<Store>((set, get) => ({
         // Loads follow the set just done: far above the range → heavier, far below → lighter.
         if (s.prefs.autoLoad) {
           const cur = next.exercises[ex]
-          const adj = intraSessionAdjust(cur, i)
+          const adj = intraSessionAdjust(cur, i, knownLoads([...s.workouts, next], cur.exerciseId, isGymBound(cur) ? (next.gymId ?? HOME_GYM) : undefined))
           if (adj && typeof weight === 'number') {
             const idx = cur.sets.map((x, j) => (j > i && !x.completed && (x.weight === weight || x.weight === null) ? j : -1)).filter((j) => j >= 0)
             if (idx.length) {
@@ -496,7 +499,7 @@ export const useStore = create<Store>((set, get) => ({
       withActive(s, (a) =>
         mapExercise(a, ex, (e) => {
           const last = e.sets[e.sets.length - 1]
-          return { ...e, sets: [...e.sets, emptySet(last?.weight ?? e.prescription?.weight ?? e.target.weight ?? null)] }
+          return { ...e, sets: [...e.sets, emptySet(e.unit === 'PDC' ? (last?.weight ?? null) : (last?.weight ?? e.prescription?.weight ?? e.target.weight ?? null))] }
         }),
       ),
     ),
@@ -530,7 +533,7 @@ export const useStore = create<Store>((set, get) => ({
           const gym = a.gymId ?? HOME_GYM
           const bound = isGymBound({ exerciseId: newId, unit: info.unit })
           const prev = previousPerformance(s.workouts, newId, undefined, bound ? gym : undefined)?.exercise
-          const w = info.unit === 'PDC' ? null : (prev?.sets.find((x) => x.completed && typeof x.weight === 'number')?.weight ?? null)
+          const w = info.unit === 'PDC' && !takesLest({ exerciseId: newId, unit: info.unit }) ? null : (prev?.sets.find((x) => x.completed && typeof x.weight === 'number')?.weight ?? null)
           const { gymTrial: _t, hint: _h, ...rest } = e
           return {
             ...rest,
@@ -544,7 +547,7 @@ export const useStore = create<Store>((set, get) => ({
             gymLoads: undefined,
             target: { ...e.target, weight: w },
             prescription: e.prescription ? { ...e.prescription, weight: w } : undefined,
-            sets: e.sets.map((x) => (x.completed ? x : { ...x, weight: w })),
+            sets: e.sets.map((x) => (x.completed ? x : { ...x, weight: info.unit === 'PDC' ? null : w })),
             replacement: e.replacement ?? { fromId: e.exerciseId, fromName: e.name },
           }
         }),

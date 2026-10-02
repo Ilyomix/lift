@@ -131,7 +131,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
         level: 'opinion', refs: [],
         text: ['Réduits à 2 séries : ils recoupent pectoraux et triceps déjà chargés, coût articulaire.', 'Cut to 2 sets: they overlap with chest and triceps already worked, at a cost to the joints.'],
       },
-      demo: true, query: 'chest dips technique', alternatives: ['triceps-rope'], increment: 0,
+      demo: true, query: 'chest dips technique', alternatives: ['triceps-rope'], increment: 2.5,
     }),
     E({
       id: 'lat-pulldown', name: ['Tirage vertical', 'Lat pulldown'], muscle: ['Grand dorsal', 'Lats'], unit: 'kg', role: 'compound',
@@ -484,7 +484,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
         level: 'opinion', refs: [],
         text: ['Réduite à 1 fois/semaine : redondante avec le soulevé de terre roumain.', 'Cut to once a week: redundant with the Romanian deadlift.'],
       },
-      demo: true, query: '45 degree back extension glute technique', alternatives: ['romanian-deadlift'], increment: 0,
+      demo: true, query: '45 degree back extension glute technique', alternatives: ['romanian-deadlift'], increment: 2.5,
     }),
     E({
       id: 'calf-press', name: ['Mollets à la presse', 'Calf press on leg press'], muscle: ['Mollets', 'Calves'], unit: 'kg', role: 'isolation',
@@ -718,7 +718,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
         level: 'modere', refs: ['pelland2025'],
         text: ['Même mouvement que le tirage vertical ; la croissance suit le nombre de séries difficiles par semaine.', 'Same movement as the lat pulldown; growth follows the number of hard sets per week.'],
       },
-      demo: true, query: 'pull up technique', alternatives: ['chin-up', 'band-pulldown'], increment: 0,
+      demo: true, query: 'pull up technique', alternatives: ['chin-up', 'band-pulldown'], increment: 2.5,
     }),
     E({
       id: 'chin-up', name: ['Tractions supination', 'Chin-ups'], muscle: ['Dos & biceps', 'Back & biceps'], unit: 'PDC', role: 'compound',
@@ -732,7 +732,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
         level: 'faible', refs: ['pelland2025'],
         text: ['Volume du dos (preuve forte) ; supination vs pronation non vérifié.', 'Back volume (strong evidence); underhand vs overhand grip not verified.'],
       },
-      demo: true, query: 'chin up technique', alternatives: ['pull-up'], increment: 0,
+      demo: true, query: 'chin up technique', alternatives: ['pull-up'], increment: 2.5,
     }),
     E({
       id: 'band-pulldown', name: ['Tirage vertical élastique', 'Band lat pulldown'], muscle: ['Grand dorsal', 'Lats'], unit: 'PDC', role: 'compound',

@@ -2,7 +2,7 @@
 // The brief is written in the interface language (the coach answers in it); the JSON
 // protocol (keys, "golgoth-plan-update" type) is the same in both languages.
 import { fmtDate, todayISO } from './date'
-import { bodyweightLabel, fmtLoad, fmtNum } from './format'
+import { fmtLoad, fmtNum } from './format'
 import { gymName, gymOf, isGymBound } from './gyms'
 import { L } from './i18n'
 import { contextAt, GOAL_DATE, MAINTENANCE, nextTargetText, sessionPlan, TYPE_META } from './program'
@@ -31,7 +31,7 @@ function exerciseLines(state: AppState, w: Workout): string[] {
     const sets = ex.sets.filter((s) => s.completed)
     sets.forEach((s, i) => {
       const flags = s.flags.map((f) => FLAG_LABEL[f]).join(', ')
-      const load = ex.unit === 'PDC' ? bodyweightLabel() : fmtLoad(s.weight, ex.unit)
+      const load = fmtLoad(s.weight, ex.unit)
       const clean = s.cleanReps ?? s.reps ?? 0
       const extra = `${typeof s.rir === 'number' ? `, RIR ${s.rir}` : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`
       lines.push(L(`  S${i + 1} : ${load} × ${s.reps ?? 0} (${clean} propres)${extra}`, `  Set ${i + 1}: ${load} × ${s.reps ?? 0} (${clean} clean)${extra}`))

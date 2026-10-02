@@ -13,8 +13,8 @@ import {
 } from '../src/lib/program'
 import { calorieAdvice, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor } from '../src/lib/stats'
 import {
-  applyChange, baselineFor, compareExercise, exerciseHistory, finalizeWorkout, heldByEffort, intraSessionAdjust, loadDecision, plannedVolume, progressionFor,
-  sessionEffort,
+  applyChange, baselineFor, compareExercise, exerciseHistory, finalizeWorkout, heldByEffort, intraSessionAdjust, knownLoads, loadDecision, plannedVolume,
+  progressionFor, sessionEffort, sessionNotes, setScore, setsSummary, toppedOut,
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
 import type { AppState, Workout, WorkoutExercise, WorkoutSet } from '../src/lib/types'
@@ -324,6 +324,285 @@ function workout(id: string, date: string, gymId: string | undefined, exercises:
   return { id, sessionNumber: n, type: 'LOWER', date, startedAt: `${date}T17:00:00Z`, completedAt: `${date}T18:00:00Z`, notes: '', exercises, gymId }
 }
 
+test('progression starts from the load really lifted, not from the target', () => {
+  const top = (w: number) => [set(w, 12), set(w, 12), set(w, 12)]
+  // Target 100 kg, every set done at 120 kg at the top of the range: one step above 120, not above 100.
+  const heavy = loadDecision(exo(top(120)))
+  assert.deepEqual([heavy?.kind, heavy?.weight], ['up', 125])
+  assert.equal(progressionFor(exo(top(120)))?.weight, 125)
+  // Mixed loads: one step above the lightest…
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(105, 12)]))?.weight, 105)
+  // …unless the load taken during the session, and held, is heavier.
+  assert.equal(loadDecision(exo([set(100, 12), set(120, 12), set(120, 12)]))?.weight, 120)
+  // Pain on any set of the exercise: the load does not go up, whichever rule would raise it.
+  assert.equal(loadDecision(exo([set(100, 12, { flags: ['pain'] }), set(105, 10), set(105, 10)])), null)
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 12, { flags: ['pain'] })])), null)
+  assert.equal(loadDecision(exo([set(100, 9, { flags: ['pain'] }), set(90, 10), set(90, 10)]))?.weight, 90, 'a lighter load is still adopted')
+  assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 8, { flags: ['pain'] }), set(90, 10), set(90, 10)])), null, 'mastered but painful: the load stays, back-off sets do not lower it')
+  // A lighter load taken to the top of the range, one step under the target: the target stands.
+  assert.equal(loadDecision(exo([set(95, 12), set(95, 12), set(95, 12)])), null)
+  assert.equal(loadDecision(exo([set(90, 12), set(90, 12), set(90, 12)]))?.weight, 90)
+  assert.equal(loadDecision(exo([set(100, 4), set(100, 4), set(95, 12), set(95, 12)]))?.weight, 95, 'failed at the target: the lighter load mastered is adopted')
+})
+
+test('a machine whose loads fall off the standard grid gets its own loads back', () => {
+  const press = (weight: number, sets: WorkoutSet[], rir = '1–2') => exo(sets, {
+    exerciseId: 'chest-press',
+    target: { weight, sets: 3, minReps: 6, maxReps: 10, restSeconds: 150 },
+    prescription: { sets: 3, minReps: 6, maxReps: 10, rir, restSeconds: 150, weight, loadFactor: 1, notes: [] },
+  })
+  const top = (w: number) => [set(w, 10), set(w, 10), set(w, 10)]
+  const under = (w: number) => [set(w, 4), set(w, 4), set(w, 3)]
+  // Loads on the 2.5 kg grid: the grid, as before.
+  assert.equal(loadDecision(press(60, top(60)), [55, 60, 65])?.weight, 62.5)
+  // Loads logged on this machine are off the grid: the next one it really has.
+  const own = [60, 66.8, 76.8, 80]
+  assert.equal(loadDecision(press(60, top(60)), own)?.weight, 66.8)
+  assert.equal(loadDecision(press(66.8, top(66.8)), own)?.weight, 70, 'no known load within reach: the standard step')
+  assert.equal(loadDecision(press(66.8, under(66.8)), own)?.weight, 60, 'lighter: the load below on the machine')
+  // A known load closer than a quarter of a step is the same load, not a step.
+  assert.equal(loadDecision(press(62.5, under(62.5)), [62.3, 62.5])?.weight, 60)
+  assert.equal(loadDecision(press(60, top(60)), [60, 60.4])?.weight, 62.5)
+  // The load brought back to the planned effort is the machine's heaviest that does not exceed the estimate…
+  const forced = [set(80, 6, { rir: 0 }), set(80, 6, { rir: 0 }), set(80, 6, { rir: 0 })]
+  assert.equal(loadDecision(press(60, forced, '3'), own)?.weight, 66.8)
+  assert.equal(loadDecision(press(60, forced, '3'))?.weight, 75)
+  // …so it never hands back the load that was forced.
+  const db = exo([set(22.5, 9, { rir: 0 }), set(22.5, 9, { rir: 0 })], {
+    exerciseId: 'incline-db-press', unit: 'kg/main',
+    target: { weight: 20, sets: 2, minReps: 8, maxReps: 12, restSeconds: 120 },
+    prescription: { sets: 2, minReps: 8, maxReps: 12, rir: '3', restSeconds: 120, weight: 20, loadFactor: 1, notes: [] },
+  })
+  assert.equal(loadDecision(db, [17.5, 20, 22.5]), null)
+  // In session too; and several steps at once keep the standard arithmetic on standard loads.
+  const pending = { ...set(60, 0), completed: false, reps: null, cleanReps: null }
+  assert.equal(intraSessionAdjust(press(60, [set(60, 14), pending, pending]), 0, own)?.weight, 66.8)
+  assert.equal(intraSessionAdjust(press(60, [set(60, 14), pending, pending]), 0)?.weight, 62.5)
+  assert.equal(intraSessionAdjust(press(70, [set(70, 1), { ...pending, weight: 70 }, { ...pending, weight: 70 }]), 0)?.weight, 62.5)
+  assert.equal(intraSessionAdjust(exo([set(150, 3), { ...pending, weight: 150 }]), 0)?.weight, 135)
+  // The loads come from the history, per gym for a machine; a load seen on a single set does not count.
+  const ws = [
+    workout('k1', '2026-10-01', undefined, [exo([set(100, 10), set(102.3, 10), set(102.3, 9), { ...set(110, 0), completed: false }])], 1),
+    workout('k2', '2026-10-08', 'basic', [exo([set(90, 10), set(90, 10)])], 2),
+    workout('k3', '2026-10-09', undefined, [exo([set(100, 10), set(106, 8)])], 3),
+  ]
+  assert.deepEqual(knownLoads(ws, 'leg-press', 'main'), [100, 102.3])
+  assert.deepEqual(knownLoads(ws, 'leg-press', 'basic'), [90])
+  // finalizeWorkout uses them: 102.3 has been used here, so the top of the range at 100 leads to it.
+  const done = finalizeWorkout(ws, workout('k4', '2026-10-15', undefined, [exo([set(100, 12), set(100, 12), set(100, 12)])], 4), defaultState().templates)
+  assert.equal(done.changes.find((c) => c.exerciseId === 'leg-press')?.to, 102.3)
+})
+
+test('sessions stay comparable when a load or the number of sets changes', () => {
+  const before = exo([set(100, 12), set(100, 11), set(100, 10)])
+  // Same loads, one set fewer than last time: compared on the sets both sessions have.
+  const fewer = compareExercise(exo([set(100, 10), set(100, 10)]), before, [], false)
+  assert.deepEqual([fewer.status, fewer.deltaCleanReps], ['down', -3])
+  assert.match(fewer.detail, /2 séries communes \(2 contre 3/)
+  const more = compareExercise(exo([set(100, 12), set(100, 12), set(100, 10), set(100, 9)]), before, [], false)
+  assert.deepEqual([more.status, more.headline], ['progress', '+1 REP'])
+  // Different loads and clearly weaker: a drop, read on the estimated level.
+  const weaker = compareExercise(exo([set(102.5, 8), set(100, 8), set(100, 7)]), before, [], false)
+  assert.deepEqual([weaker.status, weaker.headline], ['down', 'NIVEAU ESTIMÉ −7 %'])
+  // Different loads at the same level: no verdict, as before.
+  const same = compareExercise(exo([set(105, 12), set(100, 11), set(100, 10)]), before, [], false)
+  assert.deepEqual([same.status, same.headline], ['load-change', 'CHARGE SUPÉRIEURE'])
+  // Every set heavier is a progression step: fewer reps are expected, never a drop.
+  const step = compareExercise(exo([set(105, 9), set(105, 9), set(105, 8)]), exo([set(100, 12), set(100, 12), set(100, 12)]), [], false)
+  assert.deepEqual([step.status, step.headline], ['load-change', 'CHARGE SUPÉRIEURE'])
+  // …as long as the heavier load holds the range: a collapse under it is a drop.
+  assert.equal(compareExercise(exo([set(102.5, 4), set(102.5, 4), set(102.5, 3)]), exo([set(100, 12), set(100, 12), set(100, 12)]), [], false).status, 'down')
+
+  // The fatigue signal sees two drops in a row through a load change, and removes a set.
+  const s = defaultState()
+  let ws: Workout[] = []
+  const run = (id: string, date: string, ex: WorkoutExercise, n: number, deload = false) => {
+    const r = finalizeWorkout(ws, { ...workout(id, date, undefined, [ex], n), deload }, s.templates)
+    ws = [...ws, r.workout]
+    return r
+  }
+  run('f1', '2026-10-05', exo([set(100, 12), set(100, 11), set(100, 10)]), 1)
+  assert.equal(run('f2', '2026-10-12', exo([set(102.5, 8), set(100, 8), set(100, 7)]), 2).workout.exercises[0].comparison?.status, 'down')
+  const third = run('f3', '2026-10-19', exo([set(100, 6), set(100, 6), set(100, 5)]), 3)
+  assert.equal(third.alerts.length, 1)
+  assert.ok(third.changes.some((c) => c.kind === 'sets' && c.exerciseId === 'leg-press'))
+  // Sparse schedule: the same exercise every 17 days, other sessions in between: still compared.
+  const sparse = (id: string, date: string, n: number): Workout => ({ ...workout(id, date, undefined, [exo([set(40, 10)], { exerciseId: 'ez-curl' })], n), type: 'UPPER' })
+  ws = [...ws, sparse('g1', '2026-10-24', 31), sparse('g2', '2026-10-29', 32)]
+  const later = run('f3b', '2026-11-05', exo([set(100, 5), set(100, 5), set(100, 4)]), 33)
+  assert.equal(later.workout.exercises[0].comparison?.status, 'down', '17 days since the last leg press, but no break in training')
+  // Two empty weeks are a break: no verdict.
+  const afterBreak = finalizeWorkout(ws.filter((x) => !x.id.startsWith('g') && x.id !== 'f3b'), workout('f3c', '2026-11-05', undefined, [exo([set(100, 5), set(100, 5), set(100, 4)])], 34), s.templates)
+  assert.equal(afterBreak.workout.exercises[0].comparison?.headline, 'APRÈS UNE PAUSE')
+  // A deload in between starts the comparison again.
+  run('f4', '2026-11-09', exo([set(90, 8), set(90, 8)]), 35, true)
+  const after = run('f5', '2026-11-16', exo([set(100, 6), set(100, 6), set(100, 5)]), 36)
+  assert.equal(after.workout.exercises[0].comparison?.headline, 'APRÈS SÉANCE ALLÉGÉE')
+  assert.equal(after.alerts.length, 0)
+})
+
+test('a drop is only called when the plan or the effort does not explain it', () => {
+  const rx = (rir: string, loadFactor = 1, weight = 100) => ({ prescription: { sets: 3, minReps: 8, maxReps: 12, rir, restSeconds: 150, weight, loadFactor, notes: [] } })
+  const hard = exo([set(100, 10), set(100, 10), set(100, 9)], rx('1'))
+  // Back after a break, on lightened loads, exactly as prescribed: not a measure, and not a reference for the next one.
+  const back = exo([set(92.5, 10), set(92.5, 10), set(92.5, 10)], rx('2–3', 0.925, 92.5))
+  assert.equal(compareExercise(back, hard, [], false).headline, 'SÉANCE ALLÉGÉE')
+  assert.equal(compareExercise(hard, back, [], false).headline, 'APRÈS SÉANCE ALLÉGÉE')
+  // The plan asks for more in reserve than last time (first week of a block, holidays): the reps it costs are not a drop…
+  const eased = compareExercise(exo([set(100, 8), set(100, 8), set(100, 7)], rx('3')), hard, [], false)
+  assert.deepEqual([eased.status, eased.headline], ['stable', 'MOINS DE REPS, PLUS DE MARGE'])
+  // …beyond what it explains, they are.
+  assert.equal(compareExercise(exo([set(100, 6), set(100, 6), set(100, 5)], rx('3')), hard, [], false).status, 'down')
+  // The effort logged says more than the plan: at failure, nothing was kept in reserve.
+  const forced = exo([set(100, 8, { rir: 0 }), set(100, 8, { rir: 0 }), set(100, 7, { rir: 0 })], rx('3'))
+  assert.equal(compareExercise(forced, hard, [], false).status, 'down')
+  // Reps kept in reserve on purpose, at the same planned effort: read against the reserve logged last time.
+  const tight = exo([set(100, 10, { rir: 1 }), set(100, 10, { rir: 1 }), set(100, 9, { rir: 1 })], rx('1'))
+  const spared = exo([set(100, 9, { rir: 3 }), set(100, 9, { rir: 3 }), set(100, 8, { rir: 3 })], rx('1'))
+  assert.equal(compareExercise(spared, tight, [], false).status, 'stable')
+  // Against a session where no effort was logged, the same plan excuses nothing.
+  assert.equal(compareExercise(spared, hard, [], false).status, 'down')
+  // Reserve logged on both sides is compared with itself: the same RIR every time excuses nothing.
+  const logged = (reps: number) => exo([set(100, reps, { rir: 2 }), set(100, reps, { rir: 2 }), set(100, reps, { rir: 2 })], rx('0–1'))
+  assert.equal(compareExercise(logged(13), logged(14), [], false).status, 'down')
+  assert.equal(compareExercise(exo([set(100, 9, { rir: 3 }), set(100, 9, { rir: 3 }), set(100, 9, { rir: 3 })], rx('0–1')), logged(10), [], false).status, 'stable')
+  // Nothing logged: only what the plans ask for counts, and only when today's asks for more reserve.
+  const block = exo([set(100, 11), set(100, 10), set(100, 10)], rx('1'))
+  assert.equal(compareExercise(exo([set(100, 9), set(100, 9)], rx('2–3')), block, [], false).headline, 'MOINS DE REPS, PLUS DE MARGE')
+  assert.equal(compareExercise(exo([set(100, 10), set(100, 9), set(100, 9)], rx('1–2')), exo([set(100, 10), set(100, 10), set(100, 10)], rx('1–2')), [], false).status, 'down')
+  // Two weeks or more without any session since: the last one is no longer a reference.
+  assert.equal(compareExercise(exo([set(100, 9), set(100, 8)], rx('3')), hard, [], false, false, 17).headline, 'APRÈS UNE PAUSE')
+  assert.equal(compareExercise(exo([set(100, 8), set(100, 8), set(100, 8)], rx('1')), hard, [], false, false, 9).status, 'down')
+  // Logging the effort one session out of two is no standing excuse: without an eased plan, nothing is spared.
+  const drop = exo([set(100, 9, { rir: 1 }), set(100, 9, { rir: 1 }), set(100, 8, { rir: 1 })], rx('0–1'))
+  assert.equal(compareExercise(drop, exo([set(100, 10), set(100, 10), set(100, 9)], rx('0–1')), [], false).status, 'down')
+  assert.equal(compareExercise(exo([set(100, 8), set(100, 8), set(100, 7)], rx('0–1')), drop, [], false).status, 'down')
+  // An eased plan, and the reserve logged today matches it: the reps it costs are excused.
+  assert.equal(compareExercise(exo([set(100, 8, { rir: 3 }), set(100, 8, { rir: 3 }), set(100, 7, { rir: 3 })], rx('3')), hard, [], false).status, 'stable')
+  // A plan that asks for more effort never turns equal reps into a drop.
+  assert.equal(compareExercise(exo([set(100, 10), set(100, 10), set(100, 9)], rx('0–1')), exo([set(100, 10), set(100, 10), set(100, 9)], rx('3')), [], false).status, 'stable')
+  // At different loads too: a lighter holiday session with reps in hand is not a drop, a weaker one at failure is.
+  const holiday = exo([set(95, 10), set(95, 10)], rx('2–3'))
+  assert.equal(compareExercise(holiday, hard, [], false).status, 'load-change')
+  const weak = exo([set(95, 9, { rir: 0 }), set(95, 9, { rir: 0 })], rx('2–3'))
+  assert.equal(compareExercise(weak, hard, [], false).status, 'down')
+})
+
+test('bodyweight work: added load is proposed at the top of the range and tracked', () => {
+  const dips = (sets: WorkoutSet[], lest: number | null = null, rir = '1–2') => exo(sets, {
+    exerciseId: 'dips', name: 'Dips', unit: 'PDC',
+    target: { weight: lest, sets: 2, minReps: 8, maxReps: 12, restSeconds: 120 },
+    prescription: { sets: 2, minReps: 8, maxReps: 12, rir, restSeconds: 120, weight: lest, loadFactor: 1, notes: [] },
+  })
+  // Top of the range at body weight: 2.5 kg added next time.
+  const first = loadDecision(dips([set(null, 12), set(null, 12)]))
+  assert.deepEqual([first?.kind, first?.weight], ['up', 2.5])
+  assert.match(first!.text, /^2 × 12 atteint : PDC \+2,5\skg la prochaine fois$/)
+  assert.equal(loadDecision(dips([set(null, 12), set(null, 9)])), null, 'not at the top yet')
+  // With added load: one more step; under the range: one step less, down to none.
+  assert.equal(loadDecision(dips([set(2.5, 12), set(2.5, 12)], 2.5))?.weight, 5)
+  assert.equal(loadDecision(dips([set(5, 6), set(5, 5)], 5))?.weight, 2.5)
+  assert.equal(loadDecision(dips([set(2.5, 6), set(2.5, 5)], 2.5))?.weight, 0)
+  assert.equal(loadDecision(dips([set(null, 6), set(null, 5)])), null, 'nothing to take off at body weight')
+  // The added load is what was typed: body weight alone when the proposal was not followed, and the target goes back to none.
+  const ignored = loadDecision(dips([set(null, 11), set(null, 10)], 2.5))
+  assert.deepEqual([ignored?.kind, ignored?.weight], ['down', 0])
+  assert.equal(loadDecision(dips([set(null, 12), set(null, 12)], 2.5)), null, 'top of the range again without it: the proposal stands')
+  // Added load taken during the session and held: it becomes the target; held only by forcing, it does not.
+  assert.equal(loadDecision(dips([set(5, 9), set(5, 8)]))?.weight, 5)
+  assert.equal(loadDecision(dips([set(5, 8, { rir: 0 }), set(5, 8, { rir: 0 })], null, '3')), null)
+  // Effort counts as for any load.
+  assert.equal(loadDecision(dips([set(null, 12, { rir: 0 }), set(null, 12, { rir: 0 })], null, '3')), null)
+  // Bands and floor work take no load: nothing to raise, the top of the range is only pointed out.
+  const pushups = exo([set(null, 25), set(null, 25), set(null, 25)], {
+    exerciseId: 'push-up', unit: 'PDC',
+    target: { weight: null, sets: 3, minReps: 8, maxReps: 25, restSeconds: 90 },
+    prescription: { sets: 3, minReps: 8, maxReps: 25, rir: '1–2', restSeconds: 90, weight: null, loadFactor: 1, notes: [] },
+  })
+  assert.equal(loadDecision(pushups), null)
+  assert.equal(toppedOut(pushups), true)
+  assert.equal(toppedOut(dips([set(null, 12), set(null, 12)])), false, 'dips take added load instead')
+  // Added load counts in the level and shows in the summary of the sets.
+  assert.ok(setScore(set(2.5, 11), 'PDC') > setScore(set(null, 12), 'PDC'))
+  assert.equal(setScore(set(null, 12), 'PDC'), 12)
+  assert.equal(setsSummary([set(null, 12), set(2.5, 10)], 'PDC'), 'PDC×12 · PDC+2,5×10')
+  assert.equal(compareExercise(dips([set(2.5, 11), set(2.5, 10)], 2.5), dips([set(null, 12), set(null, 12)]), [], false).detail, 'Lest différent de la dernière fois.')
+  // The decision is written in the template; back to none is stored as no load.
+  const s = defaultState()
+  const change = { id: 'c', type: 'UPPER' as const, exerciseId: 'dips', name: 'Dips', gymId: 'main', date: '2026-10-06', kind: 'up' as const, from: null, to: 2.5, text: '' }
+  const loaded = applyChange(s.templates, change)
+  assert.equal(loaded.UPPER.exercises.find((e) => e.exerciseId === 'dips')!.target.weight, 2.5)
+  assert.equal(prescribe(loaded.UPPER.exercises.find((e) => e.exerciseId === 'dips')!, '2026-10-13', null).weight, 2.5)
+  assert.equal(applyChange(loaded, { ...change, kind: 'down', from: 2.5, to: 0 }).UPPER.exercises.find((e) => e.exerciseId === 'dips')!.target.weight, null)
+})
+
+test('the priority set of a building block waits for rising performance', () => {
+  configurePlan(DEFAULT_GOAL)
+  const s = defaultState()
+  const lat = s.templates.UPPER.exercises.find((e) => e.exerciseId === 'lateral-raise')!
+  const session = (id: string, date: string, status: 'progress' | 'stable' | 'down' | 'load-change', n: number, headline = ''): Workout => ({
+    ...workout(id, date, undefined, [{ ...exo([set(6, 15)], { exerciseId: 'lateral-raise', unit: 'kg/main' }), comparison: { status, headline, chargeValidated: false, isRecord: false } as WorkoutExercise['comparison'] }], n),
+    type: 'UPPER',
+  })
+  // Block 2 runs from 9 Nov; its third week starts on the 23rd.
+  const w3 = '2026-11-24'
+  const at = (workouts: Workout[], date = w3, today = date) => prescribe(lat, date, null, undefined, workouts, today)
+  assert.equal(prescribe(lat, w3, null).sets, 4, 'without the history (plan projections): the set is there')
+  const held = at([])
+  assert.equal(held.sets, 3)
+  assert.ok(held.notes.some((n) => n.startsWith('Série prioritaire en attente')))
+  assert.equal(at([session('r1', '2026-11-10', 'progress', 1), session('r2', '2026-11-17', 'stable', 2)]).sets, 4)
+  assert.equal(at([session('r1', '2026-11-10', 'load-change', 1, 'CHARGE SUPÉRIEURE')]).sets, 4, 'a heavier load is progress')
+  assert.equal(at([session('r1', '2026-11-10', 'load-change', 1, 'RÉPARTITION DES CHARGES MODIFIÉE')]).sets, 3)
+  assert.equal(at([session('r1', '2026-11-10', 'down', 1), session('r2', '2026-11-17', 'progress', 2)]).sets, 3, 'as many drops as progress')
+  assert.equal(at([session('r0', '2026-10-20', 'progress', 1)]).sets, 3, 'progress in the previous block does not count')
+  // Decided on weeks 1 and 2: what happens from week 3 on does not take the set away.
+  assert.equal(at([session('r1', '2026-11-10', 'progress', 1), session('r3', '2026-11-24', 'down', 3)], '2026-12-01').sets, 4)
+  // Looking ahead from before week 3 (calendar, plan): nothing can be said yet, the planned set shows.
+  assert.equal(at([], w3, '2026-11-12').sets, 4)
+  // In the cut, the set is the volume kept from the previous block: no condition.
+  assert.equal(at([], '2027-01-05').sets, 4)
+})
+
+test('session notes: pain that comes back, and a plateau outside the cut', () => {
+  configurePlan(DEFAULT_GOAL)
+  const s = defaultState()
+  let ws: Workout[] = []
+  const run = (id: string, date: string, sets: WorkoutSet[], n: number, deload = false) => {
+    const r = finalizeWorkout(ws, { ...workout(id, date, undefined, [exo(sets)], n), deload }, s.templates)
+    ws = [...ws, r.workout]
+    return r.workout
+  }
+  const flat = (reps = 10) => [set(100, reps), set(100, reps), set(100, reps)]
+  // Pain: named once, then flagged as coming back.
+  const hurt = () => [set(100, 10), set(100, 10, { flags: ['pain'] }), set(100, 10)]
+  const p1 = run('n1', '2026-10-05', hurt(), 1)
+  assert.deepEqual(sessionNotes(ws, p1), { pain: ['Presse à cuisses'], painAgain: [], plateau: [] })
+  const p2 = run('n2', '2026-10-12', hurt(), 2)
+  assert.deepEqual(sessionNotes(ws, p2).painAgain, ['Presse à cuisses'])
+  // Plateau: four sessions in a row with nothing gained.
+  ws = []
+  run('q1', '2026-10-05', flat(), 1)
+  run('q2', '2026-10-08', flat(), 2)
+  run('q3', '2026-10-12', flat(), 3)
+  assert.deepEqual(sessionNotes(ws, run('q4', '2026-10-15', flat(), 4)).plateau, [], 'the first session is a baseline, not a stall')
+  assert.deepEqual(sessionNotes(ws, run('q5', '2026-10-19', flat(), 5)).plateau, ['Presse à cuisses'])
+  assert.deepEqual(sessionNotes(ws, run('q6', '2026-10-22', [set(100, 11), set(100, 10), set(100, 10)], 6)).plateau, [], 'one more rep ends it')
+  // A record set right after a deload is progress, even though that session has no verdict.
+  ws = []
+  run('d1', '2026-10-05', flat(), 1)
+  run('d2', '2026-10-12', flat(), 2)
+  run('d3', '2026-10-19', flat(), 3)
+  run('d4', '2026-11-03', [set(90, 8), set(90, 8)], 4, true)
+  run('d5', '2026-11-10', flat(11), 5)
+  run('d6', '2026-11-12', flat(11), 6)
+  assert.deepEqual(sessionNotes(ws, run('d7', '2026-11-16', flat(11), 7)).plateau, [])
+  // During the cut, holding the loads is the goal: no plateau.
+  ws = []
+  for (const [i, d] of ['2027-01-05', '2027-01-08', '2027-01-12', '2027-01-15'].entries()) run(`c${i}`, d, flat(), i + 1)
+  assert.deepEqual(sessionNotes(ws, run('c5', '2027-01-19', flat(), 5)).plateau, [])
+})
+
 test('machines are compared within one gym, free weights across gyms', () => {
   const press = (w: number, reps: number) => exo([set(w, reps), set(w, reps), set(w, reps)])
   const db = (w: number) => exo([set(w, 10)], { exerciseId: 'incline-db-press', unit: 'kg/main' })
@@ -439,9 +718,9 @@ test('visual goal: half-kilo targets, looks reached, block notes follow the zone
   assert.equal(zonesText(['dos']), 'dos')
   assert.equal(zonesText([]), null)
   configurePlan(DEFAULT_GOAL, null, p.cutWeeks, zonesText(['epaules', 'bras']))
-  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3.')
+  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3, si les performances montent.')
   configurePlan(DEFAULT_GOAL)
-  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3.')
+  assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3, si les performances montent.')
 })
 
 test('onboarding: a new user starts this week, with the goal and the sessions chosen', async () => {

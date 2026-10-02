@@ -5,7 +5,7 @@ import { fmtLoad, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
 import { fmtDate } from '../lib/date'
-import { doableAt, GOAL_DATE, MAINTENANCE, PERIODS, ROTATION, TYPE_META } from '../lib/program'
+import { doableAt, GOAL_DATE, MAINTENANCE, PERIODS, ROTATION, takesLest, TYPE_META } from '../lib/program'
 import { caveats, PRINCIPLES, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -126,8 +126,8 @@ export function ProgramScreen() {
           <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, au RIR visé, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, at the target RIR, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.')} />
           <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('S1 RIR 3 · S2 RIR 2 · S3–S4 RIR 1–2 (polyarticulaire) et 0–1 (isolation) · S5 RIR 0–1, dernière série d’isolation à l’échec technique.', 'W1 RIR 3 · W2 RIR 2 · W3–W4 RIR 1–2 (compound) and 0–1 (isolation) · W5 RIR 0–1, last isolation set to technical failure.')} />
           <RuleRow title="Volume" text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
-          <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que le RIR prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned RIR counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym.')} />
-          <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Performance en baisse 2 séances de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge.', 'Performance down 2 sessions in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward.')} />
+          <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que le RIR prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned RIR counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
+          <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Performance en baisse 2 séances de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'Performance down 2 sessions in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 sessions without progress: flagged at the end of the session.')} />
           <RuleRow title={L('Décharge', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')} />
         </Card>
       </Section>
@@ -283,7 +283,7 @@ function EditSheet({ ex, onClose, onSave, onRemove }: { ex: TemplateExercise; on
   const save = () =>
     onSave({
       target: {
-        weight: ex.unit === 'PDC' ? null : parseNumber(v.weight),
+        weight: ex.unit === 'PDC' ? (takesLest(ex) ? parseNumber(v.weight) || null : null) : parseNumber(v.weight),
         sets: Math.max(1, parseNumber(v.sets) ?? ex.target.sets),
         minReps: Math.max(1, parseNumber(v.minReps) ?? ex.target.minReps),
         maxReps: Math.max(1, parseNumber(v.maxReps) ?? ex.target.maxReps),
@@ -297,6 +297,7 @@ function EditSheet({ ex, onClose, onSave, onRemove }: { ex: TemplateExercise; on
     <Sheet open onClose={onClose} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
       <div className="grid grid-cols-2 gap-3">
         {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À trouver', 'To find')} /></Field>}
+        {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('Aucun', 'None')} /></Field>}
         <Field label={L('Séries', 'Sets')}><input className={inputClass} inputMode="numeric" value={v.sets} onChange={set('sets')} /></Field>
         <Field label={L('RIR visé', 'Target RIR')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
         <Field label={L('Reps min', 'Min reps')}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>

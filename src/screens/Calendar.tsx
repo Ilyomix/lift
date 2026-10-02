@@ -187,7 +187,7 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
           <p className="text-[15px]"><span className="font-semibold">{TYPE_META[planned.type].label}</span> {L('prévue', 'planned')} {planned.tentative ? L('(si reprise du programme)', '(if the program resumes)') : ''}</p>
           <ul className="mt-3 space-y-1.5 text-[14px] text-text-2">
             {state.templates[planned.type].exercises.map((e, i) => {
-              const p = prescribe(e, date, state.reentry)
+              const p = prescribe(e, date, state.reentry, undefined, state.workouts)
               return <li key={i} className="flex justify-between gap-3"><span>{e.name}</span><span className="shrink-0 tnum text-muted">{p.sets} × {p.minReps}–{p.maxReps}</span></li>
             })}
           </ul>
