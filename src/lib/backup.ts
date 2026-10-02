@@ -49,6 +49,13 @@ export function defaultState(): AppState {
 }
 
 const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && Number.isFinite(Number(x)) ? Number(x) : null)
+
+/** The sized step of a cut as kept with the calorie targets: its day and the two targets, or nothing. */
+function sizedStepOf(x: any): { at: string; from: number; to: number } | undefined {
+  const from = num(x?.from)
+  const to = num(x?.to)
+  return x && typeof x.at === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.at) && from !== null && to !== null ? { at: x.at, from, to } : undefined
+}
 const str = (x: unknown, d = ''): string => (typeof x === 'string' ? x : d)
 const isType = (x: unknown): x is WorkoutType => typeof x === 'string' && (WORKOUT_TYPES as string[]).includes(x)
 
@@ -295,6 +302,7 @@ export function normalizeState(raw: any): AppState {
       proteinMax: num(raw.nutritionTargets?.proteinMax) ?? d.nutritionTargets.proteinMax,
       creatine: num(raw.nutritionTargets?.creatine) ?? d.nutritionTargets.creatine,
       caloriesChangedAt: typeof raw.nutritionTargets?.caloriesChangedAt === 'string' ? raw.nutritionTargets.caloriesChangedAt : undefined,
+      sizedStep: sizedStepOf(raw.nutritionTargets?.sizedStep),
       adaptive: raw.nutritionTargets?.adaptive !== false,
     },
     nutritionEntries,

@@ -287,8 +287,20 @@ function mergeExercise(cur: TemplateExercise | undefined, c: PlanChange): Templa
   return merged
 }
 
-export function applyPlanUpdate(state: AppState, u: PlanUpdate): AppState {
+/** The nutrition targets a coach reply may set: its figures, and nothing else of what it holds (a date, a record of the app). */
+export function nutritionFigures(raw: unknown): Partial<NutritionTargets> {
+  const out: Partial<NutritionTargets> = {}
+  for (const key of ['calories', 'proteinMin', 'proteinMax', 'creatine'] as const) {
+    const x = (raw as Record<string, unknown> | undefined)?.[key]
+    const n = typeof x === 'number' ? x : typeof x === 'string' && x.trim() !== '' ? Number(x) : NaN
+    if (Number.isFinite(n) && n > 0) out[key] = n
+  }
+  return out
+}
+
+export function applyPlanUpdate(state: AppState, u: PlanUpdate, today: string = todayISO()): AppState {
   const templates = { ...state.templates }
+  const nutrition = nutritionFigures(u.nutritionTargets)
   for (const c of u.changes) {
     const tpl = templates[c.template]
     let exercises = [...tpl.exercises]
@@ -307,7 +319,12 @@ export function applyPlanUpdate(state: AppState, u: PlanUpdate): AppState {
   return {
     ...state,
     templates,
-    nutritionTargets: { ...state.nutritionTargets, ...(u.nutritionTargets ?? {}) },
+    // A calorie change made by a coach update is dated like any other: the weight gets its two weeks to answer.
+    nutritionTargets: {
+      ...state.nutritionTargets,
+      ...nutrition,
+      ...(nutrition.calories !== undefined && nutrition.calories !== state.nutritionTargets.calories ? { caloriesChangedAt: today } : {}),
+    },
     appliedPlanUpdates: [
       ...state.appliedPlanUpdates,
       {

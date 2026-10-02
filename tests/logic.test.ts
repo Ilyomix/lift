@@ -12,7 +12,7 @@ import {
   buildPeriods, configurePlan, contextAt, DEFAULT_GOAL, isValidGoal, milestones, planShape, prescribe, projectSessions, PROGRAM_START,
   reentryForGap, ROTATION, sessionPlan,
 } from '../src/lib/program'
-import { calorieAdvice, calorieFloor, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor, restingCalories, TREND_DAYS, weightStatus } from '../src/lib/stats'
+import { calorieAdvice, calorieFloor, calorieStepPatch, cutAdvice, goalWeightRange, movingAverage7, plannedWeightPath, proteinTargetFor, restingCalories, TREND_DAYS, weightStatus } from '../src/lib/stats'
 import {
   appliedState, applyChange, baselineFor, changeLabel, changesOf, changeState, compareExercise, countedDrop, dropAlert, dropMargin, exerciseHistory, finalizeWorkout, findChange, finishedState,
   heldByEffort, intraSessionAdjust, knownLoads, lastFinished, loadDecision, plannedVolume, previousPerformance, progressionFor, reopenedState, revertedState, sessionEffort, sessionNotes, setScore,
@@ -320,6 +320,14 @@ test('coach update: parse a fenced JSON reply, preview, apply', () => {
   assert.ok(next.templates.PUSH.exercises.some((e) => e.exerciseId === 'cable-fly'))
   assert.ok(!next.templates.UPPER.exercises.some((e) => e.exerciseId === 'dips'))
   assert.equal(next.appliedPlanUpdates.at(-1)!.source, 'coach')
+  // A calorie change made by the coach is dated like any other; the same figure, or no figure, dates nothing.
+  assert.equal(next.nutritionTargets.caloriesChangedAt, undefined)
+  const fed = applyPlanUpdate(s, { ...u, nutritionTargets: { calories: 2200 } }, '2026-10-02')
+  assert.deepEqual([fed.nutritionTargets.calories, fed.nutritionTargets.caloriesChangedAt], [2200, '2026-10-02'])
+  assert.equal(applyPlanUpdate(s, { ...u, nutritionTargets: { calories: s.nutritionTargets.calories } }, '2026-10-02').nutritionTargets.caloriesChangedAt, undefined)
+  // Figures only: a number written as text is read (and dated); a date or a record of the app found in the reply is not taken.
+  const loose = applyPlanUpdate(s, { ...u, nutritionTargets: { calories: '2200', proteinMin: 'beaucoup', caloriesChangedAt: '1999-01-01', sizedStep: { at: '2026-10-01', from: 3000, to: 2000 } } as never }, '2026-10-02')
+  assert.deepEqual([loose.nutritionTargets.calories, loose.nutritionTargets.proteinMin, loose.nutritionTargets.caloriesChangedAt, loose.nutritionTargets.sizedStep], [2200, s.nutritionTargets.proteinMin, '2026-10-02', undefined])
   // Updates recorded under the former source name are read back as coach updates.
   const legacy = normalizeState({ ...next, appliedPlanUpdates: [{ ...next.appliedPlanUpdates.at(-1)!, source: 'claude' }] })
   assert.equal(legacy.appliedPlanUpdates[0].source, 'coach')
@@ -1217,11 +1225,15 @@ test('calories in a cut: the pace has to stay in the range, on recent weigh-ins,
   const early = at('2027-01-18', -0.4)                                  // day 15 of the cut
   assert.deepEqual([early.status, early.headline], ['wait', 'Rythme à confirmer'])
   assert.match(early.detail, /compte encore des jours d’avant la sèche : verdict dans 7 jours\.$/)
-  const first = at('2027-01-18', -0.2)
+  // (With weigh-ins too sparse to size a step on, the regular one; the sized step has its own test below.)
+  const sparse = weighIns('2027-01-18', -0.2).filter((_, i) => (39 - i) % 4 === 0)
+  const first = calorieAdvice({ ...base, bodyEntries: sparse }, '2027-01-18')
   assert.deepEqual([first.status, first.delta, first.headline], ['lower', -150, 'Début de sèche'])
   assert.match(first.detail, /^−0,2\d? %\/sem sur les 3 dernières semaines \(objectif : −0,5 à −0,7 %\/sem\) : −150 kcal/)
   assert.equal(at('2027-01-25', -0.4).headline, 'Perte trop lente', 'three weeks in, the trend is the cut’s own')
-  const changed = (days: number): Partial<AppState> => ({ nutritionTargets: { ...base.nutritionTargets, caloriesChangedAt: addDays('2027-03-01', -days) } })
+  // (The sized step of this cut was taken at its start: what follows are the regular steps.)
+  const sizedStep = { at: '2027-01-04', from: 2600, to: 2400 }
+  const changed = (days: number): Partial<AppState> => ({ nutritionTargets: { ...base.nutritionTargets, caloriesChangedAt: addDays('2027-03-01', -days), sizedStep } })
   assert.equal(at('2027-03-01', -0.4, changed(10)).headline, 'Ajustement récent')
   const waiting = at('2027-03-01', -0.4, changed(15))
   assert.deepEqual([waiting.status, waiting.headline], ['wait', 'Rythme à confirmer'])
@@ -1233,7 +1245,7 @@ test('calories in a cut: the pace has to stay in the range, on recent weigh-ins,
   const back = at('2027-04-05', -0.4)
   assert.equal(back.headline, 'Rythme à confirmer')
   assert.match(back.detail, /compte encore des jours d’avant la reprise de la sèche : verdict dans 14 jours\.$/)
-  assert.equal(at('2027-04-05', -0.2).headline, 'Reprise de la sèche')
+  assert.deepEqual([at('2027-04-05', -0.2).status, at('2027-04-05', -0.2).delta, at('2027-04-05', -0.2).headline], ['lower', -150, 'Reprise de la sèche'], 'the week at maintenance is in the trend: a regular step')
   // The verdict is read on the pace as it is shown: −0.497 reads −0.5, which is inside the range.
   const shown = calorieAdvice({ ...base, bodyEntries: weighIns('2027-03-01', -0.4864) }, '2027-03-01')
   assert.match(shown.detail, /^−0,5 %\/sem /)
@@ -1243,7 +1255,8 @@ test('calories in a cut: the pace has to stay in the range, on recent weigh-ins,
   // and never under the minimum advised without medical supervision.
   const profile = { heightCm: 180, age: 30, sex: 'm' as const }
   assert.equal(Math.round(restingCalories({ weight: 85, ...profile })), 1830)
-  const state = (calories: number): Partial<AppState> => ({ profile, nutritionTargets: { ...base.nutritionTargets, calories } })
+  // In the cut, the sized step was taken at its start: these are the regular steps that follow (the sized one has its own test).
+  const state = (calories: number, cut = true): Partial<AppState> => ({ profile, nutritionTargets: { ...base.nutritionTargets, calories, ...(cut ? { caloriesChangedAt: '2027-01-04', sizedStep } : {}) } })
   assert.deepEqual(calorieFloor({ ...base, ...state(2350), bodyEntries: weighIns('2027-03-01', -0.3) }, '2027-03-01'), { kcal: 1850, from: 'rest' })
   assert.deepEqual(calorieFloor({ ...base, bodyEntries: weighIns('2027-03-01', -0.3) }, '2027-03-01'), { kcal: 1500, from: 'minimum' }, 'no height: the minimum alone')
   assert.deepEqual(calorieFloor({ ...base, profile: { heightCm: 150, age: 60, sex: 'f' }, bodyEntries: weighIns('2027-03-01', 0, 50) }, '2027-03-01'), { kcal: 1200, from: 'minimum' }, 'a resting estimate of 1,000 kcal is not a target')
@@ -1256,14 +1269,136 @@ test('calories in a cut: the pace has to stay in the range, on recent weigh-ins,
   assert.match(held.detail, /\. Ta cible ne dépasse pas ta dépense au repos estimée \(1850 kcal\) : le conseil ne descend pas plus bas/)
   assert.equal(at('2027-03-01', -0.3, state(1700)).status, 'hold', 'a target typed under the floor is not lowered either')
   // Without a height there is no estimate: the minimum is the floor.
-  const bare = at('2027-03-01', -0.3, { nutritionTargets: { ...base.nutritionTargets, calories: 1600 } })
+  const bare = at('2027-03-01', -0.3, { nutritionTargets: { ...base.nutritionTargets, calories: 1600, caloriesChangedAt: '2027-01-04', sizedStep } })
   assert.deepEqual([bare.target, bare.floor, bare.floorIs], [1500, 1500, 'minimum'])
   assert.match(bare.detail, /Pas plus bas : 1500 kcal, c’est le minimum conseillé sans suivi médical\.$/)
   // The floor holds in every phase: a rising weight in the recomposition at the floor is not answered with fewer calories.
-  assert.equal(at('2026-10-21', 0.5, state(1850)).status, 'hold')
-  assert.equal(at('2026-10-21', 0.5, state(2350)).target, 2200)
+  assert.equal(at('2026-10-21', 0.5, state(1850, false)).status, 'hold')
+  assert.equal(at('2026-10-21', 0.5, state(2350, false)).target, 2200)
   // Calories only go down that far: raising them is never limited.
   assert.equal(at('2027-03-01', -1.2, state(1850)).target, 2000)
+})
+
+test('calories in a cut: one step is the plan’s deficit taken at once, behind a question', () => {
+  configurePlan(DEFAULT_GOAL)
+  const base = defaultState()
+  const entry = (date: string, weight: number, i: number) => ({ id: `w${i}`, date, weight, waist: null, arm: null, chest: null, shoulders: null })
+  // Weigh-ins over forty days ending on `last`, one every `every` days, moving by `pct` % of body weight a week.
+  const weighIns = (last: string, pct: number, from = 86, every = 1) =>
+    Array.from({ length: 40 }, (_, i) => entry(addDays(last, i - 39), from * (1 + (pct / 100) * (i / 7)), i)).filter((_, i) => (39 - i) % every === 0)
+  const at = (today: string, pct: number, over: Partial<AppState> = {}, from = 86, every = 1) => calorieAdvice({ ...base, bodyEntries: weighIns(today, pct, from, every), ...over }, today)
+  const kcal = (calories: number, changed?: string, sizedStep?: { at: string; from: number; to: number }): Partial<AppState> =>
+    ({ nutritionTargets: { ...base.nutritionTargets, calories, ...(changed ? { caloriesChangedAt: changed } : {}), ...(sizedStep ? { sizedStep } : {}) } })
+  // Status, the step advised outright, the sized step offered on a yes and the regular one on a no.
+  const step = (a: ReturnType<typeof calorieAdvice>) => [a.status, a.delta, a.first?.delta ?? null, a.otherwise?.delta ?? null]
+  const regular = ['lower', -150, null, null]
+
+  // Day 1 of the cut at a stable weight: nothing is advised before the question; a yes gives the whole deficit (500 kcal at most), a no the regular step.
+  const day1 = at('2027-01-04', 0)
+  assert.deepEqual([day1.status, day1.delta, day1.target, day1.headline, day1.detail], ['ask', 0, 2350, 'Début de sèche', '0 %/sem sur les 3 dernières semaines (objectif : −0,5 à −0,7 %/sem).'])
+  assert.deepEqual([day1.first!.question, day1.first!.delta, day1.first!.target], ['Tes 3 dernières semaines ont-elles été normales ?', -500, 1850])
+  assert.equal(day1.first!.hint, 'Normales : tu as mangé et bougé comme aujourd’hui. Ni fêtes, ni vacances, ni régime déjà commencé.')
+  assert.equal(day1.first!.detail, 'Le pas complet vise un déficit d’environ 500 kcal par jour. Soit −500 kcal en une fois (glucides ou lipides, jamais les protéines), puis 2 semaines pour que le poids réagisse.')
+  assert.deepEqual([day1.otherwise!.delta, day1.otherwise!.target], [-150, 2200])
+  assert.equal(day1.otherwise!.detail, 'Ta tendance ne décrit donc pas ta situation d’aujourd’hui. Pour l’instant, un pas ordinaire : −150 kcal (glucides ou lipides, jamais les protéines) ou ~2 000 pas de plus par jour. Le pas complet viendra après 3 semaines normales.')
+  // The deficit is the one of the plan's pace (−0.6 %/week at 7,700 kcal per kg): 400 kcal at 60 kg, 450 at 70, capped at 500 above.
+  assert.deepEqual([step(at('2027-01-04', 0, {}, 60)), step(at('2027-01-04', 0, {}, 70)), step(at('2027-01-04', 0, {}, 110))], [['ask', 0, -400, -150], ['ask', 0, -450, -150], ['ask', 0, -500, -150]])
+  // What the trend already shows is taken off: from the recomposition's pace, half of it is left to do. A weight going up counts as stable.
+  const recomp = at('2027-01-04', -0.25)
+  assert.deepEqual([step(recomp), recomp.first!.target], [['ask', 0, -250, -150], 2100])
+  assert.match(recomp.first!.detail, /^Le pas complet vise un déficit d’environ 500 kcal par jour ; ta tendance en montre déjà environ 250\. Soit −250 kcal en une fois/)
+  assert.deepEqual(step(at('2027-01-04', 0.3)), ['ask', 0, -500, -150])
+  // Already near the range: the verdict waits for the trend to be the cut's own, as before.
+  assert.equal(at('2027-01-04', -0.31).headline, 'Rythme à confirmer')
+  // The step has to be worth more than a regular one: with 150 kcal or less to go, the regular advice.
+  assert.deepEqual(step(at('2027-03-01', -0.4)), regular)
+  assert.deepEqual(step(at('2027-03-01', -0.33)), ['ask', 0, -200, -150])
+
+  // It needs a trend clean of the last calorie change. Up to a week short of it, the advice waits rather than spend a regular step.
+  const soon = at('2027-01-04', 0, kcal(2350, '2026-12-20'))
+  assert.deepEqual([soon.status, soon.headline], ['wait', 'Rythme à confirmer'])
+  assert.match(soon.detail, /d’avant ton dernier changement de calories : verdict dans 6 jours\.$/)
+  assert.match(at('2027-01-04', 0, kcal(2350, '2026-12-15')).detail, / : verdict dans 1 jour\.$/)
+  assert.deepEqual(step(at('2027-01-04', 0, kcal(2350, '2026-12-14'))), ['ask', 0, -500, -150])
+  // After a no and its regular step, the same: two weeks of wait, one more for the trend, then the question again.
+  const afterNo = kcal(2200, '2027-01-04')
+  assert.equal(at('2027-01-17', 0, afterNo).headline, 'Ajustement récent')
+  assert.match(at('2027-01-18', 0, afterNo).detail, / : verdict dans 7 jours\.$/)
+  assert.deepEqual([at('2027-01-25', 0, afterNo).headline, step(at('2027-01-25', 0, afterNo)), at('2027-01-25', 0, afterNo).first!.target], ['Perte trop lente', ['ask', 0, -500, -150], 1700])
+
+  // One sized step a cut: once taken, steps are the regular ones, in every stretch of that cut.
+  const january = { at: '2027-01-04', from: 2350, to: 1850 }
+  assert.deepEqual(step(at('2027-01-25', -0.3, kcal(1850, '2027-01-04', january))), regular)
+  assert.deepEqual([step(at('2027-04-26', -0.2)), step(at('2027-04-26', -0.2, kcal(2350, '2027-01-04', january)))], [['ask', 0, -300, -150], regular])
+  // The three weeks after the diet break hold a week eaten at maintenance: regular step.
+  assert.deepEqual([at('2027-04-05', -0.2).headline, step(at('2027-04-05', -0.2)), step(at('2027-04-18', -0.2)), at('2027-04-19', -0.2).status], ['Reprise de la sèche', regular, regular, 'ask'])
+  // The sized step of another cut is not this one's, nor is one dated after today; outside a cut, nothing of the kind.
+  assert.deepEqual(step(at('2027-01-04', 0, kcal(2350, undefined, { at: '2026-03-01', from: 2500, to: 2100 }))), ['ask', 0, -500, -150])
+  assert.deepEqual(step(at('2027-01-04', 0, kcal(2350, undefined, { at: '2027-02-01', from: 2500, to: 2100 }))), ['ask', 0, -500, -150])
+  assert.deepEqual(step(at('2026-11-10', 0.3)), regular)
+
+  // The trend has to be measured well enough: eight weigh-ins in the three weeks, two at least in each.
+  assert.deepEqual([step(at('2027-01-04', 0, {}, 86, 3)), step(at('2027-01-04', 0, {}, 86, 4))], [['ask', 0, -500, -150], regular])
+  // Weigh-ins on the given days before 4 January, after a month weighed daily (so that only the last three weeks are in question).
+  const weeks = (days: number[]) => ({ ...base, bodyEntries: [...Array.from({ length: 30 }, (_, i) => 51 - i), ...days].map((d, i) => entry(addDays('2027-01-04', -d), 86, i)) })
+  const read = (st: AppState) => { const ws = weightStatus(st, '2027-01-04'); return [ws.trendWeighIns, ws.trendWeeks, calorieAdvice(st, '2027-01-04').status] }
+  assert.deepEqual(read(weeks([0, 3, 7, 10, 14, 17, 20, 21])), [8, 2, 'ask'])
+  assert.deepEqual(read(weeks([0, 3, 7, 10, 14, 17, 21])), [7, 2, 'lower'], 'seven weigh-ins are one short')
+  assert.deepEqual(read(weeks([0, 1, 2, 3, 4, 5, 7, 14, 15, 16])), [10, 1, 'lower'], 'a week with a single weigh-in')
+  assert.deepEqual(read(weeks([0, 15, 16, 17, 18, 19, 20, 21])), [8, 0, 'lower'], 'a week in a row three weeks ago says nothing of now')
+
+  assert.deepEqual(read(weeks(Array.from({ length: 15 }, (_, i) => i + 7))), [22, 0, 'lower'], 'the weeks are the three ending today: a trend that stops a week ago is not sized on')
+  // One slow reading is not enough: the reading of two weeks before has to be slow too (the scale has its waves).
+  const paced = (today: string, before: number, lately: number) => { let w = 86; return Array.from({ length: 40 }, (_, i) => { w *= 1 + ((i < 26 ? before : lately) / 100) / 7; return entry(addDays(today, i - 39), w, i) }) }
+  const blip = calorieAdvice({ ...base, bodyEntries: paced('2027-03-01', -0.6, 0.1) }, '2027-03-01')
+  assert.deepEqual([blip.headline, step(blip)], ['Perte trop lente', regular], 'on pace two weeks ago: a regular step')
+  assert.deepEqual(step(calorieAdvice({ ...base, bodyEntries: paced('2027-03-01', -0.1, 0.1) }, '2027-03-01')), ['ask', 0, -500, -150])
+  assert.deepEqual(step(calorieAdvice({ ...base, bodyEntries: weighIns('2027-01-04', 0).slice(-20) }, '2027-01-04')), regular, 'no reading two weeks ago: a regular step')
+
+  // The floor bounds the step, and says so; with a regular step or less of room, the regular advice.
+  const profile = { heightCm: 180, age: 30, sex: 'm' as const }
+  const near = at('2027-01-04', 0, { profile, ...kcal(2100) })
+  assert.deepEqual([step(near), near.first!.target, near.floor], [['ask', 0, -250, -150], 1850, 1850])
+  assert.match(near.first!.detail, /Soit −250 kcal en une fois .* Pas plus bas : 1850 kcal, c’est ta dépense au repos estimée\.$/)
+  assert.deepEqual([step(at('2027-01-04', 0, { profile, ...kcal(2000) })), step(at('2027-01-04', 0, { profile, ...kcal(1900) })), at('2027-01-04', 0, { profile, ...kcal(1850) }).status], [regular, ['lower', -50, null, null], 'hold'])
+
+  // The step was read on a trend and on an answer. In the nine weeks after it, a clean trend above the range gives 150 kcal of it back.
+  const taken = kcal(1850, '2027-01-04', january)
+  const strong = at('2027-01-25', -0.85, taken)
+  assert.deepEqual([strong.status, strong.delta, strong.target, strong.headline], ['raise', 150, 2000, 'Pas complet trop fort'])
+  assert.match(strong.detail, /^−0,8\d? %\/sem \(objectif : −0,5 à −0,7 %\/sem\) : au-dessus de la fourchette depuis ton pas complet\. \+150 kcal\.$/)
+  assert.equal(at('2027-01-24', -0.85, taken).headline, 'Rythme soutenu', 'not while the trend still holds days from before the step')
+  assert.deepEqual([at('2027-01-25', -0.65, taken).headline, at('2027-01-25', -0.72, taken).headline], ['Rythme dans la cible', 'Pas complet trop fort'])
+  // Again three weeks later if the pace is still above; not after nine weeks, nor once the step is given back or the target went lower.
+  const once = kcal(2000, '2027-01-25', january)
+  assert.deepEqual([at('2027-02-15', -0.8, once).target, at('2027-03-08', -0.8, once).status, at('2027-03-09', -0.8, once).headline], [2150, 'raise', 'Rythme soutenu'])
+  assert.equal(at('2027-02-10', -0.8, once).headline, 'Rythme soutenu', 'not until the trend is clean of the last give-back')
+  assert.deepEqual([at('2027-02-20', -0.85, kcal(2300, '2027-01-25', january)).delta, at('2027-02-20', -0.85, kcal(2350, '2027-01-25', january)).headline, at('2027-02-20', -0.85, kcal(1700, '2027-01-25', january)).headline], [50, 'Rythme soutenu', 'Rythme soutenu'])
+  // What is left of the step is given back, to the kcal.
+  assert.deepEqual([at('2027-02-20', -0.85, kcal(2330, '2027-01-25', january)).delta, at('2027-02-20', -0.85, kcal(2230, '2027-01-25', january)).target], [20, 2350])
+  // Without a sized step, a pace between the top of the range and 1 %/week is left alone, as before.
+  assert.equal(at('2027-01-25', -0.85, kcal(1850, '2027-01-04')).headline, 'Rythme soutenu')
+  // Nor in the three weeks after a diet break, whose week at maintenance is in the trend; at the end of the cut the range stops at −0.6.
+  const march = { at: '2027-03-10', from: 2350, to: 1850 }
+  assert.deepEqual([at('2027-04-05', -0.85, kcal(1850, '2027-03-10', march)).headline, at('2027-04-19', -0.85, kcal(1850, '2027-03-10', march)).headline], ['Rythme soutenu', 'Pas complet trop fort'])
+  const may = { at: '2027-05-01', from: 2350, to: 1850 }
+  assert.deepEqual([at('2027-05-25', -0.63, kcal(1850, '2027-05-01', may)).headline, at('2027-05-25', -0.57, kcal(1850, '2027-05-01', may)).headline, at('2027-05-05', -0.66, kcal(1850, '2027-04-10', { ...may, at: '2027-04-10' })).headline], ['Pas complet trop fort', 'Rythme dans la cible', 'Rythme dans la cible'])
+  // While the step and the weeks before it are still in the trend, a slow reading adds nothing to it: the trend gets its three weeks.
+  const fresh = at('2027-01-18', 0, taken)
+  assert.deepEqual([fresh.status, fresh.headline], ['wait', 'Rythme à confirmer'])
+  assert.match(fresh.detail, /d’avant ton dernier changement de calories : verdict dans 7 jours\.$/)
+  assert.deepEqual(step(at('2027-01-25', 0, taken)), regular)
+
+  // Taking a step: the sized one is recorded with its day and its two ends, the regular one is not.
+  assert.deepEqual(calorieStepPatch(base.nutritionTargets, 1850, true, '2027-01-04'), { calories: 1850, sizedStep: { at: '2027-01-04', from: 2350, to: 1850 } })
+  assert.deepEqual(calorieStepPatch(base.nutritionTargets, 2200, false, '2027-01-04'), { calories: 2200 })
+
+  // Backups keep the step with its day, and drop what is not one.
+  const kept = normalizeState(JSON.parse(JSON.stringify({ ...base, ...taken }))).nutritionTargets
+  assert.deepEqual([kept.sizedStep, kept.caloriesChangedAt], [january, '2027-01-04'])
+  assert.equal(normalizeState(JSON.parse(JSON.stringify({ ...base, nutritionTargets: { ...base.nutritionTargets, sizedStep: { at: 'soon', from: 1, to: 2 } } }))).nutritionTargets.sizedStep, undefined)
+  // Elsewhere the question is not shown as a verdict: one sentence sends to the nutrition screen.
+  assert.equal(cutAdvice({ ...base, bodyEntries: weighIns('2027-01-04', 0) }, '2027-01-04'), 'Début de sèche : règle tes calories dans Plus → Nutrition.')
 })
 
 // ───────────────────────── Visual goal ─────────────────────────
@@ -1458,6 +1593,16 @@ test('English: labels, dates, plurals and stored names follow the language', asy
     assert.equal(changeLabel({ ...change, kind: 'sets' }), '1 set fewer until the end of the block')
     assert.deepEqual([logged.reentry?.label, logged.reentry?.sessionsLeft], [reentryForGap(10)!.label, reentry.sessionsLeft])
     assert.notEqual(logged.reentry?.label, reentry.label)
+    // The first step of a cut: its question and its sentence.
+    const stable = Array.from({ length: 30 }, (_, i) => ({ id: `w${i}`, date: addDays('2027-01-04', i - 29), weight: 86, waist: null, arm: null, chest: null, shoulders: null }))
+    const start = calorieAdvice({ ...defaultState(), bodyEntries: stable }, '2027-01-04')
+    assert.deepEqual([start.headline, start.detail, start.first?.question], ['Start of the cut', '0%/wk over the last 3 weeks (target: −0.5 to −0.7%/wk).', 'Were your last 3 weeks normal ones?'])
+    assert.equal(start.first?.hint, 'Normal: you ate and moved the way you do today. No holidays, no time off, no diet already started.')
+    assert.equal(start.first?.detail, 'The full step aims at a deficit of about 500 kcal a day. That is −500 kcal at once (carbs or fat, never protein), then 2 weeks for your weight to respond.')
+    assert.equal(start.otherwise?.detail, 'So your trend does not describe where you are today. For now, a regular step: −150 kcal (carbs or fat, never protein) or ~2,000 more steps a day. The full step will come after 3 normal weeks.')
+    const tooStrong = calorieAdvice({ ...defaultState(), bodyEntries: stable.map((e, i) => ({ ...e, date: addDays('2027-01-25', i - 29), weight: 86 * (1 - 0.0085 * (i / 7)) })), nutritionTargets: { ...defaultState().nutritionTargets, calories: 1850, caloriesChangedAt: '2027-01-04', sizedStep: { at: '2027-01-04', from: 2350, to: 1850 } } }, '2027-01-25')
+    assert.deepEqual([tooStrong.headline, tooStrong.detail.replace(/^[^(]*/, '')], ['Full step too strong', '(target: −0.5 to −0.7%/wk): above the range since your full step. +150 kcal.'])
+    assert.equal(cutAdvice({ ...defaultState(), bodyEntries: stable }, '2027-01-04'), 'Start of the cut: set your calories in More → Nutrition.')
   } finally {
     set('fr')
     configurePlan(DEFAULT_GOAL)
@@ -1582,7 +1727,7 @@ test('sources: every rule cites known sources, and guidance is not counted as a 
   for (const p of PRINCIPLES) for (const ref of p.refs) assert.ok(SOURCES[ref], `${p.id} cites ${ref}`)
   const urls = Object.values(SOURCES).map((x) => x.url)
   assert.equal(new Set(urls).size, urls.length, 'one entry per source')
-  assert.deepEqual(sourceCounts(), { reported: 31, added: 5, guidance: 1 })
-  assert.equal(studyCount(), 36)
+  assert.deepEqual(sourceCounts(), { reported: 31, added: 6, guidance: 1 })
+  assert.equal(studyCount(), 37)
   assert.deepEqual(Object.entries(SOURCES).filter(([, x]) => x.guidance).map(([id, x]) => [id, x.added, x.kind]), [['harvard2024', true, 'Recommandation de santé, pas une étude']])
 })

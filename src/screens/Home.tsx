@@ -266,6 +266,10 @@ export function Home() {
           ...(cal.status === 'lower' || cal.status === 'raise'
             ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
             : []),
+          // The sized step of the cut waits for an answer, on the nutrition screen.
+          ...(cal.status === 'ask'
+            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : une question avant de régler tes calories.`, `${cal.headline}: one question before setting your calories.`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
+            : []),
           ...(drift
             ? [{
                 icon: <Flag size={18} aria-hidden />,

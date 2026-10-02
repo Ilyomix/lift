@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
-import { globalPrompt, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
+import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
 import { L } from '../lib/i18n'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
@@ -14,7 +14,7 @@ import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPus
 import { studyCount } from '../lib/research'
 import { navigate } from '../lib/router'
 import { isAndroid, isIOS, isStandalone, saveFile, shareText } from '../lib/share'
-import { calorieAdvice, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
+import { calorieAdvice, calorieStepPatch, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
 import { lookInfo, ZONES, goalApplied } from '../lib/visual'
 import { useStore } from '../lib/store'
 import { Columns } from '../components/charts'
@@ -76,6 +76,10 @@ export function NutritionScreen() {
   const ctx = contextAt(date)
   const days = nutritionDays(state, 14, today)
   const advice = calorieAdvice(state, today)
+  // The sized step of a cut: offered once the lifter says his last three weeks were normal ones; the regular step otherwise.
+  const [normal, setNormal] = useState<boolean | null>(null)
+  const first = advice.status === 'ask' ? advice.first : undefined
+  const step = !first || normal === null ? null : normal ? { ...first, sized: true } : advice.otherwise ? { ...advice.otherwise, sized: false } : null
   const hit = days.filter((d) => d.protein >= protein.min).length
   const add = (k: 'calories' | 'protein', n: number) => setNutrition(date, { [k]: Math.max(0, (e[k] ?? 0) + n) })
   const adaptive = state.nutritionTargets.adaptive !== false
@@ -101,15 +105,50 @@ export function NutritionScreen() {
               <p className="text-[15px] font-semibold">{advice.headline}</p>
               <p className="mt-1 text-[14px] leading-[1.45] text-text-2">{advice.detail}</p>
             </div>
-            {advice.status !== 'wait' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : advice.status === 'hold' ? L('Plancher', 'Floor') : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
+            {advice.status !== 'wait' && advice.status !== 'ask' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : advice.status === 'hold' ? L('Plancher', 'Floor') : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
+            {step && <Tag tone="warn">{`−${Math.abs(step.delta)} kcal`}</Tag>}
           </div>
           {(advice.status === 'lower' || advice.status === 'raise') && (
             <Button variant="primary" full className="mt-3" onClick={() => { setNutritionTargets({ calories: advice.target }); notify(L(`Cible : ${advice.target} kcal. Prochain point dans 2 semaines.`, `Target: ${advice.target} kcal. Next check-in in 2 weeks.`), 'good') }}>
               {L(`Passer à ${advice.target} kcal`, `Switch to ${advice.target} kcal`)}
             </Button>
           )}
+          {first && !step && (
+            <div className="mt-3">
+              <p className="text-[14px] font-medium leading-[1.4]">{first.question}</p>
+              <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{first.hint}</p>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <Button onClick={() => setNormal(true)}>{L('Oui, normales', 'Yes, normal')}</Button>
+                <Button onClick={() => setNormal(false)}>{L('Non', 'No')}</Button>
+              </div>
+            </div>
+          )}
+          {step && (
+            <>
+              <p className="mt-3 text-[14px] leading-[1.45] text-text-2">{step.detail}</p>
+              <Button
+                variant="primary"
+                full
+                className="mt-3"
+                onClick={() => {
+                  // The sized step is kept with its day: there is one a cut, and part of it goes back if it overshot.
+                  // It can be taken back on the spot: the targets return to what they were, record included.
+                  const before = state.nutritionTargets
+                  setNutritionTargets(calorieStepPatch(before, step.target, step.sized, today))
+                  setNormal(null)
+                  notify(
+                    L(`Cible : ${step.target} kcal. Prochain point dans 2 semaines.`, `Target: ${step.target} kcal. Next check-in in 2 weeks.`), 'good',
+                    { label: L('Annuler', 'Undo'), run: () => useStore.getState().update((s) => ({ ...s, nutritionTargets: before })) },
+                  )
+                }}
+              >
+                {L(`Passer à ${step.target} kcal`, `Switch to ${step.target} kcal`)}
+              </Button>
+              <button type="button" onClick={() => setNormal(null)} className="pressable mt-2 w-full py-1 text-center text-[13px] font-medium text-text-2 hover:text-text">{L('Revenir à la question', 'Back to the question')}</button>
+            </>
+          )}
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal, puis 2 semaines pour que le poids réagisse.', 'Steps of 150 kcal, then 2 weeks for your weight to respond.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
+            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal (un par sèche prend le déficit du plan en une fois), puis 2 semaines pour que le poids réagisse.', 'Steps of 150 kcal (one per cut takes the plan’s deficit at once), then 2 weeks for your weight to respond.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
           </p>
         </Card>
       </Section>
@@ -163,7 +202,8 @@ function Counter({ label, unit, value, target, onSet, steps, onAdd }: { label: s
         <span className="text-[15px] font-medium">{label}</span>
         <span className="text-[12px] text-muted">{L(`cible ${target}`, `target ${target}`)}</span>
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      {/* On a narrow phone the steps go under the field instead of pushing the page wider. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <input
           aria-label={`${label} (${unit})`}
           className="h-12 w-28 rounded-[10px] border border-line-strong bg-surface px-3 text-[22px] font-semibold tnum focus:border-signal focus:outline-none"
@@ -245,7 +285,7 @@ export function CoachScreen() {
                 <p className="mt-1 text-[13px] text-text-2 tnum"><span className="text-muted">{p.before}</span> → <span className="font-semibold text-text">{p.after}</span></p>
               </div>
             ))}
-            {update.nutritionTargets && <div className="px-4 py-3 text-[13px] text-text-2">{L('Nutrition : ', 'Nutrition: ')}{Object.entries(update.nutritionTargets).map(([k, v]) => `${k} ${v}`).join(' · ')}</div>}
+            {Object.keys(nutritionFigures(update.nutritionTargets)).length > 0 && <div className="px-4 py-3 text-[13px] text-text-2">{L('Nutrition : ', 'Nutrition: ')}{Object.entries(nutritionFigures(update.nutritionTargets)).map(([k, v]) => `${k} ${v}`).join(' · ')}</div>}
           </Card>
           <Button variant="primary" size="lg" full className="mt-3" onClick={() => { applyPlan(update); setUpdate(null); setText(''); useStore.getState().notify(L('Cibles mises à jour.', 'Targets updated.'), 'good') }}>
             {L('Appliquer', 'Apply')} {plural(update.changes.length, L('changement', 'change'), L('changements', 'changes'))}

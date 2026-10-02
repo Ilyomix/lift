@@ -361,6 +361,17 @@ export const SOURCES: Record<string, Source> = {
     id: 'DOI 10.2165/00007256-200030010-00001 · PMID 10907753',
     added: true,
   },
+  // Added on 2 Oct 2026 with the sized step of the cut: what a kilogram lost stands for in energy.
+  hall2008: {
+    authors: 'Hall',
+    year: '2008',
+    title: 'What is the required energy deficit per unit weight loss?',
+    journal: 'International Journal of Obesity 32(3):573–576',
+    get kind() { return L('Étude de modélisation', 'Modelling study') },
+    url: doi('10.1038/sj.ijo.0803720'),
+    id: 'DOI 10.1038/sj.ijo.0803720 · PMID 17848938',
+    added: true,
+  },
   // Added on 2 Oct 2026 with the floor of the calorie advice: general guidance, not a study.
   harvard2024: {
     authors: 'Harvard Health Publishing',
@@ -533,12 +544,12 @@ export const PRINCIPLES: Principle[] = [
     get rule() { return L('−0,5 à −0,7 % du poids par semaine, déficit ≤ 500 kcal/j', '−0.5 to −0.7% of body weight per week, deficit ≤ 500 kcal/day') },
     get detail() {
       return L(
-        'Un déficit d’environ 500 kcal/j supprime les gains de masse maigre ; une perte lente préserve mieux le muscle. Le conseil de calories suit ta moyenne de poids ; en sèche, plus lent que −0,5 %/sem, il baisse de 150 kcal, une fois que la tendance sur 3 semaines est bien celle de la sèche. Garde-fou, qui ne vient pas d’une étude : il ne descend jamais sous ta dépense au repos estimée, ni sous 1 500 kcal (1 200 pour une femme), le minimum conseillé sans suivi médical.',
-        'A deficit of about 500 kcal/day wipes out lean mass gains; slow loss preserves muscle better. The calorie advice follows your weight average; in a cut, slower than −0.5%/wk, it goes down by 150 kcal, once the 3-week trend is the cut’s own. A guard that does not come from a study: it never goes under your estimated energy at rest, nor under 1,500 kcal (1,200 for a woman), the minimum advised without medical supervision.',
+        'Un déficit d’environ 500 kcal/j supprime les gains de masse maigre ; une perte lente préserve mieux le muscle. Le conseil de calories suit ta moyenne de poids. Un pas par sèche n’est pas de 150 kcal mais le déficit du plan en une fois : celui du milieu de la fourchette (−0,6 %/sem, −0,5 en fin de sèche), 500 kcal/j au plus, moins ce que ta tendance montre déjà. Il demande une tendance fiable (une pesée tous les 3 jours, un rythme déjà lent deux semaines plus tôt, pas de changement de calories depuis 3 semaines) et 3 semaines normales, ce que l’app te demande ; s’il a visé trop fort, 150 kcal sont rendues. Il est calculé à 7 700 kcal par kg perdu, une approximation : sous 30 kg de masse grasse environ, le même déficit fait perdre plus de poids. Le reste du temps, plus lent que −0,5 %/sem, le conseil baisse de 150 kcal, une fois que la tendance sur 3 semaines est bien celle de la sèche. Garde-fou, qui ne vient pas d’une étude : il ne descend jamais sous ta dépense au repos estimée, ni sous 1 500 kcal (1 200 pour une femme), le minimum conseillé sans suivi médical.',
+        'A deficit of about 500 kcal/day wipes out lean mass gains; slow loss preserves muscle better. The calorie advice follows your weight average. One step per cut is not 150 kcal but the plan’s deficit at once: the one of the middle of the range (−0.6%/wk, −0.5 at the end of the cut), 500 kcal/day at most, less what your trend already shows. It takes a trend that can be relied on (a weigh-in every 3 days, a pace already slow two weeks earlier, no calorie change for 3 weeks) and 3 normal weeks, which the app asks about; if it aimed too high, 150 kcal are given back. It is worked out at 7,700 kcal per kg lost, an approximation: under about 30 kg of body fat, the same deficit takes off more weight. The rest of the time, slower than −0.5%/wk, the advice goes down by 150 kcal, once the 3-week trend is the cut’s own. A guard that does not come from a study: it never goes under your estimated energy at rest, nor under 1,500 kcal (1,200 for a woman), the minimum advised without medical supervision.',
       )
     },
     level: 'modere',
-    refs: ['murphy2022', 'garthe2011', 'helms2014', 'mifflin1990', 'harvard2024'],
+    refs: ['murphy2022', 'garthe2011', 'helms2014', 'hall2008', 'mifflin1990', 'harvard2024'],
   },
   {
     id: 'protein',

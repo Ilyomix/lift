@@ -1,7 +1,7 @@
 import { L, locale } from './i18n'
 import { addDays, dayNumber, diffDays, mondayOf, todayISO } from './date'
 import { contextAt, GOAL_DATE, PERIODS, PHASES, PROGRAM_START, type Period, type PlannedSession } from './program'
-import type { AppState, BodyEntry, ISODate, Workout, WorkoutType } from './types'
+import type { AppState, BodyEntry, ISODate, NutritionTargets, Workout, WorkoutType } from './types'
 
 export interface Point {
   date: ISODate
@@ -41,12 +41,15 @@ export interface WeightStatus {
   daysSinceLast: number | null
   /** The last weigh-in is more than a week old: the weight shown is an old one, and there is no trend to act on. */
   stale: boolean
+  /** Weigh-ins of the three weeks the trend is read on, and the fewest any one of the three weeks ending today holds. */
+  trendWeighIns: number
+  trendWeeks: number
 }
 
 export function weightStatus(state: AppState, today: ISODate = todayISO()): WeightStatus {
   const pts = measureSeries(state.bodyEntries, 'weight')
   if (!pts.length) {
-    return { current: null, currentDate: null, isAverage: false, start: null, startDate: null, weeklyChange: null, weeklyChangePct: null, daysSinceLast: null, stale: false }
+    return { current: null, currentDate: null, isAverage: false, start: null, startDate: null, weeklyChange: null, weeklyChangePct: null, daysSinceLast: null, stale: false, trendWeighIns: 0, trendWeeks: 0 }
   }
   const ma = movingAverage7(pts)
   const last = pts[pts.length - 1]
@@ -71,6 +74,8 @@ export function weightStatus(state: AppState, today: ISODate = todayISO()): Weig
     weeklyChangePct: weeklyChange !== null && current ? (weeklyChange / current) * 100 : null,
     daysSinceLast,
     stale,
+    trendWeighIns: window.length,
+    trendWeeks: Math.min(...[0, 1, 2].map((k) => pts.filter((p) => p.date <= today && Math.floor(diffDays(p.date, today) / 7) === k).length)),
   }
 }
 
@@ -243,8 +248,11 @@ export function proteinTargetFor(state: AppState, date: ISODate): ProteinTarget 
 }
 
 export interface CalorieAdvice {
-  /** `hold`: the weight asks for fewer calories, and the target is already at the floor. */
-  status: 'ok' | 'lower' | 'raise' | 'wait' | 'hold'
+  /**
+   * `hold`: the weight asks for fewer calories, and the target is already at the floor.
+   * `ask`: the sized step of a cut, which depends on an answer (`first`, `otherwise`): nothing is advised before it.
+   */
+  status: 'ok' | 'lower' | 'raise' | 'wait' | 'hold' | 'ask'
   /** kcal to add (negative: remove). */
   delta: number
   target: number
@@ -257,6 +265,13 @@ export interface CalorieAdvice {
   floor: number
   /** What sets that floor: the energy spent at rest, or the minimum advised without medical supervision. */
   floorIs: 'rest' | 'minimum'
+  /**
+   * With `ask`: the sized step of the cut, the plan's deficit taken at once. It is read on the
+   * trend, which only describes today if the last three weeks were eaten and moved through as
+   * today is: the screen asks, offers this step on a yes and the regular one (`otherwise`) on a no.
+   */
+  first?: { question: string; hint: string; delta: number; target: number; detail: string }
+  otherwise?: { delta: number; target: number; detail: string }
 }
 
 /** Energy spent at rest (Mifflin–St Jeor 1990) from weight, height, age and sex: within about 10 % for most people. */
@@ -283,15 +298,17 @@ export function calorieFloor(state: Pick<AppState, 'bodyEntries' | 'profile'>, t
 
 /**
  * The stretch of cut a date is in: its first day (after the recomposition, the holidays or a diet
- * break) and whether the cut had begun before it, so that it resumes there. Null outside a cut.
+ * break), whether the cut had begun before it, so that it resumes there, and the day the cut began.
+ * Null outside a cut.
  */
-function cutStretchAt(date: ISODate): { start: ISODate; resumed: boolean } | null {
+function cutStretchAt(date: ISODate): { start: ISODate; resumed: boolean; began: ISODate } | null {
   const cutting = (p: Period) => p.phase === 'cut' || p.phase === 'cut-end'
   const i = PERIODS.findIndex((p) => date >= p.start && date <= p.end)
   if (i < 0 || !cutting(PERIODS[i])) return null
   let first = i
   while (first > 0 && cutting(PERIODS[first - 1])) first--
-  return { start: PERIODS[first].start, resumed: PERIODS.slice(0, first).some(cutting) }
+  const began = PERIODS.slice(0, first).find(cutting)?.start
+  return { start: PERIODS[first].start, resumed: !!began, began: began ?? PERIODS[first].start }
 }
 
 /** A loss the report still tolerates in a cut, in % of body weight per week: beyond it, muscle is at risk. */
@@ -300,6 +317,34 @@ const CUT_MAX_RATE = 1
 const RATE_SLACK = 0.1
 /** Calories move by this much at a time. */
 const KCAL_STEP = 150
+/**
+ * Energy of a kilogram of body weight lost, by the usual rule of thumb (3,500 kcal per pound). A
+ * starting point: under about 30 kg of body fat the same deficit takes off more weight (Hall
+ * 2008), and the verdicts that follow are read on the scale, not on this figure.
+ */
+const KCAL_PER_KG = 7700
+/** The deficit the report allows a cut, in kcal a day: about 500 already wipes out lean mass gains (Murphy 2022). */
+const CUT_MAX_DEFICIT = 500
+/**
+ * Weigh-ins the three-week trend needs for a step to be sized on it: one every three days, and
+ * at least two in each of the three weeks (eight in a row three weeks ago say nothing of now).
+ * The sparser the weigh-ins, the coarser the measure of the current balance: simulated with a
+ * scale noise of 0.3 to 0.5 kg that does not last from one day to the next, it is off by 65 to
+ * 110 kcal a day (one standard deviation) when weighed daily, 105 to 175 every three days.
+ */
+const SIZED_WEIGH_INS = 8
+const SIZED_WEEKLY = 2
+/**
+ * A step is sized on a slow reading only if the reading of two weeks before was slow too: one
+ * low reading can come from the scale (water that comes and goes over a month, a few heavy days).
+ */
+const SIZED_CONFIRM_DAYS = 14
+/** Days after a sized step during which a pace above the range gives part of it back: three readings of the three-week trend. */
+const SIZED_CHECK_DAYS = 63
+
+/** kcal a day behind a weekly change of `pct` % of body weight. */
+const kcalPerDay = (pct: number, weight: number) => ((pct / 100) * weight * KCAL_PER_KG) / 7
+
 /**
  * Share of a new pace the trend shows two weeks after it changed (measured on weightStatus with
  * daily weigh-ins: 54 to 60 % on days 14 and 15, 96 % on day 22). Until the trend lies inside the
@@ -324,9 +369,14 @@ function waistTrend(state: AppState, today: ISODate): 'down' | 'up' | 'flat' | n
  * (−0.5 %/week) asks for fewer calories, since the length of the cut was sized on the
  * middle of the range. That verdict needs a trend measured inside the cut and after the
  * last change of calories: for the three weeks the trend still holds older days, only a
- * clearly slow pace is acted on, and the rest waits. The advice needs weigh-ins of the
- * last week, and never goes under the floor (calorieFloor): there it says so, and points
- * at what else can move.
+ * clearly slow pace is acted on, and the rest waits. One step a cut is not 150 kcal but
+ * the plan's deficit taken at once (the middle of the range at 7,700 kcal per kg, 500 kcal
+ * a day at most, less what the trend shows): the plan counts on its pace from the first
+ * day. It needs a trend that can size it (weighed often enough, slow two weeks ago already,
+ * clean of the last calorie change) and three normal weeks, which the screen asks about
+ * (status `ask`); 150 kcal of it go back when the pace then shows it overshot.
+ * The advice needs weigh-ins of the last week, and never goes under the floor
+ * (calorieFloor): there it says so, and points at what else can move.
  */
 export function calorieAdvice(state: AppState, today: ISODate = todayISO()): CalorieAdvice {
   const target = state.nutritionTargets.calories
@@ -402,22 +452,83 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
       `−${kcal} kcal (glucides ou lipides, jamais les protéines) ou ~2 000 pas de plus par jour.`,
       `−${kcal} kcal (carbs or fat, never protein) or ~2,000 more steps a day.`,
     )
+    // A trend that still holds days from before the cut or the last change: the verdict waits for it.
+    const pending = (days: number, before: string, beforeEn: string): CalorieAdvice => ({
+      ...base, status: 'wait', delta: 0, headline: L('Rythme à confirmer', 'Pace to be confirmed'),
+      detail: L(
+        `${pct(rate)} (${aim}), mais la tendance sur 3 semaines compte encore des jours d’avant ${before} : verdict dans ${days} jour${days > 1 ? 's' : ''}.`,
+        `${pct(rate)} (${aim}), but the 3-week trend still counts days from before ${beforeEn}: verdict in ${days} day${days > 1 ? 's' : ''}.`,
+      ),
+    })
+    // The sized step of this cut, once taken.
+    const sized = state.nutritionTargets.sizedStep
+    const taken = sized && stretch && sized.at >= stretch.began && sized.at <= today ? sized : null
     if (loss < (mixed ? slow * MIXED_TREND_SHARE : slow)) {
       // In the first weeks of the cut, or of its return after a diet break, the trend still shows what came before: the first step of the deficit.
-      return sinceCut < TREND_DAYS && sinceCut <= sinceChange
-        ? lower(stretch?.resumed ? L('Reprise de la sèche', 'Back in the cut') : L('Début de sèche', 'Start of the cut'), L(`${pct(rate)} sur les 3 dernières semaines (${aim})`, `${pct(rate)} over the last 3 weeks (${aim})`), less)
-        : lower(L('Perte trop lente', 'Loss too slow'), `${pct(rate)} (${aim})`, less)
+      const starting = sinceCut < TREND_DAYS && sinceCut <= sinceChange
+      const headline = !starting ? L('Perte trop lente', 'Loss too slow') : stretch?.resumed ? L('Reprise de la sèche', 'Back in the cut') : L('Début de sèche', 'Start of the cut')
+      const why = starting ? L(`${pct(rate)} sur les 3 dernières semaines (${aim})`, `${pct(rate)} over the last 3 weeks (${aim})`) : `${pct(rate)} (${aim})`
+      const regular = lower(headline, why, less)
+      // The sized step is still in the trend, with the weeks before it: nothing is added to it until the trend is clean.
+      if (taken && changed === taken.at && sinceChange < TREND_DAYS) return pending(TREND_DAYS - sinceChange, 'ton dernier changement de calories', 'your last change of calories')
+      // The plan counts on its pace from the first day, and 150 kcal at a time takes weeks to get there.
+      // One step a cut is the plan's whole deficit, when the trend can size it: weighed often enough, slow
+      // two weeks ago already, and not in the three weeks after a diet break (a week eaten at maintenance,
+      // which no date records). What else changed in those weeks is not known here: the step comes with a question.
+      const weight = ws.current
+      const slowBefore = () => {
+        const then = addDays(today, -SIZED_CONFIRM_DAYS)
+        const before = weightStatus({ ...state, bodyEntries: state.bodyEntries.filter((e) => e.date <= then) }, then).weeklyChangePct
+        return before !== null && Math.round(-before * 100) / 100 < slow
+      }
+      if (stretch && !taken && !(starting && stretch.resumed) && weight && ws.trendWeighIns >= SIZED_WEIGH_INS && ws.trendWeeks >= SIZED_WEEKLY && slowBefore()) {
+        const round50 = (x: number) => Math.round(x / 50) * 50
+        // The middle of the range, as far as the report's ceiling allows; less what the trend already shows.
+        const planned = Math.min(CUT_MAX_DEFICIT, round50(kcalPerDay((-a - b) / 2, weight)))
+        const shown = Math.max(0, round50(kcalPerDay(loss, weight)))
+        const room = Math.max(0, Math.floor((target - floor) / 50) * 50)
+        const step = Math.min(planned - shown, room)
+        if (step > KCAL_STEP) {
+          // A calorie change in the last three weeks: the trend will be clean of it within a week, and the step is worth the wait.
+          if (sinceChange < TREND_DAYS) return pending(TREND_DAYS - sinceChange, 'ton dernier changement de calories', 'your last change of calories')
+          const stop = step < planned - shown ? L(` Pas plus bas : ${floor} kcal, c’est ${floorText}.`, ` No lower: ${floor} kcal is ${floorText}.`) : ''
+          return {
+            ...base, status: 'ask', delta: 0, headline, detail: `${why}.`,
+            first: {
+              question: L('Tes 3 dernières semaines ont-elles été normales ?', 'Were your last 3 weeks normal ones?'),
+              hint: L('Normales : tu as mangé et bougé comme aujourd’hui. Ni fêtes, ni vacances, ni régime déjà commencé.', 'Normal: you ate and moved the way you do today. No holidays, no time off, no diet already started.'),
+              delta: -step,
+              target: target - step,
+              detail: L(
+                `Le pas complet vise un déficit d’environ ${planned} kcal par jour${shown ? ` ; ta tendance en montre déjà environ ${shown}` : ''}. Soit −${step} kcal en une fois (glucides ou lipides, jamais les protéines), puis 2 semaines pour que le poids réagisse.${stop}`,
+                `The full step aims at a deficit of about ${planned} kcal a day${shown ? `; your trend already shows about ${shown}` : ''}. That is −${step} kcal at once (carbs or fat, never protein), then 2 weeks for your weight to respond.${stop}`,
+              ),
+            },
+            otherwise: {
+              delta: regular.delta,
+              target: regular.target,
+              detail: L(
+                `Ta tendance ne décrit donc pas ta situation d’aujourd’hui. Pour l’instant, un pas ordinaire : ${less(-regular.delta)} Le pas complet viendra après 3 semaines normales.`,
+                `So your trend does not describe where you are today. For now, a regular step: ${less(-regular.delta)} The full step will come after 3 normal weeks.`,
+              ),
+            },
+          }
+        }
+      }
+      return regular
     }
     if (loss > CUT_MAX_RATE) return make(KCAL_STEP, L('Perte trop rapide', 'Loss too fast'), L(`${pct(rate)} : au-delà de −1 %/sem le muscle est menacé. +150 kcal.`, `${pct(rate)}: beyond −1%/wk, muscle is at risk. +150 kcal.`))
     if (mixed && loss < slow) {
-      const days = TREND_DAYS - Math.min(sinceCut, sinceChange)
-      return {
-        ...base, status: 'wait', delta: 0, headline: L('Rythme à confirmer', 'Pace to be confirmed'),
-        detail: L(
-          `${pct(rate)} (${aim}), mais la tendance sur 3 semaines compte encore des jours d’avant ${sinceCut <= sinceChange ? (stretch?.resumed ? 'la reprise de la sèche' : 'la sèche') : 'ton dernier changement de calories'} : verdict dans ${days} jour${days > 1 ? 's' : ''}.`,
-          `${pct(rate)} (${aim}), but the 3-week trend still counts days from before ${sinceCut <= sinceChange ? (stretch?.resumed ? 'the cut resumed' : 'the cut') : 'your last change of calories'}: verdict in ${days} day${days > 1 ? 's' : ''}.`,
-        ),
-      }
+      return sinceCut <= sinceChange
+        ? pending(TREND_DAYS - sinceCut, stretch?.resumed ? 'la reprise de la sèche' : 'la sèche', stretch?.resumed ? 'the cut resumed' : 'the cut')
+        : pending(TREND_DAYS - sinceChange, 'ton dernier changement de calories', 'your last change of calories')
+    }
+    // The sized step was read on a trend, which can under-read, and on an answer, which can be wrong. In the
+    // nine weeks that follow, each time the trend is clean of the last change and above the range, 150 kcal
+    // of the step go back (elsewhere a pace between the top of the range and 1 %/week is left alone).
+    if (taken && target >= taken.to && target < taken.from && !mixed && diffDays(taken.at, today) <= SIZED_CHECK_DAYS && loss > brisk) {
+      const back = Math.min(KCAL_STEP, taken.from - target)
+      return make(back, L('Pas complet trop fort', 'Full step too strong'), L(`${pct(rate)} (${aim}) : au-dessus de la fourchette depuis ton pas complet. +${back} kcal.`, `${pct(rate)} (${aim}): above the range since your full step. +${back} kcal.`))
     }
     if (loss > brisk) return make(0, L('Rythme soutenu', 'Brisk pace'), L(`${pct(rate)} (${aim}) : tolérable jusqu’à −1 %/sem, ne baisse pas davantage les calories.`, `${pct(rate)} (${aim}): tolerable up to −1%/wk, do not lower calories any further.`))
     return make(0, L('Rythme dans la cible', 'Pace on target'), L(`${pct(rate)} (${aim}) : ne change rien.`, `${pct(rate)} (${aim}): change nothing.`))
@@ -435,11 +546,18 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
   return make(0, L('Poids stable', 'Stable weight'), L(`${pct(rate)} : phase de maintien respectée.`, `${pct(rate)}: maintenance phase on track.`))
 }
 
+/** What taking a step of the advice changes in the calorie targets: the sized one is kept with its day and its two ends. */
+export function calorieStepPatch(targets: NutritionTargets, to: number, sized: boolean, today: ISODate = todayISO()): Partial<NutritionTargets> {
+  return { calories: to, ...(sized ? { sizedStep: { at: today, from: targets.calories, to } } : {}) }
+}
+
 /** Kept for the Progress screen: the cut advice as one sentence. */
 export function cutAdvice(state: AppState, today: ISODate = todayISO()): string | null {
   const ctx = contextAt(today)
   if (!ctx.phase || (ctx.phase.id !== 'cut' && ctx.phase.id !== 'cut-end')) return null
   const a = calorieAdvice(state, today)
+  // The sized step of the cut is settled on the nutrition screen, after its question.
+  if (a.status === 'ask') return L(`${a.headline} : règle tes calories dans Plus → Nutrition.`, `${a.headline}: set your calories in More → Nutrition.`)
   return `${a.headline}. ${a.detail}`
 }
 

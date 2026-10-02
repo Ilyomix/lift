@@ -249,6 +249,11 @@ export interface NutritionTargets {
   creatine: number
   /** Day the calorie target last changed: the weight gets two weeks to answer before the next change. */
   caloriesChangedAt?: ISODate
+  /**
+   * The sized step of the cut (the plan's deficit taken at once), when it was taken: there is one a
+   * cut, and part of it goes back if the pace then shows it overshot.
+   */
+  sizedStep?: { at: ISODate; from: number; to: number }
   /** Protein follows the 7-day average weight (≈ 2 g/kg) instead of the fixed range. */
   adaptive?: boolean
 }
