@@ -58,11 +58,16 @@ function UpdatePrompt() {
   if (!needRefresh) return null
   return (
     <div className="fixed inset-x-0 top-[calc(max(env(safe-area-inset-top),12px)+var(--top-clear))] z-[71] flex justify-center px-4">
-      <div role="status" className="overlay-enter flex items-center gap-3 rounded-[12px] border border-line bg-surface px-4 py-2.5 shadow-[0_12px_40px_rgb(0_0_0/0.18)]">
-        <RefreshCw size={16} className="text-text-2" aria-hidden />
-        <span className="text-[14px]">{L('Nouvelle version disponible', 'New version available')}</span>
-        <Button size="sm" variant="primary" onClick={() => void updateServiceWorker(true)}>{L('Mettre à jour', 'Update')}</Button>
-        <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>{L('Plus tard', 'Later')}</Button>
+      {/* One line where it fits; on a phone the message keeps its line and the buttons go under it. */}
+      <div role="status" className="overlay-enter flex max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] border border-line bg-surface py-2.5 pr-2.5 pl-4 shadow-[0_12px_40px_rgb(0_0_0/0.18)]">
+        <span className="flex min-w-0 items-center gap-2.5 py-1 text-[14px]">
+          <RefreshCw size={16} className="shrink-0 text-text-2" aria-hidden />
+          {L('Nouvelle version disponible', 'New version available')}
+        </span>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>{L('Plus tard', 'Later')}</Button>
+          <Button size="sm" variant="primary" onClick={() => void updateServiceWorker(true)}>{L('Mettre à jour', 'Update')}</Button>
+        </span>
       </div>
     </div>
   )
