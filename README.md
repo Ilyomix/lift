@@ -2,7 +2,7 @@
 
 A research-based hypertrophy program, as a web app you install on your phone.
 
-**App: https://ilyomix.github.io/lift/** · Lift was formerly called Golgoth.
+**App: https://ilyomix.github.io/lift/**
 
 ## What it is
 
