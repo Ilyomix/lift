@@ -2,12 +2,14 @@
 
 The interface uses locally bundled animated glTF models, rendered by Three.js in the app's WebView and on the web. Animation changes actual mesh transforms and model parts, with physically based materials and lighting. No CSS transform animation is applied to the artwork.
 
-Title, section and menu illustrations occupy a fixed 32 × 32 CSS-pixel slot. Standalone onboarding illustrations use 64 × 64. Functional control icons keep their existing sizes. Workout types have separate Upper, Lower, Push, Pull and Legs models.
+Page headers and onboarding step headers integrate a fixed 64 × 64 CSS-pixel illustration beside the title. Section and menu illustrations occupy 32 × 32 slots. Functional control icons keep their existing sizes. Workout types have separate Upper, Lower, Push, Pull and Legs models.
 
 ## Rendering contract
 
 - One shared WebGL atlas draws the visible illustrations in 128 × 128 tiles. Duplicate models share one tile. All tiles are rendered before copying to small DOM canvases, preserving clipping, scroll behavior and document layout while avoiding a GPU round trip for each individual scene.
 - Rendering targets 60 frames per second; animation time follows elapsed foreground time and is independent of display refresh rate.
+- Object-specific gestures repeat every 24–32 seconds, with at least 20 seconds at rest and staggered starts. The five workout clips keep their native six-second speed and rest for 22–25 seconds. The optional coach illustration is static. Unchanged poses are not redrawn.
+- Object gestures use internal GLB nodes; there is no generic object yaw. The plate rolls as one rigid assembly, with translation matching its radius times its angle. The camera frames the full gesture once on load and stays fixed during playback.
 - Offscreen artwork, a hidden page and an inactive native app stop drawing. Reduced Motion displays a static 3D pose.
 - The renderer is loaded lazily and disposed after the last illustration unmounts. A theme-colored static silhouette remains if a model or GPU is unavailable.
 - The app's blue/orange accent and light/dark/automatic theme update the model materials in place. No image recoloring or external texture service is required.

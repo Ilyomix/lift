@@ -8,7 +8,7 @@ Ten original object models authored for Lift in Blender 5.2.2 LTS, plus five CC0
 
 `public/models/sport/` contains `dumbbell`, `plate`, `stopwatch`, `calendar`, `chart`, `nutrition`, `settings`, `backup`, `coach`, `trophy` and `workout-{upper,lower,push,pull,legs}.glb`. The workout models are stylized category symbols, not exercise instructions. Upper and Push show chest panels, Pull shows back panels, Lower shows bent legs and a lower torso, and Legs shows extended legs.
 
-Each GLB contains an `ArtRoot`, a square orthographic `IconCamera`, and one six-second `Idle` clip starting at zero. glTF uses Y-up coordinates. The model is centered and normalized to approximately two units, and the exported camera frames its silhouette with transparent margins. Use the embedded camera unchanged; changing its aspect ratio compresses the object. **Set Blender's render resolution to square before exporting**, because the glTF exporter computes camera `xmag` and `ymag` from that aspect ratio.
+Each GLB contains an `ArtRoot`, a square orthographic `IconCamera`, and one six-second `Idle` clip starting at zero. glTF uses Y-up coordinates. The model is centered and normalized to approximately two units. At runtime, `frameSportMotion` frames each object's complete gesture once using its mesh vertices, preserving a square projection and transparent margins. The camera then stays fixed. The workout models retain their exported camera. **Set Blender's render resolution to square before exporting**, because the glTF exporter computes camera `xmag` and `ymag` from that aspect ratio.
 
 Four stable PBR material names permit runtime theming: `LiftGraphite`, `LiftCobalt`, `LiftSilver`, and `LiftInk`. A model includes only the materials it uses. There are no texture maps or baked vertex colors; the runtime can adapt both the neutral material colors and the blue/orange accent. The illustrative `.blend` studio lighting is not exported, so the runtime supplies its own shared environment and lights.
 
@@ -25,20 +25,23 @@ Keep the rubber neutral and dark when adapting themes; whitening it changes the 
 
 Static meshes with the same direct parent and material are joined without deleting vertices or faces. Animated pivots are never merged together. This reduces draw calls while retaining independent moving parts, materials, geometry and normals. The generator asserts that vertex and polygon counts remain unchanged; the artifact verifier reports triangle counts and checks that each model uses at most ten mesh primitives.
 
-Animation is authored on a 60 fps timeline. glTF interpolates its sampled transform keys continuously; the runtime's frame scheduler determines actual playback frame rate. The motion includes real depth changes and pivots: stopwatch hand, calendar page hinge, chart bar scale, gear rotation, archive lid hinge, trophy cup turn, and a hinged apple leaf, while the five static human category poses use only a subtle whole-object yaw. A common three-dimensional yaw stays within ±7 degrees. The nutrition apple stays still while its leaf and vein pivot together at the stem (−14° to +10° around the leaf hinge), making the six-second loop visible even at title-icon size without moving the layout. Loop endpoints match, including quaternion sign equivalence. There is no 2D bounce or CSS rotation in the assets.
+Animation is authored on a 60 fps timeline; the runtime's frame scheduler determines actual playback frame rate. `sportModelMotion.ts` replaces object clips with short gestures on real internal nodes: a stopwatch hand, calendar page hinge, cascading chart bars, gear engagement, archive lid, trophy cup, apple leaf and sliding dumbbell loads. The plate rolls as a single rigid assembly, with travel equal to its radius times its angle, then returns to rest. Generic object yaw is disabled. The optional coach stays static.
+
+Object cycles last 24–32 seconds, with staggered entry delays and at least 20 seconds at rest. The five human category icons retain their six-second clips at native speed, followed by 22–25 seconds of rest. Reduced Motion selects the static initial pose; offscreen, hidden and inactive-native states pause rendering. No CSS transform animation is applied to the illustrations.
 
 ## Reproduce and validate
 
 ```sh
 blender -b --factory-startup --python scripts/generate-sport-models.py
 node scripts/verify-sport-models.mjs
+node --import tsx --test tests/sport-motion.test.ts
 ```
 
 Pass model names after `--` to rebuild a subset. The generator saves editable `.blend` files, 384×384 transparent PNG review renders and individual geometry/provenance JSON files in ignored `.local-release/sport-models/`. These files can be regenerated; the scenes are retained for further manual editing.
 
 The command rebuilds only the ten object icons. The rejected procedural human generators have been removed. Regenerate the five anatomical workout icons with `scripts/generate-workout-icons.py`. `scripts/prototype-realistic-dumbbell.py` uses the same canonical geometry and materials while exporting only to `.local-release/sport-models/realistic-v2/` and producing a larger studio review render. There is no second, stale dumbbell implementation.
 
-The verification script checks all fifteen GLB binary containers, internal buffer bounds and mesh indices, finite geometry and animation values, square camera aspect, material names, absence of textures/external resources, `ArtRoot`, a single `Idle` clip, the exact zero-to-six-second time range and continuous loop endpoints. It writes source hashes, triangle counts, animated channel counts and total bytes to `.local-release/sport-models/validation.json`. The complete fifteen-model set is 3,858,636 bytes (about 3.86 MB) before transfer compression. Read the current verifier output for exact byte counts; the human derivatives are larger than the original object icons.
+The verification script checks all fifteen GLB binary containers, internal buffer bounds and mesh indices, finite geometry and animation values, square camera aspect, material names, absence of textures/external resources, `ArtRoot`, a single `Idle` clip, the exact zero-to-six-second time range and continuous loop endpoints. It writes source hashes, triangle counts, animated channel counts and total bytes to `.local-release/sport-models/validation.json`. Read the current verifier output for exact byte counts; the human derivatives are larger than the original object icons. Runtime motion tests additionally check actual mesh framing, rigid rolling, static rest poses, long pauses and staggered starts.
 
 Five static fallback images live in `src/assets/sport/workout-*.webp`. The human workout generator refreshes them directly from its Blender review renders under `.local-release/workout-models/`, retaining alpha. They are distinct from the ten earlier ImageGen fallback illustrations, whose provenance remains in `src/assets/sport/README.md`.
 
