@@ -109,7 +109,7 @@ export function Screen({ children, className }: { children: ReactNode; className
   return <main className={cx('screen-in mx-auto w-full max-w-[640px] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] safe-top', className)}>{children}</main>
 }
 
-export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'title' }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind; artSize?: 'title' | 'illustration' }) {
+export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'illustration' }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind; artSize?: 'title' | 'illustration' }) {
   return (
     <header className="pt-2 pb-5">
       {(backTo !== undefined || right) && <div className="mb-1 flex min-h-11 items-center justify-between gap-2">
@@ -123,12 +123,12 @@ export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'tit
         )}
         {right}
       </div>}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          {eyebrow && <Eyebrow className="mt-1">{eyebrow}</Eyebrow>}
-          <h1 className="mt-1 text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
-        </div>
+      <div className="flex items-center gap-3">
         {art && <SportArt kind={art} size={artSize} />}
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
+          {eyebrow && <div className="mt-1.5 text-[13px] leading-[1.4] text-text-2">{eyebrow}</div>}
+        </div>
       </div>
       {sub && <p className="mt-2 text-[15px] leading-[1.45] text-text-2">{sub}</p>}
     </header>

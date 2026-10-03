@@ -9,8 +9,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import type { SportArtKind } from '../components/SportArt'
 import { RenderMetrics } from './renderMetrics'
+import { createSportMotion, frameSportMotion, type SportMotion } from './sportModelMotion'
 
-type Model = { scene: Scene; camera: Camera; mixer: AnimationMixer; materials: Set<Material> }
+type Model = { scene: Scene; camera: Camera; mixer: AnimationMixer; materials: Set<Material>; motion: SportMotion }
 type Slot = {
   canvas: HTMLCanvasElement
   context: CanvasRenderingContext2D
@@ -40,6 +41,7 @@ class SportRenderer {
   private measurementStart = 0
   private metrics = import.meta.env.VITE_LIFT_RENDER_METRICS === '1' ? new RenderMetrics('sport-atlas') : undefined
   private elapsed = 0
+  private activeSince = new Map<Model, number>()
   private lost = false
   private disposed = false
   private releaseTimer?: ReturnType<typeof setTimeout>
@@ -106,19 +108,21 @@ class SportRenderer {
         })
         const camera = gltf.cameras[0]
         const mixer = new AnimationMixer(gltf.scene)
-        const model = { scene, camera, mixer, materials }
+        for (const clip of gltf.animations) mixer.clipAction(clip).play()
+        mixer.setTime(0)
+        const motion = createSportMotion(kind, gltf.scene, mixer)
+        const model = { scene, camera, mixer, materials, motion }
         if (this.disposed || !camera) {
           this.disposeModel(model)
           throw new Error('Unavailable illustration')
         }
+        frameSportMotion(kind, gltf.scene, camera, motion)
         scene.environment = this.environment.texture
         scene.environmentIntensity = 1
         scene.add(new HemisphereLight(0xffffff, 0x64748b, 0.65))
         const key = new DirectionalLight(0xffffff, 2.5)
         key.position.set(-3, 5, 4)
         scene.add(key)
-        for (const clip of gltf.animations) mixer.clipAction(clip).play()
-        mixer.setTime(0)
         this.styleMaterials(model)
         return model
       }).catch(error => {
@@ -164,7 +168,7 @@ class SportRenderer {
   }
 
   private needsFrame() {
-    return this.canDraw() && [...this.slots].some(slot => slot.visible && slot.model && (slot.dirty || !this.motion.matches))
+    return this.canDraw() && [...this.slots].some(slot => slot.visible && slot.model && (slot.dirty || (!this.motion.matches && slot.model.motion.animated)))
   }
 
   private schedule() {
@@ -179,6 +183,8 @@ class SportRenderer {
     this.measurementStart = 0
     this.measuredFrames = 0
     this.metrics?.reset()
+    const visible = new Set([...this.slots].flatMap(slot => slot.visible && slot.model ? [slot.model] : []))
+    for (const model of this.activeSince.keys()) if (!visible.has(model) || this.motion.matches) this.activeSince.delete(model)
     for (const slot of this.slots) slot.dirty = true
     this.schedule()
   }
@@ -200,7 +206,14 @@ class SportRenderer {
         instances.push(slot)
         visible.set(slot.model, instances)
       }
-      const tiles = [...visible]
+      const tiles = [...visible].filter(([model, slots]) => {
+        // Start the gesture when its object enters view, not halfway through
+        // a global loop left running by another screen's illustrations.
+        if (!this.activeSince.has(model)) this.activeSince.set(model, this.elapsed)
+        const changed = model.motion.update(this.motion.matches ? 0 : this.elapsed - this.activeSince.get(model)!)
+        return changed || slots.some(slot => slot.dirty)
+      })
+      if (!tiles.length) { this.schedule(); return }
       const tileSize = 128
       const columns = Math.ceil(Math.sqrt(tiles.length)) || 1
       const rows = Math.ceil(tiles.length / columns) || 1
@@ -216,7 +229,6 @@ class SportRenderer {
           const x = (i % columns) * tileSize, y = Math.floor(i / columns) * tileSize
           this.renderer.setViewport(x, y, tileSize, tileSize)
           this.renderer.setScissor(x, y, tileSize, tileSize)
-          model.mixer.setTime(this.motion.matches ? 0 : this.elapsed)
           this.renderer.render(model.scene, model.camera)
         }
         this.renderer.setScissorTest(false)

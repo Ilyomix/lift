@@ -198,10 +198,12 @@ def dumbbell():
                     knurl_faces.append((a,a+1,a+4,a+3))
     mesh('DiamondKnurl',knurl_verts,knurl_faces,'LiftSilver')
     for side,tag in [(-1,'Left'),(1,'Right')]:
+        load = empty(tag+'LoadSlide', GEOMETRY)
         cylinder(tag+'SteelShoulder',(side*.646,0,0),.205,.15,'LiftSilver',axis='X',vertices=48,bevel=.023)
-        cylinder(tag+'Seat',(side*.726,0,0),.242,.060,'LiftSilver',axis='X',vertices=48,bevel=.012)
-        cylinder(tag+'RubberHead',(side*1.037,0,0),.58,.615,'LiftGraphite',axis='X',vertices=6,bevel=.066)
-        cylinder(tag+'PaintedInset',(side*1.351,0,0),.438,.018,'LiftCobalt',axis='X',vertices=6,bevel=.010)
+        cylinder(tag+'Seat',(side*.726,0,0),.242,.060,'LiftSilver',axis='X',vertices=48,bevel=.012,parent=load)
+        cylinder(tag+'RubberHead',(side*1.037,0,0),.58,.615,'LiftGraphite',axis='X',vertices=6,bevel=.066,parent=load)
+        cylinder(tag+'PaintedInset',(side*1.351,0,0),.438,.018,'LiftCobalt',axis='X',vertices=6,bevel=.010,parent=load)
+        animate(load, 'location', [(1,(0,0,0)),(61,(side*.12,0,0)),(121,(0,0,0)),(END,(0,0,0))])
         for i in range(2):
             torus(tag+'CollarGroove'+str(i),(side*(.627+i*.03),0,0),.204,.003,'LiftGraphite',axis='X')
     GEOMETRY.rotation_euler.y=-.56
@@ -228,6 +230,7 @@ def stopwatch():
 
 
 def plate():
+    roll = empty('PlateRollPivot', GEOMETRY)
     annulus('OuterPlate',1,.69,.27)
     annulus('InnerPlate',.56,.18,.24)
     for i in range(3):
@@ -237,6 +240,13 @@ def plate():
     torus('CobaltOuterLip',(0,-.153,0),.935,.033,'LiftCobalt')
     torus('SilverBore',(0,-.146,0),.198,.029,'LiftSilver')
     torus('BoreRear',(0,.146,0),.198,.022,'LiftSilver')
+    for obj in list(GEOMETRY.children):
+        if obj != roll:
+            obj.parent = roll
+    # Unit-radius plate: translation equals radius × angle. All pieces form
+    # one rigid wheel; no decorative lock detaches from its center bore.
+    animate(roll,'location',[(1,(0,0,0)),(61,(.44,0,0)),(121,(0,0,0)),(END,(0,0,0))])
+    animate(roll,'rotation_euler',[(1,(0,0,0)),(61,(0,.44,0)),(121,(0,0,0)),(END,(0,0,0))])
 
 
 def calendar():
@@ -425,7 +435,7 @@ def build(name):
     scale = 2 / max(high-low)
     GEOMETRY.location = -center * scale
     GEOMETRY.scale = (scale,)*3
-    if name != 'nutrition':
+    if name not in {'nutrition', 'plate'}:
         yaw = math.radians(7)
         animate(art, 'rotation_euler', [(1, (0, 0, 0)), (91, (0, 0, yaw)), (181, (0, 0, 0)), (271, (0, 0, -yaw)), (END, (0, 0, 0))])
     scene.frame_set(0)
