@@ -8,7 +8,7 @@ Installing the website on the Home Screen does **not** enable ActivityKit. Build
 Node 22+; `npm ci`, then `npm run native:sync`.
 
 - iOS: macOS with Xcode 26+, `npm run native:ios`. Choose your development team for **App** and **LiftActivity**. The WidgetKit extension is already a dependency and embedded in App. Deployment target is iOS 16.2. Build/install on an iPhone; the Dynamic Island requires a compatible iPhone. No APNs server or App Group is needed for this local ActivityKit integration.
-- Android: Android Studio with SDK 36 and Java 21, `npm run native:android`. Or `cd android && ./gradlew assembleDebug`. Install the APK and allow notifications. For precise end-of-rest alerts enable alarms/reminders from Lift's timer settings. Otherwise Android may delay local alerts. The ongoing notification works from Android 7 (API 24). It uses a `specialUse` foreground service; declare that use case during Play Console review. This implementation uses a standard ongoing notification, not Android's promoted Live Updates format.
+- Android: Android Studio with SDK 36 and Java 21, `npm run native:android`. Or `cd android && ./gradlew assembleDebug`. Install the APK; starting the first workout requests notification permission for lock-screen tracking. For precise end-of-rest alerts enable alarms/reminders from Lift's timer settings. Otherwise Android may delay local alerts. The ongoing notification works from Android 7 (API 24). It uses a `specialUse` foreground service; declare that use case during Play Console review. This implementation uses a standard ongoing notification, not Android's promoted Live Updates format.
 
 The checked-in projects are complete: do not run `cap add` again. Run `native:sync` after web changes; generated web bundles and native configuration are intentionally ignored by git. Web builds keep `/lift/` for GitHub Pages; native builds use `/` and disable PWA/service-worker installation so packaged updates cannot be shadowed by a stale service worker.
 
@@ -39,4 +39,4 @@ Check on an iPhone and Android phone before releasing:
 
 ## Verification status
 
-Local: TypeScript, web/native asset builds, native asset sync and snapshot/queue tests run in Linux. Xcode project parses successfully with both targets and its embed phase. Full Android/iOS compilation is delegated to the Native build checks workflow because this workspace has no Android SDK or Xcode. Device behaviour and signing/distribution require the device checks above.
+Local: TypeScript, web/native asset builds, native asset sync and snapshot/queue tests run in Linux. Xcode project parses successfully with both targets and its embed phase. The iOS app and WidgetKit extension have compiled successfully for the simulator in GitHub Actions. Android compilation runs in the Native build checks workflow because this workspace has no Android SDK or Xcode. Device behaviour and signing/distribution require the device checks above.

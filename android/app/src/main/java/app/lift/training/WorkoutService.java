@@ -1,5 +1,7 @@
 package app.lift.training;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -29,7 +31,12 @@ public class WorkoutService extends Service {
             boolean next = state.optLong("restEndAt", 0) > System.currentTimeMillis();
             if (next != resting) {
                 resting = next;
-                getSystemService(NotificationManager.class).notify(ID, notification());
+                if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    getSystemService(NotificationManager.class).notify(ID, notification());
+                } else {
+                    stopSelf();
+                    return;
+                }
             }
             handler.postDelayed(this, 1000);
         }

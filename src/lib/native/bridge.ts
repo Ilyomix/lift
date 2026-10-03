@@ -4,7 +4,7 @@ import { L } from '../i18n'
 import type { WorkoutActivityState } from './snapshot'
 
 export const isNative = () => Capacitor.isNativePlatform()
-export interface ActivityStatus { supported: boolean; enabled: boolean }
+export interface ActivityStatus { supported: boolean; enabled: boolean; apiLevel?: number }
 export const WorkoutActivity = registerPlugin<{
   status(): Promise<ActivityStatus>
   sync(options: { state: WorkoutActivityState | null }): Promise<void>
@@ -31,6 +31,8 @@ export async function syncRestAlert(state: WorkoutActivityState | null, enabled:
 
 export async function configureNativeAlerts(): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return
+  const status = await WorkoutActivity.status()
+  if ((status.apiLevel ?? 0) < 26) return // Android 7 has no notification channels.
   await LocalNotifications.createChannel({ id: 'lift-rest-sound', name: L('Lift — repos', 'Lift — rest'), importance: 4, vibration: true })
   await LocalNotifications.createChannel({ id: 'lift-rest-silent', name: L('Lift — repos silencieux', 'Lift — silent rest'), importance: 2, vibration: false })
 }

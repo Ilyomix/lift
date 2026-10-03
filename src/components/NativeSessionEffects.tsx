@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { L, resolveLang } from '../lib/i18n'
 import { navigate } from '../lib/router'
@@ -13,6 +14,12 @@ let reported = false
 let alertsConfigured: Promise<void> | undefined
 const submit = latestSync(async (state: ReturnType<typeof useStore.getState>['state']) => {
   const snapshot = workoutActivityState(state.activeWorkout, resolveLang(state.prefs.lang))
+  if (snapshot && state.prefs.liveActivity !== false && Capacitor.getPlatform() === 'android' && document.visibilityState === 'visible') {
+    const permission = await LocalNotifications.checkPermissions()
+    if (permission.display === 'prompt' || permission.display === 'prompt-with-rationale') {
+      await LocalNotifications.requestPermissions()
+    }
+  }
   const nextKey = JSON.stringify([snapshot?.workoutId, snapshot?.restEndAt, snapshot?.exercise, snapshot?.setLabel, snapshot?.detail, state.prefs.notifications, state.prefs.sound])
   if (nextKey !== alertKey) {
     try {

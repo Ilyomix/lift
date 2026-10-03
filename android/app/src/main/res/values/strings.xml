@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Lift</string>
-    <string name="title_activity_main">Lift</string>
-    <string name="package_name">app.lift.training</string>
-    <string name="custom_url_scheme">app.lift.training</string>
+    <string name="app_name" translatable="false">Lift</string>
+    <string name="title_activity_main" translatable="false">Lift</string>
+    <string name="package_name" translatable="false">app.lift.training</string>
+    <string name="custom_url_scheme" translatable="false">app.lift.training</string>
     <string name="workout_channel">Lift — active workout</string>
     <string name="workout_channel_description">Workout progress and rest countdown</string>
 </resources>

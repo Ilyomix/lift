@@ -18,6 +18,7 @@ public class WorkoutActivityPlugin extends Plugin {
     public void status(PluginCall call) {
         JSObject result = new JSObject();
         result.put("supported", true);
+        result.put("apiLevel", Build.VERSION.SDK_INT);
         result.put("enabled", NotificationManagerCompat.from(getContext()).areNotificationsEnabled());
         call.resolve(result);
     }
