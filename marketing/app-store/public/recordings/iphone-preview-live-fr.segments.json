@@ -3,15 +3,28 @@
   "segments": [
     {
       "start": 0,
-      "duration": 6
+      "duration": 6,
+      "label": "Le repos sur écran verrouillé"
     },
     {
       "start": 6,
-      "duration": 7
+      "duration": 4,
+      "label": "Ajouter trente secondes"
     },
     {
-      "start": 13,
-      "duration": 7
+      "start": 10,
+      "duration": 4,
+      "label": "Passer le repos"
+    },
+    {
+      "start": 14,
+      "duration": 2,
+      "label": "Prêt pour la série suivante"
+    },
+    {
+      "start": 16,
+      "duration": 4,
+      "label": "Retour dans la séance"
     }
   ]
 }

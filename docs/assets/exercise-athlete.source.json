@@ -8,7 +8,9 @@
   "authoring": {
     "blender": "5.2.2 LTS",
     "generator": "scripts/generate-athlete.py",
-    "verifier": "scripts/verify-exercise-athlete.mjs"
+    "verifier": "scripts/verify-exercise-athlete.mjs",
+    "headRetopology": "scripts/athlete-head.py",
+    "headStyle": "Smooth anonymous mannequin; no eyes, eyebrows, nose or mouth"
   },
   "phenotype": {
     "gender": 1,
@@ -25,10 +27,10 @@
     "normalizedHeightMeters": 1.82
   },
   "validation": {
-    "sha256": "78fc49f0cb0d4678cf869bc956071d90b39f1e1cc7d821f96f2116259d24d6b8",
-    "bytes": 1838976,
-    "triangleCount": 49748,
-    "exportedVerticesIncludingMaterialSeams": 28675,
+    "sha256": "da59c8923afa62f54ccded6cceafa90229325c98abe024b764fddeb4ff137ae9",
+    "bytes": 2136248,
+    "triangleCount": 59104,
+    "exportedVerticesIncludingMaterialSeams": 33312,
     "skinCount": 1,
     "jointCount": 53,
     "maxWeightNormalizationError": 1.264270395040512e-07,

@@ -2,22 +2,33 @@
   "fps": 30,
   "segments": [
     {
-      "start": 82,
-      "duration": 8,
+      "start": 0,
+      "duration": 6,
+      "label": "Countdown on lock screen",
       "focus": "live"
     },
     {
-      "start": 140,
-      "duration": 5,
+      "start": 6,
+      "duration": 4,
+      "label": "Add thirty seconds",
       "focus": "live"
     },
     {
-      "start": 160,
-      "duration": 2
+      "start": 10,
+      "duration": 4,
+      "label": "Skip rest",
+      "focus": "live"
     },
     {
-      "start": 174,
-      "duration": 5
+      "start": 14,
+      "duration": 2,
+      "label": "Ready to resume",
+      "focus": "live"
+    },
+    {
+      "start": 16,
+      "duration": 4,
+      "label": "Stable workout after resuming"
     }
   ]
 }

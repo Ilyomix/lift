@@ -18,6 +18,11 @@ export const ProductScreen = ({ src, width, device = "iphone", style }: { src: s
 };
 /** Faithful crop of a native screenshot: source pixels only, no reconstructed UI. */
 export const ScreenCrop = ({ src, x, y, cropWidth, cropHeight, width, device = "iphone", style }: { src: string; x: number; y: number; cropWidth: number; cropHeight: number; width: number; device?: "iphone" | "ipad"; style?: CSSProperties }) => {
+  const sourceWidth = device === "ipad" ? 2064 : 1320;
+  const sourceHeight = device === "ipad" ? 2752 : 2868;
+  if (![x, y, cropWidth, cropHeight, width].every(Number.isFinite) || x < 0 || y < 0 || cropWidth <= 0 || cropHeight <= 0 || width <= 0 || x + cropWidth > sourceWidth || y + cropHeight > sourceHeight) {
+    throw new Error(`Crop outside native ${device} source: ${src}`);
+  }
   const scale = width / cropWidth;
   return <div style={{ position: "relative", overflow: "hidden", width, height: cropHeight * scale, borderRadius: 36, ...style }}>
     <CanvasImage src={staticFile(src)} style={{ position: "absolute", left: -x * scale, top: -y * scale, width: (device === "ipad" ? 2064 : 1320) * scale, height: (device === "ipad" ? 2752 : 2868) * scale }} />

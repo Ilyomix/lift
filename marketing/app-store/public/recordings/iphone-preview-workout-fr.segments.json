@@ -2,24 +2,24 @@
   "fps": 30,
   "segments": [
     {
-      "start": 29,
-      "duration": 4
+      "start": 0,
+      "duration": 8,
+      "label": "Comprendre le geste en 3D"
     },
     {
-      "start": 34,
-      "duration": 4
+      "start": 8,
+      "duration": 4,
+      "label": "Noter son effort"
     },
     {
-      "start": 43,
-      "duration": 4
+      "start": 12,
+      "duration": 4,
+      "label": "Valider la série et lancer le repos"
     },
     {
-      "start": 47,
-      "duration": 4
-    },
-    {
-      "start": 56,
-      "duration": 4
+      "start": 16,
+      "duration": 4,
+      "label": "Ouvrir le chronomètre"
     }
   ]
 }

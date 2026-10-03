@@ -2,24 +2,19 @@
   "fps": 30,
   "segments": [
     {
-      "start": 14,
-      "duration": 4
+      "start": 0,
+      "duration": 8,
+      "label": "Calendrier et ouverture de séance"
     },
     {
-      "start": 18,
-      "duration": 4
+      "start": 8,
+      "duration": 4,
+      "label": "Historique des séries"
     },
     {
-      "start": 29,
-      "duration": 4
-    },
-    {
-      "start": 43,
-      "duration": 4
-    },
-    {
-      "start": 51,
-      "duration": 4
+      "start": 12,
+      "duration": 8,
+      "label": "Courbes et détail de progression"
     }
   ]
 }

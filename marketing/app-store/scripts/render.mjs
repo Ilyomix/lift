@@ -5,6 +5,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { uncut, validateSegments } from './segments.mjs';
+import { assertReleaseReady, assertCutProvenance } from './release-source.mjs';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(project, '../..');
@@ -59,32 +60,71 @@ assert(features.every(x => x in names), 'Unknown LIFT_FEATURES');
 assert(themes.every(x => ['plan', 'workout', 'live'].includes(x)), 'LIFT_THEMES must be plan,workout,live');
 assert(videoKinds.every(x => ['Preview', 'Promo'].includes(x)), 'LIFT_VIDEO_KINDS must be Preview,Promo');
 assert(['sync', 'screenshots', 'recordings', 'stills', 'videos', 'all', 'proof', 'proofs'].includes(mode), 'Use sync, screenshots, recordings, stills, videos, all, proof or proofs');
-const { obsoleteSha256 } = JSON.parse(await readFile(resolve(project, 'source-requirements.json'), 'utf8'));
+const requirements = JSON.parse(await readFile(resolve(project, 'source-requirements.json'), 'utf8'));
+const { obsoleteSha256 } = requirements;
+if (!['proof', 'proofs'].includes(mode)) {
+  assertReleaseReady(requirements);
+  assert.equal(createHash('sha256').update(await readFile(resolve(project, 'public/brand/icon.png'))).digest('hex'), requirements.brandSha256, 'Brand changed after the release was prepared');
+}
+const requireFreshCapture = async path => {
+  if (!requirements.requiredBuild) return;
+  assert.equal(process.env.LIFT_SOURCE_BUILD, requirements.requiredBuild, `Use LIFT_SOURCE_BUILD=${requirements.requiredBuild} only after the native capture agent confirms this build`);
+  assert((await stat(path)).mtimeMs >= Date.parse(requirements.captureNotBefore), `${path}: capture predates the required native build`);
+};
+const requireCurrentSource = async path => {
+  await requireFile(path);
+  if (!requirements.requiredBuild) return;
+  const manifest = JSON.parse(await readFile(resolve(project, 'public/source-manifest.json'), 'utf8'));
+  const key = path.slice(resolve(project, 'public').length + 1);
+  const entry = manifest.files.find(file => file.file === key);
+  assert.equal(entry?.sourceBuild, requirements.requiredBuild, `${key}: required native build has not been imported`);
+  assert.equal(entry.sourceCommit, requirements.sourceCommit, `${key}: release source commit mismatch`);
+  assert.equal(entry.sha256, createHash('sha256').update(await readFile(path)).digest('hex'), `${key}: source changed after import`);
+};
 
 if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
   const manifest = { importedAt: new Date().toISOString(), note: 'Actual native simulator captures. Verify capture freshness against the release build before publication.', files: [] };
-  if (mode !== 'recordings') for (const lang of langs) for (const device of devices) for (const feature of features) {
-    const file = `${device}-${names[feature]}${lang === 'en' ? '-en' : ''}.png`;
+  const importScreenshot = async (lang, device, name) => {
+    const file = `${device}-${name}${lang === 'en' ? '-en' : ''}.png`;
     const source = resolve(root, '.local-release/screenshots', file);
     await requireFile(source);
+    await requireFreshCapture(source);
     const hash = createHash('sha256').update(await readFile(source)).digest('hex');
     assert(!obsoleteSha256.includes(hash), `${file}: known obsolete capture. Replace with a capture of the final release and populated demo profile.`);
     const { width, height } = probe(source).streams[0];
     assert.equal(width, device === 'iphone' ? 1320 : 2064, `${file}: source width`);
     assert.equal(height, device === 'iphone' ? 2868 : 2752, `${file}: source height`);
-    const target = resolve(project, 'public/screenshots', lang, `${device}-${names[feature]}.png`);
+    const target = resolve(project, 'public/screenshots', lang, `${device}-${name}.png`);
     await mkdir(dirname(target), { recursive: true });
     await copyFile(source, target);
-    manifest.files.push({ file: `screenshots/${lang}/${device}-${names[feature]}.png`, origin: `.local-release/screenshots/${file}`, sourceModifiedAt: (await stat(source)).mtime.toISOString(), ...(process.env.LIFT_SOURCE_BUILD ? { sourceBuild: process.env.LIFT_SOURCE_BUILD } : {}), width, height, sha256: createHash('sha256').update(await readFile(source)).digest('hex') });
+    manifest.files.push({ file: `screenshots/${lang}/${device}-${name}.png`, origin: `.local-release/screenshots/${file}`, sourceModifiedAt: (await stat(source)).mtime.toISOString(), ...(process.env.LIFT_SOURCE_BUILD ? { sourceBuild: process.env.LIFT_SOURCE_BUILD } : {}), width, height, sha256: createHash('sha256').update(await readFile(source)).digest('hex') });
+  };
+  if (mode !== 'recordings') for (const lang of langs) for (const device of devices) for (const feature of features) {
+    await importScreenshot(lang, device, names[feature]);
+    if (device === 'iphone' && feature === 'progress') await importScreenshot(lang, device, '07-progress-history');
   }
   if (mode !== 'screenshots') for (const lang of langs) for (const device of devices) for (const theme of themes) {
     const name = `${device}-preview-${theme}-${lang}.mp4`;
     const source = resolve(root, '.local-release/recordings', name);
     try { await stat(source); } catch { console.log(`Recording pending: ${name}`); continue; }
+    await requireFreshCapture(source);
     assert(!obsoleteSha256.includes(createHash('sha256').update(await readFile(source)).digest('hex')), `${name}: known obsolete recording. Capture the corrected native build first.`);
     const metadata = probe(source);
     assert(Number(metadata.format.duration) >= 20, `${name}: record at least 20 seconds`);
     const cutName = name.replace('.mp4', '.segments.json');
+    const authoredCutPath = resolve(root, '.local-release/recordings', cutName);
+    await requireFile(authoredCutPath);
+    await requireFreshCapture(authoredCutPath);
+    const authoredCut = JSON.parse(await readFile(authoredCutPath, 'utf8'));
+    const cutSourceHashes = {};
+    for (const sourceName of new Set([name, ...authoredCut.segments.map(x => x.source).filter(Boolean)])) {
+      assert(/^[a-z0-9-]+\.mp4$/.test(sourceName) && sourceName.startsWith(`${device}-`) && sourceName.endsWith(`-${lang}.mp4`));
+      const raw = resolve(root, '.local-release/recordings', sourceName);
+      await requireFile(raw); await requireFreshCapture(raw);
+      cutSourceHashes[sourceName] = createHash('sha256').update(await readFile(raw)).digest('hex');
+      assert(!obsoleteSha256.includes(cutSourceHashes[sourceName]), `${sourceName}: obsolete native take`);
+    }
+    assertCutProvenance(authoredCut, requirements, cutSourceHashes);
     await mkdir(resolve(project, 'public/recordings'), { recursive: true });
     const target = resolve(project, 'public/recordings', name);
     if (process.env.LIFT_IMPORT_EDIT_ONLY === '1') {
@@ -99,6 +139,7 @@ if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
       for (const sourceName of new Set([name, ...candidate.segments.map(x => x.source).filter(Boolean)])) {
         assert(/^[a-z0-9-]+\.mp4$/.test(sourceName) && sourceName.startsWith(`${device}-`) && sourceName.endsWith(`-${lang}.mp4`));
         const raw = resolve(root, '.local-release/recordings', sourceName);
+        await requireFreshCapture(raw);
         const originSha256 = createHash('sha256').update(await readFile(raw)).digest('hex');
         assert(!obsoleteSha256.includes(originSha256), `${sourceName}: obsolete native take`);
         const rawProbe = probe(raw); const video = rawProbe.streams.find(x => x.codec_type === 'video');
@@ -152,6 +193,7 @@ if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
       assert(/^[a-z0-9-]+\.mp4$/.test(extraName) && extraName.startsWith(`${device}-`) && extraName.endsWith(`-${lang}.mp4`), 'Additional take must match this device and language');
       const extraSource = resolve(root, '.local-release/recordings', extraName);
       await requireFile(extraSource);
+      await requireFreshCapture(extraSource);
       const originSha256 = createHash('sha256').update(await readFile(extraSource)).digest('hex');
       assert(!obsoleteSha256.includes(originSha256), `${extraName}: obsolete native take`);
       const extraVideo = probe(extraSource).streams.find(x => x.codec_type === 'video');
@@ -168,7 +210,7 @@ if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
   let previous = { files: [] };
   try { previous = JSON.parse(await readFile(resolve(project, 'public/source-manifest.json'), 'utf8')); } catch {}
   const merged = new Map(previous.files.map(file => [file.file, file]));
-  for (const file of manifest.files) merged.set(file.file, file);
+  for (const file of manifest.files) merged.set(file.file, { ...file, sourceBuild: requirements.requiredBuild, sourceCommit: requirements.sourceCommit });
   manifest.files = [...merged.values()];
   await writeFile(resolve(project, 'public/source-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 } else if (mode === 'proofs') {
@@ -194,19 +236,23 @@ if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
   run(process.execPath, [cli, 'still', 'src/index.ts', 'Direction-Board', resolve(output, 'direction-board-v2.png'), ...browserArgs]);
 } else {
   // Preflight the entire selected batch before producing any output.
-  if (mode !== 'videos') for (const lang of langs) for (const device of devices) for (const feature of features) await requireFile(resolve(project, 'public/screenshots', lang, `${device}-${names[feature]}.png`));
-  if (mode !== 'videos' && features.includes('plan') && devices.includes('iphone')) for (const lang of langs) await requireFile(resolve(project, 'public/screenshots', lang, 'iphone-02-workout.png'));
+  if (mode !== 'videos') for (const lang of langs) for (const device of devices) for (const feature of features) await requireCurrentSource(resolve(project, 'public/screenshots', lang, `${device}-${names[feature]}.png`));
+  if (mode !== 'videos' && features.includes('plan')) for (const lang of langs) for (const device of devices) await requireCurrentSource(resolve(project, 'public/screenshots', lang, `${device}-02-workout.png`));
+  if (mode !== 'videos' && features.includes('progress') && devices.includes('iphone')) for (const lang of langs) await requireCurrentSource(resolve(project, 'public/screenshots', lang, 'iphone-07-progress-history.png'));
   if (mode !== 'stills') for (const lang of langs) for (const device of devices) for (const theme of themes) {
     const source = resolve(project, 'public/recordings', `${device}-preview-${theme}-${lang}.mp4`);
-    await requireFile(source);
+    await requireCurrentSource(source);
     assert(Number(probe(source).format.duration) >= 20, `${source}: at least 20 real recorded seconds required`);
-    await readCut(source.replace('.mp4', '.segments.json'), Number(probe(source).format.duration));
+    await requireCurrentSource(source.replace('.mp4', '.segments.json'));
+    const cut = await readCut(source.replace('.mp4', '.segments.json'), Number(probe(source).format.duration));
+    for (const extra of new Set(cut.segments.map(segment => segment.source).filter(Boolean))) await requireCurrentSource(resolve(project, 'public/recordings', extra));
   }
   if (mode !== 'videos') for (const lang of langs) for (const device of devices) for (const feature of features) {
     const target = resolve(output, lang, device, `${String(order.indexOf(feature) + 1).padStart(2, '0')}-${feature}.png`);
     await mkdir(dirname(target), { recursive: true });
     run(process.execPath, [cli, 'still', 'src/index.ts', `Screenshot-${lang}-${device}-${feature}`, target, ...browserArgs]);
     verifyStill(target, device);
+    run(process.execPath, [resolve(project, 'scripts/media-state.mjs'), 'rendered', target.slice(output.length + 1)]);
   }
   if (mode !== 'stills') for (const kind of videoKinds) for (const lang of langs) for (const device of devices) for (const theme of themes) {
     if (device === 'ipad' && kind === 'Promo') continue;
@@ -241,6 +287,7 @@ if (mode === 'sync' || mode === 'screenshots' || mode === 'recordings') {
       const still = probe(poster).streams[0];
       assert.equal(still.width, width); assert.equal(still.height, height); assert.equal(still.pix_fmt, 'rgb24');
     }
+    run(process.execPath, [resolve(project, 'scripts/media-state.mjs'), 'rendered', target.slice(output.length + 1)]);
   }
 }
 console.log(`Done: ${mode}. Outputs: ${output}`);

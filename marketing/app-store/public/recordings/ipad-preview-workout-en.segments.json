@@ -3,23 +3,23 @@
   "segments": [
     {
       "start": 0,
-      "duration": 4
-    },
-    {
-      "start": 4,
-      "duration": 4
+      "duration": 8,
+      "label": "Real human technique"
     },
     {
       "start": 8,
-      "duration": 4
+      "duration": 4,
+      "label": "Choose effort RIR2"
     },
     {
       "start": 12,
-      "duration": 4
+      "duration": 4,
+      "label": "Confirm the recorded set"
     },
     {
       "start": 16,
-      "duration": 4
+      "duration": 4,
+      "label": "Open the full rest timer"
     }
   ]
 }

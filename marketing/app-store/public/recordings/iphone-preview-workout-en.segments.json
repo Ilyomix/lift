@@ -2,24 +2,24 @@
   "fps": 30,
   "segments": [
     {
-      "start": 128,
-      "duration": 4
+      "start": 0,
+      "duration": 8,
+      "label": "Real 3D exercise repetition"
     },
     {
-      "start": 140,
-      "duration": 4
+      "start": 8,
+      "duration": 4,
+      "label": "Select effort"
     },
     {
-      "start": 154,
-      "duration": 4
+      "start": 12,
+      "duration": 4,
+      "label": "Validate set and start recovery"
     },
     {
-      "start": 160,
-      "duration": 4
-    },
-    {
-      "start": 170,
-      "duration": 4
+      "start": 16,
+      "duration": 4,
+      "label": "Open full rest timer"
     }
   ]
 }

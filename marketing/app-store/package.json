@@ -37,7 +37,8 @@
     "render:proofs": "node scripts/render.mjs proofs",
     "demo:serve": "node scripts/serve-demo.mjs",
     "gallery": "node scripts/create-gallery.mjs",
+    "package:media": "node scripts/package-media.mjs",
     "gallery:serve": "node scripts/serve-gallery.mjs",
-    "test": "node --test scripts/segments.test.mjs"
+    "test": "node --test scripts/*.test.mjs"
   }
 }

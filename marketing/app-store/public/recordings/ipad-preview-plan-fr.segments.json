@@ -3,23 +3,23 @@
   "segments": [
     {
       "start": 0,
-      "duration": 4
-    },
-    {
-      "start": 4,
-      "duration": 4
+      "duration": 8,
+      "label": "Calendrier puis séance accomplie"
     },
     {
       "start": 8,
-      "duration": 4
+      "duration": 4,
+      "label": "Retrouver l’historique"
     },
     {
       "start": 12,
-      "duration": 4
+      "duration": 2,
+      "label": "Courbes des exercices"
     },
     {
-      "start": 16,
-      "duration": 4
+      "start": 14,
+      "duration": 6,
+      "label": "Courbe de force et historique"
     }
   ]
 }

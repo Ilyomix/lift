@@ -1,787 +1,1280 @@
 {
-  "importedAt": "2026-10-03T07:41:26.377Z",
+  "importedAt": "2026-10-03T12:37:11.125Z",
   "note": "Actual native simulator captures. Verify capture freshness against the release build before publication.",
   "files": [
     {
       "file": "screenshots/fr/iphone-01-home.png",
       "origin": ".local-release/screenshots/iphone-01-home.png",
-      "sourceModifiedAt": "2026-10-03T07:08:32.028Z",
-      "sourceBuild": "build5-final",
+      "sourceModifiedAt": "2026-10-03T10:58:00.308Z",
+      "sourceBuild": "7",
       "width": 1320,
       "height": 2868,
-      "sha256": "5460c7bfdb2ddfe9e8374349b040c3598dcd9d4ca63662a8bc27d6a69ba256d2"
-    },
-    {
-      "file": "screenshots/fr/ipad-01-home.png",
-      "origin": ".local-release/screenshots/ipad-01-home.png",
-      "sourceModifiedAt": "2026-10-03T06:43:27.741Z",
-      "sourceBuild": "build5-8056248-ui",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "47e35557c42de1851d18fbfbd62340175bf9200056c4033c88859e164498add5"
-    },
-    {
-      "file": "screenshots/fr/ipad-02-workout.png",
-      "origin": ".local-release/screenshots/ipad-02-workout.png",
-      "sourceModifiedAt": "2026-10-03T07:20:52.551Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "5f13973cb777f08d413f3a1a0776fbe27878bcb5edfbe8d7c6ac48e97fc7ac05"
-    },
-    {
-      "file": "screenshots/en/ipad-01-home.png",
-      "origin": ".local-release/screenshots/ipad-01-home-en.png",
-      "sourceModifiedAt": "2026-10-03T06:24:26.708Z",
-      "sourceBuild": "4-8056248",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "14a885d96aea390b68954498da2e87e3d3e3ff00df74cee417f71d0f621837eb"
-    },
-    {
-      "file": "screenshots/en/ipad-02-workout.png",
-      "origin": ".local-release/screenshots/ipad-02-workout-en.png",
-      "sourceModifiedAt": "2026-10-03T06:25:48.983Z",
-      "sourceBuild": "8056248-build4",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "7efaa6c29e39057128d8b8b527bd9fedbcd0b1101967edff8c73c658d4270fe0"
-    },
-    {
-      "file": "screenshots/fr/iphone-06-calendar.png",
-      "origin": ".local-release/screenshots/iphone-06-calendar.png",
-      "sourceModifiedAt": "2026-10-03T05:34:18.343Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "bf044a038386c2ac2f1675d8910bf3752dcae6411de7860b52fe6b35a571eaea"
-    },
-    {
-      "file": "screenshots/fr/iphone-07-progress.png",
-      "origin": ".local-release/screenshots/iphone-07-progress.png",
-      "sourceModifiedAt": "2026-10-03T05:34:59.042Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "577cfe568f5d0e5d830d30431408b2c9bafc6aee6b0f3761cc5c42fbbcfb44ec"
-    },
-    {
-      "file": "screenshots/fr/iphone-02-workout.png",
-      "origin": ".local-release/screenshots/iphone-02-workout.png",
-      "sourceModifiedAt": "2026-10-03T07:15:06.906Z",
-      "sourceBuild": "5",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "c61cd342eea5ca85ddc02a8232173dfabdd6fa4cb302f623de05b4d4d35dc6f1"
-    },
-    {
-      "file": "screenshots/fr/iphone-04-timer.png",
-      "origin": ".local-release/screenshots/iphone-04-timer.png",
-      "sourceModifiedAt": "2026-10-03T05:36:37.282Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "223909965c7e56d62db28fa5c195cc8a92c57b1862edf44965f4ffcbbe38a2f7"
-    },
-    {
-      "file": "recordings/iphone-preview-plan-fr.mp4",
-      "origin": ".local-release/recordings/iphone-preview-plan-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T05:34:59.161Z",
-      "sourceBuild": "3",
-      "duration": 59.833333,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "c6d0ab4156a6374aee41971a500076b573468e12aa49ab56fc1eb1fa89e72705",
-      "sha256": "78dc75c4c583a7fdaf506f2eecfb8647f626024d5866a35df2ee06f70794ad77"
-    },
-    {
-      "file": "recordings/iphone-preview-plan-fr.segments.json",
-      "origin": ".local-release/recordings/iphone-preview-plan-fr.segments.json",
-      "sha256": "73370bddaab008fb3cd8854302f6e31a0d8a834635b65384b62053dc89c56226"
-    },
-    {
-      "file": "recordings/iphone-preview-workout-fr.mp4",
-      "origin": ".local-release/recordings/iphone-preview-workout-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T05:36:37.416Z",
-      "sourceBuild": "3",
-      "duration": 68.966667,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "3b67addfbdf47502adad362f29d104b3facd20a1b7a168f9de1c4611663e2048",
-      "sha256": "77e9fe59c4b1479d84931661f881a261fe62cf4815e671f18588d6bf6bf51aff"
-    },
-    {
-      "file": "recordings/iphone-preview-workout-fr.segments.json",
-      "origin": ".local-release/recordings/iphone-preview-workout-fr.segments.json",
-      "sha256": "673fc0e9adf41425395fb95eddb640030320acead7f4b65a683639966552bcf5"
-    },
-    {
-      "file": "screenshots/fr/iphone-05-plan.png",
-      "origin": ".local-release/screenshots/iphone-05-plan.png",
-      "sourceModifiedAt": "2026-10-03T05:40:09.909Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "e8530bb5a02aec7552d1db4961e87b14a75e62f8b74461e6278e86c25e5a2eae"
-    },
-    {
-      "file": "screenshots/fr/iphone-08-exercise.png",
-      "origin": ".local-release/screenshots/iphone-08-exercise.png",
-      "sourceModifiedAt": "2026-10-03T05:40:36.958Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "aae432b4d40f1b09cf3c3f6b0a759b604965058db2ece0965d90fbba2e683af1"
-    },
-    {
-      "file": "screenshots/fr/iphone-09-gyms.png",
-      "origin": ".local-release/screenshots/iphone-09-gyms.png",
-      "sourceModifiedAt": "2026-10-03T05:40:53.878Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "04a5c3ca636fb77788c2eea545a1857cdecb3a57ddf08a5a271078e7306e866d"
+      "sha256": "3fbbd2a49fb7ff3ce1b21e98176fd6ab822d7e6678a321c9b85d846fac949d2f",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "screenshots/fr/iphone-10-backup.png",
       "origin": ".local-release/screenshots/iphone-10-backup.png",
-      "sourceModifiedAt": "2026-10-03T05:37:21.514Z",
-      "sourceBuild": "3",
+      "sourceModifiedAt": "2026-10-03T10:58:36.293Z",
+      "sourceBuild": "7",
       "width": 1320,
       "height": 2868,
-      "sha256": "6b7c33c24c2cba9d0326c8abda0c0b3b530b35f67bfe8054c7fc5187dff8855e"
+      "sha256": "401d0b3ac23b918416de66ed1b25a8d97dc3e63b45b4f122bce0e342dc1f8fad",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "screenshots/en/iphone-01-home.png",
-      "origin": ".local-release/screenshots/iphone-01-home-en.png",
-      "sourceModifiedAt": "2026-10-03T06:45:12.563Z",
-      "sourceBuild": "build5-8056248-ui",
+      "file": "screenshots/fr/iphone-02-workout.png",
+      "origin": ".local-release/screenshots/iphone-02-workout.png",
+      "sourceModifiedAt": "2026-10-03T11:12:09.065Z",
+      "sourceBuild": "7",
       "width": 1320,
       "height": 2868,
-      "sha256": "d6847bf7cdbe76d6be43dc366a206638143870106855b0cd88632dfc87716777"
+      "sha256": "69a7d109ceddd6f31c81381a1877e2806613552778a8cb257b1f97bc5a3ac8d5",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "screenshots/en/ipad-07-progress.png",
-      "origin": ".local-release/screenshots/ipad-07-progress-en.png",
-      "sourceModifiedAt": "2026-10-03T05:48:57.656Z",
-      "sourceBuild": "3",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "61ea53d25b345c8a6b2b17e7dacd0b58b34cb2a1aae63be622e49c8c0a1fc86c"
-    },
-    {
-      "file": "screenshots/en/ipad-04-timer.png",
-      "origin": ".local-release/screenshots/ipad-04-timer-en.png",
-      "sourceModifiedAt": "2026-10-03T05:51:52.329Z",
-      "sourceBuild": "3",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "d03733635302d9fe2043ef1f42e51f96001c4ebd4ba24a13a756e833546b075a"
-    },
-    {
-      "file": "screenshots/en/iphone-04-timer.png",
-      "origin": ".local-release/screenshots/iphone-04-timer-en.png",
-      "sourceModifiedAt": "2026-10-03T05:57:42.941Z",
-      "sourceBuild": "3",
+      "file": "screenshots/fr/iphone-04-timer.png",
+      "origin": ".local-release/screenshots/iphone-04-timer.png",
+      "sourceModifiedAt": "2026-10-03T11:12:44.924Z",
+      "sourceBuild": "7",
       "width": 1320,
       "height": 2868,
-      "sha256": "0aaea7c33da99c8da24c7a6e538c4909d5484f6ffb754ccaf547d0bc14df6968"
+      "sha256": "ea7c521d7e632f77a754b1486a63593f0141fadbdb90e47089636ffaa7a6f17e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-plan-en.mp4",
-      "origin": ".local-release/recordings/ipad-preview-plan-en.mp4",
-      "sourceModifiedAt": "2026-10-03T05:47:46.992Z",
-      "sourceBuild": "3",
-      "duration": 70.633333,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "5a25378010d1ec14d2cb4fb2bfc1fb13b507ea2831db4796cdea2cf685516c6c",
-      "sha256": "5325f10a19b508f7616ae5d0d05740faf53bf34fbaaaf0c13cea468bb169734d"
+      "file": "screenshots/fr/iphone-06-calendar.png",
+      "origin": ".local-release/screenshots/iphone-06-calendar.png",
+      "sourceModifiedAt": "2026-10-03T11:02:27.005Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "d4024ee8456e1bd5f5c759bc0988c0b34e4af04314cd2bd213a99157ee0cbc74",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-plan-en.segments.json",
-      "origin": ".local-release/recordings/ipad-preview-plan-en.segments.json",
-      "sha256": "6267172e7d3297a537732532c518fc59db4281fcb38f3e4f5792968f2d2a3237"
+      "file": "screenshots/fr/iphone-07-progress.png",
+      "origin": ".local-release/screenshots/iphone-07-progress.png",
+      "sourceModifiedAt": "2026-10-03T11:04:18.799Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "27b4ab6711826b02378987a26495e8675a26309148ee2c0da3572ba51cd71114",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-workout-en.mp4",
-      "origin": ".local-release/recordings/ipad-preview-workout-en.mp4",
-      "sourceModifiedAt": "2026-10-03T07:33:26.691Z",
-      "sourceBuild": "5",
+      "file": "screenshots/fr/iphone-05-plan.png",
+      "origin": ".local-release/screenshots/iphone-05-plan.png",
+      "sourceModifiedAt": "2026-10-03T11:01:48.809Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "f00e1e8633075807897b081241b9b60d925ee3c858d28b31e2d6babc877dea85",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/iphone-09-gyms.png",
+      "origin": ".local-release/screenshots/iphone-09-gyms.png",
+      "sourceModifiedAt": "2026-10-03T11:05:10.897Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "cd61f5efdae1e84fab9577432ed18e3df83b40547ca916a51763ef80624c316e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/iphone-07-progress-history.png",
+      "origin": ".local-release/screenshots/iphone-07-progress-history.png",
+      "sourceModifiedAt": "2026-10-03T11:25:42.095Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "9b7245c58b21167ae68ebcae2b1003d747781c75768b3c804fd1542a35a43dbd",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/iphone-08-exercise.png",
+      "origin": ".local-release/screenshots/iphone-08-exercise.png",
+      "sourceModifiedAt": "2026-10-03T11:24:33.818Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "4c8b91b987de112324981b2a3881581479adde84263dbace358d816909ac936c",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-plan-fr.mp4",
+      "origin": ".local-release/recordings/iphone-preview-plan-fr.mp4",
+      "sourceModifiedAt": "2026-10-03T11:04:19.222Z",
+      "sourceBuild": "7",
       "duration": 20,
       "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
       "origins": {
-        "ipad-preview-workout-en.mp4": {
-          "origin": ".local-release/recordings/ipad-preview-workout-en.mp4",
-          "originSha256": "416ff1c9520c31b593e71974fb831b50c83702792df953fb9ba3d10f05bb5c79",
-          "duration": 87.853333
+        "iphone-preview-plan-fr.mp4": {
+          "origin": ".local-release/recordings/iphone-preview-plan-fr.mp4",
+          "originSha256": "f0bebe102849d52fdf7392f1c402bf408505e2cacc03bcc2f89d664b60aa093d",
+          "duration": 111.361667
         }
       },
       "originalSegments": [
         {
-          "start": 25,
-          "duration": 4
+          "start": 12,
+          "duration": 8,
+          "label": "Calendrier et ouverture de séance"
         },
         {
-          "start": 29,
-          "duration": 4
+          "start": 43,
+          "duration": 4,
+          "label": "Historique des séries"
         },
         {
-          "start": 40,
-          "duration": 4
-        },
-        {
-          "start": 59,
-          "duration": 4
-        },
-        {
-          "start": 81,
-          "duration": 4
+          "start": 83,
+          "duration": 8,
+          "label": "Courbes et détail de progression"
         }
       ],
-      "originSha256": "416ff1c9520c31b593e71974fb831b50c83702792df953fb9ba3d10f05bb5c79",
-      "sha256": "fa5105c50700994d02973add00a342c839e451f93f4266b7bc0ceb8e6b32ae5d"
+      "originSha256": "f0bebe102849d52fdf7392f1c402bf408505e2cacc03bcc2f89d664b60aa093d",
+      "sha256": "7c1d3042236e7667238142fdcbc775a47e7d4fb0a4ce7b00714bb6ee29ac6f13",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-workout-en.segments.json",
-      "origin": ".local-release/recordings/ipad-preview-workout-en.segments.json",
+      "file": "recordings/iphone-preview-plan-fr.segments.json",
+      "origin": ".local-release/recordings/iphone-preview-plan-fr.segments.json",
       "originalSegments": [
         {
-          "start": 25,
-          "duration": 4
+          "start": 12,
+          "duration": 8,
+          "label": "Calendrier et ouverture de séance"
         },
         {
-          "start": 29,
-          "duration": 4
+          "start": 43,
+          "duration": 4,
+          "label": "Historique des séries"
         },
         {
-          "start": 40,
-          "duration": 4
-        },
-        {
-          "start": 59,
-          "duration": 4
-        },
-        {
-          "start": 81,
-          "duration": 4
+          "start": 83,
+          "duration": 8,
+          "label": "Courbes et détail de progression"
         }
       ],
-      "sha256": "af952aa382ccafa3ef3376ce30deff1ed8682321b896e3d0f6f7167b313158f2"
-    },
-    {
-      "file": "screenshots/en/iphone-07-progress.png",
-      "origin": ".local-release/screenshots/iphone-07-progress-en.png",
-      "sourceModifiedAt": "2026-10-03T06:07:29.850Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "59d390bc4afe4e6976b83191c62e855fd661d6cd1c89161114346d9493bde78e"
-    },
-    {
-      "file": "screenshots/en/iphone-06-calendar.png",
-      "origin": ".local-release/screenshots/iphone-06-calendar-en.png",
-      "sourceModifiedAt": "2026-10-03T06:06:48.555Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "4df3a92a0cc02d416e0b21638b71b8491ed52ebe861b666a38410f59147615f9"
-    },
-    {
-      "file": "recordings/iphone-preview-plan-en.mp4",
-      "origin": ".local-release/recordings/iphone-preview-plan-en.mp4",
-      "sourceModifiedAt": "2026-10-03T06:07:29.961Z",
-      "sourceBuild": "3",
-      "duration": 41.1,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "e1652059f5a70ed196bab075aa7145f1c8fff0fd422d9010db0f6fbe771faa10",
-      "sha256": "66a892368c99c4091c86d6bd6c762a4f4ee43c85850e85e5ce4513772da314c6"
-    },
-    {
-      "file": "recordings/iphone-preview-plan-en.segments.json",
-      "origin": ".local-release/recordings/iphone-preview-plan-en.segments.json",
-      "sha256": "c96c25b6fa329304beabc6212a6257d2808a860a352df4016d2e7fb2a87dd9ea"
-    },
-    {
-      "file": "recordings/iphone-preview-workout-en.mp4",
-      "origin": ".local-release/recordings/iphone-preview-workout-en.mp4",
-      "sourceModifiedAt": "2026-10-03T05:57:43.372Z",
-      "sourceBuild": "3",
-      "duration": 190.633333,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "43af3df2deaf4a44647271ae673622a78deb4e332760583c88098f75b544ef4f",
-      "sha256": "9738a747c88c7e96cff0d6d71fce3b8537a7ddead6370d6b1108c1a0c4b9a84e"
-    },
-    {
-      "file": "recordings/iphone-preview-workout-en.segments.json",
-      "origin": ".local-release/recordings/iphone-preview-workout-en.segments.json",
-      "sha256": "854db3a7cfae5de36f4572f341fcadc779efb32ae65d3eee73f522ac0e087fc4"
-    },
-    {
-      "file": "recordings/ipad-preview-plan-detail-en.mp4",
-      "origin": ".local-release/recordings/ipad-preview-plan-detail-en.mp4",
-      "sourceModifiedAt": "2026-10-03T05:48:57.729Z",
-      "sourceBuild": "3",
-      "duration": 29.6,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "9a5aedeb484c9946cd624ded0933be1bbcd0ecc7cd1a06622506015e31f2e785",
-      "sha256": "4eef2c58207614dc6a484e1016b4caa1dab2d3c031b079e56e8de9ea3148a77d"
-    },
-    {
-      "file": "screenshots/en/iphone-05-plan.png",
-      "origin": ".local-release/screenshots/iphone-05-plan-en.png",
-      "sourceModifiedAt": "2026-10-03T06:12:23.968Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "6405049dcd5af96a0ce29390bc1822d10a5d58b9ae4eb595f54452ffa3b5eee7"
-    },
-    {
-      "file": "screenshots/en/iphone-08-exercise.png",
-      "origin": ".local-release/screenshots/iphone-08-exercise-en.png",
-      "sourceModifiedAt": "2026-10-03T06:16:23.146Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "0bcea59d74739cc22f2c7ebdbd9dc7f2cfa2c51beb57d88074f41becf1d19116"
-    },
-    {
-      "file": "screenshots/en/iphone-09-gyms.png",
-      "origin": ".local-release/screenshots/iphone-09-gyms-en.png",
-      "sourceModifiedAt": "2026-10-03T06:13:27.699Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "d4fa21adb8dadefeaf4e55827f4436e3209ea585e27db43e6918594f78aa3bcf"
-    },
-    {
-      "file": "screenshots/en/iphone-10-backup.png",
-      "origin": ".local-release/screenshots/iphone-10-backup-en.png",
-      "sourceModifiedAt": "2026-10-03T06:07:54.098Z",
-      "sourceBuild": "3",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "9cd8b2031ec4bf0169cb983c0423f0a70bdcf9382ba38ee87f51d1125ef6bc12"
-    },
-    {
-      "file": "screenshots/en/iphone-02-workout.png",
-      "origin": ".local-release/screenshots/iphone-02-workout-en.png",
-      "sourceModifiedAt": "2026-10-03T06:49:54.948Z",
-      "sourceBuild": "build5-8056248-ui",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "a9b634eef556510c01ee96166e8ea8d3c26aff57bd5d486eed74790a6fdb797b"
-    },
-    {
-      "file": "screenshots/fr/ipad-03-live-activity.png",
-      "origin": ".local-release/screenshots/ipad-03-live-activity.png",
-      "sourceModifiedAt": "2026-10-03T06:37:35.991Z",
-      "sourceBuild": "8056248-build4",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "e9430a1c2a3f5688c42e915b65121da9c9c9a4d1e9baa10f96c419dd1552bb8a"
-    },
-    {
-      "file": "screenshots/en/ipad-03-live-activity.png",
-      "origin": ".local-release/screenshots/ipad-03-live-activity-en.png",
-      "sourceModifiedAt": "2026-10-03T06:31:49.294Z",
-      "sourceBuild": "8056248-build4",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "ac10d2b661ca3c9a66071214ba057d81e4cdca2883e92a005f687dc0807fe95c"
-    },
-    {
-      "file": "screenshots/en/iphone-03-live-activity.png",
-      "origin": ".local-release/screenshots/iphone-03-live-activity-en.png",
-      "sourceModifiedAt": "2026-10-03T06:56:03.021Z",
-      "sourceBuild": "build5-final",
-      "width": 1320,
-      "height": 2868,
-      "sha256": "1b17b71b6846b9cbf44d4f3867b7634632fa7623d12d4c4d87fd24a23e41bd80"
+      "sha256": "9c90f170e2e093e67c9ac932e7c675486cdd48b897b6bd4f43f8df70e0dfcd3d",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "screenshots/fr/iphone-03-live-activity.png",
       "origin": ".local-release/screenshots/iphone-03-live-activity.png",
-      "sourceModifiedAt": "2026-10-03T07:01:12.001Z",
-      "sourceBuild": "build5-final",
+      "sourceModifiedAt": "2026-10-03T11:28:03.020Z",
+      "sourceBuild": "7",
       "width": 1320,
       "height": 2868,
-      "sha256": "d5d74cea52f0ae339621b9f9d9264643da79da1330138d2c647ee7db7af79cfc"
+      "sha256": "7ac691a034efdea3233564fdaa48e54625b53494281692ff0b69e82561f0d536",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-live-fr.mp4",
-      "origin": ".local-release/recordings/ipad-preview-live-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T06:42:28.540Z",
-      "sourceBuild": "8056248-build4",
-      "duration": 290.2,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "f723ab637d0c4d48d9f33def3d16e64f5ab3c9f6f95bd23c68111b7b8c899bb0",
-      "sha256": "6499611e83636bc3dc992a7b380d55074be7c938bad509e7af40dbc937e971e0"
+      "file": "screenshots/en/iphone-01-home.png",
+      "origin": ".local-release/screenshots/iphone-01-home-en.png",
+      "sourceModifiedAt": "2026-10-03T11:32:01.637Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "0a14570b0cb753f3e18e9db163c2a883d9f68d35205f4444a59a931b3d3607e7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-live-fr.segments.json",
-      "origin": ".local-release/recordings/ipad-preview-live-fr.segments.json",
-      "sha256": "8a79a51ece591a0d1acc68e22d6f89149920cb70994d7232f53caf3d180b9d17"
+      "file": "screenshots/en/iphone-10-backup.png",
+      "origin": ".local-release/screenshots/iphone-10-backup-en.png",
+      "sourceModifiedAt": "2026-10-03T11:33:50.736Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "14de0be77973c2df6a08b3f3f4a10b024b765b5d6cdcd717ed167f751c7fa262",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-live-en.mp4",
-      "origin": ".local-release/recordings/ipad-preview-live-en.mp4",
-      "sourceModifiedAt": "2026-10-03T06:33:34.763Z",
-      "sourceBuild": "8056248-build4",
-      "duration": 200.9,
-      "normalization": "H.264 CRF 16, 30 fps, original dimensions, muted",
-      "originSha256": "a5ac17578e99d40fe07f0c761a4c0801857107393b1b726b41d1599b4e98f69b",
-      "sha256": "2cc0e07c60861b8fa902acc6aa41e143594d967e81c71816a429e4e70fa312ec"
+      "file": "screenshots/en/iphone-09-gyms.png",
+      "origin": ".local-release/screenshots/iphone-09-gyms-en.png",
+      "sourceModifiedAt": "2026-10-03T11:33:16.716Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "624023d05834a94a889d7f43fca3760da173792d0321e810dca234b987311b83",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "recordings/ipad-preview-live-en.segments.json",
-      "origin": ".local-release/recordings/ipad-preview-live-en.segments.json",
-      "sha256": "1417cd551d33820f1d8bce97e18194cea72acffc37e3e2f66229856cafafd3eb"
+      "file": "recordings/iphone-preview-workout-fr.mp4",
+      "origin": ".local-release/recordings/iphone-preview-workout-fr.mp4",
+      "sourceModifiedAt": "2026-10-03T11:12:45.300Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "iphone-preview-workout-fr.mp4": {
+          "origin": ".local-release/recordings/iphone-preview-workout-fr.mp4",
+          "originSha256": "0db273080a6063a6a1cb15381845d4753549a76ea78ef1186bb13bcdc813ba69",
+          "duration": 157.513333
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Comprendre le geste en 3D"
+        },
+        {
+          "start": 91,
+          "duration": 4,
+          "label": "Noter son effort"
+        },
+        {
+          "start": 101,
+          "duration": 4,
+          "label": "Valider la série et lancer le repos"
+        },
+        {
+          "start": 132,
+          "duration": 4,
+          "label": "Ouvrir le chronomètre"
+        }
+      ],
+      "originSha256": "0db273080a6063a6a1cb15381845d4753549a76ea78ef1186bb13bcdc813ba69",
+      "sha256": "af630e9e937917a13315b6cee97ab16b2e51d2880f16ada3f74151957d874091",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-workout-fr.segments.json",
+      "origin": ".local-release/recordings/iphone-preview-workout-fr.segments.json",
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Comprendre le geste en 3D"
+        },
+        {
+          "start": 91,
+          "duration": 4,
+          "label": "Noter son effort"
+        },
+        {
+          "start": 101,
+          "duration": 4,
+          "label": "Valider la série et lancer le repos"
+        },
+        {
+          "start": 132,
+          "duration": 4,
+          "label": "Ouvrir le chronomètre"
+        }
+      ],
+      "sha256": "c1b6ef926fbe6a7fe924ad29dbe1dda54da43a5791b3b9a8956a395528ceea8d",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-06-calendar.png",
+      "origin": ".local-release/screenshots/iphone-06-calendar-en.png",
+      "sourceModifiedAt": "2026-10-03T11:37:24.762Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "cf578d504289e54d7bdd351c84d1ae04bbf2240af31e74c3d47009ca6ce697b1",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-07-progress.png",
+      "origin": ".local-release/screenshots/iphone-07-progress-en.png",
+      "sourceModifiedAt": "2026-10-03T11:36:00.631Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "b43a87c731ed373eb625b43421cf3d9d62fefb088ed557c67e2d107fc236501b",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-07-progress-history.png",
+      "origin": ".local-release/screenshots/iphone-07-progress-history-en.png",
+      "sourceModifiedAt": "2026-10-03T11:36:35.830Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "b893a884d0a7b2a4651e23ae394c2df1a991b4b41ba1c126e82efbf814b22a5e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-05-plan.png",
+      "origin": ".local-release/screenshots/iphone-05-plan-en.png",
+      "sourceModifiedAt": "2026-10-03T11:35:31.157Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "32c17ef97a3aaefe2243f4f8e4a6942055c692d174dbfaafac76b28deef2b50e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-02-workout.png",
+      "origin": ".local-release/screenshots/iphone-02-workout-en.png",
+      "sourceModifiedAt": "2026-10-03T11:42:21.947Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "52f84f7dd47908f3725cc1581a253a9ad7a87134cc4034b4300a1a74f7551b06",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-04-timer.png",
+      "origin": ".local-release/screenshots/iphone-04-timer-en.png",
+      "sourceModifiedAt": "2026-10-03T11:42:49.626Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "eff265e04514d0cf9d27468ecd15a1f3935d62b04354a5041a7fc7aec554a06a",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-08-exercise.png",
+      "origin": ".local-release/screenshots/iphone-08-exercise-en.png",
+      "sourceModifiedAt": "2026-10-03T11:41:42.768Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "5ba1781a45ce57656796d457c1fb238449dfe92e004b7f2fb0d122c414a95a57",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/iphone-preview-live-fr.mp4",
       "origin": ".local-release/recordings/iphone-preview-live-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T07:04:47.991Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T11:29:11.867Z",
+      "sourceBuild": "7",
       "duration": 20,
       "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
       "origins": {
         "iphone-preview-live-fr.mp4": {
           "origin": ".local-release/recordings/iphone-preview-live-fr.mp4",
-          "originSha256": "92d80a0761ae79abfae36e7a25e94439e427713f3f076236eb559ab5a2f2cb58",
-          "duration": 208.266667
+          "originSha256": "3c656249230b88347eed46f69952cbad9edaee342329b8776710c92fbf940777",
+          "duration": 100.338333
         }
       },
       "originalSegments": [
         {
-          "start": 24,
-          "duration": 6
+          "start": 20,
+          "duration": 6,
+          "label": "Le repos sur écran verrouillé"
         },
         {
-          "start": 132,
-          "duration": 7
+          "start": 57,
+          "duration": 4,
+          "label": "Ajouter trente secondes"
         },
         {
-          "start": 154,
-          "duration": 7
+          "start": 67,
+          "duration": 4,
+          "label": "Passer le repos"
+        },
+        {
+          "start": 79,
+          "duration": 2,
+          "label": "Prêt pour la série suivante"
+        },
+        {
+          "start": 94,
+          "duration": 4,
+          "label": "Retour dans la séance"
         }
       ],
-      "originSha256": "92d80a0761ae79abfae36e7a25e94439e427713f3f076236eb559ab5a2f2cb58",
-      "sha256": "2834e35dcb3ef6ba2e79192aa1cfd1b69e08883a4169d1ccbf30d9e26230cead"
+      "originSha256": "3c656249230b88347eed46f69952cbad9edaee342329b8776710c92fbf940777",
+      "sha256": "1e8ee849e0d21bd4ff1985595aff9462e8767222bf73fa715ca9a27674a64154",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/iphone-preview-live-fr.segments.json",
       "origin": ".local-release/recordings/iphone-preview-live-fr.segments.json",
       "originalSegments": [
         {
-          "start": 24,
-          "duration": 6
+          "start": 20,
+          "duration": 6,
+          "label": "Le repos sur écran verrouillé"
         },
         {
-          "start": 132,
-          "duration": 7
+          "start": 57,
+          "duration": 4,
+          "label": "Ajouter trente secondes"
         },
         {
-          "start": 154,
-          "duration": 7
+          "start": 67,
+          "duration": 4,
+          "label": "Passer le repos"
+        },
+        {
+          "start": 79,
+          "duration": 2,
+          "label": "Prêt pour la série suivante"
+        },
+        {
+          "start": 94,
+          "duration": 4,
+          "label": "Retour dans la séance"
         }
       ],
-      "sha256": "a4bad276b35be4aee21b087195496c8dfbac3ac8d50b5ddf2482e884d6498ef4"
+      "sha256": "031df41d5c2b0675bac3d06b8c3df90fddc29edc776320ccf7de954841bcee7d",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/iphone-03-live-activity.png",
+      "origin": ".local-release/screenshots/iphone-03-live-activity-en.png",
+      "sourceModifiedAt": "2026-10-03T11:44:33.986Z",
+      "sourceBuild": "7",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "44e4b640b4a5345e1eef7558a9a751bd0624a4831cb1c23f0a17ddaaf2be42e1",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-plan-en.mp4",
+      "origin": ".local-release/recordings/iphone-preview-plan-en.mp4",
+      "sourceModifiedAt": "2026-10-03T11:40:23.812Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "iphone-preview-plan-en.mp4": {
+          "origin": ".local-release/recordings/iphone-preview-plan-en.mp4",
+          "originSha256": "6d21a607ad32633c9df8bd12044ab4e69f1166f501e7d00500a3f3bf33359985",
+          "duration": 112.391667
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 12,
+          "duration": 8,
+          "label": "Calendar and completed day"
+        },
+        {
+          "start": 34,
+          "duration": 4,
+          "label": "Open saved workout"
+        },
+        {
+          "start": 59,
+          "duration": 8,
+          "label": "Progress and strength curve"
+        }
+      ],
+      "originSha256": "6d21a607ad32633c9df8bd12044ab4e69f1166f501e7d00500a3f3bf33359985",
+      "sha256": "58fd34fcfe4128b028d076370ff3ccd98b6d12482cf53272065f086bf9938942",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-plan-en.segments.json",
+      "origin": ".local-release/recordings/iphone-preview-plan-en.segments.json",
+      "originalSegments": [
+        {
+          "start": 12,
+          "duration": 8,
+          "label": "Calendar and completed day"
+        },
+        {
+          "start": 34,
+          "duration": 4,
+          "label": "Open saved workout"
+        },
+        {
+          "start": 59,
+          "duration": 8,
+          "label": "Progress and strength curve"
+        }
+      ],
+      "sha256": "24728920e9f5cf92c35274bf19c21a48deee473714ab5632f17f6dca8c6ac567",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-workout-en.mp4",
+      "origin": ".local-release/recordings/iphone-preview-workout-en.mp4",
+      "sourceModifiedAt": "2026-10-03T11:43:07.515Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "iphone-preview-workout-en.mp4": {
+          "origin": ".local-release/recordings/iphone-preview-workout-en.mp4",
+          "originSha256": "5282ccdb3a4d7263c6b045b6785cb1ccf6641d39b272d520d6bbc1f6e71db696",
+          "duration": 119.905
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Real 3D exercise repetition"
+        },
+        {
+          "start": 57,
+          "duration": 4,
+          "label": "Select effort"
+        },
+        {
+          "start": 61,
+          "duration": 4,
+          "label": "Validate set and start recovery"
+        },
+        {
+          "start": 90,
+          "duration": 4,
+          "label": "Open full rest timer"
+        }
+      ],
+      "originSha256": "5282ccdb3a4d7263c6b045b6785cb1ccf6641d39b272d520d6bbc1f6e71db696",
+      "sha256": "f5d635d6f4eb990c013718dde6e3522f8826a076670eb4e3ca2cc8e2cf53b7cf",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/iphone-preview-workout-en.segments.json",
+      "origin": ".local-release/recordings/iphone-preview-workout-en.segments.json",
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Real 3D exercise repetition"
+        },
+        {
+          "start": 57,
+          "duration": 4,
+          "label": "Select effort"
+        },
+        {
+          "start": 61,
+          "duration": 4,
+          "label": "Validate set and start recovery"
+        },
+        {
+          "start": 90,
+          "duration": 4,
+          "label": "Open full rest timer"
+        }
+      ],
+      "sha256": "59ea8b9ea3dc0e005137069e21803fc856fcfa0da17610c59adb74a5ad7849db",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-01-home.png",
+      "origin": ".local-release/screenshots/ipad-01-home.png",
+      "sourceModifiedAt": "2026-10-03T11:52:14.567Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "18fc408646eb8dd07afd0a5409d004edd0327b8780e8b7db7cbef2879a774ad8",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-10-backup.png",
+      "origin": ".local-release/screenshots/ipad-10-backup.png",
+      "sourceModifiedAt": "2026-10-03T11:52:39.121Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "0df8f612f51f577dffdbbe102f1a2e1265a4d82e2aced5e0724803de3a13ddc0",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-09-gyms.png",
+      "origin": ".local-release/screenshots/ipad-09-gyms.png",
+      "sourceModifiedAt": "2026-10-03T11:54:05.787Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "4db3e5c7c8cfc241977af6169f869a0e9b1622d9d72a2d5c6be5d0c1ce0eeb78",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-05-plan.png",
+      "origin": ".local-release/screenshots/ipad-05-plan.png",
+      "sourceModifiedAt": "2026-10-03T11:53:44.340Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "2ba1d06e8054f73402313b6cbb62babf54b6990345ca3ae89ef562e701bed529",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-06-calendar.png",
+      "origin": ".local-release/screenshots/ipad-06-calendar.png",
+      "sourceModifiedAt": "2026-10-03T11:54:56.180Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "3c18a851c680aa0a30a25c800fa61ed374fc712a437efbb6aa71d8e0bfbd97ed",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-07-progress.png",
+      "origin": ".local-release/screenshots/ipad-07-progress.png",
+      "sourceModifiedAt": "2026-10-03T11:55:59.646Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "3ec08d36579c7da4ffa8d10e11708d254a7db9ca858ee4bd4b6361498ce4b5ac",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-08-exercise.png",
+      "origin": ".local-release/screenshots/ipad-08-exercise.png",
+      "sourceModifiedAt": "2026-10-03T11:57:09.194Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "0c90e24d815d41175b2c247c3895622852c6a1437f5eb2f436515a8ce9b0038e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-02-workout.png",
+      "origin": ".local-release/screenshots/ipad-02-workout.png",
+      "sourceModifiedAt": "2026-10-03T11:59:47.524Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "9a0fd5fa90104dc82adb9e677d9dcd1ba84de1fcf74664eee6c6c0df08a3a5a3",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-04-timer.png",
+      "origin": ".local-release/screenshots/ipad-04-timer.png",
+      "sourceModifiedAt": "2026-10-03T12:00:10.006Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "24c59d903be8486e1f0ae72440a29b4a7454b25d46381ce7eef6dec31c7aeb1e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/fr/ipad-03-live-activity.png",
+      "origin": ".local-release/screenshots/ipad-03-live-activity.png",
+      "sourceModifiedAt": "2026-10-03T12:02:06.921Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "3f738c9c9d334e66d7fc76631ae4d97be2e22569fe0eca88e139d9cc3f416078",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/iphone-preview-live-en.mp4",
       "origin": ".local-release/recordings/iphone-preview-live-en.mp4",
-      "sourceModifiedAt": "2026-10-03T06:57:43.837Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T11:49:09.305Z",
+      "sourceBuild": "7",
       "duration": 20,
       "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
       "origins": {
         "iphone-preview-live-en.mp4": {
           "origin": ".local-release/recordings/iphone-preview-live-en.mp4",
-          "originSha256": "f2a4a6a8b23aa9727a21a5219a0c85c7a17d6a0725166b314a10ce0afaf0fbc4",
-          "duration": 163.648333
+          "originSha256": "444cd53a43a9c345866399b715f8e655d8f490a280caf89584b58a4eb6692fc6",
+          "duration": 271.353333
         }
       },
       "originalSegments": [
         {
-          "start": 34,
-          "duration": 6
+          "start": 20,
+          "duration": 6,
+          "label": "Countdown on lock screen"
         },
         {
-          "start": 56,
-          "duration": 7
+          "start": 205,
+          "duration": 4,
+          "label": "Add thirty seconds"
         },
         {
-          "start": 103,
-          "duration": 4
+          "start": 229,
+          "duration": 4,
+          "label": "Skip rest"
         },
         {
-          "start": 126,
-          "duration": 3
+          "start": 250,
+          "duration": 6,
+          "label": "Resume workout"
         }
       ],
-      "originSha256": "f2a4a6a8b23aa9727a21a5219a0c85c7a17d6a0725166b314a10ce0afaf0fbc4",
-      "sha256": "b04268a54351d06084d6c18bf551b748ca7ab6b098827afb0661e82f784bc323"
+      "originSha256": "444cd53a43a9c345866399b715f8e655d8f490a280caf89584b58a4eb6692fc6",
+      "sha256": "6ce3ab8c72a9e1375f0fa8dd7a178230af160fa42ae1511bbbcc55c5574f353c",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/iphone-preview-live-en.segments.json",
       "origin": ".local-release/recordings/iphone-preview-live-en.segments.json",
       "originalSegments": [
         {
-          "start": 34,
-          "duration": 6
+          "start": 20,
+          "duration": 6,
+          "label": "Countdown on lock screen"
         },
         {
-          "start": 56,
-          "duration": 7
+          "start": 205,
+          "duration": 4,
+          "label": "Add thirty seconds"
         },
         {
-          "start": 103,
-          "duration": 4
+          "start": 229,
+          "duration": 4,
+          "label": "Skip rest"
         },
         {
-          "start": 126,
-          "duration": 3
+          "start": 250,
+          "duration": 6,
+          "label": "Resume workout"
         }
       ],
-      "sha256": "f4e8f1a4c9d8bb646f4adb442f864c9ed9949d4e0315ff94694c57b08bb48cfc"
-    },
-    {
-      "file": "screenshots/fr/ipad-04-timer.png",
-      "origin": ".local-release/screenshots/ipad-04-timer.png",
-      "sourceModifiedAt": "2026-10-03T07:21:12.943Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "437e486e5b2556872d33d403857ed47b35b5f725e8d7fa545aa3e027781bea3c"
-    },
-    {
-      "file": "screenshots/fr/ipad-06-calendar.png",
-      "origin": ".local-release/screenshots/ipad-06-calendar.png",
-      "sourceModifiedAt": "2026-10-03T07:18:34.499Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "a237e4be15c1a3b0f2501129e04a19a17f83a2737521edd05399756c7d964298"
-    },
-    {
-      "file": "screenshots/fr/ipad-07-progress.png",
-      "origin": ".local-release/screenshots/ipad-07-progress.png",
-      "sourceModifiedAt": "2026-10-03T07:19:20.563Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "c6ec0e027e1c5f2ce20a9587bb52ef24135be78437112a90e4a51c54dbf536f3"
-    },
-    {
-      "file": "screenshots/fr/ipad-10-backup.png",
-      "origin": ".local-release/screenshots/ipad-10-backup.png",
-      "sourceModifiedAt": "2026-10-03T07:15:58.253Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "1ad3042d2e8101c38fc70f19c09a937bf0b28fe843a778378dbbe220ac1cd606"
-    },
-    {
-      "file": "recordings/ipad-preview-plan-fr.mp4",
-      "origin": ".local-release/recordings/ipad-preview-plan-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T07:19:20.699Z",
-      "sourceBuild": "5",
-      "duration": 20,
-      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
-      "origins": {
-        "ipad-preview-plan-fr.mp4": {
-          "origin": ".local-release/recordings/ipad-preview-plan-fr.mp4",
-          "originSha256": "fd696432ac70a0e8c10b86ef030dee32f147501ed82d87d4711af9b8c55e6c45",
-          "duration": 73.171667
-        }
-      },
-      "originalSegments": [
-        {
-          "start": 16,
-          "duration": 4
-        },
-        {
-          "start": 35,
-          "duration": 4
-        },
-        {
-          "start": 40,
-          "duration": 4
-        },
-        {
-          "start": 57,
-          "duration": 4
-        },
-        {
-          "start": 68,
-          "duration": 4
-        }
-      ],
-      "originSha256": "fd696432ac70a0e8c10b86ef030dee32f147501ed82d87d4711af9b8c55e6c45",
-      "sha256": "419dde91d11a97c417728ab07af44cd4b3e9ab5869768913e4733f200b335f87"
-    },
-    {
-      "file": "recordings/ipad-preview-plan-fr.segments.json",
-      "origin": ".local-release/recordings/ipad-preview-plan-fr.segments.json",
-      "originalSegments": [
-        {
-          "start": 16,
-          "duration": 4
-        },
-        {
-          "start": 35,
-          "duration": 4
-        },
-        {
-          "start": 40,
-          "duration": 4
-        },
-        {
-          "start": 57,
-          "duration": 4
-        },
-        {
-          "start": 68,
-          "duration": 4
-        }
-      ],
-      "sha256": "af952aa382ccafa3ef3376ce30deff1ed8682321b896e3d0f6f7167b313158f2"
+      "sha256": "7cb3137c7a973ec3c1de423c75070de861b1f8d412385c54a9b12f80b8f79411",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/ipad-preview-workout-fr.mp4",
       "origin": ".local-release/recordings/ipad-preview-workout-fr.mp4",
-      "sourceModifiedAt": "2026-10-03T07:21:13.155Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T12:00:10.486Z",
+      "sourceBuild": "7",
       "duration": 20,
       "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
       "origins": {
         "ipad-preview-workout-fr.mp4": {
           "origin": ".local-release/recordings/ipad-preview-workout-fr.mp4",
-          "originSha256": "a932de1da6dc8ed6359290607f14c9975039585dd3023feae6369d2d346a29e3",
-          "duration": 83.01
+          "originSha256": "4ad86840e68961f05f50cecc951f652489eef989b18c04142484faa6d1578eba",
+          "duration": 79.796667
         }
       },
       "originalSegments": [
         {
-          "start": 29,
-          "duration": 4
+          "start": 3,
+          "duration": 8,
+          "label": "Démonstration 3D réelle"
         },
         {
-          "start": 33,
-          "duration": 4
+          "start": 38,
+          "duration": 4,
+          "label": "Choisir l’effort RIR"
         },
         {
-          "start": 44,
-          "duration": 4
+          "start": 42,
+          "duration": 4,
+          "label": "Valider la série et récupérer"
         },
         {
-          "start": 48,
-          "duration": 4
-        },
-        {
-          "start": 73,
-          "duration": 4
+          "start": 65,
+          "duration": 4,
+          "label": "Ouvrir le chrono"
         }
       ],
-      "originSha256": "a932de1da6dc8ed6359290607f14c9975039585dd3023feae6369d2d346a29e3",
-      "sha256": "c6c37bccea7c6b22b5b664b5b6393430f68de7b66b62422fe82fa95bb87bcadb"
+      "originSha256": "4ad86840e68961f05f50cecc951f652489eef989b18c04142484faa6d1578eba",
+      "sha256": "834ba70fefaf430014797754e39561aece7cd47cf4d519956427d71fb483d1ac",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "recordings/ipad-preview-workout-fr.segments.json",
       "origin": ".local-release/recordings/ipad-preview-workout-fr.segments.json",
       "originalSegments": [
         {
-          "start": 29,
-          "duration": 4
+          "start": 3,
+          "duration": 8,
+          "label": "Démonstration 3D réelle"
         },
         {
-          "start": 33,
-          "duration": 4
+          "start": 38,
+          "duration": 4,
+          "label": "Choisir l’effort RIR"
         },
         {
-          "start": 44,
-          "duration": 4
+          "start": 42,
+          "duration": 4,
+          "label": "Valider la série et récupérer"
         },
         {
-          "start": 48,
-          "duration": 4
-        },
-        {
-          "start": 73,
-          "duration": 4
+          "start": 65,
+          "duration": 4,
+          "label": "Ouvrir le chrono"
         }
       ],
-      "sha256": "af952aa382ccafa3ef3376ce30deff1ed8682321b896e3d0f6f7167b313158f2"
+      "sha256": "59ce6ae7fd7e9985b71ad8dc36daf9e22f56035f2130525320b4a8311e3eeee5",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "screenshots/fr/ipad-08-exercise.png",
-      "origin": ".local-release/screenshots/ipad-08-exercise.png",
-      "sourceModifiedAt": "2026-10-03T07:22:07.015Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "070871401382907dcd3ed2dcc79261c0a266ad9c1ef731697e37b73cd1a8dfed"
+      "file": "recordings/ipad-preview-live-fr.mp4",
+      "origin": ".local-release/recordings/ipad-preview-live-fr.mp4",
+      "sourceModifiedAt": "2026-10-03T12:03:17.885Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "ipad-preview-live-fr.mp4": {
+          "origin": ".local-release/recordings/ipad-preview-live-fr.mp4",
+          "originSha256": "5f0bc01a1e73a350c35751565289397c08945be0c91ce671e9227f033d50d4ba",
+          "duration": 105.608333
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 2,
+          "duration": 6,
+          "label": "Repos sur écran verrouillé",
+          "focus": "live"
+        },
+        {
+          "start": 22,
+          "duration": 4,
+          "label": "Ajouter trente secondes",
+          "focus": "live"
+        },
+        {
+          "start": 46,
+          "duration": 4,
+          "label": "Passer le repos",
+          "focus": "live"
+        },
+        {
+          "start": 60,
+          "duration": 2,
+          "label": "Prêt à reprendre",
+          "focus": "live"
+        },
+        {
+          "start": 74,
+          "duration": 4,
+          "label": "Retour propre dans la séance"
+        }
+      ],
+      "originSha256": "5f0bc01a1e73a350c35751565289397c08945be0c91ce671e9227f033d50d4ba",
+      "sha256": "72421e011bf7d9234f85eb9210539f08a42ee66a033379bb13f9a15883ffd9cd",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "screenshots/fr/ipad-09-gyms.png",
-      "origin": ".local-release/screenshots/ipad-09-gyms.png",
-      "sourceModifiedAt": "2026-10-03T07:21:45.721Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "6ef141f07f7a4199a970aaf4f364aad677677edb6101074bdc65540e70af22f4"
+      "file": "recordings/ipad-preview-live-fr.segments.json",
+      "origin": ".local-release/recordings/ipad-preview-live-fr.segments.json",
+      "originalSegments": [
+        {
+          "start": 2,
+          "duration": 6,
+          "label": "Repos sur écran verrouillé",
+          "focus": "live"
+        },
+        {
+          "start": 22,
+          "duration": 4,
+          "label": "Ajouter trente secondes",
+          "focus": "live"
+        },
+        {
+          "start": 46,
+          "duration": 4,
+          "label": "Passer le repos",
+          "focus": "live"
+        },
+        {
+          "start": 60,
+          "duration": 2,
+          "label": "Prêt à reprendre",
+          "focus": "live"
+        },
+        {
+          "start": 74,
+          "duration": 4,
+          "label": "Retour propre dans la séance"
+        }
+      ],
+      "sha256": "ff0e8fed724227cf6a4e60b937c4e5ee8b77fabfe081742afa725fb275984251",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
-      "file": "screenshots/fr/ipad-05-plan.png",
-      "origin": ".local-release/screenshots/ipad-05-plan.png",
-      "sourceModifiedAt": "2026-10-03T07:29:39.352Z",
-      "sourceBuild": "5",
+      "file": "screenshots/en/ipad-01-home.png",
+      "origin": ".local-release/screenshots/ipad-01-home-en.png",
+      "sourceModifiedAt": "2026-10-03T12:10:39.125Z",
+      "sourceBuild": "7",
       "width": 2064,
       "height": 2752,
-      "sha256": "39768e15415e9e544490fdaa84836138d629cd333f8bfcf49f8d57cad509f037"
-    },
-    {
-      "file": "screenshots/en/ipad-08-exercise.png",
-      "origin": ".local-release/screenshots/ipad-08-exercise-en.png",
-      "sourceModifiedAt": "2026-10-03T07:34:54.170Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "eb5dea6b6fc963f97a77b76f1fe3f1c8e2d32f6f417a989e95e38465576bb84a"
+      "sha256": "347e6cda87b4b3d5e4b5a200df648754799586050c3e3b22517436f2dbf674f8",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "screenshots/en/ipad-09-gyms.png",
       "origin": ".local-release/screenshots/ipad-09-gyms-en.png",
-      "sourceModifiedAt": "2026-10-03T07:34:08.837Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T12:10:59.322Z",
+      "sourceBuild": "7",
       "width": 2064,
       "height": 2752,
-      "sha256": "e465dafe6e5a6c5161e9b0482f5f1bb72fc11b137f30858917623cb52588cdcb"
-    },
-    {
-      "file": "screenshots/en/ipad-06-calendar.png",
-      "origin": ".local-release/screenshots/ipad-06-calendar-en.png",
-      "sourceModifiedAt": "2026-10-03T07:38:43.381Z",
-      "sourceBuild": "5",
-      "width": 2064,
-      "height": 2752,
-      "sha256": "2334cd89d0ec23188dbad9c296ebf7a31662bd49255276f9e2a739c8286ccdfb"
+      "sha256": "615e0ebb9131bc8d72b21c0887444c1cfa9da2199286c90d2039f2d7718e1259",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "screenshots/en/ipad-10-backup.png",
       "origin": ".local-release/screenshots/ipad-10-backup-en.png",
-      "sourceModifiedAt": "2026-10-03T07:37:54.985Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T12:11:34.922Z",
+      "sourceBuild": "7",
       "width": 2064,
       "height": 2752,
-      "sha256": "4e0edf110b5376d536e620d8dccaea92c66e0bf681dce4600e70a3ae4563145e"
+      "sha256": "fff33cedd3fe9989cbf46ad6412377ec006c3d79d2d6ed6791a3abd3feddcdbb",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-plan-fr.mp4",
+      "origin": ".local-release/recordings/ipad-preview-plan-fr.mp4",
+      "sourceModifiedAt": "2026-10-03T12:08:19.639Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "ipad-preview-plan-fr.mp4": {
+          "origin": ".local-release/recordings/ipad-preview-plan-fr.mp4",
+          "originSha256": "ae9b1c4edcbd58c917781c0775810c4589ef28cf00e22ae7835cbd09d135df05",
+          "duration": 267.268333
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 32,
+          "duration": 8,
+          "label": "Calendrier puis séance accomplie"
+        },
+        {
+          "start": 50,
+          "duration": 4,
+          "label": "Retrouver l’historique"
+        },
+        {
+          "start": 234,
+          "duration": 2,
+          "label": "Courbes des exercices"
+        },
+        {
+          "start": 240,
+          "duration": 6,
+          "label": "Courbe de force et historique"
+        }
+      ],
+      "originSha256": "ae9b1c4edcbd58c917781c0775810c4589ef28cf00e22ae7835cbd09d135df05",
+      "sha256": "a5aae9c6dcbc29ed2d086f61988138441fdd6616916a2972bb118f70d979d9ce",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-plan-fr.segments.json",
+      "origin": ".local-release/recordings/ipad-preview-plan-fr.segments.json",
+      "originalSegments": [
+        {
+          "start": 32,
+          "duration": 8,
+          "label": "Calendrier puis séance accomplie"
+        },
+        {
+          "start": 50,
+          "duration": 4,
+          "label": "Retrouver l’historique"
+        },
+        {
+          "start": 234,
+          "duration": 2,
+          "label": "Courbes des exercices"
+        },
+        {
+          "start": 240,
+          "duration": 6,
+          "label": "Courbe de force et historique"
+        }
+      ],
+      "sha256": "1d559f83a5c4da0813fb70279513a1a16f76e5674d19b4a81993cc59d5f1b0fe",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     },
     {
       "file": "screenshots/en/ipad-05-plan.png",
       "origin": ".local-release/screenshots/ipad-05-plan-en.png",
-      "sourceModifiedAt": "2026-10-03T07:40:35.215Z",
-      "sourceBuild": "5",
+      "sourceModifiedAt": "2026-10-03T12:13:05.585Z",
+      "sourceBuild": "7",
       "width": 2064,
       "height": 2752,
-      "sha256": "fd9fe0d03264540ae1b546bf64b573b9acced0c44b8e7e5e53e2d3633cf2ec8c"
+      "sha256": "9874ce077003b0b4781f7aa73647cb7e7527af2969ea94f3001a70a8325c20a6",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-06-calendar.png",
+      "origin": ".local-release/screenshots/ipad-06-calendar-en.png",
+      "sourceModifiedAt": "2026-10-03T12:13:52.771Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "1fb9f2c0913c2aad84cc30d5c502d0c34565e740d5597b8db10ab2461415f1ec",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-07-progress.png",
+      "origin": ".local-release/screenshots/ipad-07-progress-en.png",
+      "sourceModifiedAt": "2026-10-03T12:14:38.315Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "4fe77d5dc7087bd03ed018045c00157eee8b1e7fe7e9f70216bc8f4911332135",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-08-exercise.png",
+      "origin": ".local-release/screenshots/ipad-08-exercise-en.png",
+      "sourceModifiedAt": "2026-10-03T12:15:46.297Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "ea2456171545c01d7b6c6187f7f7ff15660b32f9e50c6a0666d70f331c606e92",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-02-workout.png",
+      "origin": ".local-release/screenshots/ipad-02-workout-en.png",
+      "sourceModifiedAt": "2026-10-03T12:17:25.546Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "8005c3fecc9407bb7a9875759b1a51f31012c035e91c1b6b058eba1afccfcdbc",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-04-timer.png",
+      "origin": ".local-release/screenshots/ipad-04-timer-en.png",
+      "sourceModifiedAt": "2026-10-03T12:17:53.198Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "c2c2c6744bed00504bb846c917be5cbb091e0b9ea5d8c7cba07d68677ac94a8f",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "screenshots/en/ipad-03-live-activity.png",
+      "origin": ".local-release/screenshots/ipad-03-live-activity-en.png",
+      "sourceModifiedAt": "2026-10-03T12:19:23.033Z",
+      "sourceBuild": "7",
+      "width": 2064,
+      "height": 2752,
+      "sha256": "3e6fb714c96443c14d1efd30aa280cc22d1dd0274d49d925079dacfcb651a4eb",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-plan-en.mp4",
+      "origin": ".local-release/recordings/ipad-preview-plan-en.mp4",
+      "sourceModifiedAt": "2026-10-03T12:33:06.648Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "ipad-preview-plan-en.mp4": {
+          "origin": ".local-release/recordings/ipad-preview-plan-en.mp4",
+          "originSha256": "7ac724e94a5e84d32099d74d778b6b6057ac24bfa64e7e6f2125c16139c9f22c",
+          "duration": 87.461667
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 16,
+          "duration": 8,
+          "label": "September calendar and completed day"
+        },
+        {
+          "start": 34,
+          "duration": 4,
+          "label": "Saved Push workout"
+        },
+        {
+          "start": 60,
+          "duration": 2,
+          "label": "Strength progression list"
+        },
+        {
+          "start": 68,
+          "duration": 6,
+          "label": "Chest press curve and complete History"
+        }
+      ],
+      "originSha256": "7ac724e94a5e84d32099d74d778b6b6057ac24bfa64e7e6f2125c16139c9f22c",
+      "sha256": "3231079f232e7e551e968a68ef0b3ff774b0495eb3281357bbfb860cb2f5840e",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-plan-en.segments.json",
+      "origin": ".local-release/recordings/ipad-preview-plan-en.segments.json",
+      "originalSegments": [
+        {
+          "start": 16,
+          "duration": 8,
+          "label": "September calendar and completed day"
+        },
+        {
+          "start": 34,
+          "duration": 4,
+          "label": "Saved Push workout"
+        },
+        {
+          "start": 60,
+          "duration": 2,
+          "label": "Strength progression list"
+        },
+        {
+          "start": 68,
+          "duration": 6,
+          "label": "Chest press curve and complete History"
+        }
+      ],
+      "sha256": "b0343988bb3b38319776957248d5cb2c391f76ebdfa244b27708ec8232ef8229",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-workout-en.mp4",
+      "origin": ".local-release/recordings/ipad-preview-workout-en.mp4",
+      "sourceModifiedAt": "2026-10-03T12:30:44.629Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "ipad-preview-workout-en.mp4": {
+          "origin": ".local-release/recordings/ipad-preview-workout-en.mp4",
+          "originSha256": "94d8345a1109ad2283692c46eaa7c7d7027879969a996fbf9c66d6040f33f0fe",
+          "duration": 119.545
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Real human technique"
+        },
+        {
+          "start": 78,
+          "duration": 4,
+          "label": "Choose effort RIR2"
+        },
+        {
+          "start": 88,
+          "duration": 4,
+          "label": "Confirm the recorded set"
+        },
+        {
+          "start": 98,
+          "duration": 4,
+          "label": "Open the full rest timer"
+        }
+      ],
+      "originSha256": "94d8345a1109ad2283692c46eaa7c7d7027879969a996fbf9c66d6040f33f0fe",
+      "sha256": "3e94bdb41d662c0dc9ba7ae70043f9f96a653e1fed366032ed8ff839d6bbcec5",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-workout-en.segments.json",
+      "origin": ".local-release/recordings/ipad-preview-workout-en.segments.json",
+      "originalSegments": [
+        {
+          "start": 3,
+          "duration": 8,
+          "label": "Real human technique"
+        },
+        {
+          "start": 78,
+          "duration": 4,
+          "label": "Choose effort RIR2"
+        },
+        {
+          "start": 88,
+          "duration": 4,
+          "label": "Confirm the recorded set"
+        },
+        {
+          "start": 98,
+          "duration": 4,
+          "label": "Open the full rest timer"
+        }
+      ],
+      "sha256": "97e8e704d60b0837934813dcc57d434eae62116e57e53cbba435403f6909599a",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-live-en.mp4",
+      "origin": ".local-release/recordings/ipad-preview-live-en.mp4",
+      "sourceModifiedAt": "2026-10-03T12:25:10.455Z",
+      "sourceBuild": "7",
+      "duration": 20,
+      "normalization": "Approved native ranges decoded at normal speed, H.264 CRF 16, 30 fps, original dimensions, muted",
+      "origins": {
+        "ipad-preview-live-en.mp4": {
+          "origin": ".local-release/recordings/ipad-preview-live-en.mp4",
+          "originSha256": "0d9b4336c91b24e3e418d3fb3c5e96e0c25006713e93fc28e68636d50ecc6812",
+          "duration": 141.51
+        }
+      },
+      "originalSegments": [
+        {
+          "start": 20,
+          "duration": 6,
+          "label": "Countdown on lock screen",
+          "focus": "live"
+        },
+        {
+          "start": 41,
+          "duration": 4,
+          "label": "Add thirty seconds",
+          "focus": "live"
+        },
+        {
+          "start": 67,
+          "duration": 4,
+          "label": "Skip rest",
+          "focus": "live"
+        },
+        {
+          "start": 110,
+          "duration": 2,
+          "label": "Ready to resume",
+          "focus": "live"
+        },
+        {
+          "start": 128,
+          "duration": 4,
+          "label": "Stable workout after resuming"
+        }
+      ],
+      "originSha256": "0d9b4336c91b24e3e418d3fb3c5e96e0c25006713e93fc28e68636d50ecc6812",
+      "sha256": "50c21c92df52534758775703ec0dbab2616c1887cbcb1bb8512734fe03c99a5b",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
+    },
+    {
+      "file": "recordings/ipad-preview-live-en.segments.json",
+      "origin": ".local-release/recordings/ipad-preview-live-en.segments.json",
+      "originalSegments": [
+        {
+          "start": 20,
+          "duration": 6,
+          "label": "Countdown on lock screen",
+          "focus": "live"
+        },
+        {
+          "start": 41,
+          "duration": 4,
+          "label": "Add thirty seconds",
+          "focus": "live"
+        },
+        {
+          "start": 67,
+          "duration": 4,
+          "label": "Skip rest",
+          "focus": "live"
+        },
+        {
+          "start": 110,
+          "duration": 2,
+          "label": "Ready to resume",
+          "focus": "live"
+        },
+        {
+          "start": 128,
+          "duration": 4,
+          "label": "Stable workout after resuming"
+        }
+      ],
+      "sha256": "510ccf0b12cee5390aaf8b59d91268bd11158a66898116ae3ea634bf41810487",
+      "sourceBuild": "7",
+      "sourceCommit": "2b2804b807f74e5dcb79725317da4a59fc82e231"
     }
   ]
 }

@@ -2,31 +2,24 @@
   "fps": 30,
   "segments": [
     {
-      "start": 18,
-      "duration": 4,
-      "label": "September calendar"
-    },
-    {
-      "start": 29,
-      "duration": 4,
-      "label": "Choose a completed workout"
-    },
-    {
-      "start": 53,
-      "duration": 4,
-      "label": "Review workout history"
-    },
-    {
-      "source": "ipad-preview-plan-detail-en.mp4",
       "start": 0,
-      "duration": 4,
-      "label": "Open progress curves"
+      "duration": 8,
+      "label": "September calendar and completed day"
     },
     {
-      "source": "ipad-preview-plan-detail-en.mp4",
-      "start": 5,
+      "start": 8,
       "duration": 4,
-      "label": "Read the load history"
+      "label": "Saved Push workout"
+    },
+    {
+      "start": 12,
+      "duration": 2,
+      "label": "Strength progression list"
+    },
+    {
+      "start": 14,
+      "duration": 6,
+      "label": "Chest press curve and complete History"
     }
   ]
 }

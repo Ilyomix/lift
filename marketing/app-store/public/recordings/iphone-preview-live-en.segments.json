@@ -3,19 +3,23 @@
   "segments": [
     {
       "start": 0,
-      "duration": 6
+      "duration": 6,
+      "label": "Countdown on lock screen"
     },
     {
       "start": 6,
-      "duration": 7
+      "duration": 4,
+      "label": "Add thirty seconds"
     },
     {
-      "start": 13,
-      "duration": 4
+      "start": 10,
+      "duration": 4,
+      "label": "Skip rest"
     },
     {
-      "start": 17,
-      "duration": 3
+      "start": 14,
+      "duration": 6,
+      "label": "Resume workout"
     }
   ]
 }

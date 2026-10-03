@@ -3,23 +3,23 @@
   "segments": [
     {
       "start": 0,
-      "duration": 4
-    },
-    {
-      "start": 4,
-      "duration": 4
+      "duration": 8,
+      "label": "Démonstration 3D réelle"
     },
     {
       "start": 8,
-      "duration": 4
+      "duration": 4,
+      "label": "Choisir l’effort RIR"
     },
     {
       "start": 12,
-      "duration": 4
+      "duration": 4,
+      "label": "Valider la série et récupérer"
     },
     {
       "start": 16,
-      "duration": 4
+      "duration": 4,
+      "label": "Ouvrir le chrono"
     }
   ]
 }

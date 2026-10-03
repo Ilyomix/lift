@@ -2,23 +2,33 @@
   "fps": 30,
   "segments": [
     {
-      "start": 25,
+      "start": 0,
       "duration": 6,
+      "label": "Repos sur écran verrouillé",
       "focus": "live"
     },
     {
-      "start": 36,
-      "duration": 7,
-      "focus": "live"
-    },
-    {
-      "start": 251,
+      "start": 6,
       "duration": 4,
+      "label": "Ajouter trente secondes",
       "focus": "live"
     },
     {
-      "start": 265,
-      "duration": 3
+      "start": 10,
+      "duration": 4,
+      "label": "Passer le repos",
+      "focus": "live"
+    },
+    {
+      "start": 14,
+      "duration": 2,
+      "label": "Prêt à reprendre",
+      "focus": "live"
+    },
+    {
+      "start": 16,
+      "duration": 4,
+      "label": "Retour propre dans la séance"
     }
   ]
 }

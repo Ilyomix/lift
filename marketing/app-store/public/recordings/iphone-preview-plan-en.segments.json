@@ -2,24 +2,19 @@
   "fps": 30,
   "segments": [
     {
-      "start": 2,
-      "duration": 4
+      "start": 0,
+      "duration": 8,
+      "label": "Calendar and completed day"
     },
     {
-      "start": 6,
-      "duration": 4
+      "start": 8,
+      "duration": 4,
+      "label": "Open saved workout"
     },
     {
-      "start": 18,
-      "duration": 4
-    },
-    {
-      "start": 27,
-      "duration": 4
-    },
-    {
-      "start": 35,
-      "duration": 4
+      "start": 12,
+      "duration": 8,
+      "label": "Progress and strength curve"
     }
   ]
 }
