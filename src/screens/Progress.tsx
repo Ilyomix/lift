@@ -20,7 +20,7 @@ import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../c
 import { LevelTag, RefList } from '../components/Evidence'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { RecordTag, StatusTag } from '../components/Status'
-import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, DateInput, Empty, Field, Header, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
 
 type Tab = 'force' | 'corps' | 'volume' | 'seances'
 
@@ -393,14 +393,22 @@ function VolumeTab() {
   const rirs = recent.map((w) => ({ w, r: averageRir(w) })).filter((x) => x.r !== null)
   return (
     <>
-      <Section title={L('Séries difficiles par muscle', 'Hard sets per muscle')} className="mt-0" action={
-        <div className="flex gap-1">
-          <IconButton label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)}><ChevronLeft size={18} /></IconButton>
-          <IconButton label={L('Semaine suivante', 'Next week')} disabled={offset === 0} onClick={() => setOffset(offset - 1)}><ChevronRight size={18} /></IconButton>
+      <Section title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
+        {/* The week shown, with a step to the one before and the one after: one control, the week in its middle. */}
+        <div className="mb-3 flex h-11 items-center rounded-[12px] border border-line-strong" role="group" aria-label={L('Semaine affichée', 'Week shown')}>
+          <button type="button" aria-label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)} className="pressable flex h-full w-12 shrink-0 items-center justify-center text-text">
+            <ChevronLeft size={20} aria-hidden />
+          </button>
+          <p className="min-w-0 flex-1 truncate text-center text-[14px] font-semibold tnum" aria-live="polite">
+            {offset === 0 ? L('Cette semaine', 'This week') : offset === 1 ? L('Semaine dernière', 'Last week') : L(`Il y a ${offset} semaines`, `${offset} weeks ago`)}
+            <span className="font-normal text-text-2"> · {L('du', 'from')} {fmtDate(weekStart)}</span>
+          </p>
+          <button type="button" aria-label={L('Semaine suivante', 'Next week')} disabled={offset === 0} onClick={() => setOffset(offset - 1)} className="pressable flex h-full w-12 shrink-0 items-center justify-center text-text disabled:opacity-30">
+            <ChevronRight size={20} aria-hidden />
+          </button>
         </div>
-      }>
-        <p className="-mt-1 mb-4 text-[13px] leading-[1.45] text-text-2">
-          {L('Semaine du', 'Week of')} {fmtDate(weekStart)} {L('· comptage fractionnaire (série directe = 1, indirecte = 0,5). Zone visée : 10–20 séries (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme pour tes jours d’entraînement, en moyenne sur la rotation.', '· fractional counting (direct set = 1, indirect = 0.5). Target range: 10–20 sets (Schoenfeld 2017; Pelland 2025). The line marks the volume planned by the program for your training days, on average over the rotation.')}
+        <p className="mb-4 text-[13px] leading-[1.45] text-text-2">
+          {L('Séries poussées près de l’échec, en comptage fractionnaire (directe = 1, indirecte = 0,5). Zone visée : 10–20 séries par semaine (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme pour tes jours d’entraînement, en moyenne sur la rotation.', 'Sets taken close to failure, counted fractionally (direct = 1, indirect = 0.5). Target zone: 10–20 sets a week (Schoenfeld 2017; Pelland 2025). The mark shows the volume the program plans for your training days, averaged over the rotation.')}
         </p>
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: vol[m.id], planned: planned[m.id] }))} />
