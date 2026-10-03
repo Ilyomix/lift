@@ -19,6 +19,7 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>DSEG7ClassicMini-BoldItalic.ttf</string>
+		<string>LiftSegmentGhost-BoldItalic.ttf</string>
 	</array>
 	<key>NSExtension</key>
 	<dict>

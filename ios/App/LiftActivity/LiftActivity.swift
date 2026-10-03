@@ -61,9 +61,18 @@ private struct RestClock: View {
             } else if let range = state.timerRange {
                 // ActivityKit renders the countdown while the host app is suspended.
                 // Use the same DSEG7 face as the in-app timer, without a per-second update loop.
-                Text(timerInterval: range, countsDown: true, showsHours: false)
-                    .font(.custom("DSEG7ClassicMini-BoldItalic", fixedSize: size))
-                    .monospacedDigit()
+                ZStack(alignment: .trailing) {
+                    // This renamed DSEG derivative draws every digit as an eight.
+                    // Matching system timers keep the ghost aligned even at 10:00 → 9:59.
+                    Text(timerInterval: range, countsDown: true, showsHours: false)
+                        .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
+                        .monospacedDigit()
+                        .opacity(0.10)
+                        .accessibilityHidden(true)
+                    Text(timerInterval: range, countsDown: true, showsHours: false)
+                        .font(.custom("DSEG7ClassicMini-BoldItalic", fixedSize: size))
+                        .monospacedDigit()
+                }
             } else {
                 Text(state.totalSets > 0 && state.completedSets >= state.totalSets
                      ? (state.restLabel == "Repos" ? "Terminé" : "Done") : state.readyLabel)
@@ -170,17 +179,21 @@ private struct LockScreenWorkout: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .trailing, spacing: 7) {
-                    if state.timerRange != nil && !isStale {
-                        Text(state.restLabel.uppercased())
-                            .font(.system(size: 9, weight: .bold))
-                            .tracking(1.7)
-                            .foregroundStyle(muted)
+                RestClock(state: state, size: 32, isStale: isStale)
+                    .frame(width: 136, alignment: .trailing)
+                    .overlay(alignment: .topTrailing) {
+                        if state.timerRange != nil && !isStale {
+                            Text(state.restLabel.uppercased())
+                                .font(.system(size: 9, weight: .bold))
+                                .tracking(1.7)
+                                .foregroundStyle(muted)
+                                .offset(y: -14)
+                        }
                     }
-                    RestClock(state: state, size: 32, isStale: isStale)
-                }
-                .frame(width: 136, alignment: .trailing)
             }
+            // Reserve label space above the row: align the actual readout, rather
+            // than the combined label/readout height, with the exercise details.
+            .padding(.top, state.timerRange != nil && !isStale ? 14 : 0)
 
             WorkoutActions(state: state, isStale: isStale)
             WorkoutProgress(state: state)
