@@ -28,14 +28,16 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
   const dumbbellCurl = ['seated-db-curl', 'incline-db-curl', 'db-curl'].includes(id)
   const skull = id === 'db-skull-crusher'
   const overhead = id.includes('overhead')
+  const cableOverhead = id === 'triceps-overhead-rope'
   const band = id.startsWith('band-')
   const rope = id === 'triceps-rope' || id === 'triceps-overhead-rope'
-  const lean = skull ? -Math.PI / 2 : incline ? -0.55 : overhead ? 0.05 : 0
-  const hips: Point = [0, skull ? 0.13 : seated ? 0.695 : band && overhead ? 0.95 : 0.9828, 0]
+  const lean = skull ? -Math.PI / 2 : incline ? -0.55 : cableOverhead ? .30 : band && overhead ? .12 : overhead ? .04 : 0
+  const overheadUpperAngle = cableOverhead ? .45 : band ? .25 : .15
+  const hips: Point = [0, skull ? 0.13 : seated ? 0.695 : cableOverhead ? .94 : band && overhead ? .95 : .9828, 0]
   const feet = skull
     ? pair(side => [side * 0.17, 0.077, 0.57])
-    : pair(side => [side * 0.19, 0.077, seated ? 0.43 : band && overhead ? (side < 0 ? -0.24 : 0.18) : 0.015])
-  const knees = skull ? pair(side => [side * 0.17, 0.48, 0.25]) : pair(side => [side * 0.18, 0.49, seated ? 0.43 : 0.04])
+    : pair(side => [side * 0.19, 0.077, seated ? 0.43 : cableOverhead ? (side < 0 ? -.27 : .28) : band && overhead ? (side < 0 ? -.24 : .18) : .015])
+  const knees = skull ? pair(side => [side * 0.17, 0.48, 0.25]) : pair((side, i) => [side * 0.18, 0.49, seated ? .43 : cableOverhead ? feet[i][2] * .5 + .05 : .04])
   // The exported athlete is 1.82 m; shoulders are measured from its bind pose.
   const shoulders = pair(side => [side * 0.19224,
     hips[1] + 0.47496 * Math.cos(lean) - 0.01389 * Math.sin(lean),
@@ -44,10 +46,12 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
     const length = body.measures.arms[i][0]
     // A hanging dumbbell needs room outside the thigh and the bench edge.
     // Mild shoulder abduction keeps the full weight clear throughout the curl.
-    const x = sides[i] * (dumbbellCurl || preacher ? .30 : id === 'band-curl' ? .26 : !curl && !overhead && !skull ? .25 : skull ? .225 : id === 'db-overhead-extension' ? .16 : .215)
+    const x = sides[i] * (dumbbellCurl || preacher ? .30 : id === 'band-curl' ? .26 : !curl && !overhead && !skull ? .25 : skull ? .225 : id === 'db-overhead-extension' ? .15 : .215)
     const span = Math.sqrt(length * length - (x - shoulder[0]) ** 2)
     if (skull) return [x, shoulder[1] + span, shoulder[2]]
-    if (overhead) return [x, shoulder[1] + span * Math.cos(0.25), shoulder[2] - span * Math.sin(0.25)]
+    // Raised upper arms remain slightly in front of the torso. The old
+    // negative-Z pole forced the elbows behind the ears throughout the rep.
+    if (overhead) return [x, shoulder[1] + span * Math.cos(overheadUpperAngle), shoulder[2] + span * Math.sin(overheadUpperAngle)]
     if (preacher) return [x, shoulder[1] - span * Math.cos(0.8), shoulder[2] + span * Math.sin(0.8)]
     if (id === 'ez-curl') return [x, shoulder[1] - span * Math.cos(.20), shoulder[2] + span * Math.sin(.20)]
     if (!curl) return [x, shoulder[1] - span * Math.cos(.22), shoulder[2] + span * Math.sin(.22)]
@@ -100,13 +104,15 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
   const handles = band || rope ? [e.handle(), e.handle()] : []
   let anchor: Point | undefined
   const ropes: Mesh[] = []
-  const bandShoulders: Mesh[] = []
-  const bandBase = (i: number): Point => anchor ?? [sides[i] * .24, .025, overhead ? feet[i][2] + .04 : .03]
-  const bandGuide = (i: number): Point => [sides[i] * .29, 1.49, -.15]
+  const bandBase = (i: number): Point => anchor ?? [sides[i] * .24, .025, .03]
   let cable: Mesh | undefined
   if (rope) {
-    anchor = overhead ? [0, 0.28, -0.84] : [0, 2.12, 0.81]
-    e.tower([0, 0, anchor[2]], overhead ? 1.58 : 2.18)
+    anchor = overhead ? [0, .33, -.685] : [0, 2.12, .81]
+    e.tower([0, 0, overhead ? -.90 : anchor[2]], overhead ? 1.58 : 2.18)
+    if (overhead) {
+      e.bar([0, .28, -.90], [0, .28, -.72], .025)
+      e.pulley([0, .28, -.72])
+    }
     cable = e.cable(anchor, [0, 1.2, 0.25])
     ropes.push(e.cable([0, 1.2, 0.25], [-0.15, 1.1, 0.3]), e.cable([0, 1.2, 0.25], [0.15, 1.1, 0.3]))
   } else if (band) {
@@ -114,28 +120,36 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
       anchor = [0, 2.10, 0.8]
       e.bar([0, 0.025, .83], [0, 2.18, .83], 0.025)
       e.bar([-.18, 2.10, .8], [.18, 2.10, .8], 0.02)
+    } else if (overhead) {
+      // A low fixed anchor keeps both free strands straight behind the body.
+      // Routing them over a floating shoulder guide produced a false kink.
+      anchor = [0, .20, -.80]
+      e.block([0, .025, -.85], [.36, .05, .24], 0, e.metal)
+      e.bar([-.08, .05, -.85], [-.08, .20, -.80], .02)
+      e.bar([.08, .05, -.85], [.08, .20, -.80], .02)
+      e.bar([-.08, .20, -.80], [.08, .20, -.80], .02)
     }
     for (let i = 0; i < 2; i++) {
       const base = bandBase(i)
       ropes.push(e.cable(base, [sides[i] * .18, 1, .12]))
-      if (overhead) bandShoulders.push(e.cable(bandGuide(i), [sides[i] * .12, 1.7, 0]))
     }
   }
 
   return {
-    camera: skull ? [2.8, 2.0, 1.7] : incline ? [3.3, 1.55, 3.0] : [2.65, 1.70, 3.8],
+    camera: skull ? [2.8, 2.0, 1.7] : incline ? [3.3, 1.55, 3.0] : cableOverhead ? [3.8, 1.9, 2.6] : [2.65, 1.70, 3.8],
     target: skull ? [0, 0.25, -0.12] : [0, overhead || rope || id === 'band-pushdown' ? 1.04 : seated ? 0.81 : 0.91, 0.03],
     height: skull ? 1.72 : overhead || rope || id === 'band-pushdown' ? 2.35 : seated ? 1.85 : 2.04,
     update(t) {
+      const overheadAngle = overheadUpperAngle - 2.15 + 1.95 * t
       const targets = elbows.map((elbow, i): Point => {
         const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .045 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .13 * t)
         const length = Math.sqrt(Math.max(0.01, body.measures.arms[i][1] ** 2 - (wristX - elbow[0]) ** 2))
-        const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? -2.30 + 2.10 * t : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
+        const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? overheadAngle : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
         return [wristX, elbow[1] + (curl || !overhead && !skull ? -1 : 1) * length * Math.cos(angle), elbow[2] + length * Math.sin(angle)]
       })
       // Two open palms support the upper head. A slight tilt near extension
       // limits wrist dorsiflexion while the dumbbell stays almost upright.
-      const supportAngle = Math.max(-Math.PI / 2, -2.30 + 2.10 * t - 1.10)
+      const supportAngle = Math.max(-Math.PI / 2, overheadAngle - 1.10)
       const supportAlong = new Vector3(0, Math.cos(supportAngle), Math.sin(supportAngle))
       const supportNormal = new Vector3(0, -supportAlong.z, supportAlong.y)
       const gripAxes: Point[] = curl
@@ -188,11 +202,7 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
       } else if (band) {
         ropes.forEach((strand, i) => {
           const base = bandBase(i)
-          if (overhead) {
-            const shoulderContact = bandGuide(i)
-            placeBetween(strand, base, shoulderContact)
-            placeBetween(bandShoulders[i], shoulderContact, result.hands[i])
-          } else placeBetween(strand, base, result.hands[i])
+          placeBetween(strand, base, result.hands[i])
         })
       }
     },

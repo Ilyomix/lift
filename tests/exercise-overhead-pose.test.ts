@@ -52,7 +52,7 @@ for (const id of ['triceps-overhead-rope', 'db-overhead-extension', 'band-overhe
           }
           if (phase === 0) {
             assert(flexion > (overhead ? 100 : 60) && flexion < (overhead ? 135 : 100), `${id}: folded elbow starts outside its working range`)
-            if (overhead) assert(wrist.z < shoulder.z - .17, `${id}: folded wrist must pass behind the head`)
+            if (overhead) assert(wrist.z < at(asset.manifest.bones.head).z - .17, `${id}: folded wrist must pass behind the head`)
           }
           if (phase === 1) assert(flexion > 5 && flexion < 20, `${id}: final elbow remains bent ${flexion.toFixed(1)}°`)
         }
@@ -62,6 +62,67 @@ for (const id of ['triceps-overhead-rope', 'db-overhead-extension', 'band-overhe
     } finally { body.dispose(); equipment.dispose() }
   })
 }
+
+test('overhead upper arms point forward relative to the torso and the cable stance is braced', async () => {
+  const asset = await source
+  for (const id of ['triceps-overhead-rope', 'db-overhead-extension', 'band-overhead-extension']) {
+    const body = Reflect.construct(Athlete, [asset, {}]) as Athlete
+    const equipment = new ExerciseEquipment()
+    const motion = createArmExercise(id, { body, equipment })!
+    const at = (name: string) => body.root.getObjectByName(name)!.getWorldPosition(new Vector3())
+    try {
+      for (const phase of [0, .25, .5, .75, 1]) {
+        motion.update(phase)
+        const torso = at(asset.manifest.bones.neck).sub(at(asset.manifest.bones.pelvis)).normalize()
+        const forward = new Vector3(1, 0, 0).cross(torso).normalize()
+        for (const side of [asset.manifest.bones.right, asset.manifest.bones.left]) {
+          const upperArm = at(side.forearm).sub(at(side.upperArm))
+          assert(upperArm.dot(forward) > .02, `${id}: elbows point behind the torso instead of forward`)
+        }
+        if (id === 'triceps-overhead-rope') {
+          assert(torso.z > .20 && torso.z < .45, 'cable extension needs a modest forward torso lean')
+          const stride = Math.abs(at(asset.manifest.bones.right.foot).z - at(asset.manifest.bones.left.foot).z)
+          assert(stride > .40 && stride < .65, 'the cable stance must have a front and rear support foot')
+        }
+      }
+    } finally { body.dispose(); equipment.dispose() }
+  }
+})
+
+test('overhead band strands stay taut between a solid low anchor and the hands', async () => {
+  const asset = await source
+  const body = Reflect.construct(Athlete, [asset, {}]) as Athlete
+  const equipment = new ExerciseEquipment()
+  const strands: Mesh[] = []
+  const cable = equipment.cable.bind(equipment)
+  equipment.cable = (...args) => { const mesh = cable(...args); strands.push(mesh); return mesh }
+  const motion = createArmExercise('band-overhead-extension', { body, equipment })!
+  const grips: Mesh[] = [], fixture: Mesh[] = []
+  equipment.root.traverse(object => {
+    if (!(object instanceof Mesh)) return
+    if (object.name === 'contact-grip') grips.push(object)
+    else if (object.material === equipment.metal && object.geometry instanceof CylinderGeometry) fixture.push(object)
+  })
+  try {
+    // An unsupported bend in free space is not a valid elastic load path.
+    assert.equal(strands.length, 2, 'each handle must have one straight, free strand')
+    for (const phase of [0, .25, .5, .75, 1]) {
+      motion.update(phase)
+      equipment.root.updateMatrixWorld(true)
+      for (const strand of strands) {
+        const ends = [-.5, .5].map(y => strand.localToWorld(new Vector3(0, y, 0))).sort((a, b) => a.y - b.y)
+        const [anchor, hand] = ends
+        assert(anchor.y < .35 && anchor.z < -.60, 'band needs a low anchor behind the stance')
+        assert(grips.some(grip => grip.getWorldPosition(new Vector3()).distanceTo(hand) < .001), 'free end must meet the actual grip')
+        assert(fixture.some(part => {
+          const local = part.worldToLocal(anchor.clone())
+          const cylinder = (part.geometry as CylinderGeometry).parameters
+          return Math.abs(local.y) <= cylinder.height / 2 && Math.hypot(local.x, local.z) <= cylinder.radiusTop
+        }), 'low end must attach to visible solid equipment')
+      }
+    }
+  } finally { body.dispose(); equipment.dispose() }
+})
 
 test('two-handed overhead extension supports the upper weight head without penetrating either plate', async () => {
   const bytes = await readFile(new URL('../public/models/exercise/athlete.glb', import.meta.url))

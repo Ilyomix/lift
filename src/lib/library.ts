@@ -955,7 +955,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       id: 'band-overhead-extension', name: ['Extension triceps élastique au-dessus de la tête', 'Overhead band triceps extension'], muscle: ['Triceps', 'Triceps'], unit: 'PDC', role: 'isolation',
       groups: { triceps: 1 }, requires: ['bands'], reps: [12, 25],
       cues: [
-        ['Élastique fixé bas derrière soi ou sous le pied, mains derrière la tête.', 'Band anchored low behind you or under your foot, hands behind your head.'],
+        ['Élastique fixé sur un point bas derrière toi, coudes vers l’avant.', 'Anchor the band low behind you, elbows pointing forward.'],
         ['Coudes pointés vers l’avant et fixes.', 'Elbows pointing forward and still.'],
         ['Tendre les bras au-dessus de la tête, retour lent jusqu’à l’étirement.', 'Extend your arms overhead, return slowly into the stretch.'],
       ],
