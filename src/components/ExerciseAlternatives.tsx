@@ -102,7 +102,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced }: {
         { value: 'mine', label: L('Mon matériel', 'My equipment') }, { value: 'all', label: L('Tout le matériel', 'All equipment') },
       ]} />
     </div>}
-    <div className="mt-3 divide-y divide-line border-y border-line">
+    <div className="mt-3 divide-y divide-line border-t border-line">
       {choices.map(choice => {
         const open = expanded === choice.id
         const duplicate = alreadyUsed(choice.id)
