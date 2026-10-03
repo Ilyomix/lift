@@ -18,6 +18,8 @@ The scheduler targets 60 frames per second using display callbacks and a bounded
 
 The interface keeps reference-video links available if WebGL or an asset is unavailable. Model loading and context restoration cannot interrupt workout logging.
 
+Drag the model with one finger, a pen or the primary mouse button to rotate through 360° and tilt the view. Only the canvas captures the gesture; the surrounding sheet remains scrollable. Each panel retains its own orientation, including while paused or under Reduced Motion. Arrow keys rotate and tilt a focused model; Home, the reset button or reselecting a view preset restores its original angle. French and English instructions identify the gesture. Camera elevation stops short of the poles to keep the model upright. Framing includes the neutral body or the full measured movement and equipment, and remains fixed during playback. Three regression tests project the shipped meshes through rotated cameras to check framing, stable playback and reset behavior.
+
 ## Movement coverage and validation
 
 The three motion modules cover 37 upper-body movements, 12 arm movements, and 29 lower-body/core movements. Unknown custom exercises retain the reference-video fallback. A camera frame measured across five poses keeps the deformed skin and equipment visible throughout playback without moving the camera each frame.

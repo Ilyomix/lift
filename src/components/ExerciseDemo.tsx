@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { Pause, Play } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { Pause, Play, RotateCcw } from 'lucide-react'
 import { L } from '../lib/i18n'
 import { ANIMATED_EXERCISES, anatomicalLabel, exerciseMuscles, type AnatomicalRegion } from '../lib/exerciseModelCatalog'
-import type { ExerciseView } from '../lib/exerciseModels'
+import type { ExerciseOrbit, ExerciseView } from '../lib/exerciseModels'
 import type { mountExerciseModel } from '../lib/exerciseModelRenderer'
 
 type ModelHandle = ReturnType<typeof mountExerciseModel>
@@ -10,6 +10,11 @@ type ModelHandle = ReturnType<typeof mountExerciseModel>
 export function ExerciseDemo({ id, name, className }: { id: string; name: string; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const handle = useRef<ModelHandle | null>(null)
+  const orbit = useRef<ExerciseOrbit>({ yaw: 0, pitch: 0 })
+  const pointer = useRef<{ id: number; x: number; y: number } | null>(null)
+  const instructions = useId()
+  const [rotated, setRotated] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   const [playing, setPlaying] = useState(true)
@@ -26,6 +31,8 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
     if (import.meta.env.DEV) element.dataset.modelState = 'waiting-for-visibility'
     let disposed = false, visible = false, starting = false
     setReady(false); setFailed(false)
+    orbit.current = { yaw: 0, pitch: 0 }; pointer.current = null
+    setRotated(false); setDragging(false)
     setView(ANIMATED_EXERCISES.has(id) ? 'technique' : 'front'); setPlaying(true)
     const motion = matchMedia('(prefers-reduced-motion: reduce)')
     const onMotion = () => setReduced(motion.matches)
@@ -56,22 +63,76 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
 
   useEffect(() => { handle.current?.update({ playing, view }) }, [playing, view])
 
+  const resetView = (next = view) => {
+    orbit.current = { yaw: 0, pitch: 0 }
+    setRotated(false); setView(next)
+    // Reselecting the current preset must also restore its original angle.
+    handle.current?.update({ view: next, orbit: orbit.current })
+  }
+  const rotate = (yaw: number, pitch: number) => {
+    const limit = Math.PI / 2 - 0.1
+    orbit.current = {
+      yaw: (orbit.current.yaw + yaw) % (2 * Math.PI),
+      pitch: Math.max(-limit, Math.min(limit, orbit.current.pitch + pitch)),
+    }
+    setRotated(true)
+    handle.current?.update({ orbit: orbit.current })
+  }
+  const startDrag = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!ready || !event.isPrimary || event.button !== 0 || pointer.current) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+    setDragging(true)
+  }
+  const drag = (event: PointerEvent<HTMLCanvasElement>) => {
+    const previous = pointer.current
+    if (!previous || previous.id !== event.pointerId) return
+    const scale = 2 * Math.PI / Math.max(event.currentTarget.clientWidth, 1)
+    rotate((previous.x - event.clientX) * scale, (previous.y - event.clientY) * scale)
+    pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+  }
+  const endDrag = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (pointer.current?.id !== event.pointerId) return
+    pointer.current = null; setDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+  const rotateWithKeys = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    if (!ready || event.altKey || event.ctrlKey || event.metaKey) return
+    const step = Math.PI / 12
+    switch (event.key) {
+      case 'ArrowLeft': rotate(step, 0); break
+      case 'ArrowRight': rotate(-step, 0); break
+      case 'ArrowUp': rotate(0, -step); break
+      case 'ArrowDown': rotate(0, step); break
+      case 'Home': resetView(); break
+      default: return
+    }
+    event.preventDefault()
+  }
+
   return (
     <figure className={className}>
-      <div className="relative overflow-hidden rounded-[12px] bg-surface-2">
-        <canvas ref={canvas} width={720} height={540} className="block aspect-[4/3] w-full" role="img" aria-label={L(`${name} : ${view === 'technique' ? 'démonstration 3D' : 'muscles sollicités'}`, `${name}: ${view === 'technique' ? '3D demonstration' : 'target muscles'}`)} />
+      <div className="relative overflow-hidden rounded-[12px] bg-surface-2 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-signal">
+        <canvas ref={canvas} width={720} height={540}
+          className={`block aspect-[4/3] w-full select-none ${ready ? 'touch-none' : ''} ${dragging ? 'cursor-grabbing' : ready ? 'cursor-grab' : ''}`}
+          role="group" aria-roledescription={L('Modèle 3D interactif', 'Interactive 3D model')} tabIndex={ready ? 0 : -1}
+          aria-label={L(`${name} : ${view === 'technique' ? 'démonstration 3D' : 'muscles sollicités'}`, `${name}: ${view === 'technique' ? '3D demonstration' : 'target muscles'}`)}
+          aria-describedby={instructions} onPointerDown={startDrag} onPointerMove={drag} onPointerUp={endDrag}
+          onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={rotateWithKeys} />
+        <span id={instructions} className="sr-only">{L('Glisse pour tourner le modèle. Au clavier : flèches pour tourner et incliner, Début pour recentrer.', 'Drag to rotate the model. Keyboard: arrow keys to rotate and tilt, Home to reset the view.')}</span>
         {!ready && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-[13px] text-text-2">{failed ? L('Vue 3D indisponible. Les muscles et vidéos restent accessibles ci-dessous.', '3D view unavailable. Muscle information and videos are available below.') : L('Chargement du modèle…', 'Loading model…')}</div>}
+        {ready && rotated && <button type="button" className="pressable absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-text-2" onClick={() => resetView()} aria-label={L('Recentrer le modèle', 'Reset model view')} title={L('Recentrer le modèle', 'Reset model view')}><RotateCcw size={16} aria-hidden /></button>}
         {ready && animated && view === 'technique' && !reduced && <button type="button" className="pressable absolute bottom-3 right-3 flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12px] font-medium" onClick={() => setPlaying(value => !value)} aria-pressed={!playing}>
           {playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}{playing ? L('Pause', 'Pause') : L('Lire', 'Play')}
         </button>}
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex gap-1" aria-label={L('Vue du modèle', 'Model view')}>
-          {(animated ? ['technique', 'front', 'back'] : ['front', 'back']).map(value => <button type="button" key={value} disabled={!ready} aria-pressed={view === value} onClick={() => setView(value as ExerciseView)} className={`pressable min-h-11 rounded-[8px] px-3 text-[12px] font-medium disabled:opacity-40 ${view === value ? 'bg-signal-soft text-signal' : 'text-text-2 hover:bg-surface-2'}`}>
+          {(animated ? ['technique', 'front', 'back'] : ['front', 'back']).map(value => <button type="button" key={value} disabled={!ready} aria-pressed={view === value && !rotated} onClick={() => resetView(value as ExerciseView)} className={`pressable min-h-11 rounded-[8px] px-3 text-[12px] font-medium disabled:opacity-40 ${view === value && !rotated ? 'bg-signal-soft text-signal' : 'text-text-2 hover:bg-surface-2'}`}>
             {value === 'technique' ? L('Mouvement', 'Movement') : value === 'front' ? L('Face', 'Front') : L('Dos', 'Back')}
           </button>)}
         </div>
-        <span className="text-[11px] text-muted">{animated ? reduced ? L('Animation réduite', 'Reduced motion') : L('Modèle 3D Lift', 'Lift 3D model') : L('Carte musculaire', 'Muscle map')}</span>
+        <span className="text-[11px] text-muted">{ready ? L('Glisse pour tourner · 360°', 'Drag to rotate · 360°') : L('Modèle 3D Lift', 'Lift 3D model')}</span>
       </div>
       <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
         {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span><strong className="font-semibold">{L('Principal : ', 'Primary: ')}</strong>{direct.join(', ')}</span></p>}

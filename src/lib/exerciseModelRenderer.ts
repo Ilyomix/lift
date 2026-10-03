@@ -1,7 +1,7 @@
 import { App } from '@capacitor/app'
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { ACESFilmicToneMapping, WebGLRenderer } from 'three'
-import { createExerciseModel, type ExerciseView } from './exerciseModels'
+import { createExerciseModel, type ExerciseOrbit, type ExerciseView } from './exerciseModels'
 import { ANIMATED_EXERCISES } from './exerciseModelCatalog'
 import type { MuscleWeights } from './exerciseModelRig'
 import { RenderMetrics } from './renderMetrics'
@@ -10,7 +10,7 @@ type Model = Awaited<ReturnType<typeof createExerciseModel>>
 type Slot = {
   canvas: HTMLCanvasElement; context: CanvasRenderingContext2D; model?: Model
   visible: boolean; playing: boolean; animated: boolean; dirty: boolean
-  elapsed: number; view: ExerciseView; ready: () => void; failed: () => void; notified: boolean
+  elapsed: number; view: ExerciseView; orbit: ExerciseOrbit; ready: () => void; failed: () => void; notified: boolean
 }
 
 /** One exercise GPU context, regardless of a detail screen and sheet being mounted together. */
@@ -121,7 +121,7 @@ class ExerciseRenderer {
         if (slot !== foreground || !slot.model || (!slot.dirty && !this.animated(slot))) continue
         const { canvas, model } = slot
         const renderStarted = import.meta.env.DEV || this.metrics ? performance.now() : 0
-        model.setView(slot.view, canvas.width / canvas.height)
+        model.setView(slot.view, canvas.width / canvas.height, slot.orbit)
         model.pose(slot.elapsed)
         if (this.renderer.domElement.width !== canvas.width || this.renderer.domElement.height !== canvas.height) this.renderer.setSize(canvas.width, canvas.height, false)
         try {
@@ -169,7 +169,7 @@ class ExerciseRenderer {
     const slot: Slot = {
       canvas, context, visible: false, playing: true,
       animated: ANIMATED_EXERCISES.has(id), dirty: true, elapsed: 0,
-      view: ANIMATED_EXERCISES.has(id) ? 'technique' : 'front', ready, failed, notified: false,
+      view: ANIMATED_EXERCISES.has(id) ? 'technique' : 'front', orbit: { yaw: 0, pitch: 0 }, ready, failed, notified: false,
     }
     if (import.meta.env.DEV) canvas.dataset.modelState = 'loading'
     this.slots.add(slot)
@@ -185,13 +185,14 @@ class ExerciseRenderer {
     })
     this.themeChanged()
     return {
-      update: (options: { visible?: boolean; playing?: boolean; view?: ExerciseView; width?: number }) => {
+      update: (options: { visible?: boolean; playing?: boolean; view?: ExerciseView; orbit?: ExerciseOrbit; width?: number }) => {
         if ((options.visible !== undefined && options.visible !== slot.visible)
           || (options.playing !== undefined && options.playing !== slot.playing)
           || (options.view !== undefined && options.view !== slot.view)) this.metrics?.reset()
         if (options.visible !== undefined) slot.visible = options.visible
         if (options.playing !== undefined) slot.playing = options.playing
         if (options.view !== undefined) slot.view = options.view
+        if (options.orbit !== undefined) slot.orbit = { ...options.orbit }
         if (options.width !== undefined) {
           // At most 900 × 675 pixels: bounded fill rate on high-DPI phones.
           const width = Math.max(320, Math.min(900, Math.round(options.width * Math.min(devicePixelRatio, 2))))
