@@ -109,7 +109,7 @@ export function Screen({ children, className }: { children: ReactNode; className
   return <main className={cx('screen-in mx-auto w-full max-w-[640px] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] safe-top', className)}>{children}</main>
 }
 
-export function Header({ eyebrow, title, backTo, right, sub, art }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind }) {
+export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'title' }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind; artSize?: 'title' | 'illustration' }) {
   return (
     <header className="pt-2 pb-5">
       {(backTo !== undefined || right) && <div className="mb-1 flex min-h-11 items-center justify-between gap-2">
@@ -128,7 +128,7 @@ export function Header({ eyebrow, title, backTo, right, sub, art }: { eyebrow?: 
           {eyebrow && <Eyebrow className="mt-1">{eyebrow}</Eyebrow>}
           <h1 className="mt-1 text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
         </div>
-        {art && <SportArt kind={art} />}
+        {art && <SportArt kind={art} size={artSize} />}
       </div>
       {sub && <p className="mt-2 text-[15px] leading-[1.45] text-text-2">{sub}</p>}
     </header>
@@ -137,13 +137,13 @@ export function Header({ eyebrow, title, backTo, right, sub, art }: { eyebrow?: 
 
 export function Section({ title, action, children, className, art }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; art?: SportArtKind }) {
   return (
-    <section className={cx(art ? 'mt-4' : 'mt-7', className)}>
+    <section className={cx(art ? 'mt-6' : 'mt-7', className)}>
       {(title || action) && (
-        <div className={cx('flex gap-3', art ? 'mb-2 items-center' : 'mb-3 items-end justify-between')}>
-          {art && <SportArt kind={art} />}
-          {art ? <div className="min-w-0 flex-1">
-            {title && <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
-            {action && <div className="mt-0.5">{action}</div>}
+        <div className={cx('mb-3 flex gap-3', art ? 'items-center' : 'items-end justify-between')}>
+          {art && <SportArt kind={art} size="title" />}
+          {art ? <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            {title && <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
+            {action && <div className="min-w-0">{action}</div>}
           </div> : <>
             {title ? <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
             {action}

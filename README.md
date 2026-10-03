@@ -133,7 +133,7 @@ The client side is [`src/lib/push.ts`](src/lib/push.ts) and [`public/push-sw.js`
 
 ## Credits
 
-- Demo images: [Free Exercise DB](https://github.com/yuhonas/free-exercise-db), public domain (Unlicense).
+- Anatomical exercise model: [MakeHuman / MPFB](https://github.com/makehumancommunity/mpfb2), CC0-1.0. Reproducible source and region mapping: [exercise athlete](docs/assets/exercise-athlete.md).
 - Geologica font: SIL Open Font License (`src/assets/fonts/Geologica-LICENSE.txt`).
 - DSEG7 font: SIL Open Font License, © keshikan (`src/assets/fonts/DSEG-LICENSE.txt`).
 

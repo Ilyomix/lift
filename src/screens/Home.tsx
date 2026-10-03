@@ -20,7 +20,7 @@ import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { AppIcon } from './Onboarding'
-import { SportArt } from '../components/SportArt'
+import { SportArt, workoutArt } from '../components/SportArt'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
 export function Home() {
@@ -81,7 +81,7 @@ export function Home() {
           </span>
           <Eyebrow className="mt-3">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
         </div>
-        <SportArt kind="dumbbell" />
+        <SportArt kind="dumbbell" size="title" />
       </header>
 
       {/* Hero: sessions done out of the sessions planned until the goal date (maintenance: in the current cycle) */}
@@ -170,7 +170,7 @@ export function Home() {
       )}
 
       {/* Next action — the one primary command of the screen */}
-      <Section art="plate" title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
+      <Section art={workoutArt[nextType]} title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
         <Card className="overflow-hidden">
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">

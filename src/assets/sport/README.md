@@ -12,6 +12,8 @@ Prompt subjects:
 
 These are decorative brand illustrations. They do not replace interface labels, the official app icon, exercise technique images or the live timer. Their dimensions reserve layout space, and the UI hides them from assistive technologies.
 
+Five additional `workout-{upper,lower,push,pull,legs}.webp` fallbacks are direct transparent render encodings of the CC0 MakeHuman/MPFB anatomical category models, not ImageGen outputs. Their reproducible model source, animation contract and verification are documented in [sport-model-assets.md](../../../docs/sport-model-assets.md). The ten ImageGen illustrations below retain their original provenance.
+
 ## Additional section illustrations
 
 Seven distinct built-in ImageGen calls extend the same graphite/cobalt/silver family. The generated alpha is retained. Each complete object is centered within a 384 × 384 transparent canvas, with a 320 px longest silhouette axis (approximately 83% occupancy) for consistent display at 64 CSS pixels. No interface labels or functionality are baked into the artwork.

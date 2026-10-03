@@ -24,6 +24,7 @@ import {
 import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { GymSheet } from '../components/GymSheet'
+import { workoutArt } from '../components/SportArt'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
   Button, Card, cx, DateInput, Empty, Eyebrow, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
@@ -68,7 +69,7 @@ function SessionPreview() {
     <Screen>
       <Header
         eyebrow={isNext ? `${L('Prochaine séance', 'Next session')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Other session')}
-        art="plate"
+        art={workoutArt[type]}
         title={TYPE_META[type].label}
         sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
@@ -186,7 +187,7 @@ function ActiveSession() {
     <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
         eyebrow={`${ctx.before ? L('Fondation', 'Foundation') : ctx.title} · ${fmtDate(a.date)}`}
-        art="plate"
+        art={workoutArt[a.type]}
         title={TYPE_META[a.type].label}
         right={
           <div className="flex items-center gap-1">

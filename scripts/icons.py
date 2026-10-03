@@ -1,4 +1,4 @@
-"""Export every Lift launcher icon from the approved opaque 1024px master.
+"""Export every Lift launcher icon from the canonical opaque 1024px master.
 
 Run from any directory with Python 3 and Pillow: python3 scripts/icons.py.
 The master and its generation provenance are intentionally kept in the repo.
@@ -78,14 +78,14 @@ def main():
         if source.size != (1024, 1024):
             raise ValueError("app-icon-1024.png must be a 1024 × 1024 square")
         if "A" in source.getbands() and source.getchannel("A").getextrema() != (255, 255):
-            raise ValueError("The approved launcher master must be fully opaque")
+            raise ValueError("The launcher master must be fully opaque")
         master = source.convert("RGB")
 
     for name, size in (("pwa-512.png", 512), ("pwa-192.png", 192),
                        ("apple-touch-icon.png", 180), ("favicon-64.png", 64)):
         save(master, ICONS / name, size)
 
-    # Keep the diagonal subject inside the circular 80% PWA safe zone.
+    # Keep the complete monogram inside the circular 80% PWA safe zone.
     maskable = padded(master, 0.76)
     save(maskable, ICONS / "maskable-512.png", 512)
     save(notification_badge(master), ICONS / "badge-96.png", 96)

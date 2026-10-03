@@ -9,25 +9,11 @@ import { useStore } from '../lib/store'
 import { exerciseHistory, setsSummary } from '../lib/training'
 import type { Prescription } from '../lib/types'
 import { LevelTag, RefList } from './Evidence'
+import { ExerciseDemo } from './ExerciseDemo'
 import { Button, Eyebrow, inputClass, Sheet, Tag } from './ui'
 
-export function DemoFrames({ id, name, className }: { id: string; name: string; className?: string }) {
-  const base = import.meta.env.BASE_URL
-  const info = LIBRARY[id]
-  if (!info?.demo) return null
-  const a = `${base}demos/${id}/0.jpg`
-  const b = `${base}demos/${id}/1.jpg`
-  return (
-    <figure className={className}>
-      <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[12px] bg-surface-2">
-        <img src={a} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-[1.15] object-cover opacity-60 blur-[36px] motion-reduce:hidden" />
-        <img src={a} alt={L(`${name} : position de départ`, `${name}: start position`)} className="demo-a absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
-        <img src={b} alt={L(`${name} : position d’arrivée`, `${name}: end position`)} className="demo-b absolute inset-0 h-full w-full object-contain" loading="lazy" decoding="async" />
-      </div>
-      <figcaption className="mt-1.5 text-[11px] text-muted">{L('Démonstration · Free Exercise DB (domaine public)', 'Demonstration · Free Exercise DB (public domain)')}</figcaption>
-    </figure>
-  )
-}
+// Retain the public export used by exercise detail/session screens.
+export const DemoFrames = ExerciseDemo
 
 export function ExerciseSheet({
   exerciseId, name, open, onClose, prescription, onReplace,

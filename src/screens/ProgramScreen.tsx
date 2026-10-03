@@ -14,6 +14,7 @@ import type { TemplateExercise, WorkoutType } from '../lib/types'
 import { RangeBars } from '../components/charts'
 import { LevelTag, RefList } from '../components/Evidence'
 import { PhaseTrack } from '../components/Program'
+import { SportArt, workoutArt } from '../components/SportArt'
 import { Button, Card, cx, Empty, Eyebrow, Field, Header, IconButton, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
 
 export function ProgramScreen() {
@@ -96,7 +97,7 @@ export function ProgramScreen() {
             const sets = scaledSession(sessionSlots(tpl.exercises), week.factor).reduce((a, n) => a + n, 0)
             return (
               <button key={t} type="button" onClick={() => navigate(`plus/programme/${t}`)} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
-                <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-[8px] bg-text text-[11px] font-bold text-bg">{TYPE_META[t].code}</span>
+                <SportArt kind={workoutArt[t]} size="title" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-medium">{TYPE_META[t].label}{TYPE_META[t].fr !== TYPE_META[t].label && <> <span className="font-normal text-text-2">· {TYPE_META[t].fr}</span></>}</span>
                   <span className="block text-[13px] text-muted">{plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · {L(`${sets} séries`, `${sets} sets`)} · ~{sessionMinutes(t, sets)} min</span>
@@ -248,7 +249,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const meta = TYPE_META[type]
   return (
     <Screen>
-      <Header art="calendar"
+      <Header art={workoutArt[type]}
         backTo="plus/programme"
         eyebrow={meta.fr !== meta.label ? meta.fr : undefined}
         title={meta.label}

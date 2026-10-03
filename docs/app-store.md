@@ -27,6 +27,7 @@ Lift prépare ton programme de musculation et t’accompagne pendant chaque séa
 
 - Un programme adapté à tes jours d’entraînement et au matériel disponible.
 - Des séances guidées avec séries, répétitions, charges et temps de repos.
+- Des démonstrations 3D avec les muscles sollicités, des vues de face et de dos, et des consignes techniques.
 - Des Activités en direct pour suivre ta séance et ton repos depuis l’écran verrouillé.
 - Un ajustement des charges à partir de tes performances.
 - Un calendrier de blocs, de décharges et de pauses.
@@ -44,6 +45,7 @@ Lift prepares your strength training program and guides each workout, at the gym
 
 - A program adapted to your training days and available equipment.
 - Guided workouts with sets, reps, loads and rest times.
+- 3D exercise demonstrations with target muscles, front and back views, and technique guidance.
 - Live Activities to follow your session and rest timer from the lock screen.
 - Load adjustments based on your performance.
 - A calendar of training blocks, deloads and breaks.
@@ -75,6 +77,8 @@ The app does not request HealthKit access. Body information and photos are manua
 The native app does not load YouTube thumbnails or embedded players. Pinned video links open externally after the user selects them. The web/PWA edition retains YouTube thumbnails and embedded playback; those behaviors do not apply to the native build.
 
 Marketing screenshots use a fictional demonstration workout history. The production app starts with onboarding and the user’s own data. Demo backups are generated with `marketing/app-store/scripts/generate-demo.mts` and imported through the normal interface; they are not bundled into the production app.
+
+Built-in exercise demonstrations use a bundled anatomical 3D model. Open an exercise’s demonstration to view its movement, switch to Front/Back, or pause playback. Colors follow the chosen app theme. No model service or account is required; the assets work offline. Animations pause when the app is inactive and respect Reduce Motion.
 
 ## App privacy answer for the native app
 

@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -7,6 +8,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // Served from GitHub Pages at https://ilyomix.github.io/lift/
 const BASE = process.env.LIFT_BASE ?? '/lift/'
+const NATIVE = process.env.LIFT_NATIVE === '1'
+let nativeOutput = ''
 
 // Shown under the credits: version, build number (the deploy run), commit and build date.
 const VERSION: string = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
@@ -29,9 +32,19 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    ...(NATIVE ? [{
+      name: 'native-public-assets',
+      configResolved(config: { root: string; build: { outDir: string } }) {
+        nativeOutput = resolve(config.root, config.build.outDir)
+      },
+      closeBundle() {
+        // Disabling PWA generation does not exclude public/ files copied by Vite.
+        rmSync(resolve(nativeOutput, 'push-sw.js'), { force: true })
+      },
+    }] : []),
     VitePWA({
       registerType: 'prompt',
-      disable: process.env.LIFT_NATIVE === '1',
+      disable: NATIVE,
       injectRegister: false,
       includeAssets: ['icons/favicon-64.png', 'icons/apple-touch-icon.png'],
       manifest: {
@@ -56,7 +69,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,jpg,webp}'],
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,jpg,webp,glb}', 'models/**/*.rig.json'],
         // The link-preview image is for crawlers, not for the app offline.
         globIgnores: ['og.png'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

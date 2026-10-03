@@ -1,0 +1,39 @@
+{
+  "source": {
+    "project": "MakeHuman / MPFB",
+    "revision": "afb9f530a7c2741dedb8df0ebae2e0b183caec21",
+    "license": "CC0-1.0",
+    "assetLicenseUrl": "https://github.com/makehumancommunity/mpfb2/blob/afb9f530a7c2741dedb8df0ebae2e0b183caec21/LICENSE.ASSETS.md"
+  },
+  "authoring": {
+    "blender": "5.2.2 LTS",
+    "generator": "scripts/generate-athlete.py",
+    "verifier": "scripts/verify-exercise-athlete.mjs"
+  },
+  "phenotype": {
+    "gender": 1,
+    "age": 0.5,
+    "muscle": 1,
+    "weight": 0.38,
+    "height": 0.58,
+    "proportions": 0.5,
+    "race": {
+      "asian": 0.33,
+      "caucasian": 0.33,
+      "african": 0.33
+    },
+    "normalizedHeightMeters": 1.82
+  },
+  "validation": {
+    "sha256": "78fc49f0cb0d4678cf869bc956071d90b39f1e1cc7d821f96f2116259d24d6b8",
+    "bytes": 1838976,
+    "triangleCount": 49748,
+    "exportedVerticesIncludingMaterialSeams": 28675,
+    "skinCount": 1,
+    "jointCount": 53,
+    "maxWeightNormalizationError": 1.264270395040512e-07,
+    "zeroWeightVertices": 0,
+    "textureCount": 0,
+    "primitiveCount": 25
+  }
+}

@@ -6,3 +6,6 @@ dist
 
 # Local App Store archives, exports, and screenshots
 .local-release/
+
+# Generated Python bytecode
+__pycache__/

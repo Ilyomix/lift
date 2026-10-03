@@ -390,23 +390,6 @@
 
 /* ───────────────────────── Motion ───────────────────────── */
 
-/* The illustrations move inside fixed slots. Text and controls stay still. */
-@keyframes sport-balance {
-  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
-  50% { transform: translateY(-2px) rotate(1.5deg); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .sport-art { animation: sport-balance 8s ease-in-out infinite; }
-  .sport-art[data-art='plate'], .sport-art[data-art='chart'], .sport-art[data-art='backup'] {
-    animation-duration: 10s;
-    animation-direction: reverse;
-  }
-  .sport-art[data-art='calendar'], .sport-art[data-art='nutrition'] { animation-delay: -3s; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sport-art { animation: none !important; transform: none; }
-}
-
 @keyframes screen-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -442,12 +425,6 @@
   animation: seg-out 320ms ease-out both;
 }
 
-/* Two-frame exercise demo, crossfaded like a slow loop. */
-@keyframes demo-a { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes demo-b { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
-.demo-a { animation: demo-a 2.4s ease-in-out infinite; }
-.demo-b { animation: demo-b 2.4s ease-in-out infinite; }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -455,5 +432,4 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .demo-b { opacity: 0 !important; }
 }

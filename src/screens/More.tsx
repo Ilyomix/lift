@@ -44,7 +44,7 @@ export function MoreScreen() {
       <Card className="divide-y divide-line">
         {items.map(({ to, art, label, hint }) => (
           <button key={to} type="button" onClick={() => navigate(to)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
-            <SportArt kind={art} />
+            <SportArt kind={art} size="title" />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-medium">{label}</span>
               <span className="block text-[13px] text-muted">{hint}</span>
@@ -645,7 +645,7 @@ export function DataScreen() {
   }
   return (
     <Screen>
-      <Header art="backup" backTo="plus" title={L('Sauvegarde', 'Backup')} sub={L('Tes données vivent sur ce téléphone (IndexedDB). Exporte régulièrement : le fichier contient séances, mesures, nutrition et photos.', 'Your data lives on this phone (IndexedDB). Export regularly: the file contains sessions, measurements, nutrition and photos.')} />
+      <Header art="backup" backTo="plus" title={L('Sauvegarde', 'Backup')} sub={L('Tes données restent sur cet appareil. Exporte une sauvegarde pour conserver tes séances, mesures, données nutritionnelles et photos.', 'Your data stays on this device. Export a backup to keep your sessions, measurements, nutrition data and photos.')} />
       <Card className="divide-y divide-line">
         <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{state.workouts.length}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{state.bodyEntries.length}</span>} />

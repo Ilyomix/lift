@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { WorkoutType } from '../lib/types'
 
 const artwork = {
   dumbbell: new URL('../assets/sport/dumbbell.webp', import.meta.url).href,
@@ -11,31 +12,56 @@ const artwork = {
   backup: new URL('../assets/sport/backup.webp', import.meta.url).href,
   coach: new URL('../assets/sport/coach.webp', import.meta.url).href,
   trophy: new URL('../assets/sport/trophy.webp', import.meta.url).href,
+  'workout-upper': new URL('../assets/sport/workout-upper.webp', import.meta.url).href,
+  'workout-lower': new URL('../assets/sport/workout-lower.webp', import.meta.url).href,
+  'workout-push': new URL('../assets/sport/workout-push.webp', import.meta.url).href,
+  'workout-pull': new URL('../assets/sport/workout-pull.webp', import.meta.url).href,
+  'workout-legs': new URL('../assets/sport/workout-legs.webp', import.meta.url).href,
 }
 export type SportArtKind = keyof typeof artwork
+export const workoutArt: Record<WorkoutType, SportArtKind> = {
+  UPPER: 'workout-upper', LOWER: 'workout-lower', PUSH: 'workout-push', PULL: 'workout-pull', LEGS: 'workout-legs',
+}
 
-/** Decorative equipment uses one fixed slot; only the artwork itself moves. */
-export function SportArt({ kind }: { kind: SportArtKind }) {
-  const image = useRef<HTMLImageElement>(null)
-  const [playing, setPlaying] = useState(false)
+/** Locally bundled 3D artwork. Titles stay 32px; standalone artwork gets 64px. */
+export function SportArt({ kind, size = 'illustration' }: { kind: SportArtKind; size?: 'title' | 'illustration' }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const [ready, setReady] = useState(false)
+  const pixels = size === 'title' ? 32 : 64
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const target = canvas.current
+    if (!target) return
+    setReady(false)
+    // A reused title slot must not cover the next illustration's fallback with
+    // pixels from the previous kind while its GLB is still loading.
+    target.getContext('2d')?.clearRect(0, 0, target.width, target.height)
+    let disposed = false
     let inView = false
-    const update = () => setPlaying(inView && !document.hidden && !reducedMotion.matches)
+    let started = false
+    let model: ReturnType<typeof import('../lib/sportModels').mountSportModel> | undefined
     const observer = new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting
-      update()
+      model?.setVisible(inView)
+      if (!inView || started) return
+      started = true
+      // The workout UI never waits for the renderer or a model download.
+      void import('../lib/sportModels').then(({ mountSportModel }) => {
+        if (disposed) return
+        model = mountSportModel(target, kind, () => { if (!disposed) setReady(true) })
+        model.setVisible(inView)
+      }).catch(() => { /* A theme-colored static silhouette remains if WebGL is unavailable. */ })
     }, { threshold: 0.1 })
-    if (image.current) observer.observe(image.current)
-    reducedMotion.addEventListener('change', update)
-    document.addEventListener('visibilitychange', update)
+    observer.observe(target)
     return () => {
+      disposed = true
       observer.disconnect()
-      reducedMotion.removeEventListener('change', update)
-      document.removeEventListener('visibilitychange', update)
+      model?.dispose()
     }
-  }, [])
+  }, [kind, pixels])
 
-  return <img ref={image} src={artwork[kind]} alt="" aria-hidden draggable={false} width={64} height={64} data-art={kind} className="sport-art pointer-events-none block size-16 shrink-0 select-none object-contain" style={{ animationPlayState: playing ? 'running' : 'paused' }} />
+  return <span aria-hidden data-art={kind} data-renderer={ready ? '3d' : 'fallback'} className="sport-art pointer-events-none relative block shrink-0 select-none" style={{ width: pixels, height: pixels }}>
+    {!ready && <span className="absolute inset-0 bg-signal" style={{ maskImage: `url(${artwork[kind]})`, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center' }} />}
+    <canvas ref={canvas} width={pixels * 2} height={pixels * 2} className="relative block size-full" />
+  </span>
 }

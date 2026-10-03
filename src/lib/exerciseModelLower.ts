@@ -1,0 +1,387 @@
+import { Vector3 } from 'three'
+import { placeBetween } from './exerciseModelEquipment'
+import type { Point } from './exerciseModelRig'
+import type { ExerciseContext, ExerciseMotion } from './exerciseModelTypes'
+
+export const LOWER_EXERCISES = new Set([
+  'leg-press', 'hack-squat', 'smith-squat', 'leg-extension', 'leg-curl', 'lying-leg-curl',
+  'romanian-deadlift', 'hip-thrust', 'back-extension-45', 'calf-press', 'standing-calf-raise',
+  'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
+  'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
+  'db-hip-thrust', 'single-leg-hip-thrust', 'single-leg-calf-raise',
+  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch',
+])
+const SIDES = [-1, 1] as const
+const PI = Math.PI
+const clamp = (t: number) => Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0))
+const smooth = (t: number) => { const q = clamp(t); return q * q * (3 - 2 * q) }
+const add = (a: Point, b: Point): Point => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+const rotate = (point: Point, angle: number): Point => [point[0], point[1] * Math.cos(angle) - point[2] * Math.sin(angle), point[1] * Math.sin(angle) + point[2] * Math.cos(angle)]
+const torso = (hips: Point, lean: number, point: Point): Point => add(hips, rotate(point, lean))
+const average = (points: Vector3[]) => points.reduce((a, p) => a.add(p), new Vector3()).multiplyScalar(1 / points.length)
+
+/** Dedicated lower/core contact models. Coordinates are authored for 1.82 m and scaled to the real rig. */
+export function createLowerExercise(id: string, { body, equipment: eq }: ExerciseContext): ExerciseMotion | null {
+  if (!LOWER_EXERCISES.has(id)) return null
+  const scale = body.measures.height / 1.82
+  const upper = body.measures.legs[0][0] / scale
+  const lower = body.measures.legs[0][1] / scale
+  const halfHip = body.measures.hipWidth / scale / 2
+  const standing = 0.08 + upper + lower
+  const p = (point: Point): Point => point.map(value => value * scale) as Point
+  const pair = (fn: (side: number, index: number) => Point) => SIDES.map(fn)
+  const block = (at: Point, size: Point, angle = 0, material = eq.pad) => eq.block(p(at), p(size), angle, material)
+  const bar = (a: Point, b: Point, radius = 0.025) => eq.bar(p(a), p(b), radius * scale)
+  const cable = (a: Point, b: Point) => eq.cable(p(a), p(b))
+  const groundFeet = pair(side => [side * 0.18, 0.078, 0.015])
+  const straightFeet: Point[] = [[0, 0, 0], [0, 0, 0]]
+  const defaultPoles = (hips: Point) => pair(side => [side * 0.65, hips[1] + 0.18, hips[2] - 0.08])
+  const pose = (hips: Point, lean: number, knees: Point[], feet: Point[], hands: Point[], poles = defaultPoles(hips), options: Parameters<typeof body.pose>[6] = {}) =>
+    body.pose(p(hips), lean, knees.map(p), feet.map(p), hands.map(p), poles.map(p), options)
+  const motion = (update: (t: number) => void, camera: Point = [2.8, 1.85, 3.6], target: Point = [0, 0.88, 0], height = 2.18): ExerciseMotion => ({
+    update: phase => update(clamp(phase)), camera: p(camera), target: p(target), height: height * scale,
+  })
+  const seat = (height = 0.56, z = 0) => {
+    block([0, height, z], [0.40, 0.08, 0.42])
+    bar([0, 0.06, z], [0, height - 0.04, z], 0.04)
+    bar([-0.36, 0.04, z], [0.36, 0.04, z], 0.035)
+  }
+  const mat = (z = 0, length = 1.8) => block([0, 0.018, z], [0.62, 0.036, length])
+  const ankleFromToe = (toe: Point, angle: number): Point => {
+    const offset = rotate([0, -0.067, 0.132], angle)
+    return [toe[0] - offset[0], toe[1] - offset[1], toe[2] - offset[2]]
+  }
+
+  if (id === 'goblet-squat' || id === 'smith-squat' || id === 'hack-squat' || id === 'bulgarian-split-squat' || id === 'sissy-squat') {
+    const dumbbell = id === 'goblet-squat' ? eq.dumbbell() : null
+    if (dumbbell) { dumbbell.scale.setScalar(scale); dumbbell.rotation.z = PI / 2 }
+    const smithBar = id === 'smith-squat' ? eq.barbell() : null
+    smithBar?.scale.setScalar(scale)
+    const backPad = id === 'hack-squat' ? block([0, 0.9, 0], [0.38, 0.60, 0.09], -0.67) : null
+    const shoulderPads = id === 'hack-squat' ? pair(side => [side * 0.22, 1.3, 0] as Point).map(at => block(at, [0.14, 0.10, 0.28])) : []
+    if (id === 'smith-squat') {
+      for (const side of SIDES) { bar([side * 0.62, 0.04, -0.085], [side * 0.62, 1.85, -0.085]); bar([side * 0.62, 0.04, -0.40], [side * 0.62, 0.04, 0.5], 0.035) }
+      bar([-0.62, 1.85, -0.085], [0.62, 1.85, -0.085])
+    }
+    if (id === 'hack-squat') {
+      for (const side of SIDES) bar([side * 0.42, 0.18, 0.47], [side * 0.42, 1.70, -0.74], 0.035)
+      block([0, 0.025, 0.30], [0.62, 0.05, 0.58], 0, eq.rubber)
+    }
+    if (id === 'bulgarian-split-squat') eq.bench(p([0.16, 0.43, -0.72]), 0, 0.55 * scale)
+    if (id === 'sissy-squat') { bar([-0.45, 0.03, 0.25], [-0.45, 1.4, 0.25], 0.032); bar([-0.62, 0.03, 0.25], [-0.25, 0.03, 0.25]) }
+    return motion(t => {
+      let hips: Point = [0, standing - 0.44 * t, -0.21 * t]
+      let lean = 0.10 + 0.27 * t
+      let feet = groundFeet
+      let knees = pair(side => [side * 0.2, 0.43, 0.5])
+      let hands = pair(side => torso(hips, lean, [side * 0.095, 0.39, 0.15]))
+      let footRotations = straightFeet
+      if (id === 'smith-squat') {
+        lean = 0.05 + 0.18 * t
+        hips = [0, standing - 0.04 - 0.40 * t, -0.47 * Math.sin(lean)]
+        feet = pair(side => [side * 0.19, 0.078, 0.22])
+        hands = pair(side => [side * 0.43, hips[1] + 0.46 * Math.cos(lean), -0.085])
+      } else if (id === 'hack-squat') {
+        hips = [0, standing - 0.11 - 0.30 * t, -0.10 + 0.24 * t]; lean = -0.67
+        feet = pair(side => [side * 0.18, 0.10, 0.38])
+        hands = pair(side => torso(hips, lean, [side * 0.28, 0.38, 0.11]))
+        backPad!.position.set(...p(torso(hips, lean, [0, 0.26, -0.11])))
+        shoulderPads.forEach((pad, index) => pad.position.set(...p(torso(hips, lean, [SIDES[index] * 0.22, 0.49, -0.03]))))
+      } else if (id === 'bulgarian-split-squat') {
+        hips = [0, 0.90 - 0.26 * t, 0.03]; lean = 0.15 + 0.18 * t
+        feet = [[-0.14, 0.078, 0.34], [0.14, 0.58, -0.67]]
+        knees = [[-0.14, 0.42, 0.58], [0.14, 0.40, -0.2]]
+        hands = pair(side => torso(hips, lean, [side * 0.31, 0.05, 0.02]))
+        footRotations = [[0, 0, 0], [1.2, 0, 0]]
+      } else if (id === 'sissy-squat') {
+        const footAngle = 0.10 + 0.40 * t
+        feet = pair(side => ankleFromToe([side * 0.14, 0.04, 0.16], footAngle))
+        const a = 0.03 + t * 1.0, b = t * 0.65
+        knees = feet.map(foot => add(foot, [0, lower * Math.cos(a), lower * Math.sin(a)]))
+        hips = [0, knees[0][1] + upper * Math.cos(b), knees[0][2] - upper * Math.sin(b)]
+        lean = -b
+        hands = [[-0.45, 1.12, 0.25], torso(hips, lean, [0.30, 0.10, 0.10])]
+        footRotations = [[footAngle, 0, 0], [footAngle, 0, 0]]
+      }
+      const result = pose(hips, lean, knees, feet, hands, undefined, { footRotations, grip: !!dumbbell || !!smithBar || id === 'sissy-squat', gripTargets: !!smithBar || id === 'sissy-squat', gripAxes: smithBar ? [[1, 0, 0], [-1, 0, 0]] : undefined })
+      if (dumbbell) dumbbell.position.copy(average(result.hands))
+      if (smithBar) smithBar.position.copy(average(result.hands))
+    }, id === 'hack-squat' ? [2.8, 1.7, 3.6] : [2.8, 1.85, 3.6], [0, 0.87, -0.05], id === 'hack-squat' ? 2.35 : 2.18)
+  }
+
+  if (id === 'leg-extension' || id === 'leg-curl' || id === 'hip-adduction' || id === 'hip-abduction') {
+    seat(0.54)
+    block([0, 0.88, -0.19], [0.35, 0.58, 0.08], -0.05)
+    const pads = SIDES.map(side => block([side * 0.18, 0.26, 0.40], [0.10, 0.14, 0.22]))
+    const levers = SIDES.map(side => bar([side * 0.18, 0.58, 0.35], [side * 0.18, 0.2, 0.45]))
+    const supports = SIDES.map(side => block([side * 0.18, 0.07, 0.48], [0.20, 0.045, 0.25], 0, eq.rubber))
+    supports.forEach(support => { support.visible = id === 'hip-adduction' || id === 'hip-abduction' })
+    if (id === 'leg-curl') block([0, 0.69, 0.30], [0.46, 0.10, 0.14])
+    SIDES.forEach(side => bar([side * 0.30, 0.60, -0.02], [side * 0.30, 0.60, 0.17]))
+    return motion(t => {
+      const hips: Point = [0, 0.65, -0.025]
+      let knees: Point[], feet: Point[], footRotations: Point[]
+      if (id === 'leg-extension' || id === 'leg-curl') {
+        const angle = id === 'leg-extension' ? 0.05 + t * 1.30 : 1.32 - t * 1.6
+        knees = pair(side => [side * halfHip, 0.625, 0.405])
+        feet = knees.map(knee => add(knee, [0, -lower * Math.cos(angle), lower * Math.sin(angle)]))
+        footRotations = [[-angle, 0, 0], [-angle, 0, 0]]
+      } else {
+        const opening = id === 'hip-abduction' ? 0.08 + 0.66 * t : 0.74 - 0.66 * t
+        knees = pair(side => [side * (halfHip + upper * Math.sin(opening)), 0.62, upper * Math.cos(opening) - 0.025])
+        feet = knees.map(knee => add(knee, [0, -lower, 0.035]))
+        footRotations = pair(side => [0, side * opening, 0])
+      }
+      const result = pose(hips, id === 'hip-abduction' ? 0.15 : -0.04, knees, feet,
+        pair(side => [side * 0.30, 0.60, 0.06]), undefined, { footRotations, grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+      pads.forEach((pad, i) => {
+        const knee = result.knees[i], foot = result.feet[i]
+        if (id === 'hip-adduction' || id === 'hip-abduction') {
+          pad.position.copy(knee).add(new Vector3(SIDES[i] * (id === 'hip-abduction' ? 0.065 : -0.065) * scale, 0, 0))
+          placeBetween(levers[i], p([SIDES[i] * halfHip, 0.48, -0.04]), knee)
+          supports[i].position.copy(foot).add(new Vector3(0, -0.065 * scale, 0.05 * scale))
+        } else {
+          pad.position.copy(foot).add(new Vector3(0, 0.06 * scale, (id === 'leg-extension' ? 0.045 : -0.045) * scale))
+          placeBetween(levers[i], knee, foot)
+        }
+      })
+    }, [2.6, 1.65, 3.5], [0, 0.79, 0.12], 1.92)
+  }
+
+  if (id === 'lying-leg-curl') {
+    eq.bench(p([0, 0.63, 0.20]), 0, 1.35 * scale)
+    SIDES.forEach(side => bar([side * 0.26, 0.65, 0.62], [side * 0.26, 0.65, 0.84], 0.018))
+    const roller = bar([-0.26, 0.70, -0.85], [0.26, 0.70, -0.85], 0.07)
+    const lever = bar([0.28, 0.7, -0.45], [0.28, 0.7, -0.85])
+    return motion(t => {
+      const angle = 0.10 + t * 1.65
+      const knees = pair(side => [side * halfHip, 0.735, -upper])
+      const feet = knees.map(knee => add(knee, [0, lower * Math.sin(angle), -lower * Math.cos(angle)]))
+      const result = pose([0, 0.75, 0], PI / 2, knees, feet, pair(side => [side * 0.26, 0.65, 0.73]),
+        [[-0.50, 0.58, 0.43], [0.50, 0.58, 0.43]], { footRotations: [[PI / 2 + angle, 0, 0], [PI / 2 + angle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+      const center = average(result.feet).add(new Vector3(0, -0.045 * scale, 0))
+      placeBetween(roller, center.clone().add(new Vector3(-0.27 * scale, 0, 0)), center.clone().add(new Vector3(0.27 * scale, 0, 0)))
+      placeBetween(lever, p([0.28, 0.735, -upper]), center.clone().add(new Vector3(0.28 * scale, 0, 0)))
+    }, [2.8, 2.1, 2.7], [0, 0.66, 0], 1.78)
+  }
+
+  if (id === 'leg-press' || id === 'calf-press') {
+    const hips: Point = [0, 0.48, -0.36]
+    block([0, 0.38, -0.39], [0.43, 0.10, 0.38], -0.3)
+    block(torso(hips, -0.65, [0, 0.27, -0.11]), [0.37, 0.62, 0.085], -0.65)
+    for (const side of SIDES) {
+      bar([side * 0.42, 0.07, -0.55], [side * 0.42, 1.55, 0.93], 0.035)
+      bar([side * 0.28, 0.46, -0.5], [side * 0.28, 0.46, -0.22])
+    }
+    const platform = block([0, 1.0, 0.25], [0.65, 0.075, 0.48], -2.35, eq.rubber)
+    return motion(t => {
+      const distance = id === 'leg-press' ? 0.84 - 0.29 * t : 0.945 + 0.046 * t
+      const center: Point = [0, hips[1] + distance * 0.707, hips[2] + distance * 0.707]
+      const footAngle = id === 'calf-press' ? -2.35 + 0.36 * t : -2.35
+      const feet = id === 'calf-press'
+        ? pair(side => ankleFromToe([side * 0.17, center[1], center[2]], footAngle))
+        : pair(side => [side * 0.17, center[1], center[2]])
+      pose(hips, -0.65, pair(side => [side * 0.18, 0.54, 0.64]), feet,
+        pair(side => [side * 0.28, 0.46, -0.30]), undefined, { footRotations: [[footAngle, 0, 0], [footAngle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+      const plateCenter = id === 'calf-press' ? add(center, rotate([0, -0.035, 0.15], -2.35)) : add(center, rotate([0, -0.075, 0.08], -2.35))
+      platform.position.set(...p(plateCenter))
+    }, [2.8, 2.0, 3.6], [0, 0.72, -0.05], 2.08)
+  }
+
+  if (id === 'romanian-deadlift' || id === 'db-romanian-deadlift' || id === 'single-leg-rdl') {
+    const barbell = id === 'romanian-deadlift' ? eq.barbell() : null
+    barbell?.scale.setScalar(scale)
+    const dumbbells = id === 'db-romanian-deadlift' ? SIDES.map(() => eq.dumbbell()) : []
+    dumbbells.forEach(weight => weight.scale.setScalar(scale))
+    if (id === 'single-leg-rdl') bar([-0.47, 0.03, 0.24], [-0.47, 1.45, 0.24], 0.03)
+    return motion(t => {
+      const lean = 0.04 + 1.08 * t
+      const hips: Point = [0, standing - 0.12 * t, -0.24 * t]
+      const feet = id === 'single-leg-rdl'
+        ? [groundFeet[0], [0.17, hips[1] + 0.04 - (upper + lower - 0.015) * Math.cos(lean), hips[2] - (upper + lower - 0.015) * Math.sin(lean)] as Point]
+        : groundFeet
+      const hands = pair(side => [side * 0.265, hips[1] + 0.44 * Math.cos(lean) - 0.51, hips[2] + 0.46 * Math.sin(lean) + 0.055])
+      if (id === 'single-leg-rdl') hands[0] = [-0.47, 1.05, 0.24]
+      const knees = id === 'single-leg-rdl' ? [[-0.18, 0.50, 0.30], [0.17, hips[1] - 0.4, hips[2] - 0.3]] as Point[] : pair(side => [side * 0.18, 0.49, 0.28])
+      const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
+        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: id === 'single-leg-rdl' })
+      if (barbell) barbell.position.copy(average(result.hands))
+      dumbbells.forEach((weight, i) => weight.position.copy(result.hands[i]))
+    }, [2.8, 1.7, 3.7], [0, 0.86, -0.03], 2.13)
+  }
+
+  if (id === 'hip-thrust' || id === 'db-hip-thrust' || id === 'single-leg-hip-thrust' || id === 'sliding-leg-curl') {
+    const sliding = id === 'sliding-leg-curl'
+    if (sliding) mat(0.18, 1.8)
+    else {
+      block([0, 0.45, -0.57], [1.0, 0.08, 0.40])
+      for (const side of SIDES) {
+        bar([side * 0.36, 0.04, -0.57], [side * 0.36, 0.41, -0.57], 0.035)
+        bar([side * 0.36, 0.04, -0.77], [side * 0.36, 0.04, -0.37], 0.03)
+      }
+    }
+    const barbell = id === 'hip-thrust' ? eq.barbell() : null
+    const dumbbell = id === 'db-hip-thrust' ? eq.dumbbell() : null
+    barbell?.scale.setScalar(scale); dumbbell?.scale.setScalar(scale)
+    const sliders = sliding ? SIDES.map(side => block([side * 0.17, 0.055, 0.7], [0.19, 0.035, 0.24], 0, eq.grip)) : []
+    return motion(t => {
+      let hips: Point, lean: number, feet: Point[], hands: Point[], knees: Point[]
+      if (sliding) {
+        hips = [0, 0.34 + 0.045 * t, -0.01 + 0.08 * t]
+        lean = Math.atan2(-0.48, 0.16 - hips[1])
+        feet = pair(side => [side * 0.17, 0.11, 0.73 - 0.44 * t])
+        hands = [[-0.34, 0.11, -0.26], [0.34, 0.11, -0.26]]
+        knees = pair(side => [side * 0.17, 0.63, 0.39])
+      } else {
+        lean = -1.03 - 0.54 * t
+        hips = [0, 0.59 - 0.47 * Math.cos(lean), -0.46 - 0.47 * Math.sin(lean)]
+        feet = pair(side => [side * 0.17, 0.078, 0.55])
+        knees = pair(side => [side * 0.17, 0.57, 0.44])
+        hands = pair(side => [side * (id === 'db-hip-thrust' ? 0.085 : 0.26), hips[1] + 0.105, hips[2]])
+        if (id === 'single-leg-hip-thrust') {
+          feet[1] = [0.16, hips[1] + 0.21, hips[2] + 0.60]
+          knees[1] = [0.16, hips[1] + 0.46, hips[2] + 0.18]
+          hands = [[-0.33, 0.525, -0.55], [0.33, 0.525, -0.55]]
+        }
+      }
+      const result = pose(hips, lean, knees, feet, hands,
+        [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell || !!dumbbell, gripTargets: !!barbell || !!dumbbell, gripAxes: [[1, 0, 0], [-1, 0, 0]], flatHands: sliding || id === 'single-leg-hip-thrust' })
+      if (barbell) barbell.position.copy(average(result.hands))
+      if (dumbbell) dumbbell.position.copy(average(result.hands))
+      sliders.forEach((slider, i) => slider.position.set(...p([feet[i][0], 0.055, feet[i][2]])))
+    }, [2.8, 2.1, 3.0], [0, 0.41, 0.04], 1.78)
+  }
+
+  if (id === 'back-extension-45') {
+    block([0, 0.93, -0.11], [0.46, 0.14, 0.38], 0.72)
+    bar([0, 0.05, 0], [0, 0.88, -0.11], 0.05)
+    bar([-0.40, 0.055, -0.64], [0.40, 0.055, -0.64], 0.04)
+    bar([0, 0.055, -0.64], [0, 0.055, 0.4], 0.04)
+    bar([-0.30, 0.24, -0.60], [0.30, 0.24, -0.60], 0.065)
+    block([0, 0.12, -0.65], [0.55, 0.05, 0.25], -0.35, eq.rubber)
+    return motion(t => {
+      const lean = 1.72 - 0.97 * t
+      const hips: Point = [0, 0.92, -0.08]
+      pose(hips, lean, [[-0.14, 0.54, -0.29], [0.14, 0.54, -0.29]], [[-0.17, 0.19, -0.59], [0.17, 0.19, -0.59]],
+        pair(side => torso(hips, lean, [side * 0.11, 0.35, 0.14])),
+        pair(side => torso(hips, lean, [side * 0.38, 0.18, 0.12])), { pelvisTilt: lean - 0.06, trunkFlexion: 0.06, footRotations: [[0.55, 0, 0], [0.55, 0, 0]] })
+    }, [2.7, 1.8, 3.7], [0, 0.88, 0.05], 2.1)
+  }
+
+  if (id === 'nordic-curl') {
+    mat(0.16, 1.8)
+    block([0, 0.065, -0.08], [0.48, 0.13, 0.42])
+    bar([-0.36, 0.22, -0.46], [0.36, 0.22, -0.46], 0.065)
+    for (const side of SIDES) bar([side * 0.35, 0.03, -0.46], [side * 0.35, 0.24, -0.46], 0.035)
+    return motion(t => {
+      const lean = 0.08 + 1.27 * t
+      const hips: Point = [0, 0.16 + upper * Math.cos(lean), upper * Math.sin(lean)]
+      const reach = smooth((t - 0.58) / 0.30)
+      const hands = pair(side => {
+        const chest = torso(hips, lean, [side * 0.22, 0.37, 0.15])
+        return [side * 0.26, chest[1] * (1 - reach) + 0.09 * reach, chest[2] * (1 - reach) + 0.89 * reach]
+      })
+      pose(hips, lean, [[-halfHip, 0.16, 0], [halfHip, 0.16, 0]], [[-halfHip, 0.21, -lower], [halfHip, 0.21, -lower]], hands,
+        [[-0.5, 0.30, 0.57], [0.5, 0.30, 0.57]], { footRotations: [[1.8, 0, 0], [1.8, 0, 0]], flatHands: true })
+    }, [2.5, 1.85, 3.5], [0, 0.56, 0.2], 1.91)
+  }
+
+  if (id === 'standing-calf-raise' || id === 'single-leg-calf-raise' || id === 'seated-calf-raise') {
+    const seated = id === 'seated-calf-raise', single = id === 'single-leg-calf-raise'
+    block([0, 0.12, 0.14], [0.54, 0.24, 0.21], 0, eq.rubber)
+    if (seated) seat(0.63, -0.30)
+    else if (single) bar([-0.47, 0.02, 0.28], [-0.47, 1.65, 0.28], 0.03)
+    else {
+      for (const side of SIDES) bar([side * 0.41, 0.02, -0.13], [side * 0.41, 1.85, -0.13], 0.035)
+    }
+    const grips = single ? [] : SIDES.map(() => eq.handle())
+    const gripLinks = single ? [] : SIDES.map(side => bar([side * 0.20, 0.8, 0], [side * 0.20, 0.8, 0.1], 0.016))
+    const pads = seated ? [block([0, 0.83, 0.01], [0.51, 0.09, 0.18])]
+      : single ? [] : SIDES.map(side => block([side * 0.2, 1.63, -0.05], [0.16, 0.11, 0.25]))
+    return motion(t => {
+      const angle = -0.18 + 0.65 * t
+      const feet = pair(side => ankleFromToe([side * 0.16, 0.28, 0.17], angle))
+      let hips: Point, knees: Point[], hands: Point[], lean = 0
+      if (seated) {
+        hips = [0, 0.735, -0.32]
+        knees = pair(side => [side * 0.15, feet[0][1] + lower, 0.04])
+        hands = pair(side => [side * 0.20, knees[0][1] + 0.10, 0.10])
+      } else {
+        hips = [0, feet[0][1] + upper + lower - 0.007, feet[0][2] - 0.01]
+        knees = pair(side => [side * 0.16, hips[1] - upper, feet[0][2] + 0.03])
+        hands = pair(side => [side * 0.32, hips[1] + 0.29, 0.16])
+        if (single) {
+          feet[1] = [0.16, feet[0][1] + 0.22, -0.24]
+          knees[1] = [0.16, hips[1] - 0.40, 0.05]
+          hands = [[-0.47, 1.45, 0.28], [0.28, hips[1] + 0.10, 0.10]]
+          lean = 0.035
+        }
+      }
+      const result = pose(hips, lean, knees, feet, hands, undefined, { footRotations: [[angle, 0, 0], [single ? 0 : angle, 0, 0]], grip: true, gripTargets: true })
+      grips.forEach((grip, i) => {
+        grip.position.copy(result.hands[i])
+        const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.49, hips[2] + 0.05]))
+        placeBetween(gripLinks[i], anchor, result.hands[i])
+      })
+      if (seated) pads[0].position.copy(average(result.knees)).add(new Vector3(0, 0.055 * scale, -0.04 * scale))
+      else pads.forEach((pad, i) => pad.position.set(...p([SIDES[i] * 0.20, hips[1] + 0.49, hips[2] - 0.035])))
+    }, [2.8, 1.9, 3.8], [0, seated ? 0.81 : 1.0, 0], seated ? 1.85 : 2.5)
+  }
+
+  if (id === 'crunch' || id === 'reverse-crunch') {
+    mat(0, 1.95)
+    return motion(t => {
+      const reverse = id === 'reverse-crunch'
+      const hips: Point = [0, 0.15 + (reverse ? 0.105 * t : 0), reverse ? -0.035 * t : 0]
+      const lean = -PI / 2
+      const knees: Point[] = reverse ? pair(side => [side * 0.13, 0.58 + 0.04 * t, 0.11 - 0.14 * t]) : pair(side => [side * 0.16, 0.52, 0.30])
+      const feet: Point[] = reverse ? pair(side => [side * 0.13, 0.39 + 0.22 * t, 0.51 - 0.24 * t]) : pair(side => [side * 0.16, 0.078, 0.56])
+      const hands = reverse ? [[-0.31, 0.09, -0.27], [0.31, 0.09, -0.27]] as Point[] : pair(side => [side * 0.20, 0.28 + 0.23 * t, -0.59 + 0.045 * t])
+      pose(hips, lean, knees, feet, hands,
+        [[-0.52, 0.14, -0.35], [0.52, 0.14, -0.35]],
+        { pelvisTilt: reverse ? lean - 0.27 * t : lean, trunkFlexion: reverse ? 0.12 * t : 0.54 * t, footRotations: straightFeet, flatHands: reverse })
+    }, [2.8, 2.2, 3.0], [0, 0.27, -0.06], 1.64)
+  }
+
+  if (id === 'cable-crunch') {
+    mat(0.04, 1.15)
+    eq.tower(p([0, 0, 0.98]), 2.10 * scale)
+    const ropes = SIDES.map(side => cable([0, 1.98, 0.98], [side * 0.15, 1.1, 0.3]))
+    return motion(t => {
+      const lean = 0.03 + 0.12 * t
+      const hips: Point = [0, 0.56, 0]
+      const trunkFlexion = 0.58 * t
+      const hands = pair(side => torso(hips, lean + trunkFlexion * 0.72, [side * 0.15, 0.53, 0.11]))
+      const result = pose(hips, lean, [[-0.14, 0.11, 0.10], [0.14, 0.11, 0.10]], [[-0.14, 0.21, -0.34], [0.14, 0.21, -0.34]], hands,
+        pair(side => torso(hips, lean + trunkFlexion * 0.65, [side * 0.32, 0.25, 0.25])),
+        { pelvisTilt: 0.02, trunkFlexion, footRotations: [[1.75, 0, 0], [1.75, 0, 0]], grip: true, gripTargets: true })
+      ropes.forEach((rope, i) => placeBetween(rope, p([0, 1.98, 0.98]), result.hands[i]))
+    }, [2.8, 1.7, 3.5], [0, 1.0, 0.33], 2.3)
+  }
+
+  if (id === 'roman-chair-abs' || id === 'hanging-leg-raise') {
+    const hanging = id === 'hanging-leg-raise'
+    if (hanging) {
+      for (const side of SIDES) bar([side * 0.55, 0.04, -0.08], [side * 0.55, 2.19, -0.08], 0.035)
+      bar([-0.62, 2.18, 0], [0.62, 2.18, 0], 0.022)
+    } else {
+      block([0, 1.25, -0.13], [0.37, 0.52, 0.09])
+      for (const side of SIDES) {
+        bar([side * 0.38, 0.04, -0.15], [side * 0.38, 1.46, -0.15], 0.032)
+        block([side * 0.30, 1.36, 0.13], [0.15, 0.09, 0.40])
+        bar([side * 0.30, 1.38, 0.30], [side * 0.30, 1.55, 0.30], 0.018)
+        bar([side * 0.38, 0.04, -0.38], [side * 0.38, 0.04, 0.48], 0.035)
+      }
+    }
+    return motion(t => {
+      const hips: Point = [0, hanging ? 1.073 + 0.01 * t : 1.13 + 0.05 * t, -0.02 - 0.05 * t]
+      const angle = hanging ? 0.20 + 1.85 * t : 0.12 + 1.39 * t
+      const knees = pair(side => [side * halfHip, hips[1] - upper * Math.cos(angle), hips[2] + upper * Math.sin(angle)])
+      const feet = knees.map(knee => add(knee, [0, -lower * Math.cos(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t), lower * Math.sin(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t)]))
+      const hands: Point[] = hanging ? [[-0.33, 2.18, 0], [0.33, 2.18, 0]] : [[-0.30, 1.47, 0.30], [0.30, 1.47, 0.30]]
+      const poles: Point[] = hanging ? [[-0.55, 1.80, -0.04], [0.55, 1.80, -0.04]] : [[-0.30, 1.37, -0.04], [0.30, 1.37, -0.04]]
+      pose(hips, 0, knees, feet, hands, poles, { pelvisTilt: -0.21 * t, trunkFlexion: 0.07 * t, footRotations: [[-0.2, 0, 0], [-0.2, 0, 0]], grip: true, gripTargets: true, gripAxes: hanging ? [[1, 0, 0], [-1, 0, 0]] : undefined, gripDirections: hanging ? [[0, 1, 0], [0, 1, 0]] : undefined })
+    }, [2.7, 1.8, 3.7], [0, 1.09, 0.08], hanging ? 2.43 : 2.18)
+  }
+  return null
+}
