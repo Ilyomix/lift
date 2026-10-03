@@ -10,12 +10,19 @@ import { latestSync } from '../lib/native/sync'
 // Kept outside React: language changes and StrictMode remounts share the same queue.
 let alertKey = ''
 let reported = false
+let alertsConfigured: Promise<void> | undefined
 const submit = latestSync(async (state: ReturnType<typeof useStore.getState>['state']) => {
   const snapshot = workoutActivityState(state.activeWorkout, resolveLang(state.prefs.lang))
   const nextKey = JSON.stringify([snapshot?.workoutId, snapshot?.restEndAt, snapshot?.exercise, snapshot?.setLabel, snapshot?.detail, state.prefs.notifications, state.prefs.sound])
   if (nextKey !== alertKey) {
-    await syncRestAlert(snapshot, state.prefs.notifications, state.prefs.sound)
-    alertKey = nextKey
+    try {
+      alertsConfigured ??= configureNativeAlerts().catch(error => { alertsConfigured = undefined; throw error })
+      await alertsConfigured
+      await syncRestAlert(snapshot, state.prefs.notifications, state.prefs.sound)
+      alertKey = nextKey
+    } catch {
+      useStore.getState().notify(L('Alerte de repos indisponible. Vérifie les autorisations des notifications.', 'Rest alert unavailable. Check notification permissions.'), 'bad')
+    }
   }
   await WorkoutActivity.sync({ state: state.prefs.liveActivity === false ? null : snapshot })
 }, () => {
@@ -29,7 +36,6 @@ export function NativeSessionEffects() {
     if (!isNative()) return
     let disposed = false
     const subscriptions: Array<{ remove(): Promise<void> }> = []
-    void configureNativeAlerts().catch(() => {})
     void LocalNotifications.addListener('localNotificationActionPerformed', () => navigate('seance')).then(h => {
       if (disposed) void h.remove()
       else subscriptions.push(h)

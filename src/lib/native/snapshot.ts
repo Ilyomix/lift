@@ -28,10 +28,11 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
   const i = exercise?.sets.findIndex(s => !s.completed) ?? -1
   const prescription = exercise?.prescription ?? exercise?.target
   const weight = i >= 0 ? (exercise!.sets[i].weight ?? prescription?.weight) : null
+  const displayWeight = weight == null ? '' : new Intl.NumberFormat(lang, { maximumFractionDigits: 2 }).format(weight)
   const completedSets = exercises.reduce((n, e) => n + e.sets.filter(s => s.completed).length, 0)
   const totalSets = exercises.reduce((n, e) => n + e.sets.length, 0)
   const detail = exercise && prescription ? [
-    exercise.unit === 'PDC' ? (weight ? `${lang === 'fr' ? 'PDC' : 'BW'} + ${weight} kg` : (lang === 'fr' ? 'PDC' : 'BW')) : weight == null ? '' : `${weight} ${exercise.unit === 'kg/main' ? (lang === 'fr' ? 'kg/main' : 'kg/hand') : exercise.unit}`,
+    exercise.unit === 'PDC' ? (weight ? `${lang === 'fr' ? 'PDC' : 'BW'} + ${displayWeight} kg` : (lang === 'fr' ? 'PDC' : 'BW')) : weight == null ? '' : `${displayWeight} ${exercise.unit === 'kg/main' ? (lang === 'fr' ? 'kg/main' : 'kg/hand') : exercise.unit}`,
     `${prescription.minReps}–${prescription.maxReps} reps`,
     prescription.rir ? `RIR ${prescription.rir}` : '',
   ].filter(Boolean).join(' · ') : ''

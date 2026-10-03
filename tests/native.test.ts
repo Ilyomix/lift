@@ -91,3 +91,10 @@ test('native queue recovers from a rejected update', async () => {
   assert.match(workoutActivityState(a, 'fr')!.detail, /^42 kg\/main/)
   assert.match(workoutActivityState(a, 'en')!.detail, /^42 kg\/hand/)
 })
+
+test('decimal loads follow the selected locale', () => {
+  const a = fixture()
+  a.exercises[0].sets[1].weight = 42.5
+  assert.match(workoutActivityState(a, 'fr')!.detail, /^42,5 kg/)
+  assert.match(workoutActivityState(a, 'en')!.detail, /^42\.5 kg/)
+})
