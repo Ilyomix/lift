@@ -25,8 +25,8 @@ export function setupLabel(s: TrainingSetup | undefined): string {
 /** Gym or home, and the home equipment, with the Upper session it gives as an example. */
 export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChange: (s: TrainingSetup) => void }) {
   const places = [
-    { id: 'gym' as const, icon: Dumbbell, title: L('Salle de sport', 'Gym'), text: L('Machines, poulies, haltères : le programme tel que la recherche le décrit.', 'Machines, cables, dumbbells: the program as the research describes it.') },
-    { id: 'home' as const, icon: House, title: L('À la maison', 'At home'), text: L('Poids du corps et ton matériel : chaque exercice prend sa meilleure version possible.', 'Bodyweight and your equipment: each exercise takes its best possible version.') },
+    { id: 'gym' as const, icon: Dumbbell, title: L('Salle de sport', 'Gym'), text: L('Des séances avec machines, poulies et haltères.', 'Sessions using machines, cables and dumbbells.') },
+    { id: 'home' as const, icon: House, title: L('À la maison', 'At home'), text: L('Des exercices adaptés au matériel que tu possèdes.', 'Exercises matched to the equipment you own.') },
   ]
   const toggle = (e: Equipment) =>
     onChange({ ...value, equipment: value.equipment.includes(e) ? value.equipment.filter((x) => x !== e) : [...value.equipment, e] })
@@ -89,11 +89,11 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
           </p>
         </div>
       )}
-      <p className="mt-4 text-[13px] leading-[1.5] text-text-2">
-        <span className="font-semibold text-text">{L('Exemple, séance Upper', 'Example, Upper session')}</span>
-        {L(` (${example.length})\u00a0: `, ` (${example.length}): `)}
-        {example.join(' · ')}
-      </p>
+      <details className="mt-5 border-t border-line pt-3 text-[13px] leading-[1.5] text-text-2">
+        <summary className="cursor-pointer py-2 font-medium text-text">{L('Voir les exercices prévus', 'See the planned exercises')}</summary>
+        <p className="mt-2">{L('Première séance : haut du corps.', 'First session: upper body.')}</p>
+        <ul className="mt-2 space-y-1">{example.map((name, i) => <li key={name}>{i + 1}. {name}</li>)}</ul>
+      </details>
     </div>
   )
 }

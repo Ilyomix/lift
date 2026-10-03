@@ -30,6 +30,13 @@ export interface OnboardingAnswers {
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x))
 const round = (x: number, step: number) => Math.round(x / step) * step
 
+/** Read-only first-session content from the exact state that will be saved, including goal priorities. */
+export function onboardingSession(a: OnboardingAnswers, today: ISODate = todayISO()) {
+  const state = stateFromOnboarding(a, today)
+  const type = state.nextWorkoutType
+  return { type, exercises: state.templates[type].exercises }
+}
+
 /** Body fat from BMI, age and sex (Deurenberg 1991), the fallback without a waist measure: ± ~4 points. */
 export function bmiBodyFat(weight: number, heightCm: number, age: number, sex: 'm' | 'f'): number {
   const bmi = weight / (heightCm / 100) ** 2

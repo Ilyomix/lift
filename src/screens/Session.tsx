@@ -3,10 +3,9 @@ import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
 import { exerciseContextReason } from '../lib/comparability'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, Replace, Sparkles, StickyNote, Timer, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, StickyNote, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
-import { sessionPrompt } from '../lib/coach'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
@@ -15,7 +14,6 @@ import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
 import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { navigate } from '../lib/router'
-import { shareText } from '../lib/share'
 import { useStore } from '../lib/store'
 import {
   changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionPace,
@@ -23,11 +21,12 @@ import {
 } from '../lib/training'
 import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
+import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
 import { workoutArt } from '../components/SportArt'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
-  Button, Card, cx, DateInput, Empty, Eyebrow, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
+  Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
 } from '../components/ui'
 
 // ───────────────────────── Entry ─────────────────────────
@@ -186,7 +185,7 @@ function ActiveSession() {
   return (
     <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
-        eyebrow={`${ctx.before ? L('Fondation', 'Foundation') : ctx.title} · ${fmtDate(a.date)}`}
+        eyebrow={`${ctx.title} · ${fmtDate(a.date)}`}
         art={workoutArt[a.type]}
         title={TYPE_META[a.type].label}
         right={
@@ -399,10 +398,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
             {sameLoad && <span className="text-muted"> {L('→ à battre :', '→ to beat:')} <span className="font-semibold text-text">{L(`${prevClean + 1} reps propres`, `${prevClean + 1} clean reps`)}</span></span>}
           </p>
         ) : !ex.gymTrial ? (
-          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L(`Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR 3.`, `Trial session: find a load for ${ex.target.minReps}–${ex.target.maxReps} reps at RIR 3.`) : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
+          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L(`Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR ${effortTarget(ex) ?? '3'}.`, `Trial session: find a load for ${ex.target.minReps}–${ex.target.maxReps} reps at RIR ${effortTarget(ex) ?? '3'}.`) : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
         {hurtLastTime && (
-          <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, remplace l’exercice (··· → Remplacer par).', 'Pain flagged last time: if it comes back, replace the exercise (··· → Replace with).')}</p>
+          <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, compare les alternatives dans les options de l’exercice (···).', 'Pain flagged last time: if it comes back, compare alternatives in the exercise options (···).')}</p>
         )}
         {lest && !!target && <p className="text-muted">{L('Lest proposé : saisis-le si tu l’ajoutes, sinon la série compte au poids du corps.', 'Suggested added load: type it in if you use it, otherwise the set counts at body weight.')}</p>}
         {ex.note && <p className="text-muted">{ex.note}</p>}
@@ -469,18 +468,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       <ExerciseSheet exerciseId={ex.exerciseId} name={ex.name} open={info} onClose={() => setInfo(false)} prescription={p} onReplace={(id) => replaceExercise(index, id)} />
       <Sheet open={menu} onClose={() => setMenu(false)} title={ex.name}>
         <div className="space-y-5">
-          {(LIBRARY[ex.exerciseId]?.alternatives.length ?? 0) > 0 && (
-            <div>
-              <Eyebrow>{L('Remplacer par', 'Replace with')}</Eyebrow>
-              <div className="mt-2 flex flex-col gap-2">
-                {LIBRARY[ex.exerciseId].alternatives.map((alt) => (
-                  <Button key={alt} full variant="outline" className="justify-start" icon={<Replace size={16} aria-hidden />} onClick={() => { replaceExercise(index, alt); setMenu(false) }}>
-                    {LIBRARY[alt]?.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
+          <ExerciseAlternatives exerciseId={ex.exerciseId} onChoose={(id) => { replaceExercise(index, id); setMenu(false) }} />
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Conditions différentes (tempo, prise…)', 'Different conditions (tempo, grip…)')}</span>
             <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder={L('Ex. : tempo lent, prise différente', 'E.g. slow tempo, different grip')} onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
@@ -752,14 +740,9 @@ export function SessionSummary() {
         <WorkoutExercises w={w} />
       </Section>
 
-      {/* The session is over at this point: the AI summary is an extra, never a step of the flow. */}
       <div className="mt-8 grid gap-2">
         <Button variant="primary" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
-        <Button variant="outline" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>
-          {L('Bilan pour une IA', 'Summary for an AI')}
-        </Button>
       </div>
-      <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Optionnel : envoie ce bilan à l’assistant IA de ton choix, puis colle sa réponse dans Plus → Coach IA pour ajuster tes cibles.', 'Optional: send this summary to the AI assistant of your choice, then paste its reply in More → AI coach to adjust your targets.')}</p>
     </Screen>
   )
 }
@@ -866,7 +849,6 @@ export function WorkoutDetail({ id }: { id: string }) {
         </Section>
       )}
       <div className="mt-8 grid gap-2">
-        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} onClick={() => void shareText(sessionPrompt(state, w), L(`Séance ${w.sessionNumber}`, `Session ${w.sessionNumber}`))}>{L('Bilan pour une IA', 'Summary for an AI')}</Button>
         {isLast && (correcting ? (
           <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} onClick={() => navigate('seance')}>{L('Reprendre la correction', 'Resume the correction')}</Button>
         ) : (

@@ -32,7 +32,6 @@ export function MoreScreen() {
   const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
     { to: 'plus/nutrition', art: 'nutrition', label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
     { to: 'plus/programme', art: 'calendar', label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
-    { to: 'plus/coach', art: 'coach', label: L('Coach IA', 'AI coach'), hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
     { to: 'plus/pause', art: 'stopwatch', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
     { to: 'plus/rappels', art: 'calendar', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
     { to: 'plus/donnees', art: 'backup', label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
@@ -53,6 +52,16 @@ export function MoreScreen() {
           </button>
         ))}
       </Card>
+      <details className="mt-4 border-y border-line text-[13px] text-text-2">
+        <summary className="min-h-11 cursor-pointer py-3 font-medium">{L('Outils avancés', 'Advanced tools')}</summary>
+        <a href="#/plus/coach" className="pressable mb-2 flex min-h-11 items-center justify-between gap-3 rounded-[10px] px-3 py-2 hover:bg-surface-2">
+          <span>
+            <span className="block font-medium">{L('Aide IA facultative', 'Optional AI assistance')}</span>
+            <span className="mt-0.5 block text-[12px] text-muted">{L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')}</span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
+        </a>
+      </details>
       {/* About: who made it and which build this is, as one row; the two notes under it. */}
       <Card className="mt-3">
         <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
@@ -266,7 +275,7 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header art="coach" backTo="plus" eyebrow={L('Optionnel', 'Optional')} title={L('Coach IA', 'AI coach')} sub={L('Envoie un bilan précis à l’assistant IA de ton choix, colle sa réponse : tes cibles se mettent à jour, avec un aperçu avant de valider.', 'Send a detailed summary to the AI assistant of your choice, paste its reply: your targets update, with a preview before you confirm.')} />
+      <Header backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
       <ol className="space-y-2">
         {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
           <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>

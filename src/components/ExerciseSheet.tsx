@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CirclePlay, ExternalLink, Replace } from 'lucide-react'
+import { CirclePlay, ExternalLink } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
-import { infoFor, LIBRARY, youtubeId, youtubeSearchUrl } from '../lib/library'
+import { infoFor, youtubeId, youtubeSearchUrl } from '../lib/library'
+import { alternativesFor } from '../lib/exerciseAlternatives'
 import { fmtDate } from '../lib/date'
 import { fmtRest } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -10,6 +11,7 @@ import { exerciseHistory, setsSummary } from '../lib/training'
 import type { Prescription } from '../lib/types'
 import { LevelTag, RefList } from './Evidence'
 import { ExerciseDemo } from './ExerciseDemo'
+import { ExerciseAlternatives } from './ExerciseAlternatives'
 import { Button, Eyebrow, inputClass, Sheet, Tag } from './ui'
 
 // Retain the public export used by exercise detail/session screens.
@@ -33,6 +35,7 @@ export function ExerciseSheet({
   const [play, setPlay] = useState(false)
   const vid = youtubeId(video)
   const history = exerciseHistory(workouts, exerciseId).slice(-3).reverse()
+  const alternatives = alternativesFor(exerciseId)
 
   return (
     <Sheet open={open} onClose={() => { setPlay(false); onClose() }} title={name ?? info.name} tall>
@@ -86,6 +89,11 @@ export function ExerciseSheet({
         </div>
       )}
 
+      {alternatives.length > 0 && <details key={exerciseId} className="mt-5 border-y border-line text-[13px]">
+        <summary className="min-h-11 cursor-pointer py-3 font-medium">{L(`Voir les alternatives (${alternatives.length})`, `Compare alternatives (${alternatives.length})`)}</summary>
+        <div className="pb-4"><ExerciseAlternatives exerciseId={exerciseId} onChoose={onReplace ? id => { onReplace(id); onClose() } : undefined} /></div>
+      </details>}
+
       {info.cues.length > 0 && (
         <section className="mt-6">
           <Eyebrow>Technique</Eyebrow>
@@ -123,18 +131,6 @@ export function ExerciseSheet({
         </section>
       )}
 
-      {onReplace && info.alternatives.length > 0 && (
-        <section className="mt-6">
-          <Eyebrow>{L('Machine prise ? Remplacer par', 'Machine taken? Replace with')}</Eyebrow>
-          <div className="mt-2 flex flex-col gap-2">
-            {info.alternatives.map((alt) => (
-              <Button key={alt} variant="outline" full icon={<Replace size={16} aria-hidden />} onClick={() => { onReplace(alt); onClose() }} className="justify-start">
-                {LIBRARY[alt]?.name ?? alt}
-              </Button>
-            ))}
-          </div>
-        </section>
-      )}
     </Sheet>
   )
 }

@@ -603,6 +603,9 @@ export function effortFor(ex: TemplateExercise, ctx: ProgramContext): string {
   const base = ex.target.rir ?? (ex.role === 'compound' ? '1–2' : '0–1')
   const p = ctx.period
   if (ctx.deload) return '3–4'
+  // A new plan can be tried before its first Monday. Keep the introductory
+  // effort shown during onboarding; imported foundation workouts keep theirs.
+  if (ctx.before && FOUNDATION === null) return '3'
   if (!p || p.kind === 'pre') return base
   if (p.kind === 'holiday') return '2–3'
   if (p.fixedRir) return p.fixedRir

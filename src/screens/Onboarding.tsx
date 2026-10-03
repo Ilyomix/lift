@@ -1,19 +1,19 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, TriangleAlert, Upload } from 'lucide-react'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L, lang, setLang, type Lang } from '../lib/i18n'
-import { onboardingPreview, type OnboardingAnswers } from '../lib/onboarding'
+import { onboardingPreview, onboardingSession, type OnboardingAnswers } from '../lib/onboarding'
 import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
 import { studyCount } from '../lib/research'
 import { useStore } from '../lib/store'
+import { navigate } from '../lib/router'
 import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
-import { PlanModePicker } from '../components/PlanMode'
 import { ZonePicker } from '../components/ZonePicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
-import { Button, Card, cx, DateInput, Field, inputClass, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, DateInput, Field, inputClass, Sheet } from '../components/ui'
 import { ImportSheet } from './More'
 import { SportArt } from '../components/SportArt'
 
@@ -50,6 +50,12 @@ const inRange = (v: number | null, min: number, max: number): v is number => v !
 export function Onboarding() {
   const [language, setLanguage] = useState<Lang>(lang())
   const [step, setStep] = useState(0)
+  const title = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (!step) return
+    window.scrollTo({ top: 0 })
+    title.current?.focus({ preventScroll: true })
+  }, [step])
   const today = todayISO()
   const start = programStartFor(today)
   const [d, setD] = useState<Draft>(() => ({
@@ -85,7 +91,11 @@ export function Onboarding() {
   const canNext = step === 1 ? true : step === 2 ? d.days.length >= 2 : step === 3 ? bodyOk : step === 4 ? goalOk && !!preview : true
   const next = () => setStep((s) => Math.min(STEPS, s + 1))
   const back = () => setStep((s) => Math.max(0, s - 1))
-  const finish = () => answers && useStore.getState().completeOnboarding(answers)
+  const finish = () => {
+    if (!answers || !preview) return
+    useStore.getState().completeOnboarding(answers)
+    navigate('seance')
+  }
 
   if (step === 0) return <Welcome language={language} onLanguage={chooseLang} onStart={() => setStep(1)} />
 
@@ -93,9 +103,9 @@ export function Onboarding() {
     '',
     L('Où t’entraînes-tu ?', 'Where do you train?'),
     L('Quels jours ?', 'Which days?'),
-    L('Toi, aujourd’hui', 'You, today'),
+    L('Ton point de départ', 'Your starting point'),
     L('Ton objectif', 'Your goal'),
-    L('Ton programme est prêt', 'Your program is ready'),
+    L('Ta première séance', 'Your first session'),
   ]
 
   return (
@@ -105,14 +115,14 @@ export function Onboarding() {
           <ArrowLeft size={18} aria-hidden />
           {L('Retour', 'Back')}
         </button>
-        <span className="text-[13px] font-medium text-muted tnum">{L(`Étape ${step} sur ${STEPS}`, `Step ${step} of ${STEPS}`)}</span>
+        <span className="text-[13px] font-medium text-muted tnum" aria-live="polite">{L(`Étape ${step} sur ${STEPS}`, `Step ${step} of ${STEPS}`)}</span>
       </div>
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden>
         <div className="h-full rounded-full bg-signal transition-[width] duration-300" style={{ width: `${(step / STEPS) * 100}%` }} />
       </div>
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <h1 className="min-w-0 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em]">{titles[step]}</h1>
-        <SportArt kind={step === 1 ? 'dumbbell' : step === 2 ? 'calendar' : step === 3 ? 'chart' : 'trophy'} />
+      <div className="mt-5 flex items-center gap-3">
+        <SportArt kind={step === 1 ? 'dumbbell' : step === 2 ? 'calendar' : step === 3 ? 'chart' : 'trophy'} size="illustration" />
+        <h1 ref={title} tabIndex={-1} className="min-w-0 flex-1 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em] outline-none">{titles[step]}</h1>
       </div>
 
       <div className="flex-1 py-5">
@@ -127,7 +137,7 @@ export function Onboarding() {
         {step < STEPS ? (
           <Button variant="primary" size="lg" full disabled={!canNext} onClick={next}>{L('Continuer', 'Continue')}</Button>
         ) : (
-          <Button variant="primary" size="lg" full disabled={!answers || !preview} onClick={finish}>{L('C’est parti', 'Let’s go')}</Button>
+          <Button variant="primary" size="lg" full disabled={!answers || !preview} onClick={finish}>{L('Voir ma première séance', 'See my first session')}</Button>
         )}
       </div>
     </main>
@@ -175,26 +185,23 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
           <h1 className="text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
         </div>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
-          {L('Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif ou en entretien, sans date.', 'Your research-based hypertrophy program, built around your goal date or in maintenance mode, with no end date.')}
+          {L('Savoir quoi faire à chaque séance. Voir tes progrès au fil des semaines.', 'Know what to do each session. See your progress week after week.')}
         </p>
         <ul className="mt-8 space-y-3 text-[15px] leading-[1.45]">
-          <li className="flex items-center gap-3"><SportArt kind="dumbbell" /><span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</span></li>
-          <li className="flex items-center gap-3"><SportArt kind="stopwatch" /><span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</span></li>
-          <li className="flex items-center gap-3"><SportArt kind="plate" /><span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="dumbbell" /><span>{L('Un programme adapté à ton matériel et à tes jours disponibles.', 'A program matched to your equipment and available days.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="stopwatch" /><span>{L('Les mouvements en 3D, les séries à noter et le repos guidé.', '3D movements, sets to log and a guided rest timer.')}</span></li>
         </ul>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {ROTATION.map((t) => <Tag key={t} tone="outline">{TYPE_META[t].label}</Tag>)}
-        </div>
+        <p className="mt-6 text-[13px] leading-[1.5] text-muted">{L('5 étapes pour préparer ta première séance. Tes choix restent modifiables.', '5 steps to prepare your first session. You can change your choices later.')}</p>
       </div>
       <div className="pb-6">
-        <Button variant="primary" size="lg" full onClick={onStart}>{L('Commencer', 'Get started')}</Button>
+        <Button variant="primary" size="lg" full onClick={onStart}>{L('Préparer mes séances', 'Set up my training')}</Button>
         <Button variant="ghost" size="lg" full className="mt-2" icon={<Upload size={18} aria-hidden />} onClick={() => file.current?.click()}>
           {L('J’ai une sauvegarde', 'I have a backup')}
         </Button>
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
         {error && <p className="mt-3 text-center text-[13px] text-bad">{error}</p>}
         <p className="mt-4 text-center text-[12px] leading-[1.5] text-muted">
-          {L(`${studies} publications citées · données stockées sur ce téléphone uniquement`, `${studies} studies cited · data stored on this phone only`)}
+          {L(`${studies} publications citées · données stockées sur cet appareil`, `${studies} studies cited · data stored on this device`)}
         </p>
       </div>
       <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={() => void importBackup(parsed!, { upgrade })} />
@@ -214,6 +221,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
   const pct = Math.round(week.share * 100)
   return (
     <div>
+      <p className="mb-4 text-[15px] leading-[1.5] text-text-2">{L('Choisis les jours que tu peux tenir dans la durée. Une séance manquée décale la suite du programme.', 'Choose days you can stick to. A missed session moves the next one along.')}</p>
       <div className="grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
         {[1, 2, 3, 4, 5, 6, 0].map((day) => {
           const on = days.includes(day)
@@ -233,12 +241,13 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
       </div>
       <p className="mt-4 text-[15px] leading-[1.5]">
         {plural(n, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine', 'per week')}
-        {n >= 2 && <span className="text-text-2"> · {L(`chaque muscle ≈ ${fmtNum(perMuscle, 1)} fois par semaine`, `each muscle ≈ ${fmtNum(perMuscle, 1)}× a week`)}</span>}
+        {n >= 2 && <span className="text-text-2"> · {L(`environ ${week.minutes[0]}–${week.minutes[1]} min par séance`, `about ${week.minutes[0]}–${week.minutes[1]} min per session`)}</span>}
       </p>
-      <p className="mt-2 text-[13px] leading-[1.5] text-text-2">
-        {n < 2
-          ? L('Choisis au moins 2 jours.', 'Pick at least 2 days.')
-          : <>
+      {n < 2 && <p role="status" className="mt-2 text-[13px] text-text-2">{L('Choisis au moins 2 jours pour continuer.', 'Choose at least 2 days to continue.')}</p>}
+      {n >= 2 && <details className="mt-5 border-t border-line pt-3 text-[13px] leading-[1.5] text-text-2">
+        <summary className="cursor-pointer py-2 font-medium text-text">{L('Comment les séances s’adaptent', 'How sessions adapt')}</summary>
+        <p className="mt-2">
+              {L(`Chaque muscle travaille environ ${fmtNum(perMuscle, 1)} fois par semaine. `, `Each muscle works about ${fmtNum(perMuscle, 1)} times a week. `)}
               {L('Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). ', 'The program rotates 5 sessions (Upper, Lower, Push, Pull, Legs). ')}
               {n === PLAN_DAYS
                 ? L('Avec 5 jours, chaque muscle travaille 2 fois par semaine. ', 'With 5 days, each muscle works twice a week. ')
@@ -248,15 +257,17 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
                     ? L(`Avec ${n} jours, chaque séance prend plus de séries (environ ${week.minutes[0]} à ${week.minutes[1]} min) et la semaine garde ${sharePhrase(week.share)}. Les réglages permettent de revenir à des séances d’une heure, avec moins de volume. `, `With ${n} days, each session takes more sets (about ${week.minutes[0]} to ${week.minutes[1]} min) and the week keeps ${sharePhrase(week.share)}. Settings let you go back to one-hour sessions, with less volume. `)
                     : L(`Avec ${n} jours, chaque séance prend plus de séries (environ ${week.minutes[0]} à ${week.minutes[1]} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier. `, `With ${n} days, each session takes more sets (about ${week.minutes[0]} to ${week.minutes[1]} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it. `)}
               {L('Une séance manquée décale la rotation, elle n’est jamais sautée.', 'A missed session shifts the rotation, it is never skipped.')}
-            </>}
-      </p>
+        </p>
+      </details>}
     </div>
   )
 }
 
 function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }) {
+  const error = (value: string, min: number, max: number) => value.trim() !== '' && !inRange(parseNumber(value), min, max)
   return (
     <div className="grid grid-cols-2 gap-3">
+      <p className="col-span-2 mb-2 text-[15px] leading-[1.5] text-text-2">{L('Ces informations servent à estimer tes besoins et ton objectif. Elles restent sur cet appareil.', 'These details help estimate your needs and goal. They stay on this device.')}</p>
       <div className="col-span-2">
         <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
         <div className="grid h-12 grid-cols-2 gap-1 rounded-[10px] border border-line-strong p-1" role="radiogroup" aria-label={L('Sexe', 'Sex')}>
@@ -267,20 +278,20 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
           ))}
         </div>
       </div>
-      <Field label={L('Âge', 'Age')}><input className={inputClass} inputMode="numeric" value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
-      <Field label={L('Taille (cm)', 'Height (cm)')}><input className={inputClass} inputMode="numeric" value={d.height} onChange={(e) => patch({ height: e.target.value })} placeholder="178" /></Field>
-      <Field label={L('Poids ce matin (kg)', 'Weight this morning (kg)')} className="col-span-2">
-        <input className={inputClass} inputMode="decimal" value={d.weight} onChange={(e) => patch({ weight: e.target.value })} placeholder={L('78,5', '78.5')} />
+      <Field label={L('Âge', 'Age')} hint={error(d.age, 14, 90) ? L('Entre 14 et 90 ans.', 'Between 14 and 90 years.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
+      <Field label={L('Taille (cm)', 'Height (cm)')} hint={error(d.height, 120, 230) ? L('Entre 120 et 230 cm.', 'Between 120 and 230 cm.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.height, 120, 230)} value={d.height} onChange={(e) => patch({ height: e.target.value })} placeholder="178" /></Field>
+      <Field label={L('Poids actuel (kg)', 'Current weight (kg)')} hint={error(d.weight, 35, 250) ? L('Entre 35 et 250 kg.', 'Between 35 and 250 kg.') : undefined} className="col-span-2">
+        <input className={inputClass} inputMode="decimal" required aria-invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(e) => patch({ weight: e.target.value })} placeholder={L('78,5', '78.5')} />
       </Field>
       <Field
         label={L('Tour de taille (cm), facultatif', 'Waist (cm), optional')}
-        hint={L('Au nombril, à jeun. Il estime ton taux de gras bien mieux que l’IMC.', 'At the navel, before eating. It estimates your body fat far better than BMI.')}
+        hint={error(d.waist, 50, 200) ? L('Entre 50 et 200 cm, ou laisse ce champ vide.', 'Between 50 and 200 cm, or leave this blank.') : L('Au nombril, à jeun. Cette mesure affine l’estimation du taux de gras.', 'At the navel, before eating. This helps refine the body-fat estimate.')}
         className="col-span-2"
       >
-        <input className={inputClass} inputMode="decimal" value={d.waist} onChange={(e) => patch({ waist: e.target.value })} placeholder="—" />
+        <input className={inputClass} inputMode="decimal" aria-invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(e) => patch({ waist: e.target.value })} placeholder="—" />
       </Field>
       <p className="col-span-2 text-[12px] leading-[1.45] text-muted">
-        {L('Tes données restent sur ce téléphone. Elles servent à estimer ton taux de gras, ton poids cible et tes calories de départ.', 'Your data stays on this phone. It is used to estimate your body fat, target weight and starting calories.')}
+        {L('Renseigne ton âge, ta taille et ton poids pour continuer. Le tour de taille peut attendre.', 'Enter your age, height and weight to continue. You can add your waist measurement later.')}
       </p>
     </div>
   )
@@ -298,13 +309,24 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
       hint={preview.bodyFat?.source === 'imc' ? L('Avec ton IMC : ± 4 points. Mesure ton tour de taille pour mieux faire.', 'From your BMI: ± 4 points. Measure your waist to do better.') : L('Avec ton tour de taille (formule RFM)', 'From your waist (RFM formula)')}
     />
   )
-  const mode = <PlanModePicker value={d.maintenance ? 'maintenance' : 'goal'} onChange={(m) => patch({ maintenance: m === 'maintenance' })} />
+  const mode = <div className="grid gap-2" role="radiogroup" aria-label={L('Type de plan', 'Plan type')}>
+    {[
+      { maintenance: false, title: L('Un objectif à une date', 'A goal by a date'), text: L('Choisir le physique visé et le temps pour y arriver.', 'Choose the physique you want and the time to work towards it.') },
+      { maintenance: true, title: L('M’entraîner sans date limite', 'Train without a deadline'), text: L('Continuer à progresser en gardant un poids stable.', 'Keep progressing while maintaining a stable weight.') },
+    ].map((option) => <button key={String(option.maintenance)} type="button" role="radio" aria-checked={d.maintenance === option.maintenance} onClick={() => patch({ maintenance: option.maintenance })} className={cx('pressable card flex items-center gap-3 px-4 py-3 text-left', d.maintenance === option.maintenance ? 'border-signal bg-signal-soft' : 'hover:border-line-strong')}>
+      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">{option.title}</span><span className="mt-1 block text-[13px] leading-[1.45] text-text-2">{option.text}</span></span>
+      {d.maintenance === option.maintenance && <Check size={18} className="shrink-0 text-signal-text" aria-hidden />}
+    </button>)}
+  </div>
   if (d.maintenance) {
     return (
       <div>
         {mode}
+        <p className="mt-4 text-[15px] leading-[1.5] text-text-2">{L('Ton programme alterne entraînement et semaines plus légères. Tu pourras définir une date objectif plus tard.', 'Your program alternates training with lighter weeks. You can set a goal date later.')}</p>
         {preview && (
-          <Card className="mt-5 divide-y divide-line">
+          <details className="mt-5 border-t border-line pt-3">
+            <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Voir les estimations et le rythme', 'View estimates and training rhythm')}</summary>
+          <Card className="mt-2 divide-y divide-line">
             {bodyFat}
             <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Maintenance estimée : poids stable, ajustée ensuite sur ta moyenne 7 jours', 'Estimated maintenance: stable weight, then adjusted to your 7-day average')} />
             <Line
@@ -313,16 +335,32 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
               hint={L('Les blocs se suivent sans date de fin, fêtes de fin d’année à volume réduit. Pas de sèche.', 'Blocks follow one another with no end date, year-end holidays at reduced volume. No cut.')}
             />
           </Card>
+          </details>
         )}
-        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-          {L('Pour garder ton physique et continuer à progresser. Tu pourras fixer une date objectif plus tard dans Réglages : le plan passera en recomposition puis en sèche.', 'To keep your physique and keep progressing. You can set a goal date later in Settings: the plan then switches to recomposition, then a cut.')}
-        </p>
       </div>
     )
   }
   return (
     <div>
       {mode}
+      <div className="mt-5">
+        <DateInput label={L('Date objectif', 'Goal date')} value={d.goalDate} min={min} max={max} onChange={(goalDate) => patch({ goalDate })} />
+        <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5" role="group" aria-label={L('Durée', 'Duration')}>
+          {chips.map((c) => (
+            <button
+              key={c.date}
+              type="button"
+              onClick={() => patch({ goalDate: c.date })}
+              className={cx('pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] whitespace-nowrap', d.goalDate === c.date ? 'border-signal bg-signal-soft' : 'border-line-strong')}
+            >
+              <span className="font-semibold">{c.label}</span>
+              <span className="text-muted tnum">{fmtDate(c.date)}</span>
+            </button>
+          ))}
+        </div>
+        {!isValidGoal(d.goalDate, start) && <p role="status" className="mt-2 text-[13px] text-bad">{L(`Choisis une date à partir du ${fmtDate(min, { long: true, year: true })}.`, `Choose a date from ${fmtDate(min, { long: true, year: true })} onwards.`)}</p>}
+      </div>
+
       <p className="mt-5 mb-2 text-[13px] font-medium text-text-2">{L('Look visé', 'Target look')}</p>
       <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
         {LOOKS.map((l) => {
@@ -352,7 +390,9 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         })}
       </div>
 
-      <div className="mt-5 mb-2 flex items-baseline justify-between gap-3">
+      <details className="mt-5 border-t border-line pt-3">
+        <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Personnaliser les zones prioritaires', 'Customize priority areas')}{d.zones.length > 0 && <span className="ml-2 text-muted tnum">{d.zones.length}/{MAX_ZONES}</span>}</summary>
+      <div className="mt-2 mb-2 flex items-baseline justify-between gap-3">
         <p className="text-[13px] font-medium text-text-2">{L('Zones prioritaires (facultatif)', 'Priority areas (optional)')}</p>
         <span className="text-[13px] text-text-2 tnum">{d.zones.length}/{MAX_ZONES}</span>
       </div>
@@ -361,25 +401,13 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every session that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
         {d.zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)}.`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)}.`)}
       </p>
+      </details>
 
-      <div className="mt-5">
-        <DateInput label={L('Date objectif', 'Goal date')} value={d.goalDate} min={min} max={max} onChange={(goalDate) => patch({ goalDate })} />
-        <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5" role="group" aria-label={L('Durée', 'Duration')}>
-          {chips.map((c) => (
-            <button
-              key={c.date}
-              type="button"
-              onClick={() => patch({ goalDate: c.date })}
-              className={cx('pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] whitespace-nowrap', d.goalDate === c.date ? 'border-signal bg-signal-soft' : 'border-line-strong')}
-            >
-              <span className="font-semibold">{c.label}</span>
-              <span className="text-muted tnum">{fmtDate(c.date)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+
 
       {preview && (
+        <details className="mt-5 border-t border-line pt-3">
+          <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Voir les estimations du plan', 'View plan estimates')}</summary>
         <Card className="mt-5 divide-y divide-line">
           {bodyFat}
           {plan && preview.shape && (
@@ -398,6 +426,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
             </>
           )}
         </Card>
+        </details>
       )}
       {plan && !plan.fits && (
         <div className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
@@ -425,21 +454,34 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
 
 function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: NonNullable<ReturnType<typeof onboardingPreview>> }) {
   const plan = preview.plan
-  const firstType = TYPE_META.UPPER
+  const session = useMemo(() => onboardingSession(answers), [answers])
+  const firstType = TYPE_META[session.type]
   return (
     <div>
-      <Card className="divide-y divide-line">
-        <Line label={L('Lieu', 'Place')} value={setupLabel(answers.setup)} />
-        <Line
-          label={L('Séances', 'Sessions')}
-          value={`${answers.days.length}/${L('sem.', 'wk')}`}
-          hint={[1, 2, 3, 4, 5, 6, 0].filter((x) => answers.days.includes(x)).map((x) => dayName(x, true)).join(' · ')}
-        />
-        <Line
-          label={L('Première séance', 'First session')}
-          value={capitalize(fmtDate(preview.firstSession, { weekday: true }))}
-          hint={`${firstType.label} · ${L('semaine 1 à 3 répétitions de l’échec', 'week 1 at 3 reps from failure')}`}
-        />
+      <p className="text-[15px] leading-[1.5] text-text-2">{L('Voici le programme construit avec tes choix. Tu pourras regarder chaque mouvement avant de démarrer.', 'Here is the program built from your choices. You can view each movement before starting.')}</p>
+      <Card className="mt-5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-semibold tracking-[-0.02em]">{firstType.fr}</h2>
+            <p className="mt-1 text-[13px] text-text-2">{capitalize(fmtDate(preview.firstSession, { weekday: true }))}</p>
+          </div>
+          <SportArt kind="workout-upper" />
+        </div>
+        <p className="mt-4 text-[13px] text-text-2">{setupLabel(answers.setup)} · {plural(session.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))}</p>
+        <ol className="mt-2 divide-y divide-line">
+          {session.exercises.slice(0, 3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 1}</span><span>{exercise.name}</span></li>)}
+        </ol>
+        {session.exercises.length > 3 && <details className="border-t border-line pt-2">
+          <summary className="cursor-pointer py-2 text-[13px] font-medium">{L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}</summary>
+          <ol start={4} className="divide-y divide-line">{session.exercises.slice(3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 4}</span><span>{exercise.name}</span></li>)}</ol>
+        </details>}
+      </Card>
+      <p className="mt-4 text-[14px] leading-[1.5]"><span className="font-medium">{plural(answers.days.length, L('séance par semaine', 'session per week'), L('séances par semaine', 'sessions per week'))}</span><br /><span className="text-text-2">{[1, 2, 3, 4, 5, 6, 0].filter((x) => answers.days.includes(x)).map((x) => dayName(x, true)).join(' · ')}</span></p>
+      <p className="mt-2 text-[13px] text-text-2">{answers.maintenance ? L('Entretien · sans date limite', 'Maintenance · no deadline') : `${plan?.look.label ?? ''} · ${fmtDate(answers.goalDate, { long: true, year: true })}`}</p>
+      <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L('Pour commencer, choisis des charges confortables : garde de quoi faire encore 3 répétitions à la fin de chaque série.', 'Start with comfortable weights: finish each set feeling you could do 3 more repetitions.')}</p>
+      <details className="mt-5 border-t border-line pt-3">
+        <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')}</summary>
+      <Card className="mt-2 divide-y divide-line">
         {answers.maintenance ? (
           <>
             <Line label={L('Objectif', 'Goal')} value={L('Entretien', 'Maintenance')} hint={L('Sans date : blocs de 5 semaines + décharge, en continu', 'No end date: 5-week blocks + deload, ongoing')} />
@@ -466,8 +508,9 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
         />
         <Line label={L('Protéines', 'Protein')} value={`${fmtNum(Math.round((1.95 * answers.weight) / 5) * 5, 0)}–${fmtNum(Math.round((2.05 * answers.weight) / 5) * 5, 0)} g`} hint={L('≈ 2 g par kg de poids', '≈ 2 g per kg of body weight')} />
       </Card>
+      </details>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-        {L('Tout se modifie ensuite dans Plus → Réglages : lieu, jours, date objectif ou entretien, objectif visuel.', 'You can change everything later in More → Settings: place, days, goal date or maintenance, visual goal.')}
+        {L('Rien ne démarre automatiquement. Tes choix restent modifiables dans Plus → Réglages.', 'Nothing starts automatically. You can change your choices in More → Settings.')}
       </p>
     </div>
   )
@@ -475,12 +518,12 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
 
 function Line({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3">
       <span className="min-w-0">
         <span className="block text-[14px]">{label}</span>
         {hint && <span className="mt-0.5 block text-[12px] leading-[1.4] text-muted">{hint}</span>}
       </span>
-      <span className="shrink-0 text-right text-[14px] font-semibold tnum">{value}</span>
+      <span className="ml-auto max-w-full text-right text-[14px] font-semibold tnum">{value}</span>
     </div>
   )
 }
