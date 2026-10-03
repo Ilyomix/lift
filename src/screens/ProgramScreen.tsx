@@ -45,7 +45,7 @@ export function ProgramScreen() {
     : L('pas de sèche', 'no cut')
   return (
     <Screen>
-      <Header
+      <Header art="calendar"
         backTo="plus"
         eyebrow={L('Fondé sur la recherche', 'Research-based')}
         title={L('Programme', 'Program')}
@@ -206,7 +206,7 @@ export function SourcesScreen() {
   const { reported, added, guidance } = sourceCounts()
   return (
     <Screen>
-      <Header
+      <Header art="calendar"
         backTo="plus/programme"
         eyebrow={L('Preuves', 'Evidence')}
         title="Sources"
@@ -248,7 +248,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const meta = TYPE_META[type]
   return (
     <Screen>
-      <Header
+      <Header art="calendar"
         backTo="plus/programme"
         eyebrow={meta.fr !== meta.label ? meta.fr : undefined}
         title={meta.label}

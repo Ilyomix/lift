@@ -33,7 +33,7 @@ export function CalendarScreen() {
 
   return (
     <Screen>
-      <Header
+      <Header art="calendar"
         eyebrow={cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`${plural(plan.planned, 'séance prévue', 'séances prévues')} d’ici le ${fmtDate(GOAL_DATE, { long: true })}`, `${plural(plan.planned, 'session planned', 'sessions planned')} until ${fmtDate(GOAL_DATE, { long: true })}`)}
         title={L('Calendrier', 'Calendar')}
         sub={cycle
@@ -229,7 +229,7 @@ export function PauseScreen() {
 
   return (
     <Screen>
-      <Header backTo="plus" eyebrow={L('Système de pause', 'Pause system')} title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={MAINTENANCE ? L('Vacances, maladie, blessure : le calendrier continue, et la reprise est adaptée à la durée de l’arrêt.', 'Vacation, illness, injury: the calendar keeps going, and your return is adapted to how long you stopped.') : L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
+      <Header art="calendar" backTo="plus" eyebrow={L('Système de pause', 'Pause system')} title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={MAINTENANCE ? L('Vacances, maladie, blessure : le calendrier continue, et la reprise est adaptée à la durée de l’arrêt.', 'Vacation, illness, injury: the calendar keeps going, and your return is adapted to how long you stopped.') : L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
       {p.active ? (
         <>
           <Card className="p-4">
@@ -312,7 +312,7 @@ export function RemindersScreen() {
   const set = (k: keyof IcsOptions) => (v: boolean) => setO((x) => ({ ...x, [k]: v }))
   return (
     <Screen>
-      <Header backTo="plus" eyebrow="Notifications" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Un fichier ajoute tes rappels au calendrier de ton téléphone : notifications natives, même application fermée, sans serveur.', 'A file adds your reminders to your phone’s calendar: native notifications, even with the app closed, no server needed.')} />
+      <Header art="calendar" backTo="plus" eyebrow="Notifications" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Un fichier ajoute tes rappels au calendrier de ton téléphone : notifications natives, même application fermée, sans serveur.', 'A file adds your reminders to your phone’s calendar: native notifications, even with the app closed, no server needed.')} />
       <Card className="divide-y divide-line">
         <Toggle label={L('Séances', 'Sessions')} hint={L(`Chaque jour d’entraînement, alerte 30 min avant`, `Every training day, alert 30 min before`)} checked={o.training} onChange={set('training')} />
         <Toggle label={L('Pesée à jeun', 'Fasted weigh-in')} hint={L('Chaque matin : la moyenne sur 7 jours guide les calories', 'Every morning: the 7-day average guides calories')} checked={o.weighIn} onChange={set('weighIn')} />

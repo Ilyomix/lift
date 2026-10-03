@@ -390,6 +390,23 @@
 
 /* ───────────────────────── Motion ───────────────────────── */
 
+/* The illustrations move inside fixed slots. Text and controls stay still. */
+@keyframes sport-balance {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-2px) rotate(1.5deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sport-art { animation: sport-balance 8s ease-in-out infinite; }
+  .sport-art[data-art='plate'], .sport-art[data-art='chart'], .sport-art[data-art='backup'] {
+    animation-duration: 10s;
+    animation-direction: reverse;
+  }
+  .sport-art[data-art='calendar'], .sport-art[data-art='nutrition'] { animation-delay: -3s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sport-art { animation: none !important; transform: none; }
+}
+
 @keyframes screen-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }

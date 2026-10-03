@@ -14,7 +14,7 @@ import { Button, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
 import { Home } from './screens/Home'
 import { CoachScreen, DataScreen, MoreScreen, NutritionScreen, SettingsScreen } from './screens/More'
-import { Dial, ImportResultSheet, Onboarding } from './screens/Onboarding'
+import { AppIcon, ImportResultSheet, Onboarding } from './screens/Onboarding'
 import { ProgramScreen, SourcesScreen, TemplateEditor } from './screens/ProgramScreen'
 import { ExerciseDetail, ProgressScreen } from './screens/Progress'
 import { VisualGoalScreen } from './screens/Goal'
@@ -101,7 +101,7 @@ export default function App() {
   if (!ready) {
     return (
       <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
-        <Dial size={48} />
+        <AppIcon size={48} />
       </div>
     )
   }

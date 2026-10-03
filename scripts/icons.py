@@ -1,54 +1,111 @@
-"""Generate Lift app icons: a mechanical dial (weight plate) with a blue progress arc on navy."""
-import math
-import os
-from PIL import Image, ImageDraw
+"""Export every Lift launcher icon from the approved opaque 1024px master.
 
-S = 4096  # supersampled canvas
-TOP = (13, 22, 42)       # navy, lit from the top
-BOTTOM = (5, 8, 16)      # near-black navy
-PAPER = (232, 238, 251, 255)
-SIGNAL = (61, 123, 255, 255)
+Run from any directory with Python 3 and Pillow: python3 scripts/icons.py.
+The master and its generation provenance are intentionally kept in the repo.
+"""
+from pathlib import Path
+
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 
-def background(size):
-    grad = Image.new('RGB', (1, 256))
-    for y in range(256):
-        t = y / 255
-        grad.putpixel((0, y), tuple(round(TOP[i] + (BOTTOM[i] - TOP[i]) * t) for i in range(3)))
-    return grad.resize((size, size), Image.BICUBIC).convert('RGBA')
+ROOT = Path(__file__).resolve().parents[1]
+ICONS = ROOT / "public/icons"
+MASTER = ICONS / "app-icon-1024.png"
+RES = ROOT / "android/app/src/main/res"
+LANCZOS = Image.Resampling.LANCZOS
 
 
-def dial(im, ring=PAPER, arc=SIGNAL, gap=True, scale=1.0):
-    d = ImageDraw.Draw(im)
-    c = S / 2
-    R, r = S * 0.322 * scale, S * 0.225 * scale  # ring outer / inner radius
-    w = int(R - r)
-    box = [c - R + w / 2, c - R + w / 2, c + R - w / 2, c + R - w / 2]
-    # Hairline cuts at both ends of the arc, showing the background through.
-    half = math.degrees((S * 0.006) / ((R + r) / 2)) if gap else 0
-    d.arc(box, 30 + half, 270 - half, fill=ring, width=w)
-    d.arc(box, -90 + half, 30 - half, fill=arc, width=w)  # progress: one third of the dial
-    hub = S * 0.052 * scale
-    d.ellipse([c - hub, c - hub, c + hub, c + hub], fill=ring)
-    return im
+def save(image, path, size=None):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if size is not None:
+        image = image.resize((size, size), LANCZOS)
+    image.save(path, format="PNG", optimize=True)
 
 
-def icon():
-    im = background(S)
-    return dial(im)
+def padded(image, scale):
+    """Inset the artwork and extend its edge colors, without an inset tile.
+
+    The original cobalt background reaches every edge. Repeating only those
+    outermost colors preserves a seamless opaque background around the inset.
+    """
+    size = image.width
+    inner = round(size * scale)
+    inset = (size - inner) // 2
+    tile = image.resize((inner, inner), LANCZOS)
+    out = tile.resize((size, size), Image.Resampling.NEAREST)
+    out.paste(tile, (inset, inset))
+    out.paste(tile.crop((0, 0, inner, 1)).resize((inner, inset)), (inset, 0))
+    out.paste(tile.crop((0, inner - 1, inner, inner)).resize((inner, size - inner - inset)), (inset, inset + inner))
+    out.paste(out.crop((inset, 0, inset + 1, size)).resize((inset, size)), (0, 0))
+    out.paste(out.crop((inset + inner - 1, 0, inset + inner, size)).resize((size - inner - inset, size)), (inset + inner, 0))
+    # Soften only the blue join; the subject is well inside this 4% edge band.
+    # This prevents straight seams from the source background's light variation.
+    backdrop = out.filter(ImageFilter.GaussianBlur(size * 0.015))
+    band = max(1, round(inner * 0.04))
+    edge_mask = Image.new("L", tile.size)
+    edge_mask.putdata([
+        min(255, round(255 * min(x, y, inner - 1 - x, inner - 1 - y) / band))
+        for y in range(inner) for x in range(inner)
+    ])
+    backdrop.paste(tile, (inset, inset), edge_mask)
+    return backdrop
 
 
-os.makedirs('public/icons', exist_ok=True)
-big = icon()
-for name, size in [('pwa-512.png', 512), ('pwa-192.png', 192), ('apple-touch-icon.png', 180), ('favicon-64.png', 64)]:
-    big.resize((size, size), Image.LANCZOS).convert('RGB').save(f'public/icons/{name}', optimize=True)
+def circular(image):
+    mask = Image.new("L", image.size)
+    ImageDraw.Draw(mask).ellipse((0, 0, image.width - 1, image.height - 1), fill=255)
+    out = image.convert("RGBA")
+    out.putalpha(mask)
+    return out
 
-# Maskable: the dial inside the 80 % safe zone.
-mask = dial(background(S), scale=0.8)
-mask.resize((512, 512), Image.LANCZOS).convert('RGB').save('public/icons/maskable-512.png', optimize=True)
 
-# Notification badge: white silhouette on transparent (Android shows it in the status bar).
-badge = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-dial(badge, ring=(255, 255, 255, 255), arc=(255, 255, 255, 255), gap=False, scale=1.25)
-badge.resize((96, 96), Image.LANCZOS).save('public/icons/badge-96.png', optimize=True)
-print('icons ok')
+def notification_badge(image):
+    """White silhouette required by Android/Web Push, from the same master.
+
+    The saturated blue backdrop is excluded by blue-channel dominance. This
+    mask affects only the monochrome notification badge, never launcher art.
+    """
+    red, green, blue = image.split()
+    blue_dominance = ImageChops.subtract(blue, ImageChops.lighter(red, green))
+    alpha = blue_dominance.point(lambda value: max(0, min(255, (48 - value) * 10)))
+    out = Image.new("RGBA", image.size, (255, 255, 255, 0))
+    out.putalpha(alpha)
+    return out
+
+
+def main():
+    with Image.open(MASTER) as source:
+        if source.size != (1024, 1024):
+            raise ValueError("app-icon-1024.png must be a 1024 × 1024 square")
+        if "A" in source.getbands() and source.getchannel("A").getextrema() != (255, 255):
+            raise ValueError("The approved launcher master must be fully opaque")
+        master = source.convert("RGB")
+
+    for name, size in (("pwa-512.png", 512), ("pwa-192.png", 192),
+                       ("apple-touch-icon.png", 180), ("favicon-64.png", 64)):
+        save(master, ICONS / name, size)
+
+    # Keep the diagonal subject inside the circular 80% PWA safe zone.
+    maskable = padded(master, 0.76)
+    save(maskable, ICONS / "maskable-512.png", 512)
+    save(notification_badge(master), ICONS / "badge-96.png", 96)
+    save(master, ROOT / "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png")
+    save(master, ROOT / "marketing/app-store/public/brand/icon.png")
+
+    # Adaptive icons use a 108dp canvas, with the essential mark in the central
+    # 66dp safe circle. Edge extension prevents a colored border under masking.
+    adaptive = padded(master, 0.58)
+    for density, legacy_size, adaptive_size in (
+        ("mdpi", 48, 108), ("hdpi", 72, 162), ("xhdpi", 96, 216),
+        ("xxhdpi", 144, 324), ("xxxhdpi", 192, 432),
+    ):
+        target = RES / f"mipmap-{density}"
+        save(master, target / "ic_launcher.png", legacy_size)
+        save(circular(maskable), target / "ic_launcher_round.png", legacy_size)
+        save(adaptive, target / "ic_launcher_foreground.png", adaptive_size)
+
+    print("Lift icons exported from public/icons/app-icon-1024.png")
+
+
+if __name__ == "__main__":
+    main()

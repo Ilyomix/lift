@@ -6,6 +6,7 @@ import { addMonths, capitalize, dayLetter, fmtDate, monthName, todayISO } from '
 import { L, locale } from '../lib/i18n'
 import { back } from '../lib/router'
 import { useStore } from '../lib/store'
+import { SportArt, type SportArtKind } from './SportArt'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -108,10 +109,10 @@ export function Screen({ children, className }: { children: ReactNode; className
   return <main className={cx('screen-in mx-auto w-full max-w-[640px] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] safe-top', className)}>{children}</main>
 }
 
-export function Header({ eyebrow, title, backTo, right, sub }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode }) {
+export function Header({ eyebrow, title, backTo, right, sub, art }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind }) {
   return (
     <header className="pt-2 pb-5">
-      <div className="flex min-h-11 items-center justify-between gap-2">
+      {(backTo !== undefined || right) && <div className="mb-1 flex min-h-11 items-center justify-between gap-2">
         {backTo !== undefined ? (
           <button type="button" onClick={() => back(backTo)} className="pressable -ml-2 inline-flex h-11 items-center gap-1 rounded-[10px] px-2 text-sm font-medium text-text-2 hover:text-text">
             <ArrowLeft size={18} strokeWidth={2} aria-hidden />
@@ -121,21 +122,32 @@ export function Header({ eyebrow, title, backTo, right, sub }: { eyebrow?: React
           <span />
         )}
         {right}
+      </div>}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {eyebrow && <Eyebrow className="mt-1">{eyebrow}</Eyebrow>}
+          <h1 className="mt-1 text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
+        </div>
+        {art && <SportArt kind={art} />}
       </div>
-      {eyebrow && <Eyebrow className="mt-1">{eyebrow}</Eyebrow>}
-      <h1 className="mt-1 text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
       {sub && <p className="mt-2 text-[15px] leading-[1.45] text-text-2">{sub}</p>}
     </header>
   )
 }
 
-export function Section({ title, action, children, className }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
+export function Section({ title, action, children, className, art }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; art?: SportArtKind }) {
   return (
-    <section className={cx('mt-7', className)}>
+    <section className={cx(art ? 'mt-4' : 'mt-7', className)}>
       {(title || action) && (
-        <div className="mb-3 flex items-end justify-between gap-3">
-          {title ? <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
-          {action}
+        <div className={cx('flex gap-3', art ? 'mb-2 items-center' : 'mb-3 items-end justify-between')}>
+          {art && <SportArt kind={art} />}
+          {art ? <div className="min-w-0 flex-1">
+            {title && <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
+            {action && <div className="mt-0.5">{action}</div>}
+          </div> : <>
+            {title ? <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
+            {action}
+          </>}
         </div>
       )}
       {children}

@@ -2,7 +2,7 @@ import { NativeActivitySettings } from '../components/NativeActivitySettings'
 import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
 import {
-  Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, ExternalLink, Flag, FlaskConical, Infinity as InfinityIcon, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
+  Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Flag, Infinity as InfinityIcon, MapPin, Pencil, Sparkles, Trash, Upload,
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
@@ -20,6 +20,7 @@ import { calorieAdvice, calorieStepPatch, goalWeightRange, nutritionDays, nutrit
 import { lookInfo, ZONES, goalApplied } from '../lib/visual'
 import { useStore } from '../lib/store'
 import { Columns } from '../components/charts'
+import { SportArt, type SportArtKind } from '../components/SportArt'
 import { RefList } from '../components/Evidence'
 import { GoalSheet } from '../components/GoalSheet'
 import { SetupSheet, setupLabel } from '../components/Setup'
@@ -28,22 +29,22 @@ import { Button, Card, cx, Empty, Field, Header, inputClass, Row, Screen, Sectio
 
 export function MoreScreen() {
   const state = useStore((s) => s.state)
-  const items = [
-    { to: 'plus/nutrition', icon: Apple, label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
-    { to: 'plus/programme', icon: FlaskConical, label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
-    { to: 'plus/coach', icon: Sparkles, label: L('Coach IA', 'AI coach'), hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
-    { to: 'plus/pause', icon: CirclePause, label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
-    { to: 'plus/rappels', icon: BellRing, label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
-    { to: 'plus/donnees', icon: Download, label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
-    { to: 'plus/reglages', icon: Settings, label: L('Réglages', 'Settings'), hint: L('Objectifs, minuteur, apparence', 'Goals, timer, appearance') },
+  const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
+    { to: 'plus/nutrition', art: 'nutrition', label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
+    { to: 'plus/programme', art: 'calendar', label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
+    { to: 'plus/coach', art: 'coach', label: L('Coach IA', 'AI coach'), hint: L('Bilan et mise à jour des cibles', 'Summary and target updates') },
+    { to: 'plus/pause', art: 'stopwatch', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
+    { to: 'plus/rappels', art: 'calendar', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
+    { to: 'plus/donnees', art: 'backup', label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
+    { to: 'plus/reglages', art: 'settings', label: L('Réglages', 'Settings'), hint: L('Objectifs, minuteur, apparence', 'Goals, timer, appearance') },
   ]
   return (
     <Screen>
-      <Header title={L('Plus', 'More')} />
+      <Header art="settings" title={L('Plus', 'More')} />
       <Card className="divide-y divide-line">
-        {items.map(({ to, icon: Icon, label, hint }) => (
+        {items.map(({ to, art, label, hint }) => (
           <button key={to} type="button" onClick={() => navigate(to)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
-            <Icon size={20} className="shrink-0 text-text-2" aria-hidden />
+            <SportArt kind={art} />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-medium">{label}</span>
               <span className="block text-[13px] text-muted">{hint}</span>
@@ -97,7 +98,7 @@ export function NutritionScreen() {
   const adaptive = state.nutritionTargets.adaptive !== false
   return (
     <Screen>
-      <Header backTo="plus" eyebrow={ctx.phase?.label ?? 'Nutrition'} title="Nutrition" sub={ctx.phase?.nutrition} />
+      <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label ?? 'Nutrition'} title="Nutrition" sub={ctx.phase?.nutrition} />
       <div className="flex items-center justify-between">
         <button type="button" aria-label={L('Jour précédent', 'Previous day')} onClick={() => setDate(addDays(date, -1))} className="pressable inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-line-strong"><ChevronLeft size={18} /></button>
         <p className="text-[15px] font-semibold">{capitalize(fmtRelativeDay(date, today))}</p>
@@ -265,7 +266,7 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header backTo="plus" eyebrow={L('Optionnel', 'Optional')} title={L('Coach IA', 'AI coach')} sub={L('Envoie un bilan précis à l’assistant IA de ton choix, colle sa réponse : tes cibles se mettent à jour, avec un aperçu avant de valider.', 'Send a detailed summary to the AI assistant of your choice, paste its reply: your targets update, with a preview before you confirm.')} />
+      <Header art="coach" backTo="plus" eyebrow={L('Optionnel', 'Optional')} title={L('Coach IA', 'AI coach')} sub={L('Envoie un bilan précis à l’assistant IA de ton choix, colle sa réponse : tes cibles se mettent à jour, avec un aperçu avant de valider.', 'Send a detailed summary to the AI assistant of your choice, paste its reply: your targets update, with a preview before you confirm.')} />
       <ol className="space-y-2">
         {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
           <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>
@@ -343,7 +344,7 @@ export function SettingsScreen() {
   const weekMinutes = span(week.minutes[0], week.minutes[1])
   return (
     <Screen>
-      <Header backTo="plus" title={L('Réglages', 'Settings')} />
+      <Header art="settings" backTo="plus" title={L('Réglages', 'Settings')} />
 
       <Section title={L('Objectif', 'Goal')} className="mt-0">
         <Card className="divide-y divide-line">
@@ -644,7 +645,7 @@ export function DataScreen() {
   }
   return (
     <Screen>
-      <Header backTo="plus" title={L('Sauvegarde', 'Backup')} sub={L('Tes données vivent sur ce téléphone (IndexedDB). Exporte régulièrement : le fichier contient séances, mesures, nutrition et photos.', 'Your data lives on this phone (IndexedDB). Export regularly: the file contains sessions, measurements, nutrition and photos.')} />
+      <Header art="backup" backTo="plus" title={L('Sauvegarde', 'Backup')} sub={L('Tes données vivent sur ce téléphone (IndexedDB). Exporte régulièrement : le fichier contient séances, mesures, nutrition et photos.', 'Your data lives on this phone (IndexedDB). Export regularly: the file contains sessions, measurements, nutrition and photos.')} />
       <Card className="divide-y divide-line">
         <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{state.workouts.length}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{state.bodyEntries.length}</span>} />

@@ -27,7 +27,7 @@ type Tab = 'force' | 'corps' | 'volume' | 'seances'
 export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
   return (
     <Screen>
-      <Header title={L('Progrès', 'Progress')} eyebrow={L('Force · corps · volume', 'Strength · body · volume')} />
+      <Header art="chart" title={L('Progrès', 'Progress')} eyebrow={L('Force · corps · volume', 'Strength · body · volume')} />
       <Segmented
         label={L('Vue', 'View')}
         value={tab}
@@ -121,7 +121,7 @@ export function ExerciseDetail({ id }: { id: string }) {
   const last = h[h.length - 1]
   return (
     <Screen>
-      <Header backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, L('séance', 'session'), L('séances', 'sessions'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
+      <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, L('séance', 'session'), L('séances', 'sessions'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
       {gymsUsed.length > 1 && (
         <Segmented className="mb-4" label={L('Salle', 'Gym')} value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
       )}

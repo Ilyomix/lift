@@ -17,22 +17,9 @@ import { Button, Card, cx, DateInput, Field, inputClass, Sheet, Tag } from '../c
 import { ImportSheet } from './More'
 import { SportArt } from '../components/SportArt'
 
-/** The app icon: a weight-plate dial with the progress arc in the accent colour. */
-export function Dial({ size = 56, className }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="golgoth-dial-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#0D162A" />
-          <stop offset="1" stopColor="#050810" />
-        </linearGradient>
-      </defs>
-      <rect width="64" height="64" rx="14" fill="url(#golgoth-dial-bg)" />
-      <path d="M46.874 41.028A17.4 17.4 0 1 1 31.618 14.604" fill="none" stroke="#E8EEFB" strokeWidth="6.2" />
-      <path d="M32.382 14.604A17.4 17.4 0 0 1 47.256 40.367" fill="none" stroke="var(--accent-bright, #3D7BFF)" strokeWidth="6.2" />
-      <circle cx="32" cy="32" r="3.3" fill="#E8EEFB" />
-    </svg>
-  )
+/** The same official artwork used by the launcher and Live Activity. */
+export function AppIcon({ size = 64, className }: { size?: number; className?: string }) {
+  return <img src={`${import.meta.env.BASE_URL}icons/pwa-192.png`} alt="" aria-hidden width={size} height={size} className={className} style={{ width: size, height: size, borderRadius: '24%', flexShrink: 0 }} />
 }
 
 const STEPS = 5
@@ -123,7 +110,10 @@ export function Onboarding() {
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden>
         <div className="h-full rounded-full bg-signal transition-[width] duration-300" style={{ width: `${(step / STEPS) * 100}%` }} />
       </div>
-      <h1 className="mt-6 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em]">{titles[step]}</h1>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <h1 className="min-w-0 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em]">{titles[step]}</h1>
+        <SportArt kind={step === 1 ? 'dumbbell' : step === 2 ? 'calendar' : step === 3 ? 'chart' : 'trophy'} />
+      </div>
 
       <div className="flex-1 py-5">
         {step === 1 && <SetupPicker value={d.setup} onChange={(setup) => patch({ setup })} />}
@@ -181,16 +171,16 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
       </div>
       <div className="flex flex-1 flex-col justify-center py-8">
         <div className="flex items-center gap-4">
-          <Dial />
+          <AppIcon />
           <h1 className="text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
         </div>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
           {L('Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif ou en entretien, sans date.', 'Your research-based hypertrophy program, built around your goal date or in maintenance mode, with no end date.')}
         </p>
         <ul className="mt-8 space-y-3 text-[15px] leading-[1.45]">
-          <li className="flex items-center gap-3"><SportArt kind="dumbbell" className="w-14" /><span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</span></li>
-          <li className="flex items-center gap-3"><SportArt kind="stopwatch" className="w-14" /><span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</span></li>
-          <li className="flex items-center gap-3"><SportArt kind="plate" className="w-14" /><span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="dumbbell" /><span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="stopwatch" /><span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="plate" /><span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</span></li>
         </ul>
         <div className="mt-6 flex flex-wrap gap-2">
           {ROTATION.map((t) => <Tag key={t} tone="outline">{TYPE_META[t].label}</Tag>)}

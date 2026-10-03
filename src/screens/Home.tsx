@@ -19,7 +19,7 @@ import { GoalSheet } from '../components/GoalSheet'
 import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
-import { Dial } from './Onboarding'
+import { AppIcon } from './Onboarding'
 import { SportArt } from '../components/SportArt'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
@@ -76,12 +76,12 @@ export function Home() {
       <header className="flex items-center justify-between gap-3 pt-2 pb-3">
         <div className="min-w-0">
           <span className="inline-flex items-center gap-2.5 text-[20px] font-semibold tracking-[-0.02em]">
-            <Dial size={24} className="rounded-[6px]" />
+            <AppIcon size={24} className="rounded-[6px]" />
             Lift
           </span>
           <Eyebrow className="mt-3">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
         </div>
-        <SportArt kind="dumbbell" className="w-[104px] min-[380px]:w-[120px]" />
+        <SportArt kind="dumbbell" />
       </header>
 
       {/* Hero: sessions done out of the sessions planned until the goal date (maintenance: in the current cycle) */}
@@ -170,7 +170,7 @@ export function Home() {
       )}
 
       {/* Next action — the one primary command of the screen */}
-      <Section title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
+      <Section art="plate" title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
         <Card className="overflow-hidden">
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -204,11 +204,11 @@ export function Home() {
         </Card>
       </Section>
 
-      <Section title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'sessions')}</span>}>
+      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'sessions')}</span>}>
         <WeekStrip days={week} />
       </Section>
 
-      <Section title={L('Objectifs', 'Goals')} action={<button type="button" onClick={() => navigate('progres')} className="inline-flex items-center gap-1 text-[13px] font-medium text-text-2 hover:text-text">{L('Progrès', 'Progress')} <ArrowRight size={14} aria-hidden /></button>}>
+      <Section art="trophy" title={L('Objectifs', 'Goals')} action={<button type="button" onClick={() => navigate('progres')} className="inline-flex items-center gap-1 text-[13px] font-medium text-text-2 hover:text-text">{L('Progrès', 'Progress')} <ArrowRight size={14} aria-hidden /></button>}>
         <div className="grid grid-cols-2 gap-2.5">
           <Tile
             label={L('Poids', 'Weight')}
@@ -244,7 +244,7 @@ export function Home() {
         </div>
       </Section>
 
-      <Section title={L('Nutrition du jour', 'Today’s nutrition')} action={<button type="button" onClick={() => navigate('plus/nutrition')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Saisir', 'Log')}</button>}>
+      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<button type="button" onClick={() => navigate('plus/nutrition')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Saisir', 'Log')}</button>}>
         <Card className="grid grid-cols-3 divide-x divide-line">
           <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />
@@ -337,7 +337,7 @@ function NutriCell({ label, value, unit, target, ratio }: { label: string; value
 function Reminders({ items }: { items: { icon: React.ReactNode; text: string; action: string; to?: string; run?: () => void }[] }) {
   if (!items.length) return null
   return (
-    <Section title={L('À faire', 'To do')}>
+    <Section art="calendar" title={L('À faire', 'To do')}>
       <Card className="divide-y divide-line">
         {items.map((it, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">

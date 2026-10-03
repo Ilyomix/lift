@@ -84,7 +84,7 @@ export function VisualGoalScreen() {
 
   return (
     <Screen>
-      <Header
+      <Header art="trophy"
         backTo="plus/reglages"
         eyebrow={L('Objectif', 'Goal')}
         title={L('Objectif visuel', 'Visual goal')}

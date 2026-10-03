@@ -33,7 +33,7 @@ export default defineConfig({
       registerType: 'prompt',
       disable: process.env.LIFT_NATIVE === '1',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
+      includeAssets: ['icons/favicon-64.png', 'icons/apple-touch-icon.png'],
       manifest: {
         id: BASE,
         name: 'Lift',
@@ -56,7 +56,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,jpg}'],
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,webmanifest,jpg,webp}'],
         // The link-preview image is for crawlers, not for the app offline.
         globIgnores: ['og.png'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
