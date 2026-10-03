@@ -1,0 +1,23 @@
+{
+  "fps": 30,
+  "segments": [
+    {
+      "start": 82,
+      "duration": 8,
+      "focus": "live"
+    },
+    {
+      "start": 140,
+      "duration": 5,
+      "focus": "live"
+    },
+    {
+      "start": 160,
+      "duration": 2
+    },
+    {
+      "start": 174,
+      "duration": 5
+    }
+  ]
+}

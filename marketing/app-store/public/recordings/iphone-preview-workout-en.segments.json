@@ -1,0 +1,25 @@
+{
+  "fps": 30,
+  "segments": [
+    {
+      "start": 128,
+      "duration": 4
+    },
+    {
+      "start": 140,
+      "duration": 4
+    },
+    {
+      "start": 154,
+      "duration": 4
+    },
+    {
+      "start": 160,
+      "duration": 4
+    },
+    {
+      "start": 170,
+      "duration": 4
+    }
+  ]
+}

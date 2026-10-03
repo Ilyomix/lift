@@ -3,5 +3,6 @@ dist
 .DS_Store
 .env
 
-# Ignore the output video from Git but not videos you import into src/.
+# Renders and large native takes stay local. Sidecars and hashes are tracked.
 out
+public/recordings/*.mp4

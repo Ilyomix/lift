@@ -29,11 +29,15 @@
     "lint": "eslint src && tsc",
     "demo": "node --import ../../node_modules/tsx/dist/loader.mjs scripts/generate-demo.mts",
     "sync:assets": "node scripts/render.mjs sync",
+    "sync:stills": "node scripts/render.mjs screenshots",
     "sync:recordings": "node scripts/render.mjs recordings",
     "render:stills": "node scripts/render.mjs stills",
     "render:videos": "node scripts/render.mjs videos",
     "render:proof": "node scripts/render.mjs proof",
     "render:proofs": "node scripts/render.mjs proofs",
-    "demo:serve": "node scripts/serve-demo.mjs"
+    "demo:serve": "node scripts/serve-demo.mjs",
+    "gallery": "node scripts/create-gallery.mjs",
+    "gallery:serve": "node scripts/serve-gallery.mjs",
+    "test": "node --test scripts/segments.test.mjs"
   }
 }

@@ -17,9 +17,9 @@ export const ProductScreen = ({ src, width, device = "iphone", style }: { src: s
   </div>;
 };
 /** Faithful crop of a native screenshot: source pixels only, no reconstructed UI. */
-export const ScreenCrop = ({ src, x, y, cropWidth, cropHeight, width, style }: { src: string; x: number; y: number; cropWidth: number; cropHeight: number; width: number; style?: CSSProperties }) => {
+export const ScreenCrop = ({ src, x, y, cropWidth, cropHeight, width, device = "iphone", style }: { src: string; x: number; y: number; cropWidth: number; cropHeight: number; width: number; device?: "iphone" | "ipad"; style?: CSSProperties }) => {
   const scale = width / cropWidth;
   return <div style={{ position: "relative", overflow: "hidden", width, height: cropHeight * scale, borderRadius: 36, ...style }}>
-    <CanvasImage src={staticFile(src)} style={{ position: "absolute", left: -x * scale, top: -y * scale, width: 1320 * scale, height: 2868 * scale }} />
+    <CanvasImage src={staticFile(src)} style={{ position: "absolute", left: -x * scale, top: -y * scale, width: (device === "ipad" ? 2064 : 1320) * scale, height: (device === "ipad" ? 2752 : 2868) * scale }} />
   </div>;
 };

@@ -1,0 +1,32 @@
+{
+  "fps": 30,
+  "segments": [
+    {
+      "start": 18,
+      "duration": 4,
+      "label": "September calendar"
+    },
+    {
+      "start": 29,
+      "duration": 4,
+      "label": "Choose a completed workout"
+    },
+    {
+      "start": 53,
+      "duration": 4,
+      "label": "Review workout history"
+    },
+    {
+      "source": "ipad-preview-plan-detail-en.mp4",
+      "start": 0,
+      "duration": 4,
+      "label": "Open progress curves"
+    },
+    {
+      "source": "ipad-preview-plan-detail-en.mp4",
+      "start": 5,
+      "duration": 4,
+      "label": "Read the load history"
+    }
+  ]
+}
