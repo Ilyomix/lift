@@ -10,6 +10,7 @@ import type {
   VisualGoal, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
 import { WORKOUT_TYPES } from './types'
+import { goalApplied, tagPriorities } from './visual'
 
 export const BACKUP_VERSION = 1
 export const APP_ID = 'golgoth-pwa'
@@ -345,23 +346,32 @@ function upgradedProgram(state: AppState): AppState {
   const setup = state.settings.setup ?? { place: 'gym' as const, equipment: [] }
   const kept = state.archive?.templatesBySetup
   const other = (place: 'gym' | 'home') =>
-    kept?.[place] ? upgradeSheets(kept[place]!, state.programRevision, place === setup.place ? setup : { place, equipment: place === 'home' ? ['dumbbells', 'bench', 'pullupBar', 'bands'] : [] }, state.workouts) : undefined
+    kept?.[place] ? retag(upgradeSheets(kept[place]!, state.programRevision, place === setup.place ? setup : { place, equipment: place === 'home' ? ['dumbbells', 'bench', 'pullupBar', 'bands'] : [] }, state.workouts)) : undefined
+  // A slot the revision added takes the priority of the chosen zones, like the others.
+  const zones = goalApplied(state.visualGoal) ? state.visualGoal.zones : []
+  const retag = (t: Record<WorkoutType, Template>) => (zones.length ? tagPriorities(t, zones) : t)
   return {
     ...state,
     programRevision: PROGRAM_REVISION,
-    templates: upgradeSheets(state.templates, state.programRevision, setup, state.workouts),
+    templates: retag(upgradeSheets(state.templates, state.programRevision, setup, state.workouts)),
     archive: kept ? { ...state.archive, templatesBySetup: { ...kept, ...(kept.gym ? { gym: other('gym') } : {}), ...(kept.home ? { home: other('home') } : {}) } } : state.archive,
     appliedPlanUpdates: [
       ...state.appliedPlanUpdates,
       {
         updateId: `program-revision-${PROGRAM_REVISION}`,
         basedOnSession: state.completedSessions || null,
-        summary: L(
-          'Programme : abdos, mollets et deltoïdes postérieurs passent de 6 à 10 séries par semaine (deux séries de plus sur leurs exercices, deltoïdes postérieurs ajoutés en Push), pour suivre la règle des 10–20 séries par muscle.',
-          'Program: abs, calves and rear delts go from 6 to 10 sets a week (two more sets on their exercises, rear delts added on Push), to follow the rule of 10–20 sets per muscle.',
-        ),
+        summary:
+          state.programRevision >= 4
+            ? L(
+                'Programme : les 10 séries d’abdos et de mollets sont réparties sur trois séances au lieu de deux (abdos ajoutés en Legs, mollets en Push), et les deltoïdes postérieurs passent à 4 séries en Pull et 3 en Push : plus aucun exercice à cinq séries.',
+                'Program: the 10 sets of abs and of calves are spread over three sessions instead of two (abs added on Legs, calves on Push), and rear delts go to 4 sets on Pull and 3 on Push: no exercise at five sets any more.',
+              )
+            : L(
+                'Programme : abdos, mollets et deltoïdes postérieurs passent de 6 à 10 séries par semaine (abdos ajoutés en Legs, mollets et deltoïdes postérieurs en Push), pour suivre la règle des 10–20 séries par muscle.',
+                'Program: abs, calves and rear delts go from 6 to 10 sets a week (abs added on Legs, calves and rear delts on Push), to follow the rule of 10–20 sets per muscle.',
+              ),
         appliedAt: new Date().toISOString(),
-        changeCount: 6,
+        changeCount: 7,
         source: 'program',
       },
     ],

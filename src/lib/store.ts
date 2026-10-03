@@ -268,7 +268,7 @@ export const useStore = create<Store>((set, get) => ({
         // A newer revision of the program changed the sheets: stored at once (the change is recorded once), and said.
         if (typeof raw.programRevision === 'number' && raw.programRevision < normalized.programRevision) {
           void get().flush()
-          get().notify(L('Programme mis à jour : abdos, mollets et deltoïdes postérieurs passent à 10 séries par semaine.', 'Program updated: abs, calves and rear delts go to 10 sets a week.'), 'good')
+          get().notify(L('Programme mis à jour : abdos, mollets et deltoïdes postérieurs à 10 séries par semaine, sans exercice à cinq séries.', 'Program updated: abs, calves and rear delts at 10 sets a week, with no exercise at five sets.'), 'good')
         }
       } else {
         set({ ready: true, hasData: false, storage: 'idb' })

@@ -9,7 +9,7 @@ import type {
 } from './types'
 
 export const PROGRAM_ID = 'golgoth-research-2026'
-export const PROGRAM_REVISION = 4
+export const PROGRAM_REVISION = 5
 /** Program start of the report (26 Sept 2026), for the data it was written for. New users start the week they sign up. */
 export const REPORT_START: ISODate = '2026-09-28'
 /** First logged session of the report's data: the previous program, shown as a foundation phase. */
@@ -45,10 +45,10 @@ export const ROTATION: WorkoutType[] = ['UPPER', 'LOWER', 'PUSH', 'PULL', 'LEGS'
 /** `fr` is the description of the session, in the current language (the property keeps its historical name). */
 export const TYPE_META: Record<WorkoutType, { label: string; fr: string; code: string; minutes: number }> = {
   UPPER: { label: 'Upper', get fr() { return L('Haut du corps', 'Upper body') }, code: 'UP', minutes: 65 },
-  LOWER: { label: 'Lower', get fr() { return L('Bas du corps', 'Lower body') }, code: 'LO', minutes: 70 },
-  PUSH: { label: 'Push', get fr() { return L('Poussée', 'Push') }, code: 'PS', minutes: 65 },
-  PULL: { label: 'Pull', get fr() { return L('Tirage', 'Pull') }, code: 'PL', minutes: 75 },
-  LEGS: { label: 'Legs', get fr() { return L('Jambes', 'Legs') }, code: 'LG', minutes: 65 },
+  LOWER: { label: 'Lower', get fr() { return L('Bas du corps', 'Lower body') }, code: 'LO', minutes: 65 },
+  PUSH: { label: 'Push', get fr() { return L('Poussée', 'Push') }, code: 'PS', minutes: 70 },
+  PULL: { label: 'Pull', get fr() { return L('Tirage', 'Pull') }, code: 'PL', minutes: 70 },
+  LEGS: { label: 'Legs', get fr() { return L('Jambes', 'Legs') }, code: 'LG', minutes: 70 },
 }
 
 // ───────────────────────── Fewer than five days ─────────────────────────
@@ -763,9 +763,10 @@ interface PlanItem {
   tag?: 'priority' | 'calves'
 }
 
-// Revision 4: the report left abs, calves and rear delts at 6 weekly sets, under the 10 its own
-// volume rule starts at. They come to 10: two more sets on their exercises, and rear delts a
-// second time in the week (Push).
+// Revisions 4 and 5: the report left abs, calves and rear delts at 6 weekly sets, under the 10 its
+// own volume rule starts at. They come to 10: abs and calves over three sessions rather than two
+// (4 + 3 + 3), rear delts with 4 + 3 direct sets on top of their share of the rows. At equal weekly
+// volume the split changes nothing for growth, and no exercise runs to five sets in a row.
 export const PLAN: Record<WorkoutType, PlanItem[]> = {
   UPPER: [
     { id: 'chest-press', sets: 3, reps: [6, 10], rir: '1–2', rest: 150 },
@@ -782,26 +783,27 @@ export const PLAN: Record<WorkoutType, PlanItem[]> = {
     { id: 'leg-curl', sets: 3, reps: [10, 15], rir: '0–1', rest: 90 },
     { id: 'hip-thrust', sets: 3, reps: [8, 12], rir: '1–2', rest: 120, note: ['Machine ou barre.', 'Machine or barbell.'] },
     { id: 'leg-extension', sets: 3, reps: [10, 15], rir: '0–1', rest: 90, note: ['Insister sur le bas du mouvement.', 'Focus on the bottom of the movement.'] },
-    { id: 'calf-press', sets: 5, reps: [10, 15], rir: '0–1', rest: 90, tag: 'calves', note: ['Ou mollets debout. Pause 1–2 s en étirement.', 'Or standing calf raise. 1–2 s pause in the stretch.'] },
-    { id: 'roman-chair-abs', sets: 5, reps: [10, 15], rir: '0–1', rest: 75, note: ['Ou crunch poulie.', 'Or cable crunch.'] },
+    { id: 'calf-press', sets: 3, reps: [10, 15], rir: '0–1', rest: 90, tag: 'calves', note: ['Ou mollets debout. Pause 1–2 s en étirement.', 'Or standing calf raise. 1–2 s pause in the stretch.'] },
+    { id: 'roman-chair-abs', sets: 4, reps: [10, 15], rir: '0–1', rest: 75, note: ['Ou crunch poulie.', 'Or cable crunch.'] },
   ],
   PUSH: [
     { id: 'incline-db-press', sets: 3, reps: [6, 10], rir: '1–2', rest: 150 },
     { id: 'shoulder-press-machine', sets: 2, reps: [8, 12], rir: '1–2', rest: 120 },
     { id: 'pec-deck', sets: 3, reps: [10, 15], rir: '0–1', rest: 90, tag: 'priority', note: ['Ou écarté poulie. Étirement contrôlé.', 'Or cable fly. Controlled stretch.'] },
     { id: 'cable-lateral-raise', sets: 4, reps: [12, 20], rir: '0–1', rest: 90 },
-    { id: 'reverse-pec-deck', sets: 2, reps: [12, 20], rir: '0–1', rest: 75 },
+    { id: 'reverse-pec-deck', sets: 3, reps: [12, 20], rir: '0–1', rest: 75 },
     { id: 'triceps-overhead-rope', sets: 3, reps: [10, 15], rir: '0–1', rest: 90 },
     { id: 'triceps-rope', sets: 2, reps: [10, 15], rir: '0–1', rest: 90 },
+    { id: 'standing-calf-raise', sets: 3, reps: [10, 15], rir: '0–1', rest: 90 },
   ],
   PULL: [
     { id: 'lat-pulldown', sets: 3, reps: [6, 10], rir: '1–2', rest: 150, note: ['Prise neutre ou large.', 'Neutral or wide grip.'] },
     { id: 'chest-supported-row', sets: 3, reps: [8, 12], rir: '1–2', rest: 120, tag: 'priority' },
     { id: 'cable-pullover', sets: 2, reps: [10, 15], rir: '0–1', rest: 90, note: ['Ou tirage unilatéral.', 'Or single-arm pulldown.'] },
-    { id: 'reverse-pec-deck', sets: 5, reps: [12, 20], rir: '0–1', rest: 75, superset: true, note: ['En superset avec les élévations latérales.', 'Superset with the lateral raises.'] },
+    { id: 'reverse-pec-deck', sets: 4, reps: [12, 20], rir: '0–1', rest: 75, superset: true, note: ['En superset avec les élévations latérales.', 'Superset with the lateral raises.'] },
     { id: 'lateral-raise', sets: 3, reps: [12, 20], rir: '0–1', rest: 75 },
     { id: 'preacher-curl', sets: 3, reps: [8, 12], rir: '0–1', rest: 90, note: ['Ou curl haltères assis.', 'Or seated dumbbell curl.'] },
-    { id: 'roman-chair-abs', sets: 5, reps: [10, 15], rir: '0–1', rest: 60 },
+    { id: 'roman-chair-abs', sets: 3, reps: [10, 15], rir: '0–1', rest: 60 },
   ],
   LEGS: [
     { id: 'hack-squat', sets: 3, reps: [6, 10], rir: '1–2', rest: 150, note: ['Ou Smith squat, ou presse pieds bas.', 'Or Smith squat, or leg press with feet low.'] },
@@ -809,7 +811,8 @@ export const PLAN: Record<WorkoutType, PlanItem[]> = {
     { id: 'leg-extension', sets: 3, reps: [10, 15], rir: '0–1', rest: 90 },
     { id: 'leg-curl', sets: 3, reps: [10, 15], rir: '0–1', rest: 90, note: ['Assis, ou allongé pour varier.', 'Seated, or lying for variety.'] },
     { id: 'back-extension-45', sets: 2, reps: [10, 15], rir: '1', rest: 90, note: ['Orientée fessiers.', 'Glute-focused.'] },
-    { id: 'standing-calf-raise', sets: 5, reps: [10, 15], rir: '0–1', rest: 90, tag: 'calves' },
+    { id: 'standing-calf-raise', sets: 4, reps: [10, 15], rir: '0–1', rest: 90, tag: 'calves' },
+    { id: 'roman-chair-abs', sets: 3, reps: [10, 15], rir: '0–1', rest: 60 },
   ],
 }
 
@@ -940,21 +943,37 @@ function sheetExercise(item: PlanItem, carried: TemplateExercise | undefined, wo
   return ex
 }
 
-/** What revision 4 changed in the sheets: the sets an exercise had before, or a slot that did not exist (null). */
-const REVISION_4: { type: WorkoutType; id: string; from: number | null }[] = [
-  { type: 'LOWER', id: 'calf-press', from: 3 },
-  { type: 'LOWER', id: 'roman-chair-abs', from: 3 },
-  { type: 'PUSH', id: 'reverse-pec-deck', from: null },
-  { type: 'PULL', id: 'reverse-pec-deck', from: 3 },
-  { type: 'PULL', id: 'roman-chair-abs', from: 3 },
-  { type: 'LEGS', id: 'standing-calf-raise', from: 3 },
-]
+/** What a revision changed in the sheets: the sets an exercise went from and to, or a slot it added (from null). */
+type SheetChange = { type: WorkoutType; id: string; from: number | null; to: number }
+const REVISIONS: Record<number, SheetChange[]> = {
+  // Abs, calves and rear delts to 10 weekly sets, on the two sessions they had (plus rear delts on Push).
+  4: [
+    { type: 'LOWER', id: 'calf-press', from: 3, to: 5 },
+    { type: 'LOWER', id: 'roman-chair-abs', from: 3, to: 5 },
+    { type: 'PUSH', id: 'reverse-pec-deck', from: null, to: 2 },
+    { type: 'PULL', id: 'reverse-pec-deck', from: 3, to: 5 },
+    { type: 'PULL', id: 'roman-chair-abs', from: 3, to: 5 },
+    { type: 'LEGS', id: 'standing-calf-raise', from: 3, to: 5 },
+  ],
+  // The same 10 sets over three sessions: nothing at five sets in a row.
+  5: [
+    { type: 'LOWER', id: 'calf-press', from: 5, to: 3 },
+    { type: 'LOWER', id: 'roman-chair-abs', from: 5, to: 4 },
+    { type: 'PUSH', id: 'reverse-pec-deck', from: 2, to: 3 },
+    { type: 'PULL', id: 'reverse-pec-deck', from: 5, to: 4 },
+    { type: 'PULL', id: 'roman-chair-abs', from: 5, to: 3 },
+    { type: 'LEGS', id: 'standing-calf-raise', from: 5, to: 4 },
+    { type: 'PUSH', id: 'standing-calf-raise', from: null, to: 3 },
+    { type: 'LEGS', id: 'roman-chair-abs', from: null, to: 3 },
+  ],
+}
 
 /**
- * Brings sheets written by an earlier revision of the program to the current one, touching only
- * what the revision changed: an exercise still at the sets the plan gave it takes the new number
- * (a number the lifter or the coach changed is left alone), and a new slot is added where the
- * plan puts it. Everything else — loads, notes, replaced exercises, priorities — stays.
+ * Brings sheets written by an earlier revision of the program to the current one, one revision
+ * after the other, touching only what each changed: an exercise still at the sets the plan gave
+ * it takes the new number (a number the lifter or the coach changed is left alone), and a new
+ * slot is added where the plan puts it. Everything else — loads, notes, replaced exercises,
+ * priorities — stays.
  */
 export function upgradeSheets(
   templates: Record<WorkoutType, Template>,
@@ -962,10 +981,10 @@ export function upgradeSheets(
   setup: TrainingSetup = { place: 'gym', equipment: [] },
   workouts: Workout[] = [],
 ): Record<WorkoutType, Template> {
-  if (revision >= 4) return templates
   const out = { ...templates }
   const all = Object.values(templates).flatMap((t) => t?.exercises ?? [])
-  for (const change of REVISION_4) {
+  const changes = Object.entries(REVISIONS).filter(([n]) => Number(n) > revision).sort(([a], [b]) => Number(a) - Number(b)).flatMap(([, list]) => list)
+  for (const change of changes) {
     const tpl = out[change.type]
     const index = PLAN[change.type].findIndex((p) => p.id === change.id)
     const item = PLAN[change.type][index]
@@ -975,13 +994,13 @@ export function upgradeSheets(
     if (change.from !== null) {
       const at = tpl.exercises.findIndex((e) => ids.includes(e.exerciseId) && e.target.sets === change.from)
       if (at < 0) continue
-      const ex = { ...tpl.exercises[at], target: { ...tpl.exercises[at].target, sets: item.sets } }
+      const ex = { ...tpl.exercises[at], target: { ...tpl.exercises[at].target, sets: change.to } }
       ex.nextTarget = nextTargetText(ex)
       out[change.type] = { ...tpl, exercises: tpl.exercises.map((e, i) => (i === at ? ex : e)) }
     } else {
       const id = setup.place === 'gym' ? change.id : (HOME_SLOTS[change.id] ?? []).find((c) => doableAt(c, setup) && !tpl.exercises.some((e) => e.exerciseId === c))
       if (!id || tpl.exercises.some((e) => ids.includes(e.exerciseId))) continue
-      const ex = sheetExercise({ ...item, id, ...(id === change.id ? {} : { reps: LIBRARY[id].reps ?? item.reps, note: undefined }) }, all.find((e) => e.exerciseId === id), workouts)
+      const ex = sheetExercise({ ...item, id, sets: change.to, ...(id === change.id ? {} : { reps: LIBRARY[id].reps ?? item.reps, note: undefined }) }, all.find((e) => e.exerciseId === id), workouts)
       const at = Math.min(index, tpl.exercises.length)
       out[change.type] = { ...tpl, exercises: [...tpl.exercises.slice(0, at), ex, ...tpl.exercises.slice(at)] }
     }

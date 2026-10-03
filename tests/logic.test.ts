@@ -115,8 +115,8 @@ test('priority muscles gain a set from block 2 week 3, calves from block 3', () 
   const calf = s.templates.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!
   assert.equal(prescribe(lat, '2026-11-10', null).sets, 3)
   assert.equal(prescribe(lat, '2026-11-24', null).sets, 4)
-  assert.equal(prescribe(calf, '2026-11-24', null).sets, 5)
-  assert.equal(prescribe(calf, '2027-01-05', null).sets, 6)
+  assert.equal(prescribe(calf, '2026-11-24', null).sets, 3)
+  assert.equal(prescribe(calf, '2027-01-05', null).sets, 4)
 })
 
 test('planned weekly volume sits in the 10–20 evidence band for every muscle', () => {
@@ -128,45 +128,62 @@ test('planned weekly volume sits in the 10–20 evidence band for every muscle',
   assert.deepEqual([v.rearDelts, v.calves, v.abs], [10, 10, 10])
 })
 
-test('program revision 4: sheets written before it take the added sets, and only those', () => {
-  const sets = (t: Record<string, { exercises: { exerciseId: string; target: { sets: number } }[] }>, type: string) => t[type].exercises.map((e) => `${e.exerciseId}:${e.target.sets}`)
+test('program revisions 4 and 5: sheets written before them take the changed sets, and only those', () => {
+  type Sheets = ReturnType<typeof defaultState>['templates']
+  const sets = (t: Sheets, type: 'UPPER' | 'LOWER' | 'PUSH' | 'PULL' | 'LEGS') => t[type].exercises.map((e) => `${e.exerciseId}:${e.target.sets}`)
+  const copy = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
   const now = defaultState()
-  // The sheets as revision 3 wrote them: three sets for calves, abs and rear delts, no rear delts on Push.
-  const before = JSON.parse(JSON.stringify(now.templates)) as typeof now.templates
+  // No exercise at five sets: abs and calves over three sessions, rear delts over two.
+  assert.ok(Object.values(now.templates).every((t) => t.exercises.every((e) => e.target.sets <= 4)))
+  const abs = ROTATION.filter((t) => now.templates[t].exercises.some((e) => e.exerciseId === 'roman-chair-abs'))
+  assert.deepEqual(abs, ['LOWER', 'PULL', 'LEGS'])
+  // The sheets as revision 3 wrote them: three sets twice a week for abs and calves, rear delts on Pull only.
+  const rev3 = copy(now.templates)
   for (const [type, id] of [['LOWER', 'calf-press'], ['LOWER', 'roman-chair-abs'], ['PULL', 'reverse-pec-deck'], ['PULL', 'roman-chair-abs'], ['LEGS', 'standing-calf-raise']] as const) {
-    before[type].exercises.find((e) => e.exerciseId === id)!.target.sets = 3
+    rev3[type].exercises.find((e) => e.exerciseId === id)!.target.sets = 3
   }
-  before.PUSH.exercises = before.PUSH.exercises.filter((e) => e.exerciseId !== 'reverse-pec-deck')
-  // A lifter's own changes: a load, a replaced exercise, and abs the coach set to four sets on Pull.
-  before.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!.target.weight = 120
-  before.PUSH.exercises[3] = { ...now.templates.UPPER.exercises.find((e) => e.exerciseId === 'lateral-raise')!, target: { ...before.PUSH.exercises[3].target } }
-  before.PULL.exercises.find((e) => e.exerciseId === 'roman-chair-abs')!.target.sets = 4
-  const old = normalizeState(JSON.parse(JSON.stringify({ ...now, templates: before, programRevision: 3 })))
-  assert.equal(old.programRevision, program.PROGRAM_REVISION)
-  assert.deepEqual(sets(old.templates, 'LOWER'), sets(now.templates, 'LOWER'))
-  assert.deepEqual(sets(old.templates, 'LEGS'), sets(now.templates, 'LEGS'))
-  assert.equal(old.templates.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!.target.weight, 120, 'the load stays')
-  assert.match(old.templates.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!.nextTarget ?? '', /5 ×/)
-  // Push: rear delts added where the plan puts them, after the lateral raises the lifter chose.
-  assert.deepEqual(old.templates.PUSH.exercises.map((e) => e.exerciseId), ['incline-db-press', 'shoulder-press-machine', 'pec-deck', 'lateral-raise', 'reverse-pec-deck', 'triceps-overhead-rope', 'triceps-rope'])
-  assert.equal(old.templates.PUSH.exercises[4].target.sets, 2)
-  // Pull: rear delts to five; the abs the coach changed are left as they are.
-  assert.deepEqual(sets(old.templates, 'PULL').filter((x) => /reverse-pec-deck|roman-chair-abs/.test(x)), ['reverse-pec-deck:5', 'roman-chair-abs:4'])
-  assert.equal(JSON.stringify(old.templates.UPPER), JSON.stringify(normalizeState(JSON.parse(JSON.stringify(now))).templates.UPPER), 'nothing else moves')
-  // Said once, where plan updates are listed; a second load changes nothing.
-  assert.equal(old.appliedPlanUpdates.filter((u) => u.updateId === 'program-revision-4').length, 1)
-  const again = normalizeState(JSON.parse(JSON.stringify(old)))
-  assert.equal(JSON.stringify(again.templates), JSON.stringify(old.templates))
-  assert.equal(again.appliedPlanUpdates.length, old.appliedPlanUpdates.length)
-  // At home, the home versions take the same sets.
+  rev3.PUSH.exercises = rev3.PUSH.exercises.filter((e) => e.exerciseId !== 'reverse-pec-deck' && e.exerciseId !== 'standing-calf-raise')
+  rev3.LEGS.exercises = rev3.LEGS.exercises.filter((e) => e.exerciseId !== 'roman-chair-abs')
+  // And as revision 4 wrote them: five sets on those, two of rear delts on Push.
+  const rev4 = copy(rev3)
+  for (const [type, id] of [['LOWER', 'calf-press'], ['LOWER', 'roman-chair-abs'], ['PULL', 'reverse-pec-deck'], ['PULL', 'roman-chair-abs'], ['LEGS', 'standing-calf-raise']] as const) {
+    rev4[type].exercises.find((e) => e.exerciseId === id)!.target.sets = 5
+  }
+  rev4.PUSH.exercises.splice(4, 0, { ...copy(now.templates.PUSH.exercises.find((e) => e.exerciseId === 'reverse-pec-deck')!), target: { ...now.templates.PUSH.exercises.find((e) => e.exerciseId === 'reverse-pec-deck')!.target, sets: 2 } })
+  for (const [revision, before] of [[3, rev3], [4, rev4]] as const) {
+    const up = normalizeState(copy({ ...now, templates: before, programRevision: revision }))
+    assert.equal(up.programRevision, program.PROGRAM_REVISION)
+    for (const type of ROTATION) assert.deepEqual(sets(up.templates, type), sets(now.templates, type), `from revision ${revision}: ${type}`)
+    // Said once, where plan updates are listed; a second load changes nothing.
+    assert.equal(up.appliedPlanUpdates.filter((u) => u.updateId === `program-revision-${program.PROGRAM_REVISION}`).length, 1)
+    const again = normalizeState(copy(up))
+    assert.equal(JSON.stringify(again.templates), JSON.stringify(up.templates))
+    assert.equal(again.appliedPlanUpdates.length, up.appliedPlanUpdates.length)
+  }
+  // A lifter's own changes stay: a load, a replaced exercise, and abs the coach set to two sets on Pull.
+  const own = copy(rev3)
+  own.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!.target.weight = 120
+  own.PUSH.exercises[3] = { ...copy(now.templates.UPPER.exercises.find((e) => e.exerciseId === 'lateral-raise')!), target: { ...own.PUSH.exercises[3].target } }
+  own.PULL.exercises.find((e) => e.exerciseId === 'roman-chair-abs')!.target.sets = 2
+  const kept = normalizeState(copy({ ...now, templates: own, programRevision: 3 }))
+  assert.equal(kept.templates.LOWER.exercises.find((e) => e.exerciseId === 'calf-press')!.target.weight, 120, 'the load stays')
+  assert.match(kept.templates.LOWER.exercises.find((e) => e.exerciseId === 'roman-chair-abs')!.nextTarget ?? '', /4 ×/)
+  // Push: rear delts where the plan puts them, after the lateral raises the lifter chose; calves at the end.
+  assert.deepEqual(kept.templates.PUSH.exercises.map((e) => e.exerciseId), ['incline-db-press', 'shoulder-press-machine', 'pec-deck', 'lateral-raise', 'reverse-pec-deck', 'triceps-overhead-rope', 'triceps-rope', 'standing-calf-raise'])
+  assert.deepEqual(sets(kept.templates, 'PULL').filter((x) => /reverse-pec-deck|roman-chair-abs/.test(x)), ['reverse-pec-deck:4', 'roman-chair-abs:2'])
+  assert.equal(JSON.stringify(kept.templates.UPPER), JSON.stringify(normalizeState(copy(now)).templates.UPPER), 'nothing else moves')
+  // At home, the home versions take the same sets and the same new slots.
   const home = { place: 'home' as const, equipment: ['dumbbells' as const, 'bench' as const] }
   const homeNow = program.buildResearchTemplates(undefined, [], home)
-  const homeBefore = JSON.parse(JSON.stringify(homeNow)) as typeof homeNow
-  for (const type of ['LOWER', 'PULL', 'LEGS'] as const) for (const e of homeBefore[type].exercises) if (e.target.sets === 5) e.target.sets = 3
-  const rear = homeNow.PUSH.exercises.find((e) => infoFor(e.exerciseId, e).groups.rearDelts === 1)!
-  homeBefore.PUSH.exercises = homeBefore.PUSH.exercises.filter((e) => e.exerciseId !== rear.exerciseId)
-  const homeUp = program.upgradeSheets(homeBefore, 3, home)
-  for (const type of ROTATION) assert.deepEqual(sets(homeUp, type), sets(homeNow, type), `home ${type}`)
+  const homeUp = normalizeState(copy({ ...now, settings: { ...now.settings, setup: home }, templates: (() => {
+    const t = copy(homeNow)
+    const groupOf = (e: { exerciseId: string }) => Object.keys(infoFor(e.exerciseId, e as never).groups)[0]
+    for (const type of ['LOWER', 'PULL', 'LEGS'] as const) for (const e of t[type].exercises) if (['abs', 'calves', 'rearDelts'].includes(groupOf(e))) e.target.sets = 3
+    t.PUSH.exercises = t.PUSH.exercises.filter((e) => !['calves', 'rearDelts'].includes(groupOf(e)))
+    t.LEGS.exercises = t.LEGS.exercises.filter((e) => groupOf(e) !== 'abs')
+    return t
+  })(), programRevision: 3 }))
+  for (const type of ROTATION) assert.deepEqual(sets(homeUp.templates, type), sets(homeNow, type), `home ${type}`)
 })
 
 test('fewer than five training days: sessions take more sets and the week keeps its volume', () => {
@@ -184,8 +201,8 @@ test('fewer than five training days: sessions take more sets and the week keeps 
   assert.deepEqual(program.scaledSession(slots('UPPER'), 1), [3, 3, 2, 3, 3, 2, 2, 2])
   // 20 sets become 25: the four exercises of 3 sets go to 4; of those of 2, the one whose muscle has the least (triceps).
   assert.deepEqual(program.scaledSession(slots('UPPER'), 1.25), [4, 4, 2, 4, 4, 3, 2, 2])
-  // 22 sets become 28: every exercise takes one more.
-  assert.deepEqual(program.scaledSession(slots('LOWER'), 1.25), [4, 4, 4, 4, 6, 6])
+  // 19 sets become 24: calves and abs are served before a second quadriceps exercise.
+  assert.deepEqual(program.scaledSession(slots('LOWER'), 1.25), [4, 4, 4, 3, 4, 5])
   // Sheets of two sets, or of one, are scaled too (each exercise alone would round to nothing).
   const custom = (sets: number[]) => sets.map((n, i) => ({ exerciseId: `custom-${i}`, muscle: '', sets: n }))
   assert.deepEqual(program.scaledSession(custom([2, 2, 2, 2]), 1.25), [3, 3, 2, 2])
@@ -195,9 +212,9 @@ test('fewer than five training days: sessions take more sets and the week keeps 
   assert.deepEqual(program.scaledSession(custom([2, 5]), 5 / 3), [4, 8])
   assert.deepEqual(program.scaledSession(custom([1, 4]), 5 / 3), [2, 6])
   // No muscle past about 11 sets in one session: added sets are taken back, never the plan's.
-  assert.deepEqual(program.scaledSession(slots('PULL'), 5 / 3), [4, 4, 3, 8, 5, 5, 9], 'back: 4 + 4 + 3 = 11, not 13')
+  assert.deepEqual(program.scaledSession(slots('PULL'), 5 / 3), [4, 4, 3, 7, 5, 5, 5], 'back: 4 + 4 + 3 = 11, not 13')
   assert.deepEqual(program.scaledSession(slots('UPPER'), 5 / 3), [5, 5, 3, 5, 5, 3, 4, 3], 'the spare set goes to the biceps, chest is at 11')
-  assert.deepEqual(program.scaledSession(slots('PUSH'), 5 / 3), [5, 3, 5, 7, 4, 4, 3], 'triceps: 2.5 + 1.5 + 4 + 3 = 11, not 12')
+  assert.deepEqual(program.scaledSession(slots('PUSH'), 5 / 3), [5, 3, 5, 7, 5, 4, 3, 5], 'triceps: 2.5 + 1.5 + 4 + 3 = 11, not 12')
   assert.deepEqual(program.scaledSession([{ exerciseId: 'chest-press', sets: 12 }], 5 / 3), [12], 'a sheet above the ceiling keeps its sets')
   for (const days of [4, 3, 2]) {
     for (const type of ROTATION) {
@@ -226,9 +243,9 @@ test('fewer than five training days: sessions take more sets and the week keeps 
     assert.ok(ratio >= 0.95 && ratio <= 1.08, `${m}: ${Math.round(ratio * 100)} % of the plan at four days`)
   }
   const week = (days: number, keep = true) => program.weekShape(program.templateSets(s.templates), days, keep)
-  assert.deepEqual([week(5).sets, week(5).minutes, week(5).share], [[19, 24], [65, 75], 1])
-  assert.deepEqual([week(4).sets, week(4).minutes, Math.round(week(4).share * 100)], [[24, 30], [80, 90], 101])
-  assert.deepEqual([week(3).sets, week(3).minutes, Math.round(week(3).share * 100)], [[31, 38], [100, 110], 98])
+  assert.deepEqual([week(5).sets, week(5).minutes, week(5).share], [[19, 23], [65, 70], 1])
+  assert.deepEqual([week(4).sets, week(4).minutes, week(4).share], [[24, 29], [80, 85], 1])
+  assert.deepEqual([week(3).sets, week(3).minutes, Math.round(week(3).share * 100)], [[32, 37], [100, 105], 98])
   assert.deepEqual(program.weekShape(program.planSets(), 3), week(3), 'the report’s plan and the default sheets are the same sessions')
   // Below three days, and with the choice turned off, the week holds less; above five days, more.
   assert.equal(Math.round(week(2).share * 100), 65)
