@@ -85,7 +85,8 @@ export default function App() {
   useEffect(() => {
     void useStore.getState().init()
     const flush = () => void useStore.getState().flush()
-    const onVis = () => document.visibilityState === 'hidden' && flush()
+    // Save before suspension and retry unsaved changes when storage wakes up.
+    const onVis = () => flush()
     document.addEventListener('visibilitychange', onVis)
     window.addEventListener('pagehide', flush)
     return () => {

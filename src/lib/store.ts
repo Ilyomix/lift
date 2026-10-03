@@ -27,7 +27,7 @@ import type {
 
 export const GOAL_PHOTO_ID = 'goal-reference'
 
-const kv = createStore('golgoth', 'kv')
+let kv = createStore('golgoth', 'kv')
 const photoDb = createStore('golgoth-photos', 'photos')
 
 export interface Toast {
@@ -131,6 +131,11 @@ interface Store {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let saveInFlight: Promise<void> | null = null
+const storageUnavailableMessages = [
+  'Stockage indisponible : les données ne sont gardées que pendant cette session.',
+  'Storage unavailable: your data is only kept for this session.',
+] as const
 let toastSeq = 0
 
 function withActive(s: AppState, fn: (a: ActiveWorkout) => ActiveWorkout): AppState {
@@ -298,13 +303,40 @@ export const useStore = create<Store>((set, get) => ({
       clearTimeout(saveTimer)
       saveTimer = null
     }
-    if (get().storage !== 'idb' || !get().hasData) return
-    try {
-      await idbSet('state', get().state, kv)
-    } catch {
-      set({ storage: 'memory' })
-      get().notify(L('Stockage indisponible : les données ne sont gardées que pendant cette session.', 'Storage unavailable: your data is only kept for this session.'), 'bad')
-    }
+    if (!get().hasData) return
+    if (saveInFlight) return saveInFlight
+    // WebKit can close IndexedDB while the app is suspended. Retry with a fresh
+    // connection, and keep later saves possible even if both attempts fail.
+    saveInFlight = (async () => {
+      while (get().hasData) {
+        let savedState = get().state
+        let saved = false
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (!get().hasData) return
+          savedState = get().state
+          try {
+            await idbSet('state', savedState, kv)
+            saved = true
+            break
+          } catch (error) {
+            // Reopening cannot fix quota exhaustion or non-cloneable values.
+            const name = error && typeof error === 'object' && 'name' in error ? error.name : undefined
+            if (error != null && !['AbortError', 'InvalidStateError', 'UnknownError'].includes(String(name))) break
+            kv = createStore('golgoth', 'kv')
+          }
+        }
+        if (!saved) {
+          set({ storage: 'memory' })
+          get().notify(L(...storageUnavailableMessages), 'bad')
+          return
+        }
+        const storageWarning = storageUnavailableMessages.some(message => message === get().toast?.message)
+        set({ storage: 'idb', ...(storageWarning ? { toast: null } : {}) })
+        // An edit made during the write must be saved before callers resolve.
+        if (get().state === savedState) return
+      }
+    })().finally(() => { saveInFlight = null })
+    return saveInFlight
   },
 
   notify: (message, tone = 'default', action) => set({ toast: { id: ++toastSeq, message, tone, action } }),
