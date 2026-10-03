@@ -126,7 +126,7 @@ export class ExerciseEquipment {
     const height = reverse ? 1.1699603 : 1.0899603
     // Grip-centre radius includes the real palm offset. Wrist-only .54 m
     // targets would turn this isolation into a deeply bent-elbow row.
-    const radius = .634
+    const radius = .624
     const arms = [-1, 1].map(side => {
       const arm = new Group()
       arm.name = `rigid-fly-${side}`
@@ -171,7 +171,7 @@ export class ExerciseEquipment {
       return { arm, grip }
     })
     return (phase: number) => {
-      const angle = overhead ? -.30 - .333 * phase : -.26 - .249 * phase
+      const angle = overhead ? -.30 - .317 * phase : -.26 - .233 * phase
       arms.forEach(({ arm }) => { arm.rotation.x = angle })
       this.root.updateMatrixWorld(true)
       return {

@@ -34,6 +34,14 @@ type ResolvedSide = {
 type Source = { gltf: GLTF; manifest: AthleteManifest }
 let sourcePromise: Promise<Source> | undefined
 const X = new Vector3(1, 0, 0)
+const GRIP_DEPTH = .044
+const GRIP_LENGTH = .82
+// Fitted to the shipped skin around an 18 mm shaft, including distal pads.
+// Absolute phalanx directions in the palm plane; bind-pose curl is removed.
+const GRIP_FINGER_ANGLES = {
+  index: [60, 100, 145], middle: [64, 110, 156],
+  ring: [56, 92, 145], pinky: [46, 66, 90],
+} as const
 
 function validateManifest(value: unknown): asserts value is AthleteManifest {
   if (!value || typeof value !== 'object') throw new Error('Missing athlete rig manifest')
@@ -330,11 +338,15 @@ export class Athlete {
     this.worldRotation(side.arm.end, handRotation)
     const sign = index === 0 ? 1 : -1
     if (flat || !closed) {
-      for (const finger of ['index', 'middle', 'ring', 'pinky'] as const) for (const bone of side.fingers[finger]) {
+      for (const finger of ['index', 'middle', 'ring', 'pinky'] as const) for (const [joint, bone] of side.fingers[finger].entries()) {
         const axis = this.fingerDirections.get(bone)
         if (!axis) continue
+        // Support palms remain open, with relaxed fingertips. Floor contacts
+        // keep their full flat surface instead of sharing this gentle curl.
+        const angle = flat ? 0 : [0, .20, .35][joint]
+        const target = along.clone().multiplyScalar(Math.cos(angle)).addScaledVector(normal, sign * Math.sin(angle))
         const rotation = bone.getWorldQuaternion(new Quaternion())
-        this.worldRotation(bone, new Quaternion().setFromUnitVectors(axis.clone().applyQuaternion(rotation), along).multiply(rotation))
+        this.worldRotation(bone, new Quaternion().setFromUnitVectors(axis.clone().applyQuaternion(rotation), target).multiply(rotation))
       }
       const thumbDirection = along.clone().multiplyScalar(0.55).addScaledVector(across, 0.84).normalize()
       for (let joint = 0; joint < side.fingers.thumb.length - 1; joint++) {
@@ -343,11 +355,19 @@ export class Athlete {
       }
       return wrist.addScaledVector(along, side.palm.length * 0.70).addScaledVector(normal, flat ? sign * 0.016 : 0)
     }
+    const centre = wrist.clone().addScaledVector(along, side.palm.length * GRIP_LENGTH).addScaledVector(normal, sign * GRIP_DEPTH)
+    // One curl angle for all fingers buried the shorter fingers in the shaft.
+    // These independent directions preserve each phalanx's measured length
+    // and close the actual fingertip skin around the contact, not just its bone.
     for (const finger of ['index', 'middle', 'ring', 'pinky'] as const) {
-      const angles = [0.86, 1.18, 0.85]
-      side.fingers[finger].forEach((bone, joint) => {
-        this.worldRotation(bone, new Quaternion().setFromAxisAngle(across, sign * (angles[joint] ?? 0.85)).multiply(bone.getWorldQuaternion(new Quaternion())))
-      })
+      for (const [joint, bone] of side.fingers[finger].entries()) {
+        const angle = GRIP_FINGER_ANGLES[finger][joint] * Math.PI / 180
+        const target = along.clone().multiplyScalar(Math.cos(angle)).addScaledVector(normal, sign * Math.sin(angle))
+        const localDirection = this.fingerDirections.get(bone)
+        if (!localDirection) continue
+        const rotation = bone.getWorldQuaternion(new Quaternion())
+        this.worldRotation(bone, new Quaternion().setFromUnitVectors(localDirection.clone().applyQuaternion(rotation), target).multiply(rotation))
+      }
     }
     // A thumb opposes the fingers across the palm; flexing it around the
     // finger axis alone leaves the bind-pose thumb sticking out sideways.
@@ -360,11 +380,17 @@ export class Athlete {
         .addScaledVector(across, side.palm!.length * x)
         .addScaledVector(along, side.palm!.length * y)
         .addScaledVector(normal, sign * side.palm!.length * z)
-      const thumb = solveTwoBone(a, palmPoint(.18, .88, .38), palmPoint(.55, .55, .55), a.distanceTo(b), b.distanceTo(c))
+      const thumb = solveTwoBone(a, palmPoint(.32, .60, .55), palmPoint(.65, .48, .35), a.distanceTo(b), b.distanceTo(c))
       this.aim(thumbBase, thumbMiddle, thumb.joint)
       this.aim(thumbMiddle, thumbEnd, thumb.end)
+      const distal = this.fingerDirections.get(thumbEnd)
+      if (distal) {
+        const rotation = thumbEnd.getWorldQuaternion(new Quaternion())
+        const direction = across.clone().negate().addScaledVector(along, .15).normalize()
+        this.worldRotation(thumbEnd, new Quaternion().setFromUnitVectors(distal.clone().applyQuaternion(rotation), direction).multiply(rotation))
+      }
     }
-    return wrist.addScaledVector(along, side.palm.length * 0.88).addScaledVector(normal, sign * 0.028)
+    return centre
   }
 
   pose(hips: Point, lean: number, knees: Point[], feet: Point[], hands: Point[], poles: Point[], options: {
@@ -382,10 +408,10 @@ export class Athlete {
           const start = side.arm.first.getWorldPosition(new Vector3())
           const contact = new Vector3(...hands[i])
           const pole = new Vector3(...poles[i])
-          const palmLength = side.palm!.length * 0.88
+          const palmLength = side.palm!.length * GRIP_LENGTH
           const end = contact.clone()
           let joint = start.clone(), along = new Vector3()
-          // Only the 28 mm normal offset is iterated; limb lengths are solved
+          // Only the normal offset is iterated; limb lengths are solved
           // analytically each time. No recursively accumulated wrist errors.
           for (let iteration = 0; iteration < 12; iteration++) {
             const result = solveTwoBone(start, end, pole, side.arm.upper, side.arm.lower + palmLength)
@@ -394,7 +420,7 @@ export class Athlete {
             const across = options.gripAxes?.[i] ? new Vector3(...options.gripAxes[i]) : new Vector3(0, 1, 0)
             across.addScaledVector(along, -across.dot(along)).normalize()
             if (across.lengthSq() < 0.1) across.set(1, 0, 0).addScaledVector(along, -along.x).normalize()
-            const next = contact.clone().addScaledVector(across.cross(along).normalize(), i === 0 ? -0.028 : 0.028)
+            const next = contact.clone().addScaledVector(across.cross(along).normalize(), i === 0 ? -GRIP_DEPTH : GRIP_DEPTH)
             if (next.distanceToSquared(end) < 1e-12) break
             end.copy(next)
           }

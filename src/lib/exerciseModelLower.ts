@@ -34,6 +34,18 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
   const lower = body.measures.legs[0][1] / scale
   const halfHip = body.measures.hipWidth / scale / 2
   const standing = 0.08 + upper + lower
+  const palms = [body.manifest.bones.right, body.manifest.bones.left].map(side => ({
+    wrist: body.root.getObjectByName(side.hand)!,
+    middle: body.root.getObjectByName(side.palmLandmarks!.middle)!,
+    index: body.root.getObjectByName(side.palmLandmarks!.index)!,
+    pinky: body.root.getObjectByName(side.palmLandmarks!.pinky)!,
+  }))
+  const gripAxis = (index: number) => {
+    const palm = palms[index]
+    const along = palm.middle.getWorldPosition(new Vector3()).sub(palm.wrist.getWorldPosition(new Vector3())).normalize()
+    const across = palm.index.getWorldPosition(new Vector3()).sub(palm.pinky.getWorldPosition(new Vector3()))
+    return across.addScaledVector(along, -across.dot(along)).normalize()
+  }
   const p = (point: Point): Point => point.map(value => value * scale) as Point
   const pair = (fn: (side: number, index: number) => Point) => SIDES.map(fn)
   const block = (at: Point, size: Point, angle = 0, material = eq.pad) => eq.block(p(at), p(size), angle, material)
@@ -60,7 +72,12 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
 
   if (id === 'goblet-squat' || id === 'smith-squat' || id === 'hack-squat' || id === 'bulgarian-split-squat' || id === 'sissy-squat') {
     const dumbbell = id === 'goblet-squat' ? eq.dumbbell() : null
-    if (dumbbell) { dumbbell.scale.setScalar(scale); dumbbell.rotation.z = PI / 2 }
+    const gobletTilt = .35
+    const gobletAxis = new Vector3(0, Math.cos(gobletTilt), -Math.sin(gobletTilt))
+    if (dumbbell) {
+      dumbbell.scale.setScalar(scale)
+      dumbbell.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gobletAxis)
+    }
     const smithBar = id === 'smith-squat' ? eq.barbell() : null
     smithBar?.scale.setScalar(scale)
     const backPad = id === 'hack-squat' ? block([0, 0.9, 0], [0.38, 0.60, 0.09], -0.67) : null
@@ -109,8 +126,19 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         hands = [[-0.45, 1.12, 0.25], torso(hips, lean, [0.30, 0.10, 0.10])]
         footRotations = [[footAngle, 0, 0], [footAngle, 0, 0]]
       }
-      const result = pose(hips, lean, knees, feet, hands, undefined, { footRotations, grip: !!dumbbell || !!smithBar || id === 'sissy-squat', gripTargets: !!smithBar || id === 'sissy-squat', gripAxes: smithBar ? [[1, 0, 0], [-1, 0, 0]] : undefined })
-      if (dumbbell) dumbbell.position.copy(average(result.hands))
+      const loadCenter = torso(hips, lean, [0, .33, .36])
+      if (dumbbell) {
+        // Separate palms support the underside of the upper head. The palm
+        // skin sits 28 mm above its skeletal centre; neither hand holds the
+        // narrow shaft, and the lower head stays in front of the chest.
+        hands = pair(side => [side * .065, loadCenter[1] + (.076 - .028) * gobletAxis.y, loadCenter[2] + (.076 - .028) * gobletAxis.z])
+      }
+      const result = pose(hips, lean, knees, feet, hands,
+        dumbbell ? pair(side => [side * .35, hips[1] + .20, hips[2] + .08]) : undefined,
+        { footRotations, grip: !!smithBar || id === 'sissy-squat', openHands: !!dumbbell, gripTargets: !!dumbbell || !!smithBar || id === 'sissy-squat',
+          gripAxes: dumbbell ? [[-1, 0, 0], [1, 0, 0]] : smithBar ? [[1, 0, 0], [-1, 0, 0]] : undefined,
+          gripDirections: dumbbell ? pair(() => [0, Math.sin(gobletTilt), Math.cos(gobletTilt)]) : undefined })
+      if (dumbbell) dumbbell.position.set(...p(loadCenter))
       if (smithBar) smithBar.position.copy(average(result.hands))
     }, id === 'hack-squat' ? [2.8, 1.7, 3.6] : [2.8, 1.85, 3.6], [0, 0.87, -0.05], id === 'hack-squat' ? 2.35 : 2.18)
   }
@@ -302,7 +330,10 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
         { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
       if (barbell) barbell.position.copy(average(result.hands))
-      dumbbells.forEach((weight, i) => weight.position.copy(result.hands[i]))
+      dumbbells.forEach((weight, i) => {
+        weight.position.copy(result.hands[i])
+        weight.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gripAxis(i))
+      })
     }, [2.8, 1.7, 3.7], [0, 0.86, -0.03], 2.13)
   }
 
@@ -340,10 +371,17 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
           hands = [[-0.33, 0.525, -0.55], [0.33, 0.525, -0.55]]
         }
       }
+      // The head rests on the changing hip surface. Open palms retain each
+      // head from above, rather than closing inside its solid rubber disc.
+      const loadCenter: Point = [0, hips[1] + .202 + .030 * (1 - t) ** 2, hips[2]]
+      const supportTilt = .5
+      if (dumbbell) hands = pair(side => [side * .105, loadCenter[1] + (.078 + .025) * Math.cos(supportTilt), loadCenter[2] - (.078 + .025) * Math.sin(supportTilt)])
       const result = pose(hips, lean, knees, feet, hands,
-        [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell || !!dumbbell, gripTargets: !!barbell || !!dumbbell, gripAxes: [[1, 0, 0], [-1, 0, 0]], flatHands: sliding || id === 'single-leg-hip-thrust' })
+        [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell, openHands: !!dumbbell, gripTargets: !!barbell || !!dumbbell,
+          gripAxes: [[1, 0, 0], [-1, 0, 0]], gripDirections: dumbbell ? pair(() => [0, Math.sin(supportTilt), Math.cos(supportTilt)]) : undefined,
+          flatHands: sliding || id === 'single-leg-hip-thrust' })
       if (barbell) barbell.position.copy(average(result.hands))
-      if (dumbbell) dumbbell.position.copy(average(result.hands))
+      if (dumbbell) dumbbell.position.set(...p(loadCenter))
       sliders.forEach((slider, i) => slider.position.set(...p([feet[i][0], 0.055, feet[i][2]])))
     }, [2.8, 2.1, 3.0], [0, 0.41, 0.04], 1.78)
   }
@@ -419,8 +457,12 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const result = pose(hips, lean, knees, feet, hands, poles, { footRotations: [[angle, 0, 0], [single ? 0 : angle, 0, 0]], grip: true, gripTargets: true })
       grips.forEach((grip, i) => {
         grip.position.copy(result.hands[i])
+        const axis = gripAxis(i)
+        grip.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), axis)
         const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.59, hips[2] + 0.13]))
-        placeBetween(gripLinks[i], anchor, result.hands[i])
+        // Join the nearest end of the handle, never its occupied centre.
+        const end = result.hands[i].clone().addScaledVector(axis, anchor.clone().sub(result.hands[i]).dot(axis) < 0 ? -.06 : .06)
+        placeBetween(gripLinks[i], anchor, end)
       })
       if (seated) pads[0].position.copy(average(result.knees)).add(new Vector3(0, 0.055 * scale, -0.04 * scale))
       else pads.forEach((pad, i) => {
@@ -476,7 +518,7 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       }
     }
     return motion(t => {
-      const hips: Point = [0, hanging ? 1.073 + 0.01 * t : 1.13 + 0.05 * t, -0.02 - 0.05 * t]
+      const hips: Point = [0, hanging ? 1.081 + 0.01 * t : 1.13 + 0.05 * t, -0.02 - 0.05 * t]
       const angle = hanging ? 0.20 + 1.85 * t : 0.12 + 1.39 * t
       const knees = pair(side => [side * halfHip, hips[1] - upper * Math.cos(angle), hips[2] + upper * Math.sin(angle)])
       const feet = knees.map(knee => add(knee, [0, -lower * Math.cos(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t), lower * Math.sin(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t)]))

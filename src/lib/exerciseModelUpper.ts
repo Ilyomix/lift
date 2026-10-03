@@ -131,9 +131,9 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
   }
 
   if (id === 'dips') {
-    for (const s of SIDES) { eq.bar([s * 0.33, 0.03, 0], [s * 0.33, 1.14, 0], 0.035); eq.bar([s * 0.33, 1.14, -0.28], [s * 0.33, 1.14, 0.36], 0.025) }
+    for (const s of SIDES) { eq.bar([s * 0.33, 0.03, 0], [s * 0.33, 1.14, 0], 0.035); eq.bar([s * 0.33, 1.14, -0.28], [s * 0.33, 1.14, 0.36], 0.018).name = 'contact-grip' }
     return motion(t => {
-      const hip = 1.06 + 0.23 * t
+      const hip = 1.05 + 0.23 * t
       body.pose([0, hip, 0], 0.12, pair(s => [s * 0.13, hip - 0.4, 0.04]), pair(s => [s * 0.12, hip - 0.50, -0.33]),
         pair(s => [s * 0.33, 1.14, 0.06]), pair(s => [s * 0.50, 1.28, -0.25]), { grip: true, footRotations, gripAxes: pair(() => [0, 0, 1]), gripDirections: pair(() => [0, -1, 0]), gripTargets: true })
     }, { target: [0, 1.10, 0], height: 2.30 })
@@ -144,7 +144,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     const height = hanging ? 2.15 : 2.12
     if (hanging) {
       for (const s of SIDES) eq.bar([s * 0.67, 0.02, 0.12], [s * 0.67, height, 0.12], 0.035)
-      eq.bar([-0.67, height, 0.12], [0.67, height, 0.12], 0.023)
+      eq.bar([-0.67, height, 0.12], [0.67, height, 0.12], 0.018).name = 'contact-grip'
     } else if (band || single) {
       eq.bar([0, 0.04, 0.62], [0, height, 0.62], 0.032)
       eq.bar([-.32, .035, .82], [.32, .035, .82], .025)
@@ -170,15 +170,21 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     if (single && handle) handle.visible = false
     const cable = !hanging && !band ? eq.cable([0, height, 0.62], [0, 1.8, 0.17]) : null
     return motion(t => {
-      const hipY = hanging ? (id === 'chin-up' ? 1.047 : 1.058) + (id === 'chin-up' ? 0.463 : 0.452) * t : band || single ? 0.55 : 0.695
-      const handY = hanging ? height : hipY + (single || band ? .96 - .48 * t : 1.021 - .541 * t)
+      const hipY = hanging ? (id === 'chin-up' ? 1.061 : 1.063) + (id === 'chin-up' ? 0.449 : 0.447) * t : band || single ? 0.55 : 0.695
+      const handY = hanging ? height : hipY + (single || band ? .96 - .48 * t : 1.017 - .537 * t)
       const width = id === 'chin-up' ? 0.24 : single ? 0.20 : 0.35
       const targets = pair(s => [s * width, handY, hanging ? .12 : single || band ? .17 : .29])
+      // The straight lat bar fixes the palm's transverse axis. Keep the hand
+      // direction in its perpendicular plane as the forearms tilt during the
+      // pull; projecting the shaft axis onto each forearm skewed the fingers.
+      const latHandAngle = .407 + .35 * t * t * t
+      const directions = hanging ? pair(() => [0, 1, 0]) : id === 'lat-pulldown'
+        ? pair(() => [0, Math.cos(latHandAngle), Math.sin(latHandAngle)]) : undefined
       if (single) targets[0] = [-0.23, 0.73, 0.30]
       const result = body.pose([0, hipY, 0], hanging ? -0.02 : -0.04,
         hanging ? pair(s => [s * 0.13, hipY - 0.42, 0.02]) : single ? [[-0.17, 0.46, 0.34], [0.17, 0.09, 0.03]] : band ? pair(s => [s * 0.17, 0.09, 0.03]) : pair(s => [s * 0.19, 0.54, 0.43]),
         hanging ? pair(s => [s * 0.12, hipY - 0.79, -0.17]) : single ? [[-0.17, 0.08, 0.47], [0.17, 0.08, -0.40]] : band ? pair(s => [s * 0.17, 0.08, -0.4]) : pair(s => [s * 0.2, 0.08, 0.46]),
-        targets, id === 'lat-pulldown' ? pair(s => [s * (.7 - .3 * t), hipY + .36 - .21 * t, .03 + .02 * t]) : pair(s => [s * .7, hipY + .36, .03]), { grip: true, footRotations, gripAxes: id === 'chin-up' ? pair(s => [s, 0, 0]) : pronated, gripDirections: hanging ? pair(() => [0, 1, 0]) : undefined, gripTargets: hanging || (!band && !single) })
+        targets, id === 'lat-pulldown' ? pair(s => [s * (.7 - .3 * t), hipY + .36 - .21 * t, .03 + .02 * t]) : pair(s => [s * .7, hipY + .36, .03]), { grip: true, footRotations, gripAxes: id === 'chin-up' ? pair(s => [s, 0, 0]) : pronated, gripDirections: directions, gripTargets: hanging || (!band && !single) })
       const barCentre = new Vector3(0, handY, .29)
       if (handle && !single) handle.position.copy(barCentre)
       if (cable) {
@@ -202,8 +208,16 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     if (supported) { grips.forEach(grip => { grip.visible = false }) } else if (single) { eq.bench([0.19, 0.5, 0.1]); load = eq.dumbbell(); grips.forEach(grip => { grip.visible = false }) }
     else if (inverted || door) {
       if (inverted) grips.forEach(grip => { grip.visible = false })
-      for (const s of SIDES) eq.bar([s * (door ? 0.40 : 0.55), 0.02, inverted ? -0.55 : 0.40], [s * (door ? 0.40 : 0.55), inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], 0.035)
-      eq.bar([door ? -0.40 : -0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], [door ? 0.40 : 0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], 0.025)
+      for (const s of SIDES) {
+        if (door && s === 1) {
+          // Keep the structural post, with a hand-sized section at its grip.
+          eq.bar([.40, .02, .40], [.40, 1.16, .40], .035)
+          eq.bar([.40, 1.16, .40], [.40, 1.40, .40], .018).name = 'contact-grip'
+          eq.bar([.40, 1.40, .40], [.40, 2.05, .40], .035)
+        } else eq.bar([s * (door ? .40 : .55), .02, inverted ? -.55 : .40], [s * (door ? .40 : .55), inverted ? 1.1 : 2.05, inverted ? -.55 : .40], .035)
+      }
+      const crossbar = eq.bar([door ? -0.40 : -0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], [door ? 0.40 : 0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], inverted ? 0.018 : 0.025)
+      if (inverted) crossbar.name = 'contact-grip'
     } else if (band) eq.block([0, 0.018, 0.25], [0.72, 0.035, 1.40], 0, eq.rubber)
     else {
       eq.tower([0, 0, 1.0], 1.5)
@@ -225,9 +239,9 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (seated) { legKnees = pair(s => [s * 0.20, 0.43, 0.44]); legFeet = pair(s => [s * 0.22, 0.10, 0.765]) }
       if (single) { hip = [0, 0.82, 0]; lean = 0.95; hands = [[-0.30, 0.60 + 0.36 * t, 0.42 - 0.34 * t], [0.19, 0.56, 0.51]]; legKnees = [[-0.25, 0.48, -0.08], [0.18, 0.60, 0.12]]; legFeet = [[-0.28, 0.08, -0.12], [0.20, 0.53, -0.32]] }
       if (band) { hip = [0, 0.17, 0]; lean = -0.04; legFeet = pair(s => [s * 0.16, 0.08, 0.89]); legKnees = pair(s => [s * 0.16, 0.18, 0.45]); hands = pair(s => [s * 0.17, 0.52, 0.52 - 0.31 * t]) }
-      if (door) { hip = [0, 0.92 + 0.05 * t, -0.09 + 0.16 * t]; lean = -0.23 + 0.20 * t; hands = [[-0.27, hip[1] + 0.10, hip[2] + 0.10], [0.40, 1.28, 0.40]]; legFeet = pair(s => [s * 0.2, 0.08, 0.15]); grips[0].visible = false }
+      if (door) { hip = [0, 0.92 + 0.05 * t, -0.073 + 0.143 * t]; lean = -0.23 + 0.20 * t; hands = [[-0.27, hip[1] + 0.10, hip[2] + 0.10], [0.40, 1.28, 0.40]]; legFeet = pair(s => [s * 0.2, 0.08, 0.15]); grips[0].visible = false }
       if (inverted) {
-        const hipY = 0.328 + 0.272 * t
+        const hipY = 0.334 + 0.266 * t
         hip = [0, hipY, 0.80 - Math.sqrt(0.911 ** 2 - (hipY - 0.078) ** 2)]
         lean = -Math.acos((hipY - 0.078) / 0.911)
         hands = pair(s => [s * 0.32, 1.10, -0.55])

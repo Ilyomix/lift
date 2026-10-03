@@ -32,7 +32,7 @@ test('lower grips keep neutral wrists, exact contacts and symmetric hand frames 
     try {
       for (let step = 0; step <= 20; step++) {
         motion.update(step / 20)
-        if (!input![6]?.grip) continue
+        if (!input![6]?.grip && !input![6]?.openHands) continue
         checked++
         const poses = [manifest.bones.right, manifest.bones.left].map(side => {
           const elbow = at(side.forearm), wrist = at(side.hand)

@@ -10,6 +10,8 @@ Surface regions share the human's skinned geometry; no separate shapes are place
 
 `exerciseModelRig.ts` measures each arm and leg in the exported bind pose. The two-bone solver clamps unreachable targets before solving, preserves both segment lengths, and computes bone rotations relative to their real bind orientation. Closed-chain grips solve the wrist from the desired contact and measured palm offset, with a stable hand frame; unreachable initial wrist estimates cannot accumulate contact error. Pelvis tilt, spine flexion and independent feet/wrist rotations support the movement definitions. Equipment is built separately from the human.
 
+Closed hands use independent, absolute phalanx directions fitted to the shipped skin around an 18 mm grip. The relaxed bind-pose curl is removed before applying them. The thumb has an attainable opposition target and an explicit distal direction. The palm contact offset includes the skin envelope; a bone centre on a handle does not establish a valid surface contact. Open support palms remain a separate pose for weights held by their heads. Free handles and weights follow the resolved palm axis; their mounts end outside the grasped area. Any change to this skin asset or grip diameter requires a new close-up review and surface-contact checks.
+
 ## Runtime
 
 One lazily created WebGL context serves the visible exercise panel. The active canvas renders directly to the DOM; a 2D snapshot is taken only when a sheet replaces an existing panel. Rendering resolution is capped at 900 × 675 pixels. No large canvas readback occurs per frame.
