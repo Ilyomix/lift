@@ -80,7 +80,6 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
   const dumbbells = ['seated-db-curl', 'incline-db-curl', 'db-curl', 'db-skull-crusher'].includes(id)
     ? [e.dumbbell(), e.dumbbell()] : []
   const singleDumbbell = id === 'db-overhead-extension' ? e.dumbbell() : undefined
-  if (singleDumbbell) singleDumbbell.rotation.z = Math.PI / 2
   const bar = id === 'ez-curl' || preacher ? new Group() : undefined
   if (bar) {
     e.root.add(bar)
@@ -129,14 +128,19 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
     height: skull ? 1.72 : overhead || rope || id === 'band-pushdown' ? 2.35 : seated ? 1.85 : 2.04,
     update(t) {
       const targets = elbows.map((elbow, i): Point => {
-        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .075 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .13 * t)
+        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .045 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .13 * t)
         const length = Math.sqrt(Math.max(0.01, body.measures.arms[i][1] ** 2 - (wristX - elbow[0]) ** 2))
         const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? -2.30 + 2.10 * t : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
         return [wristX, elbow[1] + (curl || !overhead && !skull ? -1 : 1) * length * Math.cos(angle), elbow[2] + length * Math.sin(angle)]
       })
+      // Two open palms support the upper head. A slight tilt near extension
+      // limits wrist dorsiflexion while the dumbbell stays almost upright.
+      const supportAngle = Math.max(-Math.PI / 2, -2.30 + 2.10 * t - 1.10)
+      const supportAlong = new Vector3(0, Math.cos(supportAngle), Math.sin(supportAngle))
+      const supportNormal = new Vector3(0, -supportAlong.z, supportAlong.y)
       const gripAxes: Point[] = curl
         ? pair(side => [side * Math.sin(.18 + 1.39 * t), 0, Math.cos(.18 + 1.39 * t)])
-        : singleDumbbell ? pair(side => [side, 0, 0]) : targets.map((target, i): Point => {
+        : singleDumbbell ? pair(side => [-side, 0, 0]) : targets.map((target, i): Point => {
           // A neutral grip rotates with elbow flexion. Projecting a fixed
           // vertical axis becomes singular near extension and rolls the hands
           // sideways; the sagittal tangent stays perpendicular and continuous.
@@ -146,18 +150,24 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
       if (bar || id === 'band-curl') for (let i = 0; i < 2; i++) gripAxes[i] = [sides[i], 0, 0]
       // Use the same orthogonal palm frame for the weight and the fingers.
       for (let i = 0; i < 2; i++) {
-        const along = new Vector3(...targets[i]).sub(new Vector3(...elbows[i])).normalize()
+        const along = singleDumbbell ? supportAlong : new Vector3(...targets[i]).sub(new Vector3(...elbows[i])).normalize()
         const axis = new Vector3(...gripAxes[i])
         axis.addScaledVector(along, -axis.dot(along))
         if (axis.lengthSq() < 1e-6) axis.set(1, 0, 0)
         gripAxes[i] = axis.normalize().toArray() as Point
       }
-      const result = body.pose(hips, lean, knees, feet, targets, elbows, { footRotations: footRotation, grip: true, gripAxes })
+      const result = body.pose(hips, lean, knees, feet, targets, elbows, {
+        footRotations: footRotation, grip: !singleDumbbell, openHands: !!singleDumbbell, gripAxes,
+        gripDirections: singleDumbbell ? pair(() => supportAlong.toArray() as Point) : undefined,
+      })
       for (let i = 0; i < dumbbells.length; i++) {
         dumbbells[i].position.copy(result.hands[i])
         dumbbells[i].quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(...gripAxes[i]).normalize())
       }
-      if (singleDumbbell) singleDumbbell.position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(.5).add(new Vector3(0, -.085, 0))
+      if (singleDumbbell) {
+        singleDumbbell.position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(.5).addScaledVector(supportNormal, -.043)
+        singleDumbbell.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), supportNormal)
+      }
       if (bar) {
         bar.position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(.5)
         if (id === 'ez-curl') {
