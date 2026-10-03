@@ -5,6 +5,7 @@ import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, resumeGoalFor, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
+import { weightStatus } from '../lib/stats'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import type { Look, WorkoutType, Zone } from '../lib/types'
@@ -36,7 +37,7 @@ export function VisualGoalScreen() {
   const today = todayISO()
   const heightCm = parseNumber(height) ?? 0
   const override = parseNumber(measured)
-  const bf = bodyFatEstimate(state, { override: override && override >= 3 && override <= 60 ? override : null, heightCm, sex })
+  const bf = bodyFatEstimate(state, { override: override && override >= 4 && override <= 50 ? override : null, heightCm, sex })
   // Maintenance mode has no date: applying a look brings back a dated plan, ending on the date this look needs.
   const goalDate = useMemo(
     () => (MAINTENANCE ? (bf && earliestGoalFor(state, { look, bodyFat: bf, sex, today })) || resumeGoalFor(state.settings.goalDate, today) : GOAL_DATE),
@@ -45,7 +46,8 @@ export function VisualGoalScreen() {
   const plan = useMemo(() => (bf ? visualPlan(state, { look, bodyFat: bf, sex, today, goal: goalDate }) : null), [state, look, bf?.pct, sex, today, goalDate]) // eslint-disable-line react-hooks/exhaustive-deps
   const photo = photos.find((p) => p.id === GOAL_PHOTO_ID)
   const waistMissing = !state.bodyEntries.some((b) => typeof b.waist === 'number' && b.waist > 0)
-  const noWeight = !state.bodyEntries.some((b) => typeof b.weight === 'number' && b.weight > 0)
+  const weight = weightStatus(state, today)
+  const noWeight = !weight.current || weight.stale
   const waistAge = bf?.source === 'tour de taille' && bf.waistDate ? diffDays(bf.waistDate, today) : 0
   const waistStale = waistAge > STALE_WAIST_DAYS
   const planDate = plan ? (plan.fits ? goalDate : (plan.suggestedGoal ?? goalDate)) : goalDate
@@ -86,7 +88,7 @@ export function VisualGoalScreen() {
         backTo="plus/reglages"
         eyebrow={L('Objectif', 'Goal')}
         title={L('Objectif visuel', 'Visual goal')}
-        sub={L('Un physique se joue d’abord sur le taux de gras, puis sur le muscle. Choisis le look : l’app en déduit ton poids cible, la durée de sèche et les zones à travailler.', 'A physique comes down to body fat first, then muscle. Choose the look: the app works out your target weight, how long to cut and which areas to work on.')}
+        sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual landmark: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
       />
 
       {MAINTENANCE && (
@@ -152,7 +154,7 @@ export function VisualGoalScreen() {
             )
           })}
         </div>
-        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la répartition du gras varie d’une personne à l’autre.', 'Visual landmarks for guidance only: at the same body fat, fat distribution varies from one person to another.')}</p>
+        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la musculature et la répartition du gras varient. Aucun résultat visuel n’est garanti.', 'Visual landmarks for guidance only: at the same body fat, musculature and fat distribution vary. No visual outcome is guaranteed.')}</p>
       </Section>
 
       <Section title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
@@ -227,8 +229,8 @@ export function VisualGoalScreen() {
       {plan && (
         <Section title={L('Le plan', 'The plan')}>
           <Card className="divide-y divide-line">
-            <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${kg(plan.target[1])}`} hint={L(`${plan.range[0]}–${pct(plan.range[1])} de gras, muscle conservé (jusqu’à +2 kg de masse maigre)`, `${plan.range[0]}–${pct(plan.range[1])} body fat, muscle kept (up to +2 kg of lean mass)`)} strong />
-            <Line label={L('Sèche', 'Cut')} value={plan.cutWeeks === 0 ? L('Aucune', 'None') : plural(plan.cutWeeks, L('semaine', 'week'), L('semaines', 'weeks'))} hint={plan.cutWeeks === 0 ? L('Tu es déjà dans la fourchette : recomposition jusqu’à la date.', 'You’re already in the range: recomposition until the date.') : L(`À −0,6 %/semaine en moyenne${plan.cutWeeks !== CUT_WEEKS ? ` (le plan de base en prévoit ${CUT_WEEKS})` : ''}`, `At −0.6%/week on average${plan.cutWeeks !== CUT_WEEKS ? ` (the base plan calls for ${CUT_WEEKS})` : ''}`)} />
+            <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${kg(plan.target[1])}`} hint={L(`${plan.range[0]}–${pct(plan.range[1])} de gras, masse maigre conservée sans gain présumé`, `${plan.range[0]}–${pct(plan.range[1])} body fat, lean mass retained with no assumed gain`)} strong />
+            <Line label={L('Sèche', 'Cut')} value={plan.cutWeeks === 0 ? L('Aucune', 'None') : plural(plan.cutWeeks, L('semaine', 'week'), L('semaines', 'weeks'))} hint={plan.cutWeeks === 0 ? L('Tu es déjà dans la fourchette : recomposition jusqu’à la date.', 'You’re already in the range: recomposition until the date.') : L(`Scénario prudent, limité par le budget de 500 kcal/j, pauses incluses${plan.cutWeeks !== CUT_WEEKS ? ` (le plan de base en prévoit ${CUT_WEEKS})` : ''}`, `Conservative scenario, capped by the 500 kcal/day budget, breaks included${plan.cutWeeks !== CUT_WEEKS ? ` (the base plan calls for ${CUT_WEEKS})` : ''}`)} />
             <Line label={L(`Au ${fmtDate(planDate, { long: true })}, rythme prudent`, `By ${fmtDate(planDate, { long: true })}, cautious pace`)} value={kg(plan.atGoal.prudent.weight)} hint={paceHint(plan.atGoal.prudent)} good={reachesLook(plan.atGoal.prudent.look, look)} />
             <Line label={L(`Au ${fmtDate(planDate, { long: true })}, rythme soutenu`, `By ${fmtDate(planDate, { long: true })}, brisk pace`)} value={kg(plan.atGoal.fast.weight)} hint={paceHint(plan.atGoal.fast)} good={reachesLook(plan.atGoal.fast.look, look)} />
           </Card>
@@ -236,14 +238,14 @@ export function VisualGoalScreen() {
             <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
               <Flag size={15} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
               {reachesLook(plan.atGoal.prudent.look, look)
-                ? L(`Tenable d’ici le ${nb(fmtDate(goalDate, { long: true, year: true }))}, même au rythme prudent.`, `Doable by ${nb(fmtDate(goalDate, { long: true, year: true }))}, even at the cautious pace.`)
-                : L(`Tenable d’ici le ${nb(fmtDate(goalDate, { long: true, year: true }))} en tenant le rythme soutenu de la sèche (−0,7 %/semaine) : les calories s’ajustent sur ta courbe de poids.`, `Doable by ${nb(fmtDate(goalDate, { long: true, year: true }))} if you hold the cut’s brisk pace (−0.7%/week): calories adjust to your weight curve.`)}
+                ? L(`Compatible avec le scénario prudent au ${nb(fmtDate(goalDate, { long: true, year: true }))}. Ce n’est pas une garantie de résultat.`, `Compatible with the conservative scenario by ${nb(fmtDate(goalDate, { long: true, year: true }))}. This is not a guarantee.`)
+                : L(`Le résultat dépendra des mesures réelles et de la récupération ; réévalue la date plutôt que forcer le déficit.`, `The outcome depends on actual measurements and recovery; reassess the deadline rather than force the deficit.`)}
             </p>
           ) : (
             <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
               <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               {plan.suggestedGoal
-                ? L(`Pas tenable au ${fmtDate(goalDate, { long: true })} sans perdre de muscle : il faut aller jusqu’au ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un look moins sec.`, `Not doable by ${fmtDate(goalDate, { long: true })} without losing muscle: you need until ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean look.`)
+                ? L(`Le scénario prudent dépasse le ${fmtDate(goalDate, { long: true })} : date estimée ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un look moins sec.`, `The conservative scenario extends past ${fmtDate(goalDate, { long: true })}: estimated date ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean look.`)
                 : L('Trop loin pour un seul plan : choisis un look moins sec pour commencer.', 'Too far for a single plan: choose a less lean look to start with.')}
             </p>
           )}
@@ -290,7 +292,7 @@ export function VisualGoalScreen() {
         <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
           <li>{L('Taux de gras estimé par la masse grasse relative (RFM), validée contre la DEXA : fiable pour suivre une tendance, à quelques points près pour une valeur isolée.', 'Body fat estimated with relative fat mass (RFM), validated against DEXA: reliable for tracking a trend, within a few points for a single value.')}</li>
           <li>{L('Sèche entre −0,5 et −0,7 % du poids par semaine : au-delà, la masse maigre est moins bien préservée.', 'Cut between −0.5 and −0.7% of body weight per week: faster than that, lean mass is less well preserved.')}</li>
-          <li>{L('Gain de muscle pendant une recomposition puis une sèche : modeste, 0 à 2 kg au mieux (opinion d’experts).', 'Muscle gain during a recomposition then a cut: modest, 0 to 2 kg at best (expert opinion).')}</li>
+          <li>{L('Le calendrier ne suppose aucun gain de muscle. Le poids cible reste une estimation, à réévaluer avec des mesures récentes.', 'The calendar assumes no muscle gain. Target weight remains an estimate to revisit with recent measurements.')}</li>
         </ul>
         <RefList refs={['woolcott2018', 'garthe2011', 'helms2014']} compact />
       </Section>

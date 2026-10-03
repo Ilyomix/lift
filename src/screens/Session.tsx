@@ -1,3 +1,6 @@
+import { EffortGuidance, EffortReport } from '../components/EffortGuidance'
+import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
+import { exerciseContextReason } from '../lib/comparability'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, Replace, Sparkles, StickyNote, Timer, Trash, TriangleAlert, Undo2, X,
@@ -309,7 +312,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
   const target = p?.weight ?? ex.target.weight
   const prevSets = prev ? doneSets(prev) : []
   // "To beat" counts the reps of the whole exercise: it only means something with as many sets as last time.
-  const sameLoad = prevSets.length > 0 && prevSets.length === ex.sets.length && prevSets.every((s) => s.weight === target)
+  const sameLoad = !!prev && !exerciseContextReason(ex, prev) && effortTarget(ex) === effortTarget(prev) && prevSets.length > 0 && prevSets.length === ex.sets.length && prevSets.every((s) => s.weight === target)
   const prevClean = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   // The next load is one the equipment has: the loads already used on it, today's included.
@@ -376,10 +379,11 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
-        <Tag tone="outline">RIR {p?.rir ?? ex.target.rir ?? '—'}</Tag>
+        <Tag tone="signal">{L('RIR du jour', 'Today’s RIR')} {effortTarget(ex) ?? '—'}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
         {(ex.unit !== 'PDC' || !!target) && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
+      <EffortGuidance exercise={ex} />
       <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
@@ -426,7 +430,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
           </div>
         )}
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
-          <button type="button" onClick={() => addSet(index)} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
+          <button type="button" onClick={() => {
+            if (ex.sets.length >= prescribedSets(ex) && !window.confirm(L('Ajouter une série hors prescription ? Elle sera comptée dans le volume. Une série de plus n’est pas nécessaire pour valider la charge.', 'Add a set outside the prescription? It will count towards volume. An extra set is not needed to validate the load.'))) return
+            addSet(index)
+          }} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
             <Plus size={16} aria-hidden /> {L('Série', 'Set')}
           </button>
           {ex.sets.length > 1 && !ex.sets[ex.sets.length - 1].completed && (
@@ -545,7 +552,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
           className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[15px] font-semibold tnum hover:bg-surface-3', isCurrent && 'text-signal-text')}
         >
-          {setIndex + 1}
+          {setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
         {ex.unit === 'PDC' && !takesLest(ex) ? (
@@ -564,7 +571,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
         />
         <select
           aria-label={L(`RIR série ${setIndex + 1}`, `Set ${setIndex + 1} RIR`)}
-          value={s.rir ?? ''}
+          value={recordedRir(s) ?? ''}
           onChange={(e) => updateSet(exIndex, setIndex, { rir: e.target.value === '' ? null : Number(e.target.value) })}
           className="h-11 w-full appearance-none rounded-[10px] border border-line-strong bg-surface text-center text-[16px] font-semibold text-text tnum focus:border-signal focus:outline-none"
         >
@@ -668,8 +675,10 @@ export function SessionSummary() {
         <Figure label="Volume" value={`${fmtNum(volume / 1000, 1)} t`} />
       </div>
 
+      <EffortReport exercises={w.exercises} />
+
       {records.length > 0 && (
-        <Section title="Records">
+        <Section title={L('Records', 'Personal bests')}>
           <div className="flex flex-wrap gap-2">
             {records.map((e) => <span key={e.exerciseId} className="inline-flex items-center gap-2 text-[14px] font-medium"><RecordTag />{e.name}</span>)}
           </div>

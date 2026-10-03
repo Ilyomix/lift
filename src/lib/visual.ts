@@ -1,6 +1,7 @@
+import { cutDaysNeeded, cutLossPct, CONSERVATIVE_CUT_PCT } from './energy'
 // Visual goal: a look is mostly a body-fat level, then muscle. The app turns the look
 // into numbers (target weight, cut length, date) and the chosen zones into volume.
-import { addDays, todayISO } from './date'
+import { addDays, diffDays, todayISO } from './date'
 import { L } from './i18n'
 import { infoFor, type MuscleGroup } from './library'
 import { buildPeriods, CUT_WEEKS, GOAL_DATE, isValidGoal, MAINTENANCE, MAX_CUT_WEEKS, MIN_CUT_WEEKS, minResumeGoal, PERIODS, PLAN, planShape, PROGRAM_START, ROTATION } from './program'
@@ -113,10 +114,8 @@ export function bodyFatEstimate(
   return { pct, source: 'tour de taille', waist: waist.value, waistDate: waist.date }
 }
 
-/** Average loss rate used to size the cut: the middle of the report's −0.5 to −0.7 %/week. */
-const CUT_RATE = 0.006
-/** Lean mass a trained lifter can add over a recomposition then a cut, at best (expert opinion). */
-const MAX_LEAN_GAIN = 2
+// The calendar uses the conservative pace and the shared energy budget.
+// No prospective lean-mass gain is assumed in the deadline.
 
 export interface VisualPlan {
   look: LookInfo
@@ -126,7 +125,7 @@ export interface VisualPlan {
   lean: number
   fat: number
   target: [number, number]
-  /** Weeks of cut needed at −0.6 %/week to reach the heavier end of the target. */
+  /** Calendar weeks needed at the conservative, energy-capped pace, including non-cutting breaks. */
   cutWeeks: number
   /** The same need before rounding and before the 8-week minimum: negative when the weight is already under the target. */
   need: number
@@ -165,40 +164,59 @@ export function visualPlan(
   const today = input.today ?? todayISO()
   const programStart = input.start ?? PROGRAM_START
   const ws = weightStatus(state, today)
-  if (!ws.current) return null
+  if (!ws.current || ws.stale || !Number.isFinite(input.bodyFat.pct) || input.bodyFat.pct < 4 || input.bodyFat.pct > 50) return null
   const sex = input.sex ?? state.profile.sex ?? 'm'
   const look = lookInfo(input.look)
   const range = look.range[sex]
   const weight = ws.current
   const lean = weight * (1 - input.bodyFat.pct / 100)
   const fat = weight - lean
-  const upper = (lean + MAX_LEAN_GAIN) / (1 - range[1] / 100)
+  const upper = lean / (1 - range[1] / 100)
   const target: [number, number] = [half(lean / (1 - range[0] / 100)), half(upper)]
-  // Weeks of cut at the average pace to reach the heavier end of the target: negative when already under it.
-  const need = Math.log(upper / weight) / Math.log(1 - CUT_RATE)
-  const needed = weight <= upper ? 0 : Math.ceil(need)
-  // Already within the look: no cut, the recomposition runs until the stabilization.
-  const cutWeeks = needed === 0 ? 0 : Math.max(8, needed)
+  const requiredDays = cutDaysNeeded(weight, upper)
+  if (!Number.isFinite(requiredDays)) return null
+  const need = weight <= upper
+    ? Math.log(upper / weight) / Math.log(1 - cutLossPct(weight, CONSERVATIVE_CUT_PCT) / 100)
+    : requiredDays / 7
   const goal = input.goal ?? GOAL_DATE
-  const fits = !planShape(goal, cutWeeks, programStart).shortCut
+  const remainingStart = today > programStart ? today : programStart
+  const durationFor = (end: ISODate): number | null => {
+    if (requiredDays === 0) return 0
+    for (let weeks = Math.max(MIN_CUT_WEEKS, Math.ceil(need)); weeks <= MAX_CUT_WEEKS; weeks++) {
+      const periods = buildPeriods(end, weeks, programStart, null)
+      const activeDays = periods.filter((p) => p.phase === 'cut' || p.phase === 'cut-end').reduce((n, p) => {
+        const from = p.start > remainingStart ? p.start : remainingStart
+        return n + Math.max(0, diffDays(from, addDays(p.end, 1)))
+      }, 0)
+      if (!planShape(end, weeks, programStart).shortCut && activeDays >= requiredDays) return weeks
+    }
+    return null
+  }
+  const duration = durationFor(goal)
+  const fits = duration !== null
   let suggestedGoal: ISODate | null = null
-  if (!fits) {
+  let suggestedDuration: number | null = null
+  if (!fits && need <= MAX_CUT_WEEKS) {
     for (let months = 1; months <= 30; months++) {
       const d = new Date(Number(goal.slice(0, 4)), Number(goal.slice(5, 7)) - 1 + months + 1, 0)
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      if (isValidGoal(iso, programStart) && !planShape(iso, cutWeeks, programStart).shortCut) {
+      if (!isValidGoal(iso, programStart)) continue
+      const candidate = durationFor(iso)
+      if (candidate !== null) {
         suggestedGoal = iso
+        suggestedDuration = candidate
         break
       }
     }
   }
+  const cutWeeks = duration ?? suggestedDuration ?? Math.max(MIN_CUT_WEEKS, Math.ceil(need))
   const planGoal = fits ? goal : (suggestedGoal ?? goal)
   const periods = buildPeriods(planGoal, cutWeeks, programStart, null)
   const start = today < programStart ? programStart : today
-  const leanMid = lean + MAX_LEAN_GAIN / 2
+  const minimumWeight = lean / (1 - range[0] / 100)
   const end = (pace: 'prudent' | 'fast'): PaceResult => {
-    const w = plannedWeightPath(start, weight, { periods, goal: planGoal }, pace).at(-1)!.value
-    const p = Math.max(3, (1 - leanMid / w) * 100)
+    const w = plannedWeightPath(start, weight, { periods, goal: planGoal, minimumWeight }, pace).at(-1)!.value
+    const p = Math.max(3, (1 - lean / w) * 100)
     return { weight: w, pct: p, look: lookFor(p, sex) }
   }
   const prudent = end('prudent')
@@ -238,6 +256,7 @@ export function cutDrift(state: AppState, today: ISODate = todayISO()): { planne
   const weeks = (n: number) => (n <= 0 ? 0 : Math.max(MIN_CUT_WEEKS, Math.min(MAX_CUT_WEEKS, Math.round(n))))
   const planned = weeks(vg.cutWeeks)
   const needed = weeks(plan.cutWeeks)
+  if (!plan.fits) return { planned, needed: plan.cutWeeks }
   if (planned === 0) return plan.need >= CUT_DRIFT_WEEKS ? { planned, needed } : null
   if (needed === 0) return plan.need <= -CUT_DRIFT_WEEKS ? { planned, needed } : null
   return Math.abs(needed - planned) >= CUT_DRIFT_WEEKS ? { planned, needed } : null

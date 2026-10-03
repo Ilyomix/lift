@@ -10,7 +10,7 @@ type Translation = readonly [fr: string, en: string]
 export const CONTEXT_MESSAGES = {
   'unit-changed': ['Unité différente : nouvelle référence.', 'Different unit: new baseline.'],
   'conditions-changed': ['Machine ou conditions signalées différentes : confirme une nouvelle référence.', 'A machine or condition change was flagged: confirm a new baseline.'],
-  'rep-range-changed': ['Fourchette de répétitions différente : nouvelle référence.', 'Different rep range: new baseline.'],
+  'rep-range-changed': ['Première séance dans cette fourchette de reps.', 'First session in this rep range.'],
   'rest-changed': ['Repos prescrit différent : performances non directement comparables.', 'Prescribed rest changed: performances are not directly comparable.'],
   'program-changed': ['Passage à un nouveau programme : établis une référence avec ses consignes.', 'Transition to a new program: establish a baseline under its instructions.'],
   'preceding-work-changed': ['Le travail précédent sur ces muscles a changé : ne pas conclure à une baisse de niveau.', 'Earlier work on these muscles changed: do not infer a loss of ability.'],
@@ -75,6 +75,7 @@ export function storedTrainingText(text: string): string {
 
 /** Localize both a stored explanation and its optional common-sets suffix. */
 export function comparisonDetailLabel(c: Comparison): string {
+  if (c.contextReason && Object.hasOwn(CONTEXT_MESSAGES, c.contextReason)) return contextReasonLabel(c.contextReason)
   const text = c.detail
   const common = text.match(/ (?:Sur (?:la série commune|les \d+ séries communes) \((\d+) contre (\d+) la dernière fois\)|On the (?:set|\d+ sets) both sessions have \((\d+) vs (\d+) last time\))\.$/u)
   const body = common ? text.slice(0, common.index) : text
@@ -93,7 +94,7 @@ export function comparisonDetailLabel(c: Comparison): string {
   if (!common) return translated
   const now = Number(common[1] ?? common[3])
   const before = Number(common[2] ?? common[4])
-  const shared = Math.min(now, before)
+  const shared = c.comparedSets ?? Math.min(now, before)
   return translated + L(
     ` Sur ${shared === 1 ? 'la série commune' : `les ${shared} séries communes`} (${now} contre ${before} la dernière fois).`,
     ` On the ${shared === 1 ? 'set' : `${shared} sets`} both sessions have (${now} vs ${before} last time).`,

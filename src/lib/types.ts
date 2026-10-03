@@ -71,6 +71,10 @@ export type ComparisonStatus =
   | 'deload'
 
 export interface Comparison {
+  /** Context used by the comparison engine; translated at read time. */
+  contextReason?: import('./trainingMessages').ContextReason
+  /** Number of prescribed sets actually compared, excluding optional bonus work. */
+  comparedSets?: number
   status: ComparisonStatus
   headline: string
   detail: string

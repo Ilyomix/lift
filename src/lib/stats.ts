@@ -1,3 +1,4 @@
+import { cutLossPct, KCAL_PER_KG, CUT_MAX_DEFICIT } from './energy'
 import { L, locale } from './i18n'
 import { addDays, dayNumber, diffDays, mondayOf, todayISO } from './date'
 import { contextAt, GOAL_DATE, PERIODS, PHASES, PROGRAM_START, type Period, type PlannedSession } from './program'
@@ -10,7 +11,7 @@ export interface Point {
 
 export function measureSeries(entries: BodyEntry[], key: 'weight' | 'waist' | 'arm' | 'chest' | 'shoulders'): Point[] {
   return entries
-    .filter((e) => typeof e[key] === 'number' && (e[key] as number) > 0)
+    .filter((e) => typeof e[key] === 'number' && Number.isFinite(e[key]) && (e[key] as number) > 0)
     .map((e) => ({ date: e.date, value: e[key] as number }))
     .sort((a, b) => (a.date < b.date ? -1 : 1))
 }
@@ -47,7 +48,12 @@ export interface WeightStatus {
 }
 
 export function weightStatus(state: AppState, today: ISODate = todayISO()): WeightStatus {
-  const pts = measureSeries(state.bodyEntries, 'weight')
+  const daily = new Map<string, number[]>()
+  for (const p of measureSeries(state.bodyEntries, 'weight')) {
+    if (p.date > today) continue
+    daily.set(p.date, [...(daily.get(p.date) ?? []), p.value])
+  }
+  const pts = [...daily].map(([date, values]) => ({ date, value: values.reduce((a, b) => a + b, 0) / values.length }))
   if (!pts.length) {
     return { current: null, currentDate: null, isAverage: false, start: null, startDate: null, weeklyChange: null, weeklyChangePct: null, daysSinceLast: null, stale: false, trendWeighIns: 0, trendWeeks: 0 }
   }
@@ -60,7 +66,7 @@ export function weightStatus(state: AppState, today: ISODate = todayISO()): Weig
   const window = ma.filter((p) => p.date >= addDays(last.date, -TREND_DAYS))
   let weeklyChange: number | null = null
   // The trend is the one of the three weeks before the last weigh-in: once that is old, it is no longer today's.
-  if (!stale && window.length >= 3 && diffDays(window[0].date, window[window.length - 1].date) >= 7) {
+  if (!stale && window.length >= 6 && diffDays(window[0].date, window[window.length - 1].date) >= 14) {
     const slope = regressionSlope(window.map((p) => ({ x: dayNumber(p.date), y: p.value })))
     weeklyChange = slope * 7
   }
@@ -111,7 +117,7 @@ function fastRate(rate: [number, number] | null | undefined): number {
  * aggressive end of its recommended weekly rate, compounded until the goal date.
  * A draft plan (another goal date) can be passed to preview it.
  */
-export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?: { periods: Period[]; goal: ISODate }, pace: 'prudent' | 'fast' = 'prudent'): Point[] {
+export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?: { periods: Period[]; goal: ISODate; minimumWeight?: number }, pace: 'prudent' | 'fast' = 'prudent'): Point[] {
   const goal = plan?.goal ?? GOAL_DATE
   const phaseAt = (d: ISODate) => {
     if (!plan) return contextAt(d).phase
@@ -120,11 +126,15 @@ export function plannedWeightPath(startDate: ISODate, startWeight: number, plan?
   }
   const out: Point[] = [{ date: startDate, value: startWeight }]
   let w = startWeight
-  for (let d = startDate; d < goal; ) {
-    const next = addDays(d, 7) > goal ? goal : addDays(d, 7)
-    const rate = pace === 'fast' ? fastRate(phaseAt(d)?.weeklyRate) : conservativeRate(phaseAt(d)?.weeklyRate)
-    w = w * (1 + ((rate / 100) * diffDays(d, next)) / 7)
-    out.push({ date: next, value: w })
+  // Resolve each date's phase: weekly sampling used to apply a cut across a diet break.
+  for (let d = startDate, days = 0; d < goal && days < 2000; days++) {
+    const next = addDays(d, 1)
+    const phase = phaseAt(d)
+    let rate = pace === 'fast' ? fastRate(phase?.weeklyRate) : conservativeRate(phase?.weeklyRate)
+    if ((phase?.id === 'cut' || phase?.id === 'cut-end') && rate < 0) rate = -cutLossPct(w, -rate)
+    const floor = Math.min(startWeight, plan?.minimumWeight ?? 0)
+    w = Math.max(floor, w * (1 + rate / 700))
+    if ((days + 1) % 7 === 0 || next === goal) out.push({ date: next, value: w })
     d = next
   }
   return out
@@ -322,9 +332,9 @@ const KCAL_STEP = 150
  * starting point: under about 30 kg of body fat the same deficit takes off more weight (Hall
  * 2008), and the verdicts that follow are read on the scale, not on this figure.
  */
-const KCAL_PER_KG = 7700
+// Shared with the goal projection (energy.ts).
 /** The deficit the report allows a cut, in kcal a day: about 500 already wipes out lean mass gains (Murphy 2022). */
-const CUT_MAX_DEFICIT = 500
+// Shared with the goal projection (energy.ts).
 /**
  * Weigh-ins the three-week trend needs for a step to be sized on it: one every three days, and
  * at least two in each of the three weeks (eight in a row three weeks ago say nothing of now).
@@ -421,16 +431,22 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
   const floorText = floorIs === 'rest' ? L('ta dépense au repos estimée', 'your estimated energy at rest') : L('le minimum conseillé sans suivi médical', 'the minimum advised without medical supervision')
   // Fewer calories, as far as the floor allows: a full step, what is left above it, or nothing.
   const lower = (headline: string, why: string, how: (kcal: number) => string): CalorieAdvice => {
-    const room = Math.max(0, Math.min(KCAL_STEP, Math.floor((target - floor) / 50) * 50))
+    const cutting = phase === 'cut' || phase === 'cut-end'
+    const deficitRoom = cutting && ws.current ? Math.max(0, CUT_MAX_DEFICIT - kcalPerDay(Math.max(0, -rate), ws.current)) : Infinity
+    const room = Math.max(0, Math.min(KCAL_STEP, Math.floor((target - floor) / 50) * 50, Math.floor(deficitRoom / 50) * 50))
+    if (cutting && deficitRoom < KCAL_STEP && room < 50 && target > floor) return {
+      ...base, status: 'hold', delta: 0, headline: L('Déficit estimé déjà suffisant', 'Estimated deficit already sufficient'),
+      detail: L('La tendance suggère un déficit proche du plafond de planification. Ne réduis pas davantage : réévalue la durée et les mesures, pas seulement les calories.', 'The trend suggests a deficit near the planning limit. Do not reduce further: reassess timing and measurements, not just calories.'),
+    }
     if (room >= 50) {
-      const stop = room < KCAL_STEP ? L(` Pas plus bas : ${floor} kcal, c’est ${floorText}.`, ` No lower: ${floor} kcal is ${floorText}.`) : ''
+      const stop = room < KCAL_STEP && target - room <= floor ? L(` Pas plus bas : ${floor} kcal, c’est ${floorText}.`, ` No lower: ${floor} kcal is ${floorText}.`) : room < KCAL_STEP ? L(' Ajustement limité par le budget de déficit estimé.', ' Adjustment capped by the estimated deficit budget.') : ''
       return make(-room, headline, `${why}${L(' : ', ': ')}${how(room)}${stop}`)
     }
     return {
       ...base, status: 'hold', delta: 0, headline: L(`${headline}, calories au plancher`, `${headline}, calories at the floor`),
       detail: L(
-        `${why}. Ta cible ne dépasse pas ${floorText} (${floor} kcal) : le conseil ne descend pas plus bas. Pèse tes aliments pendant une semaine, ajoute ~2 000 pas par jour et garde tes protéines.`,
-        `${why}. Your target is no higher than ${floorText} (${floor} kcal): the advice goes no lower. Weigh your food for a week, add ~2,000 steps a day and keep your protein.`,
+        `${why}. Ta cible ne dépasse pas ${floorText} (${floor} kcal) : le conseil ne descend pas plus bas. Vérifie les mesures et la récupération ; demande un avis professionnel avant d’accentuer le déficit.`,
+        `${why}. Your target is no higher than ${floorText} (${floor} kcal): the advice goes no lower. Check measurements and recovery; seek professional advice before increasing the deficit.`,
       ),
     }
   }
@@ -438,9 +454,10 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
     // The phase's range, as a loss: 0.5 to 0.7 in the cut, about 0.5 at its end.
     const [a, b] = ctx.phase?.weeklyRate ?? [-0.7, -0.5]
     const single = a === b
-    const slow = Math.min(-a, -b) - (single ? RATE_SLACK : 0)
+    const slow = cutLossPct(ws.current ?? 0, Math.min(-a, -b) - (single ? RATE_SLACK : 0))
     const brisk = Math.max(-a, -b) + (single ? RATE_SLACK : 0)
-    const aim = single ? L(`objectif : environ ${pct(a)}`, `target: about ${pct(a)}`) : L('objectif : −0,5 à −0,7 %/sem', 'target: −0.5 to −0.7%/wk')
+    const capped = slow < Math.min(-a, -b) - (single ? RATE_SLACK : 0) - 1e-9
+    const aim = capped ? L(`objectif ajusté au budget : environ ${pct(-slow)}`, `budget-adjusted target: about ${pct(-slow)}`) : single ? L(`objectif : environ ${pct(a)}`, `target: about ${pct(a)}`) : L('objectif : −0,5 à −0,7 %/sem', 'target: −0.5 to −0.7%/wk')
     // Judged as it is shown: to the hundredth.
     const loss = Math.round(-rate * 100) / 100
     // The trend still holds days from before the cut, or from before the last change of calories.

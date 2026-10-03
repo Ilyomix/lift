@@ -33,8 +33,9 @@ export function previousComparablePerformance(
     const workout = ordered[i]
     const exercise = workout.exercises.find((ex) => ex.exerciseId === exerciseId && complete(ex))
     if (!exercise || !accept(workout, exercise)) continue
+    if (latest && context(exercise) !== context(latest.exercise)) return latest
     latest ??= { workout, exercise }
-    if (!like || sameRange(exercise.target, like)) return { workout, exercise }
+    if (!like || sameRange(exercise.prescription ?? exercise.target, like)) return { workout, exercise }
     if (context(exercise)) return latest
   }
   return latest
