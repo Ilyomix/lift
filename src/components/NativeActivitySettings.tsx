@@ -17,9 +17,14 @@ export function NativeActivitySettings() {
       void nativeNotificationPermission().then(setPermission).catch(() => {})
       void WorkoutActivity.status().then(s => setActivityEnabled(s.enabled)).catch(() => setActivityEnabled(false))
     }
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
     refresh()
     window.addEventListener('focus', refresh)
-    return () => window.removeEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
   if (!isNative()) return null
   const enableAlerts = async () => {
@@ -40,8 +45,8 @@ export function NativeActivitySettings() {
       checked={prefs.liveActivity !== false} onChange={v => setPrefs({ liveActivity: v })}
     />
     {!activityEnabled && <Row label={L('Autorisation nécessaire', 'Permission needed')} hint={ios ? L('Réglages iPhone → Lift → Activités en direct.', 'iPhone Settings → Lift → Live Activities.') : L('Autorise les notifications de Lift pour afficher le suivi.', 'Allow Lift notifications to show workout tracking.')} />}
-    <Toggle label={L('Alerte de fin de repos', 'End-of-rest alert')}
-      hint={L('Notification locale, même écran verrouillé. Aucun serveur nécessaire.', 'Local notification, including on the lock screen. No server needed.')}
+    <Toggle label={L('Notification de fin de repos', 'End-of-rest notification')}
+      hint={L('Une seule alerte système, même écran verrouillé. Actions +30 s et reprise de séance.', 'One system alert, including on the lock screen. Actions for +30 s and resuming your workout.')}
       checked={prefs.notifications && permission} onChange={v => { if (v) void enableAlerts(); else setPrefs({ notifications: false }) }} />
     {!permission && <Row label={L('Notifications', 'Notifications')}
       right={<Button size="sm" variant="ink" onClick={() => void enableAlerts()}>{L('Autoriser', 'Allow')}</Button>} />}

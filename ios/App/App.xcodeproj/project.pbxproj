@@ -21,6 +21,13 @@
 		711DC74793D44D668F5B249A /* WorkoutAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F59CD9382E34665B507C6F1 /* WorkoutAttributes.swift */; };
 		DBE2C8E02D214121A22713CB /* LiftActivity.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = E2E4E89D2DFF449792F1DFF5 /* LiftActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		33DDE9583BC74367888A2610 /* LiftActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD9FAED7453B4295B261E55C /* LiftActivity.swift */; };
+		A25F91010000000000000001 /* Official app icon in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000011 /* Official app icon */; };
+		A25F91010000000000000002 /* DSEG7 font in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000012 /* DSEG7 font */; };
+		A25F91010000000000000003 /* DSEG license in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000013 /* DSEG license */; };
+		A25F91010000000000000004 /* WorkoutActivityActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000014 /* WorkoutActivityActions.swift */; };
+		A25F91010000000000000005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000015 /* PrivacyInfo.xcprivacy */; };
+		A25F91010000000000000006 /* WorkoutActivityActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000014 /* WorkoutActivityActions.swift */; };
+		A25F91010000000000000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000015 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +47,11 @@
 		0F59CD9382E34665B507C6F1 /* WorkoutAttributes.swift */ = {isa = PBXFileReference; name = "WorkoutAttributes.swift"; path = "Shared/WorkoutAttributes.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 		E2E4E89D2DFF449792F1DFF5 /* LiftActivity.appex */ = {isa = PBXFileReference; name = "LiftActivity.appex"; path = "LiftActivity.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; };
 		AD9FAED7453B4295B261E55C /* LiftActivity.swift */ = {isa = PBXFileReference; name = "LiftActivity.swift"; path = "LiftActivity/LiftActivity.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		A25F91010000000000000011 /* Official app icon */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Official app icon"; path = "App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000012 /* DSEG7 font */ = {isa = PBXFileReference; lastKnownFileType = file; name = "DSEG7ClassicMini-BoldItalic.ttf"; path = "LiftActivity/Fonts/DSEG7ClassicMini-BoldItalic.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000013 /* DSEG license */ = {isa = PBXFileReference; lastKnownFileType = text; name = "DSEG-LICENSE.txt"; path = "../../src/assets/fonts/DSEG-LICENSE.txt"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000014 /* WorkoutActivityActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "WorkoutActivityActions.swift"; path = "Shared/WorkoutActivityActions.swift"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000015 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = "PrivacyInfo.xcprivacy"; path = "Shared/PrivacyInfo.xcprivacy"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +82,12 @@
 				EB8A2E190E394A11962E8681 /* LiftBridgeViewController.swift */,
 				7910134C59594904843D42EB /* WorkoutActivityPlugin.swift */,
 				0F59CD9382E34665B507C6F1 /* WorkoutAttributes.swift */,
+				A25F91010000000000000014 /* WorkoutActivityActions.swift */,
+				A25F91010000000000000015 /* PrivacyInfo.xcprivacy */,
+				AD9FAED7453B4295B261E55C /* LiftActivity.swift */,
+				A25F91010000000000000011 /* Official app icon */,
+				A25F91010000000000000012 /* DSEG7 font */,
+				A25F91010000000000000013 /* DSEG license */,
 			);
 			sourceTree = "<group>";
 		};
@@ -183,6 +201,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
+				A25F91010000000000000005 /* PrivacyInfo.xcprivacy in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
@@ -195,6 +214,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A25F91010000000000000001 /* Official app icon in Resources */,
+				A25F91010000000000000002 /* DSEG7 font in Resources */,
+				A25F91010000000000000003 /* DSEG license in Resources */,
+				A25F91010000000000000007 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -210,6 +233,7 @@
 				6B77BFF3995D4112A31DE6F1 /* LiftBridgeViewController.swift in Sources */,
 				7E92FD9DA028461D9ACF52D0 /* WorkoutActivityPlugin.swift in Sources */,
 				711DC74793D44D668F5B249A /* WorkoutAttributes.swift in Sources */,
+				A25F91010000000000000004 /* WorkoutActivityActions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,6 +242,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				711DC74793D44D668F5B249A /* WorkoutAttributes.swift" in Sources */,
+				A25F91010000000000000006 /* WorkoutActivityActions.swift in Sources */,
 				33DDE9583BC74367888A2610 /* LiftActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

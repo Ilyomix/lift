@@ -444,7 +444,7 @@ export function SettingsScreen() {
 
       <Section title={L('Minuteur de repos', 'Rest timer')}>
         <Card className="divide-y divide-line">
-          <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
+          <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={isNative() ? L('Son de la notification système. Sans notification, son uniquement dans l’app ouverte.', 'System notification sound. With alerts off, sound plays only while the app is open.') : L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
           <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the session, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
           {isNative() ? <NativeActivitySettings /> : <PushRow />}
           {!isNative() && !state.prefs.push && (
@@ -481,7 +481,7 @@ export function SettingsScreen() {
 
       <Section title={L('Installer sur le téléphone', 'Install on your phone')}>
         <Card className="p-4">
-          {isStandalone() ? (
+          {isNative() || isStandalone() ? (
             <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
           ) : (
             <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">

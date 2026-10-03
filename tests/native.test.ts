@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { defaultState } from '../src/lib/backup'
 import { workoutActivityState } from '../src/lib/native/snapshot'
 import { latestSync } from '../src/lib/native/sync'
+import { applyNativeRestAction, matchesRestNotification, type NativeRestAction } from '../src/lib/native/restActions'
 import type { ActiveWorkout, WorkoutExercise } from '../src/lib/types'
 
 function fixture(): ActiveWorkout {
@@ -97,4 +98,36 @@ test('decimal loads follow the selected locale', () => {
   a.exercises[0].sets[1].weight = 42.5
   assert.match(workoutActivityState(a, 'fr')!.detail, /^42,5 kg/)
   assert.match(workoutActivityState(a, 'en')!.detail, /^42\.5 kg/)
+})
+
+test('native rest results are idempotent and old actions cannot change a later rest', () => {
+  const current = fixture()
+  const action: NativeRestAction = { id: '1', workoutId: current.id, expectedRestEndAt: 100000, restEndAt: 130000, restTotal: 150, action: 'add30' }
+  const updated = applyNativeRestAction(current, action)!
+  assert.equal(updated.timer!.endAt, 130000)
+  assert.equal(applyNativeRestAction(updated, action), updated)
+  assert.equal(applyNativeRestAction(updated, { ...action, restEndAt: null, action: 'skip' }), updated)
+  assert.equal(applyNativeRestAction(current, { ...action, workoutId: 'another-workout' }), current)
+  assert.equal(applyNativeRestAction(current, { ...action, restEndAt: NaN }), current)
+})
+
+test('queued native rest actions recover in order across a save before acknowledgement', () => {
+  const first: NativeRestAction = { id: '1', workoutId: 'workout-1', expectedRestEndAt: 100000, restEndAt: 130000, restTotal: 150, action: 'add30' }
+  const second: NativeRestAction = { ...first, id: '2', expectedRestEndAt: 130000, restEndAt: 160000, restTotal: 180 }
+  const persisted = applyNativeRestAction(fixture(), first)!
+  const replayed = applyNativeRestAction(persisted, first)!
+  const updated = applyNativeRestAction(replayed, second)!
+  assert.equal(updated.timer!.endAt, 160000)
+  const stopped = applyNativeRestAction(updated, { ...second, id: '3', expectedRestEndAt: 160000, restEndAt: null, action: 'skip' })!
+  assert.equal(stopped.timer, null)
+  assert.equal(stopped.timerEndAt, null)
+})
+
+test('notification actions require the same current workout and exact rest deadline', () => {
+  const workout = fixture()
+  assert.equal(matchesRestNotification(workout, { workoutId: workout.id, restEndAt: 100000 }), true)
+  assert.equal(matchesRestNotification(workout, { workoutId: workout.id, restEndAt: 99000 }), false)
+  assert.equal(matchesRestNotification(workout, { workoutId: 'old', restEndAt: 100000 }), false)
+  assert.equal(matchesRestNotification(workout, { workoutId: workout.id, restEndAt: '100000' }), false)
+  assert.equal(matchesRestNotification(null, {}), false)
 })

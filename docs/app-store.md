@@ -19,6 +19,7 @@ Draft metadata for Lift 1.0. Verify availability and the current App Store Conne
 | Name | Lift — Musculation | Lift — Strength Training |
 | Subtitle | Séances, repos et progression | Workouts, rest and progress |
 | Keywords | hypertrophie,fitness,charges,répétitions,salle,domicile,programme,calendrier | hypertrophy,fitness,weights,reps,gym,home,program,timer,calendar |
+| Promotional text | Sache quoi soulever. Note tes séries, maîtrise ton repos et garde la prochaine étape sur l’écran verrouillé. À la salle ou à la maison. | Know what to lift. Track every set, time your rest and keep your next move on the lock screen. At the gym or at home. |
 
 ### French description
 
@@ -58,20 +59,22 @@ Available in English and French. Lift provides training and nutrition informatio
 
 - Support: https://github.com/Ilyomix/lift/issues
 - Marketing: https://ilyomix.github.io/lift/
-- Privacy policy, once deployed: https://ilyomix.github.io/lift/privacy.html
+- Privacy policy: https://ilyomix.github.io/lift/privacy.html
 - The bundled privacy policy is accessible from More → Privacy policy and includes both languages.
 
 ## App Review notes
 
 No login is required. Complete onboarding by choosing a language, location, training days, body information and a goal or maintenance mode. A gym is not required; home equipment can be selected.
 
-To inspect the native functionality, start a workout, log a set and start the rest timer. Live Activities and local notification settings are available in More → Settings. Enable the corresponding system permissions, then lock the device to inspect the activity and rest alert. Native iOS notifications do not use the PWA’s push server.
+To inspect the native functionality, start a workout, log a set and start the rest timer. Live Activities and local notification settings are available in More → Settings. Enable the corresponding system permissions, then lock the device to inspect the activity and rest alert. On iOS 17+, the Live Activity offers +30 seconds and Skip rest; Resume opens the active session. On iOS 16.2, the countdown and Resume link remain available. The local rest notification offers +30 seconds and Resume workout; these actions open the app. Native iOS notifications do not use the PWA’s push server.
 
 The optional AI coach does not call an AI API. It copies or shares a summary at the user’s request; the user chooses an external assistant and pastes its reply back into Lift. Changes are previewed before applying them.
 
 The app does not request HealthKit access. Body information and photos are manually entered or selected. Scientific references are listed under More → Program and evidence. Native web assets are bundled with the app; the PWA update prompt is disabled in native builds.
 
 The native app does not load YouTube thumbnails or embedded players. Pinned video links open externally after the user selects them. The web/PWA edition retains YouTube thumbnails and embedded playback; those behaviors do not apply to the native build.
+
+Marketing screenshots use a fictional demonstration workout history. The production app starts with onboarding and the user’s own data. Demo backups are generated with `marketing/app-store/scripts/generate-demo.mts` and imported through the normal interface; they are not bundled into the production app.
 
 ## App privacy answer for the native app
 
@@ -88,7 +91,7 @@ This answer applies to the final native build containing the external-video chan
 - Verify the final native binary uses external YouTube links, with no remote thumbnails or embedded players, before applying the privacy answer above. The current code has no ads or analytics; no ATT prompt is implemented.
 - Test photo selection and taking a photo on an actual iPhone. The image file inputs can offer the camera; camera usage descriptions must be present in the host app before invoking it.
 - Verify backup export/import, calendar export, external links and video playback in the native app, not only in Safari.
-- Confirm the archive contains the Capacitor/Cordova privacy manifests. No required-reason API use was found in the application’s own Swift code during the initial audit; declarations must match the final dependencies and binary.
+- Confirm the archive contains the Capacitor/Cordova privacy manifests and Lift’s own manifest for `UserDefaults` (CA92.1). The native rest-action journal stores local app state using this API; declarations must match the final dependencies and binary.
 - Run a native smoke test on both iPhone and iPad; upload and await processing before selecting the build for App Review.
 
 Apple references: [review guidelines](https://developer.apple.com/app-store/review/guidelines/), [screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications), [app privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy/).

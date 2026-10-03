@@ -51,8 +51,13 @@ function useSessionEffects() {
     if (!timer || alerted.current === timer.endAt) return
     if (now >= timer.endAt) {
       alerted.current = timer.endAt
-      if (prefs.sound && (!isNative() || !prefs.notifications)) chime()
-      vibrate([220, 90, 220])
+      // Native notifications own their sound/haptics. Never replay an expired
+      // rest alert when the WebView resumes after the lock-screen notification.
+      const inAppAlert = !isNative() || (!prefs.notifications && document.visibilityState === 'visible' && now - timer.endAt < 2000)
+      if (inAppAlert) {
+        if (prefs.sound) chime()
+        vibrate([220, 90, 220])
+      }
       // With push on, the server sends the notification (it also arrives phone locked).
       const viaPush = prefs.push && pushReady()
       if (!isNative() && !viaPush && (document.visibilityState !== 'visible' || prefs.notifications)) {
