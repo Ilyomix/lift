@@ -1,3 +1,4 @@
+import { isNative } from './native/bridge'
 // End-of-rest notifications through a push server: they arrive with the phone locked,
 // when the page itself is asleep. The server only stores a subscription for the length
 // of a rest (a one-hour cache entry), never an account or personal data.
@@ -9,7 +10,7 @@ const SUB_KEY = 'golgoth-push-subscription'
 export type PushState = 'on' | 'off' | 'denied' | 'unsupported' | 'needs-install'
 
 export function pushSupported(): boolean {
-  return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+  return !isNative() && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
 let registration: ServiceWorkerRegistration | null = null
@@ -115,6 +116,7 @@ function post(path: string, body: unknown): Promise<Response | null> {
 
 /** Schedules the end-of-rest notification; a new call replaces the previous one. */
 export function scheduleRestPush(endAt: number, title: string, body: string): void {
+  if (isNative()) return
   const subscription = current ?? stored()
   if (!subscription) return
   const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -122,6 +124,7 @@ export function scheduleRestPush(endAt: number, title: string, body: string): vo
 }
 
 export function cancelRestPush(): void {
+  if (isNative()) return
   const subscription = current ?? stored()
   if (!subscription) return
   void post('cancel', { subscription })
@@ -129,6 +132,7 @@ export function cancelRestPush(): void {
 
 /** A test notification a few seconds from now, to lock the phone and check. */
 export function testPush(delaySeconds = 8): boolean {
+  if (isNative()) return false
   const subscription = current ?? stored()
   if (!subscription) return false
   const token = `test-${Date.now().toString(36)}`

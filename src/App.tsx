@@ -1,3 +1,5 @@
+import { NativeSessionEffects } from './components/NativeSessionEffects'
+import { isNative } from './lib/native/bridge'
 import { Fragment, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { RefreshCw } from 'lucide-react'
@@ -92,7 +94,7 @@ export default function App() {
     }
   }, [])
 
-  const effects = <SessionEffects />
+  const effects = <><SessionEffects /><NativeSessionEffects /></>
   if (!ready) {
     return (
       <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
@@ -107,7 +109,7 @@ export default function App() {
         {effects}
         <Onboarding />
         <Toaster />
-        <UpdatePrompt />
+        {!isNative() && <UpdatePrompt />}
       </>
     )
   }
@@ -121,7 +123,7 @@ export default function App() {
       <TabBar current={path[0] ?? ''} />
       <ImportResultSheet />
       <Toaster />
-      <UpdatePrompt />
+      {!isNative() && <UpdatePrompt />}
     </Fragment>
   )
 }

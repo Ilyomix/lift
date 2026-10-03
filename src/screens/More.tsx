@@ -1,3 +1,5 @@
+import { NativeActivitySettings } from '../components/NativeActivitySettings'
+import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
 import {
   Apple, BellRing, Check, ChevronLeft, ChevronRight, CirclePause, ClipboardPaste, Download, ExternalLink, Flag, FlaskConical, Infinity as InfinityIcon, MapPin, Pencil, Settings, Sparkles, Trash, Upload,
@@ -441,8 +443,8 @@ export function SettingsScreen() {
         <Card className="divide-y divide-line">
           <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
           <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the session, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
-          <PushRow />
-          {!state.prefs.push && (
+          {isNative() ? <NativeActivitySettings /> : <PushRow />}
+          {!isNative() && !state.prefs.push && (
             <Row
               label={L('Alerte dans l’app', 'In-app alert')}
               hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages de l’appareil', 'Denied in your device settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
@@ -494,7 +496,7 @@ export function SettingsScreen() {
   )
 }
 
-/** End-of-rest notifications through the push server (the only way to be alerted phone locked). */
+/** End-of-rest notifications for the web/PWA build. */
 function PushRow() {
   const on = useStore((s) => s.state.prefs.push)
   const { setPrefs, notify } = useStore.getState()

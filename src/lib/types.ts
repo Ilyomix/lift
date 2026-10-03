@@ -278,6 +278,8 @@ export interface Prefs {
   /** End-of-rest notifications sent by the push server, delivered with the phone locked. */
   push: boolean
   sound: boolean
+  /** Native lock-screen workout tracking (enabled unless explicitly disabled). */
+  liveActivity?: boolean
   notifications: boolean
   wakeLock: boolean
   trainingTime: string

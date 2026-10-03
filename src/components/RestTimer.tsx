@@ -1,3 +1,4 @@
+import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Minus, Plus, SkipForward, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
@@ -50,11 +51,11 @@ function useSessionEffects() {
     if (!timer || alerted.current === timer.endAt) return
     if (now >= timer.endAt) {
       alerted.current = timer.endAt
-      if (prefs.sound) chime()
+      if (prefs.sound && (!isNative() || !prefs.notifications)) chime()
       vibrate([220, 90, 220])
       // With push on, the server sends the notification (it also arrives phone locked).
       const viaPush = prefs.push && pushReady()
-      if (!viaPush && (document.visibilityState !== 'visible' || prefs.notifications)) {
+      if (!isNative() && !viaPush && (document.visibilityState !== 'visible' || prefs.notifications)) {
         void systemNotify(L('Repos terminé', 'Rest over'), timer.next ? L(`Ensuite : ${timer.next}`, `Next: ${timer.next}`) : L('Série suivante.', 'Next set.'))
       }
     }
