@@ -5,7 +5,7 @@ import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, typ
 import { applyPlanUpdate, type PlanUpdate } from './coach'
 import { addDays, diffDays, fmtDate, isoFromTimestamp, todayISO } from './date'
 import { roundTo, uid } from './format'
-import { HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
+import { gymOf, HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
   buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
@@ -19,10 +19,11 @@ import { L, resolveLang, setLang } from './i18n'
 import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
 import { weightStatus } from './stats'
+import { clearSessionReplacement, normalizeSessionReplacements, replacePlanned, replaceTemplate, replacementTemplate, sessionExercises, validReplacementSlot, type ReplacementResult } from './exerciseReplacement'
 import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs, Prescription,
-  Look, SetFlag, Template, TemplateExercise, TrainingSetup, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
+  Look, ReplacementScope, SetFlag, Template, TemplateExercise, TrainingSetup, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
 } from './types'
 
 export const GOAL_PHOTO_ID = 'goal-reference'
@@ -70,7 +71,9 @@ interface Store {
   removeSet: (ex: number, set: number) => void
   toggleFlag: (ex: number, set: number, flag: SetFlag) => void
   skipExercise: (ex: number, skipped: boolean, reason?: string) => void
-  replaceExercise: (ex: number, newId: string) => void
+  replaceExercise: (ex: number, newId: string, scope?: ReplacementScope) => boolean
+  replacePlannedExercise: (type: WorkoutType, index: number, newId: string, scope: ReplacementScope) => boolean
+  replaceTemplateExercise: (type: WorkoutType, index: number, newId: string) => boolean
   setExerciseField: (ex: number, patch: Partial<Pick<WorkoutExercise, 'notes' | 'comparisonContext'>>) => void
   setSessionField: (patch: Partial<Pick<ActiveWorkout, 'notes' | 'date'>>) => void
   setSessionGym: (gymId: string) => void
@@ -155,7 +158,7 @@ function emptySet(weight: number | null): WorkoutSet {
 }
 
 /** Starting load of an exercise at a gym, with the deload / re-entry factor. */
-function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadFactor: number): { weight: number | null; trial: WorkoutExercise['gymTrial'] } {
+function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadFactor: number, historyFallback = true): { weight: number | null; trial: WorkoutExercise['gymTrial'] } {
   const scale = (w: number) => {
     const inc = incrementFor(t)
     return loadFactor < 1 && inc > 0 ? Math.max(inc, roundTo(w * loadFactor, inc)) : w
@@ -164,16 +167,29 @@ function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadF
   if (t.unit === 'PDC') return { weight: takesLest(t) && t.target.weight ? scale(t.target.weight) : null, trial: undefined }
   const here = loadAt(t, gymId)
   if (here !== null) return { weight: scale(here), trial: undefined }
+  // Replacements already selected a load by exact movement, unit and gym.
+  // Do not reintroduce a different site's or legacy unit's load as a fallback.
+  if (!historyFallback) return { weight: null, trial: undefined }
   const bound = isGymBound(t)
   const elsewhere = bound ? loadElsewhere(t, gymId, state.gyms) : null
   if (elsewhere) return { weight: scale(elsewhere.weight), trial: { fromGym: elsewhere.gym.name, weight: elsewhere.weight } }
-  const prev = previousPerformance(state.workouts, t.exerciseId, undefined, bound ? gymId : undefined, t.target)?.exercise
+  const compatible = state.workouts.filter(workout => !bound || gymOf(workout) === gymId)
+    .map(workout => ({ ...workout, exercises: workout.exercises.filter(ex => ex.unit === t.unit) }))
+  const prev = previousPerformance(compatible, t.exerciseId, undefined, bound ? gymId : undefined, t.target)?.exercise
   const last = prev?.sets.filter((s) => s.completed).map((s) => s.weight).find((w) => typeof w === 'number') ?? null
-  return { weight: last, trial: undefined }
+  return { weight: typeof last === 'number' ? scale(last) : null, trial: undefined }
 }
 
-function buildExercise(t: TemplateExercise, p: Prescription, state: AppState, gymId: string): WorkoutExercise {
-  const start = startingLoad(t, gymId, state, p.loadFactor)
+const replacementError = (reason: ReplacementResult['reason']): string | undefined => {
+  if (reason === 'completed') return L('Des séries sont déjà enregistrées : cet exercice ne peut plus être remplacé dans cette séance.', 'Sets are already recorded: this exercise can no longer be replaced in this session.')
+  if (reason === 'duplicate') return L('Cet exercice figure déjà dans cette séance. Choisis une autre alternative.', 'This exercise is already in this session. Choose another alternative.')
+  if (reason === 'conflict') return L('Le programme a changé depuis le début de cette séance. Modifie sa fiche séparément.', 'The program changed since this session started. Edit its sheet separately.')
+  if (reason === 'reopened') return L('Une séance rouverte ne peut pas modifier le programme. Modifie sa fiche séparément.', 'A reopened session cannot change the program. Edit its sheet separately.')
+  if (reason === 'invalid') return L('Cet exercice ou cet emplacement n’est plus disponible.', 'This exercise or slot is no longer available.')
+}
+
+function buildExercise(t: TemplateExercise, p: Prescription, state: AppState, gymId: string, historyFallback = true): WorkoutExercise {
+  const start = startingLoad(t, gymId, state, p.loadFactor, historyFallback)
   return {
     ...t,
     target: { ...t.target, weight: t.unit === 'PDC' ? (takesLest(t) ? t.target.weight || null : null) : loadAt(t, gymId) },
@@ -408,8 +424,10 @@ export const useStore = create<Store>((set, get) => ({
 
   startSession: (type) => {
     get().update((s) => {
+      if (s.activeWorkout) return s
       const today = todayISO()
       const t = type ?? s.nextWorkoutType
+      if (!s.templates[t]) return s
       const ctx = contextAt(today)
       const gap = gapSinceLastSession(s, today)
       let reentry = s.reentry
@@ -428,9 +446,10 @@ export const useStore = create<Store>((set, get) => ({
         }
       }
       const gymId = s.gyms.some((g) => g.id === s.gymId) ? s.gymId : HOME_GYM
-      const base = { ...s, reentry, programPause }
+      const planned = sessionExercises(s, t)
+      const base = { ...clearSessionReplacement(s, t), reentry, programPause }
       // The whole session at once: with fewer than five days its sets are scaled together.
-      const rx = prescribeSession(s.templates[t].exercises, today, reentry, gymId, s.workouts)
+      const rx = prescribeSession(planned, today, reentry, gymId, s.workouts)
       const active: ActiveWorkout = {
         id: uid(`workout-${t.toLowerCase()}`),
         type: t,
@@ -439,7 +458,11 @@ export const useStore = create<Store>((set, get) => ({
         notes: '',
         timerEndAt: null,
         timer: null,
-        exercises: s.templates[t].exercises.map((e, i) => buildExercise(e, rx[i], base, gymId)),
+        exercises: planned.map((e, i) => {
+          const original = s.templates[t].exercises[i]
+          const exercise = buildExercise(e, rx[i], base, gymId, e.exerciseId === original.exerciseId)
+          return e.exerciseId === original.exerciseId ? exercise : { ...exercise, replacement: { fromId: original.exerciseId, fromName: original.name } }
+        }),
         periodId: ctx.period?.id,
         week: ctx.week || undefined,
         deload: ctx.deload,
@@ -569,41 +592,65 @@ export const useStore = create<Store>((set, get) => ({
   skipExercise: (ex, skipped, reason) =>
     get().update((s) => withActive(s, (a) => mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined })))),
 
-  replaceExercise: (ex, newId) =>
-    get().update((s) =>
-      withActive(s, (a) =>
-        mapExercise(a, ex, (e) => {
-          if (newId === e.exerciseId) return e
-          if (e.sets.some((x) => x.completed)) {
-            get().notify(L('Des séries sont déjà enregistrées : leur exercice ne peut pas être remplacé. Garde-les dans l’historique.', 'Sets are already recorded: their exercise cannot be replaced. Keep them in the history.'), 'default')
-            return e
-          }
-          const info = infoFor(newId)
-          const gym = a.gymId ?? HOME_GYM
-          const bound = isGymBound({ exerciseId: newId, unit: info.unit })
-          const prev = previousPerformance(s.workouts, newId, undefined, bound ? gym : undefined)?.exercise
-          const w = info.unit === 'PDC' && !takesLest({ exerciseId: newId, unit: info.unit }) ? null : (prev?.sets.find((x) => x.completed && typeof x.weight === 'number')?.weight ?? null)
-          const { gymTrial: _t, hint: _h, ...rest } = e
-          return {
-            ...rest,
-            exerciseId: newId,
-            name: info.name,
-            muscle: info.muscle,
-            unit: info.unit,
-            role: info.role,
-            bodyweight: info.unit === 'PDC' || undefined,
-            technique: undefined,
-            comparisonContext: undefined,
-            note: undefined,
-            gymLoads: undefined,
-            target: { ...e.target, weight: w },
-            prescription: e.prescription ? { ...e.prescription, weight: w } : undefined,
-            sets: e.sets.map((x) => (x.completed ? x : { ...x, weight: info.unit === 'PDC' ? null : w })),
-            replacement: e.replacement ?? { fromId: e.exerciseId, fromName: e.name },
-          }
-        }),
-      ),
-    ),
+  replacePlannedExercise: (type, index, newId, scope) => {
+    const state = get().state
+    const result = replacePlanned(state, type, index, newId, scope)
+    if (result.state === state) {
+      const message = replacementError(result.reason)
+      if (message) get().notify(message)
+      return false
+    }
+    get().update(() => result.state)
+    return true
+  },
+
+  replaceTemplateExercise: (type, index, newId) => {
+    const state = get().state
+    const result = replaceTemplate(state, type, index, newId)
+    if (result.state === state) {
+      const message = replacementError(result.reason)
+      if (message) get().notify(message)
+      return false
+    }
+    get().update(() => result.state)
+    return true
+  },
+
+  replaceExercise: (index, newId, scope = 'session') => {
+    const state = get().state, active = state.activeWorkout
+    const reject = (reason: ReplacementResult['reason']) => {
+      const message = replacementError(reason)
+      if (message) get().notify(message)
+      return false
+    }
+    if (!active || !Number.isInteger(index) || index < 0 || !active.exercises[index] ||
+        !Object.hasOwn(LIBRARY, newId) || (scope !== 'session' && scope !== 'program')) return reject('invalid')
+    const old = active.exercises[index]
+    if (old.exerciseId === newId) return false
+    if (old.sets.some(set => set.completed)) return reject('completed')
+    if (active.exercises.some((ex, i) => i !== index && ex.exerciseId === newId)) return reject('duplicate')
+    let next = state
+    if (scope === 'program') {
+      if (active.reopened) return reject('reopened')
+      if (!validReplacementSlot(state, active.type, index)) return reject('conflict')
+      const templateId = state.templates[active.type].exercises[index].exerciseId
+      if (![old.exerciseId, old.replacement?.fromId, newId].includes(templateId)) return reject('conflict')
+      const result = replaceTemplate(state, active.type, index, newId)
+      if (result.reason) return reject(result.reason)
+      next = clearSessionReplacement(result.state, active.type, index)
+    }
+    const gym = active.gymId ?? HOME_GYM
+    const template = replacementTemplate(state, old, newId, gym)
+    const prescription: Prescription = old.prescription
+      ? { ...old.prescription, sets: old.sets.length, weight: null, notes: [] }
+      : { ...template.target, weight: null, sets: old.sets.length, rir: template.target.rir ?? '', loadFactor: 1, notes: [] }
+    const exercise = buildExercise(template, prescription, state, gym, false)
+    exercise.replacement = old.replacement ?? { fromId: old.exerciseId, fromName: old.name }
+    // Changing back to the original movement restores normal comparison rules.
+    if (scope === 'program' || exercise.replacement.fromId === newId) delete exercise.replacement
+    get().update(() => ({ ...next, activeWorkout: mapExercise(active, index, () => exercise) }))
+    return true
+  },
 
   setExerciseField: (ex, patch) => get().update((s) => withActive(s, (a) => mapExercise(a, ex, (e) => ({ ...e, ...patch })))),
 
@@ -926,7 +973,8 @@ export const useStore = create<Store>((set, get) => ({
         const next = { ...e, ...patch, target: { ...e.target, ...(patch.target ?? {}) } }
         return { ...next, nextTarget: patch.nextTarget ?? nextTargetText(next) }
       })
-      return { ...s, templates: { ...s.templates, [type]: { ...tpl, exercises } } }
+      const templates = { ...s.templates, [type]: { ...tpl, exercises } }
+      return { ...s, templates, sessionReplacements: normalizeSessionReplacements(s.sessionReplacements, templates) }
     }),
 
   addTemplateExercise: (type, exerciseId) =>
@@ -948,7 +996,8 @@ export const useStore = create<Store>((set, get) => ({
   removeTemplateExercise: (type, index) =>
     get().update((s) => {
       const tpl = s.templates[type]
-      return { ...s, templates: { ...s.templates, [type]: { ...tpl, exercises: tpl.exercises.filter((_, i) => i !== index) } } }
+      const templates = { ...s.templates, [type]: { ...tpl, exercises: tpl.exercises.filter((_, i) => i !== index) } }
+      return { ...s, templates, sessionReplacements: normalizeSessionReplacements(s.sessionReplacements, templates) }
     }),
 
   moveTemplateExercise: (type, index, dir) =>
@@ -958,7 +1007,8 @@ export const useStore = create<Store>((set, get) => ({
       if (j < 0 || j >= tpl.exercises.length) return s
       const exercises = [...tpl.exercises]
       ;[exercises[index], exercises[j]] = [exercises[j], exercises[index]]
-      return { ...s, templates: { ...s.templates, [type]: { ...tpl, exercises } } }
+      const templates = { ...s.templates, [type]: { ...tpl, exercises } }
+      return { ...s, templates, sessionReplacements: normalizeSessionReplacements(s.sessionReplacements, templates) }
     }),
 
   setExerciseVideo: (exerciseId, url) =>

@@ -10,6 +10,7 @@ import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
+import { sessionExercises } from '../lib/exerciseReplacement'
 import { LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
 import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
@@ -44,12 +45,13 @@ function SessionPreview() {
   const today = todayISO()
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
   const [type, setType] = useState<WorkoutType>(planned[0]?.type ?? state.nextWorkoutType)
-  const [sheet, setSheet] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<number | null>(null)
   const [gymOpen, setGymOpen] = useState(false)
   const date = today < PROGRAM_START ? PROGRAM_START : today
   const ctx = contextAt(date)
   const tpl = state.templates[type]
-  const rx = prescribeSession(tpl.exercises, date, state.reentry, state.gymId, state.workouts)
+  const exercises = sessionExercises(state, type)
+  const rx = prescribeSession(exercises, date, state.reentry, state.gymId, state.workouts)
   const totalSets = rx.reduce((a, p) => a + p.sets, 0)
   const sheetSets = tpl.exercises.reduce((a, e) => a + e.target.sets, 0)
   // The reason is given when it is the case: with two days, or sheets the ceiling cuts into, the week holds clearly less than the plan.
@@ -73,7 +75,7 @@ function SessionPreview() {
         sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
-      <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={setType} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
+      <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Tag tone="ink">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
@@ -91,9 +93,9 @@ function SessionPreview() {
       {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this session: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
 
       <ol className="mt-5 divide-y divide-line rounded-[12px] border border-line bg-surface">
-        {tpl.exercises.map((e, i) => (
+        {exercises.map((e, i) => (
           <li key={`${e.exerciseId}-${i}`}>
-            <button type="button" onClick={() => setSheet(e.exerciseId)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
+            <button type="button" onClick={() => setSheet(i)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
               <span className="w-6 shrink-0 text-[12px] font-semibold text-muted tnum">{String(i + 1).padStart(2, '0')}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
@@ -101,6 +103,7 @@ function SessionPreview() {
                   {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
                 </span>
                 {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('Superset avec l’exercice suivant', 'Superset with the next exercise')}</span>}
+                {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this session')}</span>}
               </span>
               <Info size={18} className="shrink-0 text-muted" aria-hidden />
             </button>
@@ -114,7 +117,7 @@ function SessionPreview() {
         </Button>
       </div>
 
-      {sheet && <ExerciseSheet exerciseId={sheet} open onClose={() => setSheet(null)} prescription={rx[tpl.exercises.findIndex((e) => e.exerciseId === sheet)]} />}
+      {sheet !== null && exercises[sheet] && <ExerciseSheet key={`${type}-${sheet}-${exercises[sheet].exerciseId}`} exerciseId={exercises[sheet].exerciseId} open onClose={() => setSheet(null)} prescription={rx[sheet]} replacement={{ kind: 'planned', type, index: sheet }} />}
       {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
     </Screen>
   )
@@ -298,7 +301,7 @@ const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('P
 function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
   const autoLoad = useStore((s) => s.state.prefs.autoLoad)
-  const { addSet, removeSet, skipExercise, replaceExercise, setExerciseField, undoHint } = useStore.getState()
+  const { addSet, removeSet, skipExercise, setExerciseField, undoHint } = useStore.getState()
   const [info, setInfo] = useState(false)
   const [menu, setMenu] = useState(false)
   const [open, setOpen] = useState(false)
@@ -465,10 +468,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         </div>
       )}
 
-      <ExerciseSheet exerciseId={ex.exerciseId} name={ex.name} open={info} onClose={() => setInfo(false)} prescription={p} onReplace={(id) => replaceExercise(index, id)} />
+      <ExerciseSheet exerciseId={ex.exerciseId} name={ex.name} open={info} onClose={() => setInfo(false)} prescription={p} replacement={{ kind: 'active', index }} />
       <Sheet open={menu} onClose={() => setMenu(false)} title={ex.name}>
         <div className="space-y-5">
-          <ExerciseAlternatives exerciseId={ex.exerciseId} onChoose={(id) => { replaceExercise(index, id); setMenu(false) }} />
+          <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={{ kind: 'active', index }} onReplaced={() => setMenu(false)} />
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Conditions différentes (tempo, prise…)', 'Different conditions (tempo, grip…)')}</span>
             <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder={L('Ex. : tempo lent, prise différente', 'E.g. slow tempo, different grip')} onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />

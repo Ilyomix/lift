@@ -13,6 +13,8 @@ import { plannedVolume } from '../lib/training'
 import type { TemplateExercise, WorkoutType } from '../lib/types'
 import { RangeBars } from '../components/charts'
 import { LevelTag, RefList } from '../components/Evidence'
+import { ExerciseAlternatives, type ExerciseReplacementTarget } from '../components/ExerciseAlternatives'
+import { alternativesFor } from '../lib/exerciseAlternatives'
 import { PhaseTrack } from '../components/Program'
 import { SportArt, workoutArt } from '../components/SportArt'
 import { Button, Card, cx, Disclosure, Empty, Eyebrow, Field, Header, IconButton, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
@@ -281,6 +283,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
       {edit !== null && tpl.exercises[edit] && (
         <EditSheet
           ex={tpl.exercises[edit]}
+          replacement={{ kind: 'template', type, index: edit }}
           onClose={() => setEdit(null)}
           onRemove={() => { removeTemplateExercise(type, edit); setEdit(null) }}
           onSave={(patch) => { useStore.getState().editTemplateExercise(type, edit, patch); setEdit(null) }}
@@ -303,7 +306,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   )
 }
 
-function EditSheet({ ex, onClose, onSave, onRemove }: { ex: TemplateExercise; onClose: () => void; onSave: (p: Partial<TemplateExercise>) => void; onRemove: () => void }) {
+function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: TemplateExercise; replacement: ExerciseReplacementTarget; onClose: () => void; onSave: (p: Partial<TemplateExercise>) => void; onRemove: () => void }) {
   const [v, setV] = useState({
     weight: ex.target.weight === null ? '' : L(String(ex.target.weight).replace('.', ','), String(ex.target.weight)),
     sets: String(ex.target.sets),
@@ -329,6 +332,9 @@ function EditSheet({ ex, onClose, onSave, onRemove }: { ex: TemplateExercise; on
     })
   return (
     <Sheet open onClose={onClose} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
+      {alternativesFor(ex.exerciseId).length > 0 && <Disclosure className="mb-4" title={L('Alternatives à cet exercice', 'Exercise alternatives')}>
+        <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} onReplaced={onClose} />
+      </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
         {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À trouver', 'To find')} /></Field>}
         {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('Aucun', 'None')} /></Field>}

@@ -2,6 +2,8 @@ export type ISODate = string // YYYY-MM-DD, local calendar day
 
 export type WorkoutType = 'UPPER' | 'LOWER' | 'PUSH' | 'PULL' | 'LEGS'
 export const WORKOUT_TYPES: WorkoutType[] = ['UPPER', 'LOWER', 'PUSH', 'PULL', 'LEGS']
+export type ReplacementScope = 'session' | 'program'
+export interface SessionReplacement { index: number; fromId: string; exerciseId: string }
 
 export type Unit = 'kg' | 'kg/main' | 'PDC'
 export type SetFlag = 'failure' | 'bad-technique' | 'pain'
@@ -326,6 +328,8 @@ export interface AppState {
   nextWorkoutType: WorkoutType
   workouts: Workout[]
   templates: Record<WorkoutType, Template>
+  /** One-off choices for the next session of each type, anchored to its original slot. */
+  sessionReplacements?: Partial<Record<WorkoutType, SessionReplacement[]>>
   activeWorkout: ActiveWorkout | null
   lastCompletedWorkoutId: string | null
   appliedPlanUpdates: PlanUpdateRecord[]

@@ -11,6 +11,7 @@ import type {
 } from './types'
 import { WORKOUT_TYPES } from './types'
 import { goalApplied, tagPriorities } from './visual'
+import { normalizeSessionReplacements } from './exerciseReplacement'
 
 export const BACKUP_VERSION = 1
 export const APP_ID = 'golgoth-pwa'
@@ -282,7 +283,7 @@ export function normalizeState(raw: any): AppState {
       }
     : null
   const fullTemplates = { ...d.templates, ...templates } as Record<WorkoutType, Template>
-  return upgradedProgram({
+  const state = upgradedProgram({
     ...d,
     version: 2,
     programId: str(raw.programId, 'legacy'),
@@ -334,6 +335,7 @@ export function normalizeState(raw: any): AppState {
       importedAt: typeof raw.meta?.importedAt === 'string' ? raw.meta.importedAt : null,
     },
   })
+  return { ...state, sessionReplacements: normalizeSessionReplacements(raw.sessionReplacements, state.templates) }
 }
 
 /**

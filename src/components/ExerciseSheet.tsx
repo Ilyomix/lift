@@ -11,21 +11,21 @@ import { exerciseHistory, setsSummary } from '../lib/training'
 import type { Prescription } from '../lib/types'
 import { LevelTag, RefList } from './Evidence'
 import { ExerciseDemo } from './ExerciseDemo'
-import { ExerciseAlternatives } from './ExerciseAlternatives'
+import { ExerciseAlternatives, type ExerciseReplacementTarget } from './ExerciseAlternatives'
 import { Button, Disclosure, Eyebrow, Field, inputClass, LinkButton, Sheet, Tag } from './ui'
 
 // Retain the public export used by exercise detail/session screens.
 export const DemoFrames = ExerciseDemo
 
 export function ExerciseSheet({
-  exerciseId, name, open, onClose, prescription, onReplace,
+  exerciseId, name, open, onClose, prescription, replacement,
 }: {
   exerciseId: string
   name?: string
   open: boolean
   onClose: () => void
   prescription?: Prescription
-  onReplace?: (id: string) => void
+  replacement?: ExerciseReplacementTarget
 }) {
   const info = infoFor(exerciseId, { name })
   const video = useStore((s) => s.state.exerciseVideos[exerciseId] ?? '')
@@ -106,7 +106,7 @@ export function ExerciseSheet({
       )}
 
       {alternatives.length > 0 && <Disclosure key={exerciseId} bordered={!!prescription} className={prescription ? 'mt-5' : 'border-b border-line'} title={`Alternatives (${alternatives.length})`}>
-        <ExerciseAlternatives exerciseId={exerciseId} onChoose={onReplace ? id => { onReplace(id); onClose() } : undefined} />
+        <ExerciseAlternatives exerciseId={exerciseId} replacement={replacement} onReplaced={onClose} />
       </Disclosure>}
 
       {info.cues.length > 0 && (
