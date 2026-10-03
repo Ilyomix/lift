@@ -294,20 +294,25 @@ def nutrition():
             n=(i+1)%seg
             faces.append((j*seg+i,j*seg+n,(j+1)*seg+n,(j+1)*seg+i))
     mesh('AppleBody',verts,faces,'LiftCobalt')
+    # A leaf hinge reads at 32px; yaw on the symmetric fruit barely registers.
+    leaf_pivot=empty('AppleLeafPivot',GEOMETRY,(.065,.01,.83))
     line('AppleStem',[(0,0,.47),(.015,0,.67),(.06,.005,.84),(.12,.015,.96)],.043,'LiftGraphite')
     verts=[]; faces=[]
     for j in range(17):
         t=j/16; width=.18*math.sin(math.pi*t)**.85
         for side in [-1,0,1]:
-            verts.append((.065+.66*t,.01+side*width,.83+.24*t+.12*math.sin(math.pi*t)-.07*abs(side)*math.sin(math.pi*t)))
+            verts.append((.66*t,side*width,.24*t+.12*math.sin(math.pi*t)-.07*abs(side)*math.sin(math.pi*t)))
     for j in range(16):
         for side in range(2):
             a=j*3+side; faces.append((a,a+1,a+4,a+3))
-    leaf=mesh('AppleLeaf',verts,faces,'LiftGraphite')
+    leaf=mesh('AppleLeaf',verts,faces,'LiftGraphite',parent=leaf_pivot)
     solid=leaf.modifiers.new('LeafThickness','SOLIDIFY'); solid.thickness=.015
     bpy.context.view_layer.objects.active=leaf
     bpy.ops.object.modifier_apply(modifier=solid.name)
-    line('LeafVein',[(.07+.64*t,.007,.833+.24*t+.12*math.sin(math.pi*t)) for t in [j/12 for j in range(13)]],.009,'LiftSilver')
+    line('LeafVein',[(.005+.64*t,-.003,.003+.24*t+.12*math.sin(math.pi*t)) for t in [j/12 for j in range(13)]],.009,'LiftSilver',parent=leaf_pivot)
+    animate(leaf_pivot,'rotation_euler',[
+        (1,(0,0,0)),(91,(0,math.radians(-14),0)),(181,(0,0,0)),
+        (271,(0,math.radians(10),0)),(END,(0,0,0))])
 
 
 def settings():
@@ -420,8 +425,9 @@ def build(name):
     scale = 2 / max(high-low)
     GEOMETRY.location = -center * scale
     GEOMETRY.scale = (scale,)*3
-    yaw = math.radians(7)
-    animate(art, 'rotation_euler', [(1, (0, 0, 0)), (91, (0, 0, yaw)), (181, (0, 0, 0)), (271, (0, 0, -yaw)), (END, (0, 0, 0))])
+    if name != 'nutrition':
+        yaw = math.radians(7)
+        animate(art, 'rotation_euler', [(1, (0, 0, 0)), (91, (0, 0, yaw)), (181, (0, 0, 0)), (271, (0, 0, -yaw)), (END, (0, 0, 0))])
     scene.frame_set(0)
     cam_data = bpy.data.cameras.new('IconCamera')
     cam_data.type = 'ORTHO'
