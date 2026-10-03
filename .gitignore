@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.log
 .env*
+
+# Local App Store archives, exports, and screenshots
+.local-release/

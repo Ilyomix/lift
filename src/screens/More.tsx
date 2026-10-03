@@ -66,9 +66,12 @@ export function MoreScreen() {
         </a>
       </Card>
       <p className="mt-3 px-1 text-[12px] leading-[1.5] text-muted">
-        {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Données stockées sur cet appareil uniquement.', 'Research-based program (report of 26 Sept 2026). Data stored on this device only.')}{' '}
+        {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}{' '}
         <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium whitespace-nowrap text-text-2 underline decoration-line-strong underline-offset-2">{L('Code source sur GitHub', 'Source code on GitHub')}</a>
       </p>
+      <a href={`${import.meta.env.BASE_URL}privacy.html#${L('fr', 'en')}`} className="pressable mt-2 inline-flex min-h-11 items-center px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
+        {L('Politique de confidentialité', 'Privacy policy')}
+      </a>
     </Screen>
   )
 }
@@ -683,4 +686,3 @@ export function ImportSheet({ parsed, upgrade, setUpgrade, onClose, onConfirm }:
     </Sheet>
   )
 }
-

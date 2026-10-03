@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="Politique de confidentialité de Lift / Lift privacy policy." />
+    <title>Lift — Confidentialité / Privacy</title>
+    <style>
+      :root { font: 17px/1.65 system-ui, sans-serif; color: #e8eefb; background: #060a13; }
+      body { max-width: 760px; margin: auto; padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+      a { color: #91b8ff; text-underline-offset: 3px; }
+      a:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; }
+      nav { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 32px; }
+      nav a, .back { display: inline-flex; align-items: center; min-height: 44px; }
+      h1 { font-size: clamp(28px, 6vw, 38px); line-height: 1.2; }
+      h2 { font-size: 21px; line-height: 1.3; margin-top: 30px; }
+      p { margin: 12px 0; }
+      .date { color: #acb7cc; font-size: 14px; }
+      section { scroll-margin-top: 24px; }
+      section + section { border-top: 1px solid #283347; margin-top: 48px; padding-top: 24px; }
+      @media (prefers-color-scheme: light) {
+        :root { color: #152033; background: #f8faff; }
+        a { color: #245ab8; }
+        .date { color: #536078; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="Navigation">
+      <a href="./#plus">← Lift</a>
+      <a href="#fr" lang="fr">Français</a>
+      <a href="#en" lang="en">English</a>
+    </nav>
+    <main>
+      <section id="fr" lang="fr" aria-labelledby="title-fr">
+        <h1 id="title-fr">Politique de confidentialité</h1>
+        <p class="date">Lift · Ilyomix · Mise à jour : 3 octobre 2026</p>
+        <p>Lift fonctionne sans compte. L’application native n’affiche pas de publicité et ne contient pas d’outil d’analyse d’audience. Cette page décrit les données utilisées et les échanges possibles lorsque tu actives certaines fonctions.</p>
+
+        <h2>Données sur ton appareil</h2>
+        <p>Ton profil (âge, sexe, taille), tes séances, charges, mensurations, informations de nutrition, objectifs, photos, vidéos épinglées et réglages sont enregistrés localement dans le stockage de l’application (IndexedDB). Ils servent à préparer ton programme et afficher tes progrès. Lift ne les synchronise pas avec un compte ou un serveur.</p>
+        <p>Les photos sont celles que tu choisis avec le sélecteur de ton appareil. Les démonstrations d’exercices et les polices sont incluses dans l’application native. Les sauvegardes du système peuvent inclure les données de Lift selon les réglages de ton appareil.</p>
+
+        <h2>Sauvegardes et coach IA</h2>
+        <p>Une sauvegarde exportée contient tes séances, mesures, informations de nutrition, réglages et photos. Un bilan pour le coach peut contenir tes informations corporelles, objectifs et performances. Ces contenus ne sont copiés ou partagés que lorsque tu utilises les commandes correspondantes. Tu choisis leur destination et peux consulter le contenu avant de l’envoyer à un tiers.</p>
+        <p>Lift ne se connecte directement à aucun service d’IA. Si tu transmets un bilan à un assistant ou conserves une sauvegarde dans un service externe, ce service applique sa propre politique de confidentialité. Supprimer les données dans Lift ne supprime pas ces copies.</p>
+
+        <h2>Notifications</h2>
+        <p><strong>Application iOS :</strong> les rappels de fin de repos sont des notifications locales. Les Activités en direct sont gérées par iOS. Lift n’envoie pas ton abonnement ou tes séances au serveur de notifications web. Les détails d’un exercice peuvent apparaître sur l’écran verrouillé selon tes réglages.</p>
+        <p><strong>Version web installée :</strong> si tu actives les notifications, Lift transmet l’abonnement push du navigateur, l’heure de fin du repos et le texte de la notification au service hébergé sur Vercel, à l’adresse golgoth-push.vercel.app. Ce service contacte le service push de ton navigateur pour livrer l’alerte. L’abonnement reste dans l’exécution en cours ; une entrée de cache associant un identifiant de repos et son heure de fin à l’empreinte de l’abonnement expire après une heure au maximum, ou est supprimée après envoi ou annulation. Les fournisseurs d’hébergement et de push traitent également les informations techniques nécessaires aux requêtes.</p>
+        <p>Tu peux désactiver ces fonctions dans les réglages de Lift et gérer leurs autorisations dans les réglages de ton appareil ou navigateur.</p>
+
+        <h2>Vidéos et liens externes</h2>
+        <p><strong>Application native :</strong> une vidéo épinglée reste un lien enregistré sur ton appareil. Lift ne charge ni vignette distante ni lecteur YouTube intégré. Le bouton « Ouvrir ta vidéo sur YouTube » ouvre YouTube ou ton navigateur uniquement lorsque tu le sélectionnes. Le service externe traite alors ta navigation selon sa propre politique.</p>
+        <p><strong>Version web :</strong> si tu épingles une vidéo YouTube, sa vignette est chargée depuis i.ytimg.com à l’ouverture de la fiche. La lecture charge un lecteur depuis youtube-nocookie.com. Ces connexions transmettent des informations techniques, notamment ton adresse IP, à Google/YouTube. Le mode de lecture à confidentialité renforcée ne signifie pas qu’aucune donnée n’est transmise ; le lecteur peut afficher des publicités non personnalisées. Consulte la <a href="https://policies.google.com/privacy">politique de confidentialité de Google</a>.</p>
+        <p>Les recherches YouTube, références scientifiques, liens GitHub et liens d’assistance ouvrent des services externes lorsque tu les sélectionnes. Ces services appliquent leurs propres règles de confidentialité. La version web de Lift est servie par GitHub Pages, qui reçoit les requêtes nécessaires au chargement du site ; le contenu principal de l’application native est embarqué sur l’appareil.</p>
+
+        <h2>Conservation, suppression et contact</h2>
+        <p>Lift conserve les données locales jusqu’à leur suppression. Dans <strong>Plus → Sauvegarde</strong>, tu peux exporter une copie ou supprimer les données de cet appareil. Tu peux aussi supprimer une photo individuellement. Effacer le stockage de l’application ou du navigateur peut supprimer ces données. Les fichiers déjà exportés et les sauvegardes du système se gèrent séparément.</p>
+        <p>Pour une question sur Lift ou cette politique, contacte Ilyomix via les <a href="https://github.com/Ilyomix/lift/issues">issues du projet</a>. Les issues sont publiques : n’y publie pas tes photos, mesures, bilans ou sauvegardes personnelles.</p>
+      </section>
+
+      <section id="en" lang="en" aria-labelledby="title-en">
+        <h1 id="title-en">Privacy policy</h1>
+        <p class="date">Lift · Ilyomix · Updated: October 3, 2026</p>
+        <p>Lift works without an account. The native app displays no advertising and contains no analytics tools. This page describes the data it uses and the connections that can occur when you enable certain features.</p>
+
+        <h2>Data on your device</h2>
+        <p>Your profile (age, sex, height), sessions, loads, body measurements, nutrition information, goals, photos, pinned videos and settings are stored locally in the app’s storage (IndexedDB). They are used to prepare your program and show your progress. Lift does not sync them with an account or server.</p>
+        <p>Photos are those you select using your device’s picker. Exercise demonstrations and fonts are bundled with the native app. System backups may include Lift’s data depending on your device settings.</p>
+
+        <h2>Backups and AI coach</h2>
+        <p>An exported backup contains your sessions, measurements, nutrition information, settings and photos. A coach summary can contain body information, goals and performance. These contents are only copied or shared when you use the corresponding controls. You choose their destination and can inspect the content before sending it to a third party.</p>
+        <p>Lift does not connect directly to an AI service. If you send a summary to an assistant or store a backup in an external service, that service applies its own privacy policy. Deleting data in Lift does not delete those copies.</p>
+
+        <h2>Notifications</h2>
+        <p><strong>iOS app:</strong> rest alerts are local notifications. Live Activities are managed by iOS. Lift does not send your subscription or sessions to the web notification server. Exercise details may appear on the lock screen depending on your settings.</p>
+        <p><strong>Installed web version:</strong> if you enable notifications, Lift sends the browser’s push subscription, rest end time and notification text to the service hosted on Vercel at golgoth-push.vercel.app. That service contacts your browser’s push service to deliver the alert. The subscription remains in the running invocation; a cache entry connecting a rest identifier and end time to a hash of the subscription expires within one hour, or is deleted after sending or cancellation. Hosting and push providers also process technical information needed for requests.</p>
+        <p>You can disable these features in Lift’s settings and manage their permissions in your device or browser settings.</p>
+
+        <h2>Videos and external links</h2>
+        <p><strong>Native app:</strong> a pinned video remains a link stored on your device. Lift loads neither a remote thumbnail nor an embedded YouTube player. The “Open your video on YouTube” button opens YouTube or your browser only when you select it. The external service then handles your browsing according to its own policy.</p>
+        <p><strong>Web version:</strong> if you pin a YouTube video, its thumbnail loads from i.ytimg.com when you open the exercise sheet. Playing it loads a player from youtube-nocookie.com. These connections send technical information, including your IP address, to Google/YouTube. Privacy-enhanced playback does not mean that no data is transmitted; the player may show non-personalized ads. See <a href="https://policies.google.com/privacy">Google’s privacy policy</a>.</p>
+        <p>YouTube searches, scientific references, GitHub links and support links open external services when you select them. Those services apply their own privacy policies. The web version of Lift is served by GitHub Pages, which receives requests needed to load the site; the native app’s main content is bundled on the device.</p>
+
+        <h2>Retention, deletion and contact</h2>
+        <p>Lift retains local data until you delete it. In <strong>More → Backup</strong>, you can export a copy or delete this device’s data. You can also delete an individual photo. Clearing the app or browser storage may delete this data. Previously exported files and system backups are managed separately.</p>
+        <p>For questions about Lift or this policy, contact Ilyomix through the <a href="https://github.com/Ilyomix/lift/issues">project’s issues</a>. Issues are public: do not post your personal photos, measurements, summaries or backups there.</p>
+      </section>
+    </main>
+    <a class="back" href="./#plus">← Lift</a>
+  </body>
+</html>

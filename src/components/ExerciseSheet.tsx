@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CirclePlay, ExternalLink, Replace } from 'lucide-react'
+import { isNative } from '../lib/native/bridge'
 import { infoFor, LIBRARY, youtubeId, youtubeSearchUrl } from '../lib/library'
 import { fmtDate } from '../lib/date'
 import { fmtRest } from '../lib/format'
@@ -57,7 +58,7 @@ export function ExerciseSheet({
       <DemoFrames id={exerciseId} name={info.name} className="mt-4" />
 
       <div className="mt-4">
-        {vid ? (
+        {vid && !isNative() ? (
           play ? (
             <div className="aspect-video w-full overflow-hidden rounded-[12px] bg-black">
               <iframe
@@ -77,8 +78,8 @@ export function ExerciseSheet({
             </button>
           )
         ) : (
-          <a href={youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" className="pressable flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-line-strong text-[14px] font-medium hover:border-muted">
-            <CirclePlay size={18} aria-hidden /> {L('Vidéos de technique sur YouTube', 'Technique videos on YouTube')}
+          <a href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" className="pressable flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-line-strong text-[14px] font-medium hover:border-muted">
+            <CirclePlay size={18} aria-hidden /> {vid ? L('Ouvrir ta vidéo sur YouTube', 'Open your video on YouTube') : L('Vidéos de technique sur YouTube', 'Technique videos on YouTube')}
             <ExternalLink size={14} className="text-muted" aria-hidden />
           </a>
         )}
