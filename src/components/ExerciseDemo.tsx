@@ -4,6 +4,7 @@ import { L } from '../lib/i18n'
 import { ANIMATED_EXERCISES, anatomicalLabel, exerciseMuscles, type AnatomicalRegion } from '../lib/exerciseModelCatalog'
 import type { ExerciseOrbit, ExerciseView } from '../lib/exerciseModels'
 import type { mountExerciseModel } from '../lib/exerciseModelRenderer'
+import { Button, IconButton, Segmented } from './ui'
 
 type ModelHandle = ReturnType<typeof mountExerciseModel>
 
@@ -121,18 +122,24 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
           onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={rotateWithKeys} />
         <span id={instructions} className="sr-only">{L('Glisse pour tourner le modèle. Au clavier : flèches pour tourner et incliner, Début pour recentrer.', 'Drag to rotate the model. Keyboard: arrow keys to rotate and tilt, Home to reset the view.')}</span>
         {!ready && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-[13px] text-text-2">{failed ? L('Vue 3D indisponible. Les muscles et vidéos restent accessibles ci-dessous.', '3D view unavailable. Muscle information and videos are available below.') : L('Chargement du modèle…', 'Loading model…')}</div>}
-        {ready && rotated && <button type="button" className="pressable absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-text-2" onClick={() => resetView()} aria-label={L('Recentrer le modèle', 'Reset model view')} title={L('Recentrer le modèle', 'Reset model view')}><RotateCcw size={16} aria-hidden /></button>}
-        {ready && animated && view === 'technique' && !reduced && <button type="button" className="pressable absolute bottom-3 right-3 flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12px] font-medium" onClick={() => setPlaying(value => !value)} aria-pressed={!playing}>
-          {playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}{playing ? L('Pause', 'Pause') : L('Lire', 'Play')}
-        </button>}
+        {ready && rotated && <IconButton className="absolute right-3 top-3 bg-surface" onClick={() => resetView()} label={L('Recentrer le modèle', 'Reset model view')}><RotateCcw size={16} aria-hidden /></IconButton>}
+        {ready && animated && view === 'technique' && !reduced && <Button variant="ink" size="sm" className="absolute bottom-3 right-3" onClick={() => setPlaying(value => !value)} aria-pressed={!playing} icon={playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}>
+          {playing ? L('Pause', 'Pause') : L('Lire', 'Play')}
+        </Button>}
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex gap-1" aria-label={L('Vue du modèle', 'Model view')}>
-          {(animated ? ['technique', 'front', 'back'] : ['front', 'back']).map(value => <button type="button" key={value} disabled={!ready} aria-pressed={view === value && !rotated} onClick={() => resetView(value as ExerciseView)} className={`pressable min-h-11 rounded-[8px] px-3 text-[12px] font-medium disabled:opacity-40 ${view === value && !rotated ? 'bg-signal-soft text-signal' : 'text-text-2 hover:bg-surface-2'}`}>
-            {value === 'technique' ? L('Mouvement', 'Movement') : value === 'front' ? L('Face', 'Front') : L('Dos', 'Back')}
-          </button>)}
-        </div>
-        <span className="text-[11px] text-muted">{ready ? L('Glisse pour tourner · 360°', 'Drag to rotate · 360°') : L('Modèle 3D Lift', 'Lift 3D model')}</span>
+      <div className="mt-2">
+        <Segmented<ExerciseView>
+          label={L('Vue du modèle', 'Model view')}
+          value={ready && !rotated ? view : undefined}
+          disabled={!ready}
+          onChange={resetView}
+          options={[
+            ...(animated ? [{ value: 'technique' as const, label: L('Mouvement', 'Movement') }] : []),
+            { value: 'front', label: L('Face', 'Front') },
+            { value: 'back', label: L('Dos', 'Back') },
+          ]}
+        />
+        <p className="mt-2 text-[12px] text-muted">{ready ? L('Glisse pour tourner · 360°', 'Drag to rotate · 360°') : L('Modèle 3D Lift', 'Lift 3D model')}</p>
       </div>
       <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
         {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span><strong className="font-semibold">{L('Principal : ', 'Primary: ')}</strong>{direct.join(', ')}</span></p>}

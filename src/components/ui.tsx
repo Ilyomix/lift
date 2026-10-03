@@ -189,7 +189,7 @@ export function Row({ label, value, hint, onClick, right, className }: { label: 
 
 // ───────────── Controls ─────────────
 
-export function Segmented<T extends string>({ value, options, onChange, className, label }: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string }) {
+export function Segmented<T extends string>({ value, options, onChange, className, label, disabled }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean }) {
   return (
     <div role="tablist" aria-label={label} className={cx('no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4', className)}>
       {options.map((o) => {
@@ -200,9 +200,10 @@ export function Segmented<T extends string>({ value, options, onChange, classNam
             type="button"
             role="tab"
             aria-selected={active}
+            disabled={disabled}
             onClick={() => onChange(o.value)}
             className={cx(
-              'pressable h-9 shrink-0 rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap',
+              'pressable h-9 shrink-0 rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none',
               active ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2 hover:text-text',
             )}
           >

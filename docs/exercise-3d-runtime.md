@@ -14,6 +14,8 @@ Surface regions share the human's skinned geometry; no separate shapes are place
 
 One lazily created WebGL context serves the visible exercise panel. The active canvas renders directly to the DOM; a 2D snapshot is taken only when a sheet replaces an existing panel. Rendering resolution is capped at 900 × 675 pixels. No large canvas readback occurs per frame.
 
+The backing snapshot is cleared when its panel regains the shared WebGL surface, mounts a different exercise or is disposed. A visibility change schedules a frame even when the returning panel is paused. This prevents a frozen pose from remaining beneath the transparent live view after sheet or scroll transitions. The real-GPU lifecycle fixture at `tests/fixtures/exercise-renderer.html` checks four previously failing cases with the shipped GLB and actual canvas pixels; serve it with Vite and use “Run checks”.
+
 The scheduler targets 60 frames per second using display callbacks and a bounded accumulator. Static front/back views and paused/reduced-motion demonstrations render once, then stop requesting frames. Offscreen panels, hidden documents and inactive native apps stop rendering. Opening another exercise sheet gives it priority. Closing the last panel disposes the renderer, skeleton textures, cloned geometries and materials. GLB source data is cached for later mounts.
 
 The interface keeps reference-video links available if WebGL or an asset is unavailable. Model loading and context restoration cannot interrupt workout logging.

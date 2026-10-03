@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exercise renderer lifecycle regression</title>
+    <style>
+      :root { color-scheme: light; --accent: #3068f5; --accent-bright: #7198ff; }
+      body { margin: 24px; color: #182132; background: #f3f5f8; font: 15px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 24px; }
+      button { padding: 12px 18px; font: inherit; cursor: pointer; }
+      #panels { display: flex; flex-wrap: wrap; gap: 20px; }
+      figure { margin: 0; }
+      .surface { position: relative; width: 360px; max-width: 100%; background: #e7ebf1; border-radius: 12px; overflow: hidden; }
+      .surface > canvas:first-child { display: block; width: 100%; aspect-ratio: 4 / 3; }
+      figcaption { margin: 6px 0 16px; }
+      #status { font-weight: 700; }
+      [data-result="pass"] { color: #126c36; }
+      [data-result="fail"] { color: #ba1b1b; }
+      li { margin-block: 6px; }
+    </style>
+  </head>
+  <body>
+    <!-- Manual regression: npm run dev, then open
+         http://localhost:5173/lift/tests/fixtures/exercise-renderer.html.
+         This exercises the actual renderer, GPU and shipped GLB. It is not an
+         application entry point and is not included in the production bundle. -->
+    <h1>Exercise renderer lifecycle regression</h1>
+    <p>Checks that a frozen fallback never remains underneath the active transparent WebGL canvas.</p>
+    <button id="run" type="button">Run checks</button>
+    <p id="status" role="status" data-result="idle">Ready</p>
+    <ol id="results"></ol>
+    <div id="panels">
+      <figure><div class="surface"><canvas id="panel-a" width="720" height="540"></canvas></div><figcaption>Panel A</figcaption></figure>
+      <figure><div class="surface"><canvas id="panel-b" width="720" height="540"></canvas></div><figcaption>Panel B</figcaption></figure>
+    </div>
+    <script type="module">
+      import { mountExerciseModel } from '../../src/lib/exerciseModelRenderer.ts'
+      import { exerciseMuscles } from '../../src/lib/exerciseModelCatalog.ts'
+
+      const run = document.querySelector('#run')
+      const status = document.querySelector('#status')
+      const results = document.querySelector('#results')
+      const a = document.querySelector('#panel-a')
+      const b = document.querySelector('#panel-b')
+      const mounted = new Set()
+      let frameNumber = 0
+
+      function assert(condition, message) {
+        if (!condition) throw new Error(message)
+      }
+
+      async function until(condition, label, budget = 180) {
+        for (let frame = 0; frame < budget; frame++) {
+          if (condition()) return
+          await new Promise(requestAnimationFrame)
+          frameNumber++
+        }
+        throw new Error(`${label}: condition not met within ${budget} animation frames`)
+      }
+
+      function isActive(canvas) {
+        return canvas.nextElementSibling instanceof HTMLCanvasElement
+      }
+
+      function hasSnapshot(canvas) {
+        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+        for (let index = 3; index < pixels.length; index += 4) if (pixels[index]) return true
+        return false
+      }
+
+      function assertActiveBlank(canvas, label) {
+        assert(isActive(canvas), `${label}: expected the shared WebGL surface here`)
+        assert(!hasSnapshot(canvas), `${label}: stale 2D pixels remain beneath the live model`)
+      }
+
+      function mount(canvas, id) {
+        let ready = false
+        let failed = false
+        let stopped = false
+        const handle = mountExerciseModel(canvas, id, exerciseMuscles(id), () => { ready = true }, () => { failed = true })
+        const entry = {
+          handle,
+          async wait() {
+            await until(() => {
+              assert(!failed, `${id}: renderer reported a loading or WebGL failure`)
+              return ready && isActive(canvas)
+            }, `${id}: first rendered frame`, 1200)
+          },
+          stop() {
+            if (stopped) return
+            stopped = true
+            handle.dispose()
+            mounted.delete(entry)
+          },
+        }
+        mounted.add(entry)
+        // All cases deliberately keep dimensions unchanged and animation paused:
+        // resizing must not accidentally erase the bug, nor playback hide a
+        // missing foreground-change frame.
+        handle.update({ visible: true, playing: false, view: 'front', width: 360 })
+        return entry
+      }
+
+      async function twoPanels() {
+        const first = mount(a, 'lat-pulldown')
+        await first.wait()
+        assertActiveBlank(a, 'Initial A')
+        const second = mount(b, 'db-floor-press')
+        await second.wait()
+        assert(hasSnapshot(a), 'A→B: no snapshot was created; the regression path was not exercised')
+        return { first, second }
+      }
+
+      function cleanup() {
+        for (const entry of [...mounted]) entry.stop()
+        for (const canvas of [a, b]) {
+          canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+          canvas.removeAttribute('data-model-state')
+        }
+      }
+
+      const cases = [
+        ['Paused A→B→A clears the old snapshot before rotation', async () => {
+          const { first, second } = await twoPanels()
+          second.stop()
+          await until(() => isActive(a), 'Closing B should restore A')
+          assertActiveBlank(a, 'Restored A')
+          first.handle.update({ orbit: { yaw: Math.PI / 2, pitch: 0.4 } })
+          const before = frameNumber
+          await until(() => frameNumber > before, 'Render rotated A')
+          assertActiveBlank(a, 'Rotated A')
+        }],
+        ['Visibility changes restore a clean paused panel and detach the last surface', async () => {
+          const { first, second } = await twoPanels()
+          second.handle.update({ visible: false })
+          await until(() => isActive(a), 'Hiding B should restore clean paused A')
+          assertActiveBlank(a, 'A after B became invisible')
+          first.handle.update({ visible: false })
+          await until(() => !isActive(a) && !isActive(b), 'No visible panels should leave no attached WebGL surface')
+          assert(hasSnapshot(a), 'The detached A surface should retain its fallback snapshot')
+          first.handle.update({ visible: true })
+          await until(() => isActive(a), 'Showing A should reattach its WebGL surface')
+          assertActiveBlank(a, 'A after visibility restore')
+        }],
+        ['A queued frame during scroll-out cannot leave a ghost after scroll-in', async () => {
+          const first = mount(a, 'lat-pulldown')
+          await first.wait()
+          // Queue an actual dirty-frame request, then hide the panel before its
+          // callback runs, as an IntersectionObserver can do during scrolling.
+          first.handle.update({ orbit: { yaw: 0.5, pitch: 0.2 } })
+          first.handle.update({ visible: false })
+          await until(() => !isActive(a), 'Queued frame should detach invisible A')
+          assert(hasSnapshot(a), 'Scroll-out did not exercise the snapshot path')
+          first.handle.update({ visible: true })
+          await until(() => isActive(a), 'Scroll-in should reactivate A')
+          assertActiveBlank(a, 'A after scroll-in')
+        }],
+        ['Reusing the same canvas for another exercise clears the former snapshot', async () => {
+          const { first, second } = await twoPanels()
+          first.stop()
+          const replacement = mount(a, 'db-floor-press')
+          assert(!hasSnapshot(a), 'Replacement exercise inherited pixels from the previous exercise')
+          await replacement.wait()
+          assertActiveBlank(a, 'Replacement exercise')
+          second.stop()
+        }],
+      ]
+
+      run.addEventListener('click', async () => {
+        run.disabled = true
+        results.replaceChildren()
+        status.dataset.result = 'running'
+        status.textContent = 'Running actual renderer checks…'
+        const failures = []
+        for (const [name, check] of cases) {
+          cleanup()
+          const row = document.createElement('li')
+          row.textContent = `${name} — running`
+          results.append(row)
+          try {
+            await check()
+            row.dataset.result = 'pass'
+            row.textContent = `PASS — ${name}`
+          } catch (error) {
+            failures.push(name)
+            row.dataset.result = 'fail'
+            row.textContent = `FAIL — ${name}: ${error.message}`
+          } finally { cleanup() }
+        }
+        status.dataset.result = failures.length ? 'fail' : 'pass'
+        status.textContent = failures.length ? `FAIL — ${failures.length}/${cases.length} checks failed` : `PASS — ${cases.length}/${cases.length} checks passed`
+        run.disabled = false
+      })
+    </script>
+  </body>
+</html>

@@ -70,7 +70,11 @@ class ExerciseRenderer {
   private schedule() {
     const visible = [...this.slots].filter(slot => slot.visible)
     const foreground = visible.at(-1)
-    if (!this.frame && this.canDraw() && foreground?.model && (foreground.dirty || this.animated(foreground))) {
+    // A clean, paused panel still needs a frame when it regains the shared
+    // surface. With no visible panel, detach the surface in that frame too.
+    const changed = foreground !== this.foreground
+    const needsFrame = foreground ? !!foreground.model && (changed || foreground.dirty || this.animated(foreground)) : changed
+    if (!this.frame && this.canDraw() && needsFrame) {
       this.frame = requestAnimationFrame(this.draw)
     }
   }
@@ -108,6 +112,9 @@ class ExerciseRenderer {
       }
       this.foreground = foreground
       if (foreground) {
+        // Its fallback may contain the pose from before another panel took
+        // over. The transparent live canvas must never overlay that snapshot.
+        foreground.context.clearRect(0, 0, foreground.canvas.width, foreground.canvas.height)
         foreground.canvas.after(this.renderer.domElement)
         foreground.dirty = true
       } else this.renderer.domElement.remove()
@@ -166,6 +173,7 @@ class ExerciseRenderer {
     clearTimeout(this.release)
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Canvas unavailable')
+    context.clearRect(0, 0, canvas.width, canvas.height)
     const slot: Slot = {
       canvas, context, visible: false, playing: true,
       animated: ANIMATED_EXERCISES.has(id), dirty: true, elapsed: 0,
@@ -207,6 +215,7 @@ class ExerciseRenderer {
           this.renderer.domElement.remove()
         }
         this.slots.delete(slot)
+        context.clearRect(0, 0, canvas.width, canvas.height)
         slot.model?.dispose()
         this.refresh()
         if (!this.slots.size) this.release = setTimeout(() => this.dispose(), 250)
