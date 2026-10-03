@@ -104,13 +104,13 @@ export class ExerciseEquipment {
     return wheel
   }
   /** A padded seat with a real adjustment post, feet and back/chest support. */
-  machineSeat(reverse = false, backLean = 0) {
+  machineSeat(reverse = false, backLean = 0, backOffset = 0) {
     this.block([0, .52, .025], [.38, .075, .34]).name = 'contact-seat'
     this.bar([0, .065, .025], [0, .48, .025], .038)
     this.block([0, .30, .025], [.10, .15, .10], 0, this.metal)
     this.bar([-.42, .045, -.30], [.42, .045, -.30], .035)
     this.bar([0, .045, -.30], [0, .045, .37], .035)
-    const z = reverse ? .185 : -.13 + backLean * .43
+    const z = reverse ? .185 : -.13 + backLean * .43 + backOffset
     this.block([0, reverse ? 1.06 : .99, z], [reverse ? .25 : .32, reverse ? .30 : .57, .065], backLean).name = 'contact-pad'
     // The support sits beyond the pad, never between it and the athlete.
     this.bar([0, .06, reverse ? .67 : -.36], [0, reverse ? 1.03 : 1.20, reverse ? .67 : -.36], .033)
@@ -153,7 +153,7 @@ export class ExerciseEquipment {
   }
   /** Independent fixed-length press levers; palms follow their grip centres. */
   pressMachine(overhead: boolean) {
-    this.machineSeat(false, -.035)
+    this.machineSeat(false, -.035, overhead ? .003 : 0)
     this.tower([0, 0, -.58], overhead ? 1.58 : 1.90)
     const pivotY = overhead ? 1.30 : 1.85, pivotZ = overhead ? -.50 : .20
     const dy = overhead ? 0 : -.79, dz = overhead ? .70 : .02

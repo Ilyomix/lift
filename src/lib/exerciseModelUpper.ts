@@ -26,11 +26,16 @@ const shoulders = (hips: Point, lean: number) => pair(s => [s * 0.1922427,
   hips[1] + 0.4749603 * Math.cos(lean) - 0.0138925 * Math.sin(lean),
   hips[2] + 0.4749603 * Math.sin(lean) + 0.0138925 * Math.cos(lean)])
 
-export function createUpperExercise(id: string, { body, equipment: eq }: ExerciseContext): ExerciseMotion | null {
+export function createUpperExercise(id: string, context: ExerciseContext): ExerciseMotion | null {
+  const motion = buildUpperExercise(id, context)
+  if (motion) context.body.calibrateTwistFromPose(() => motion.update(0))
+  return motion
+}
+
+function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext): ExerciseMotion | null {
   if (!UPPER_EXERCISES.has(id)) return null
   const motion = (update: ExerciseMotion['update'], framing: Partial<Omit<ExerciseMotion, 'update'>> = {}): ExerciseMotion => ({ ...standard, ...framing, update })
   const stand = (hands: Point[], poles: Point[], grip = true, axes = neutral, lean = 0) => body.pose([0, 0.983, 0], lean, knees, feet, hands, poles, { footRotations, grip, gripAxes: axes })
-  const attach = (objects: Group[], positions: Vector3[]) => objects.forEach((object, i) => object.position.copy(positions[i]))
   const palms = [body.manifest.bones.right, body.manifest.bones.left].map(side => ({
     wrist: body.root.getObjectByName(side.hand)!,
     index: body.root.getObjectByName(side.palmLandmarks!.index)!,
@@ -43,6 +48,10 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
     const axis = palm.index.getWorldPosition(new Vector3()).sub(palm.pinky.getWorldPosition(new Vector3()))
     return axis.addScaledVector(long, -axis.dot(long)).normalize()
   }
+  const attach = (objects: Group[], positions: Vector3[]) => objects.forEach((object, i) => {
+    object.position.copy(positions[i])
+    object.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gripAxis(i))
+  })
 
   if (id === 'pec-deck' || id === 'reverse-pec-deck') {
     const reverse = id === 'reverse-pec-deck'
@@ -66,7 +75,7 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
       const result = body.pose([0, .695, 0], -.035, pair(s => [s * .19, .59, .42]), pair(s => [s * .19, .08, .43]), hands,
         overhead ? pair(s => [s * .62, 1.17, .03]) : pair(s => [s * .75, .80, .01]),
         { footRotations, grip: true, gripAxes: lever?.axes ?? pronated, gripDirections: lever?.directions, gripTargets: !!lever })
-      loads.forEach((load, i) => load.position.copy(result.hands[i]))
+      attach(loads, result.hands)
     }, { target: [0, .97, .03], height: free ? 2.04 : 2.30 })
   }
 
@@ -76,13 +85,17 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
     if (!floor) eq.bench([0, incline ? 0.62 : 0.50, -0.19], incline ? Math.PI / 6 : 0, 1.18)
     else eq.block([0, 0.018, -0.1], [0.70, 0.035, 1.65], 0, eq.rubber)
     const loads = pullover ? [eq.dumbbell()] : SIDES.map(() => eq.dumbbell())
+    if (pullover) loads[0].quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(0, 1, 0))
     return motion(t => {
       const shoulderY = hipY + (incline ? 0.235 : 0), shoulderZ = incline ? -0.40 : -0.47
       const actualShoulders = shoulders([0, hipY, 0], lean)
       let targets: Point[]
       if (pullover) {
         const angle = 0.18 + 1.38 * t
-        targets = actualShoulders.map((origin, i): Point => [SIDES[i] * 0.075, origin[1] + 0.5271 * Math.sin(angle), origin[2] - 0.5271 * Math.cos(angle)])
+        // Both palms support the underside of the upper head, not the narrow
+        // shaft. Preserve shoulder reach while bringing the wrists together.
+        const radius = Math.sqrt(.5271 ** 2 + (.1922427 - .075) ** 2 - (.1922427 - .045) ** 2)
+        targets = actualShoulders.map((origin, i): Point => [SIDES[i] * .045, origin[1] + radius * Math.sin(angle), origin[2] - radius * Math.cos(angle)])
       } else if (fly) {
         const angle = 1.45 - 1.72 * t
         targets = actualShoulders.map((origin, i): Point => [origin[0] + SIDES[i] * 0.54 * Math.sin(angle), origin[1] + 0.54 * Math.cos(angle), origin[2]])
@@ -91,8 +104,11 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
       const result = body.pose([0, hipY, 0], lean,
         pair(s => [s * 0.19, floor ? 0.35 : 0.49, 0.42]), pair(s => [s * 0.21, 0.08, floor ? 0.72 : 0.48]), targets,
         pullover ? pair(s => [s * 0.35, hipY + 0.1, -0.78]) : pair(s => [s * 0.70, shoulderY + 0.03, shoulderZ + 0.15]),
-        { footRotations, grip: true, gripAxes: pronated })
-      if (pullover) loads[0].position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(0.5)
+        // Supine fly: longitudinal handles, palms facing one another at the
+        // top. A world-X shaft is almost parallel to the open forearm.
+        { footRotations, grip: !pullover, openHands: pullover, gripAxes: fly ? pair(() => [0, 0, -1]) : pronated,
+          gripDirections: pullover ? pair(() => [0, 0, -1]) : undefined })
+      if (pullover) loads[0].position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(0.5).add(new Vector3(0, -.043, 0))
       else attach(loads, result.hands)
     }, { camera: [2.7, 2.15, 2.8], target: [0, floor ? 0.34 : 0.72, -0.20], height: floor ? 1.55 : 1.83 })
   }
@@ -169,7 +185,11 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
         const anchor: Point = [single ? .2 : 0, height, single ? .62 : .29]
         placeBetween(cable, anchor, singleGrip ? singleGrip(result.hands[1], anchor, gripAxis(1)) : barCentre)
       }
-      bandHandles.forEach((grip, i) => { grip.position.copy(result.hands[i]); placeBetween(bandLines[i], [0, height, 0.62], result.hands[i]) })
+      bandHandles.forEach((grip, i) => {
+        grip.position.copy(result.hands[i])
+        grip.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), gripAxis(i))
+        placeBetween(bandLines[i], [0, height, 0.62], result.hands[i])
+      })
     }, { target: [0, 1.10, 0.12], height: 2.48, camera: [2.8, 1.65, 4.1] })
   }
 
@@ -181,6 +201,7 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
     const rowMachine = supported ? eq.supportedRow() : null
     if (supported) { grips.forEach(grip => { grip.visible = false }) } else if (single) { eq.bench([0.19, 0.5, 0.1]); load = eq.dumbbell(); grips.forEach(grip => { grip.visible = false }) }
     else if (inverted || door) {
+      if (inverted) grips.forEach(grip => { grip.visible = false })
       for (const s of SIDES) eq.bar([s * (door ? 0.40 : 0.55), 0.02, inverted ? -0.55 : 0.40], [s * (door ? 0.40 : 0.55), inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], 0.035)
       eq.bar([door ? -0.40 : -0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], [door ? 0.40 : 0.55, inverted ? 1.1 : 2.05, inverted ? -0.55 : 0.40], 0.025)
     } else if (band) eq.block([0, 0.018, 0.25], [0.72, 0.035, 1.40], 0, eq.rubber)
@@ -216,9 +237,15 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
       const lever = rowMachine?.(t)
       if (lever) hands = lever.targets
       const result = body.pose(hip, lean, legKnees, legFeet, hands,
-        pair(s => [s * (band || single ? 0.35 : 0.65), single ? 0.96 : band ? 0.47 : supported ? 1.14 : seated ? 0.83 : 1.2, -0.23]), { footRotations, grip: true, gripAxes: lever?.axes ?? (inverted ? pronated : neutral), gripDirections: lever?.directions ?? (inverted ? pair(() => [0, 1, 0]) : door ? pair(() => [0, 0, 1]) : undefined), flatHandSides: single ? [false, true] : undefined, gripTargets: inverted || door || supported })
-      grips.forEach((grip, i) => grip.position.copy(result.hands[i]))
-      if (load) load.position.copy(result.hands[0])
+        pair(s => [s * (band || single ? 0.35 : 0.65), single ? 0.96 : band ? 0.47 : supported ? 1.14 : seated ? 0.83 : 1.2, -0.23]), { footRotations, grip: true, gripAxes: lever?.axes ?? (inverted ? pronated : single ? pair(() => [0, 0, 1]) : neutral), gripDirections: lever?.directions ?? (inverted ? pair(() => [0, 1, 0]) : door ? pair(() => [0, 0, 1]) : undefined), flatHandSides: single ? [false, true] : undefined, gripTargets: inverted || door || supported })
+      grips.forEach((grip, i) => {
+        grip.position.copy(result.hands[i])
+        grip.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), gripAxis(i))
+      })
+      if (load) {
+        load.position.copy(result.hands[0])
+        load.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gripAxis(0))
+      }
       const middle = result.hands[0].clone().add(result.hands[1]).multiplyScalar(0.5)
       if (connectors[0]) {
         const anchor: Point = band ? [0, .14, .88] : [0, .62, 1.0]
@@ -237,7 +264,7 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
     return motion(t => {
       const angle = 0.65 - 1.85 * t
       const targets = face ? pair(s => [s * (0.12 + 0.21 * t), 1.40 + 0.08 * t, 0.54 - 0.44 * t]) : shoulders([0, 0.983, 0], 0.10).map((shoulder): Point => [shoulder[0], shoulder[1] + 0.54 * Math.sin(angle), shoulder[2] + 0.54 * Math.cos(angle)])
-      const result = stand(targets, face ? pair(s => [s * 0.7, 1.50, -0.1]) : pair(s => [s * 0.22, 1.32, 0.36]), true, neutral, face ? 0 : 0.10)
+      const result = stand(targets, face ? pair(s => [s * 0.7, 1.50, -0.1]) : pair(s => [s * 0.22, 1.32, 0.36]), true, face ? neutral : pronated, face ? 0 : 0.10)
       ropes.forEach((rope, i) => placeBetween(rope, anchor, grips[i](result.hands[i], anchor, gripAxis(i))))
     }, { target: [0, 1.02, 0.2], height: 2.4 })
   }
@@ -245,7 +272,6 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
   if (['lateral-raise', 'cable-lateral-raise', 'band-lateral-raise', 'db-rear-delt-fly', 'band-pull-apart', 'prone-y-raise'].includes(id)) {
     const cable = id === 'cable-lateral-raise', band = id.startsWith('band-'), rear = id === 'db-rear-delt-fly', apart = id === 'band-pull-apart', prone = id === 'prone-y-raise'
     const dumbbells = !cable && !band && !prone ? SIDES.map(() => eq.dumbbell()) : []
-    dumbbells.forEach(dumbbell => { dumbbell.rotation.y = Math.PI / 2 })
     const handles = cable || band ? SIDES.map(() => eq.handle()) : []
     const lateralGrip = cable ? eq.cableHandle(.14, true) : null
     if (cable) eq.tower([-.70, 0, .55], 1.8)
@@ -265,9 +291,12 @@ export function createUpperExercise(id: string, { body, equipment: eq }: Exercis
         prone ? pair(s => [s * 0.15, 0.12, -0.43]) : knees,
         prone ? pair(s => [s * 0.15, 0.20, -0.87]) : feet,
         targets, pair(s => [s * 0.65, rear ? 1.09 : prone ? 0.45 : 1.18, rear || prone ? 0.4 : -0.05]),
-        { footRotations: prone ? pair(() => [Math.PI / 2, 0, 0]) : footRotations, grip: !prone, openHands: prone, gripAxes: dumbbells.length || cable ? pair(() => [0,0,1]) : neutral, gripTargets: cable, gripDirections: cable ? targets.map((target, i) => new Vector3(...target).sub(new Vector3(...origins[i])).normalize().toArray() as Point) : undefined })
+        { footRotations: prone ? pair(() => [Math.PI / 2, 0, 0]) : footRotations, grip: !prone, openHands: prone, gripAxes: dumbbells.length || cable || (band && !apart) ? pair(() => [0,0,1]) : neutral, gripTargets: cable, gripDirections: cable ? targets.map((target, i) => new Vector3(...target).sub(new Vector3(...origins[i])).normalize().toArray() as Point) : undefined })
       attach(dumbbells, result.hands)
-      handles.forEach((handle, i) => { handle.position.copy(result.hands[i]); handle.visible = !cable })
+      handles.forEach((handle, i) => {
+        handle.position.copy(result.hands[i]); handle.visible = !cable
+        handle.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), gripAxis(i))
+      })
       if (apart) placeBetween(connectors[0], result.hands[0], result.hands[1])
       else connectors.forEach((line, i) => {
         line.visible = !cable || i === 1

@@ -13,7 +13,13 @@ const footRotation: Point[] = [[0, 0, 0], [0, 0, 0]]
 const pair = (fn: (side: number, index: number) => Point) => sides.map(fn)
 
 /** Elbows remain on a fixed arc centre; shoulder motion never impersonates a curl. */
-export function createArmExercise(id: string, { body, equipment: e }: ExerciseContext): ExerciseMotion | null {
+export function createArmExercise(id: string, context: ExerciseContext): ExerciseMotion | null {
+  const motion = buildArmExercise(id, context)
+  if (motion) context.body.calibrateTwistFromPose(() => motion.update(0))
+  return motion
+}
+
+function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): ExerciseMotion | null {
   if (!ARM_EXERCISES.has(id)) return null
   const curl = ['ez-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'band-curl'].includes(id)
   const seated = ['preacher-curl', 'seated-db-curl', 'incline-db-curl'].includes(id)
@@ -38,7 +44,7 @@ export function createArmExercise(id: string, { body, equipment: e }: ExerciseCo
     const length = body.measures.arms[i][0]
     // A hanging dumbbell needs room outside the thigh and the bench edge.
     // Mild shoulder abduction keeps the full weight clear throughout the curl.
-    const x = sides[i] * (dumbbellCurl || preacher ? .30 : id === 'band-curl' ? .26 : !curl && !overhead && !skull ? .25 : skull ? .225 : .215)
+    const x = sides[i] * (dumbbellCurl || preacher ? .30 : id === 'band-curl' ? .26 : !curl && !overhead && !skull ? .25 : skull ? .225 : id === 'db-overhead-extension' ? .16 : .215)
     const span = Math.sqrt(length * length - (x - shoulder[0]) ** 2)
     if (skull) return [x, shoulder[1] + span, shoulder[2]]
     if (overhead) return [x, shoulder[1] + span * Math.cos(0.25), shoulder[2] - span * Math.sin(0.25)]
@@ -58,12 +64,12 @@ export function createArmExercise(id: string, { body, equipment: e }: ExerciseCo
       e.block(backCenter, [0.32, 0.59, 0.07], lean)
       e.bar([0, 0.08, backCenter[2]], [0, backCenter[1], backCenter[2]], 0.026)
     } else {
-      // Split arm pads leave the torso clear; pivots and levers sit outside
-      // the elbows instead of running through the animated forearms.
+      // Split pads centred under the elbows leave the armpits/torso clear;
+      // pivots and levers sit outside the animated forearms.
       for (const side of sides) {
-        e.block([side * .265, 1.012, .032], [.16, .05, .24], .80)
+        e.block([side * .30, 1.012, .032], [.16, .05, .24], .80)
         e.bar([side * .40, .05, .22], [side * .40, .94, .12], .026)
-        e.bar([side * .40, .94, .12], [side * .265, .99, .01], .022)
+        e.bar([side * .40, .94, .12], [side * .30, .99, .01], .022)
       }
       e.bar([-.43, .035, -.16], [.43, .035, -.16], .03)
       e.block([0, 0.49, 0.58], [0.24, 0.64, 0.18], 0, e.rubber)
@@ -123,14 +129,20 @@ export function createArmExercise(id: string, { body, equipment: e }: ExerciseCo
     height: skull ? 1.72 : overhead || rope || id === 'band-pushdown' ? 2.35 : seated ? 1.85 : 2.04,
     update(t) {
       const targets = elbows.map((elbow, i): Point => {
-        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .075 : .12) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .10 * t)
+        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .075 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .13 * t)
         const length = Math.sqrt(Math.max(0.01, body.measures.arms[i][1] ** 2 - (wristX - elbow[0]) ** 2))
-        const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? -2.20 + 2.15 * t : skull ? -1.42 + 1.42 * t : 1.48 - 1.34 * t
+        const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? -2.30 + 2.10 * t : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
         return [wristX, elbow[1] + (curl || !overhead && !skull ? -1 : 1) * length * Math.cos(angle), elbow[2] + length * Math.sin(angle)]
       })
-      const gripAxes: Point[] = skull ? [[0, 0, 1], [0, 0, 1]] : curl
+      const gripAxes: Point[] = curl
         ? pair(side => [side * Math.sin(.18 + 1.39 * t), 0, Math.cos(.18 + 1.39 * t)])
-        : singleDumbbell ? [[1, 0, 0], [1, 0, 0]] : [[0, 1, 0], [0, 1, 0]]
+        : singleDumbbell ? pair(side => [side, 0, 0]) : targets.map((target, i): Point => {
+          // A neutral grip rotates with elbow flexion. Projecting a fixed
+          // vertical axis becomes singular near extension and rolls the hands
+          // sideways; the sagittal tangent stays perpendicular and continuous.
+          const along = new Vector3(...target).sub(new Vector3(...elbows[i])).normalize()
+          return [0, overhead || skull ? -along.z : along.z, overhead || skull ? along.y : -along.y]
+        })
       if (bar || id === 'band-curl') for (let i = 0; i < 2; i++) gripAxes[i] = [sides[i], 0, 0]
       // Use the same orthogonal palm frame for the weight and the fingers.
       for (let i = 0; i < 2; i++) {

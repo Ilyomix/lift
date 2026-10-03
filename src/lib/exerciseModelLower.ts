@@ -21,7 +21,13 @@ const torso = (hips: Point, lean: number, point: Point): Point => add(hips, rota
 const average = (points: Vector3[]) => points.reduce((a, p) => a.add(p), new Vector3()).multiplyScalar(1 / points.length)
 
 /** Dedicated lower/core contact models. Coordinates are authored for 1.82 m and scaled to the real rig. */
-export function createLowerExercise(id: string, { body, equipment: eq }: ExerciseContext): ExerciseMotion | null {
+export function createLowerExercise(id: string, context: ExerciseContext): ExerciseMotion | null {
+  const motion = buildLowerExercise(id, context)
+  if (motion) context.body.calibrateTwistFromPose(() => motion.update(0))
+  return motion
+}
+
+function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext): ExerciseMotion | null {
   if (!LOWER_EXERCISES.has(id)) return null
   const scale = body.measures.height / 1.82
   const upper = body.measures.legs[0][0] / scale
@@ -198,10 +204,15 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
 
   if (id === 'lying-leg-curl') {
     eq.bench(p([0, 0.56, 0.20]), 0, 1.35 * scale)
-    SIDES.forEach(side => bar([side * 0.26, 0.65, 0.62], [side * 0.26, 0.65, 0.84], 0.018))
+    // Upright grips let the forearms reach forward without twisting the palms
+    // around a shaft that points through the fingers toward the wrist.
+    SIDES.forEach(side => {
+      bar([side * 0.16, 0.565, 0.73], [side * 0.26, 0.565, 0.73], 0.016).name = 'ProneHandleMount'
+      bar([side * 0.26, 0.565, 0.73], [side * 0.26, 0.735, 0.73], 0.018).name = 'ProneHandle'
+    })
     const hands = pair(side => [side * 0.26, 0.65, 0.73])
     const poles: Point[] = [[-0.50, 0.58, 0.43], [0.50, 0.58, 0.43]]
-    const options = { grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] as Point[] }
+    const options = { grip: true, gripTargets: true, gripAxes: pair(() => [0, 1, 0]) }
     const seedKnees = pair(side => [side * halfHip, 0.735, -upper])
     const seedFeet = seedKnees.map(knee => add(knee, [0, lower * Math.sin(0.1), -lower * Math.cos(0.1)]))
     const knees = pose([0, 0.75, 0], PI / 2, seedKnees, seedFeet, hands, poles, options).knees.map(knee => knee.clone().multiplyScalar(1 / scale).toArray() as Point)
@@ -264,7 +275,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       // Knees bend toward the torso, above/behind the hip-to-ankle axis.
       // A low forward pole picks the opposite IK branch (backward knees).
       pose(hips, -0.65, pair(side => [side * 0.28, 1.15, -0.38]), feet,
-        pair(side => [side * 0.28, 0.46, -0.30]), pair(side => [side * 0.34, 0.74, -0.50]), { footRotations: [[footAngle, 0, 0], [footAngle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+        pair(side => [side * 0.28, 0.46, -0.30]), pair(side => [side * 0.34, 0.74, -0.50]), { footRotations: [[footAngle, 0, 0], [footAngle, 0, 0]], grip: true, gripTargets: true, gripAxes: pair(() => [0, 0, 1]) })
       const plateCenter = add(center, id === 'calf-press' ? rotate([0, -0.046 - 0.020 * t, 0.15], plateAngle) : plateOffset)
       platform.position.set(...p(plateCenter))
       const sled = add(plateCenter, rotate([0, -0.055, 0], plateAngle))
@@ -289,7 +300,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       if (id === 'single-leg-rdl') hands[0] = [-0.47, 1.05, 0.24]
       const knees = id === 'single-leg-rdl' ? [[-0.18, 0.50, 0.30], [0.17, hips[1] - 0.4, hips[2] - 0.3]] as Point[] : pair(side => [side * 0.18, 0.49, 0.28])
       const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
-        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: id === 'single-leg-rdl' })
+        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
       if (barbell) barbell.position.copy(average(result.hands))
       dumbbells.forEach((weight, i) => weight.position.copy(result.hands[i]))
     }, [2.8, 1.7, 3.7], [0, 0.86, -0.03], 2.13)
@@ -382,7 +393,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
     const grips = single ? [] : SIDES.map(() => eq.handle())
     const gripLinks = single ? [] : SIDES.map(side => bar([side * 0.20, 0.8, 0], [side * 0.20, 0.8, 0.1], 0.016))
     const pads = seated ? [block([0, 0.83, 0.01], [0.51, 0.09, 0.18])]
-      : single ? [] : SIDES.map(side => block([side * 0.2, 1.63, -0.05], [0.16, 0.11, 0.25]))
+      : single ? [] : SIDES.map(side => block([side * 0.26, 1.63, -0.05], [0.14, 0.11, 0.25]))
     return motion(t => {
       const angle = -0.18 + 0.65 * t
       const feet = pair(side => ankleFromToe([side * 0.16, 0.28, 0.17], angle))
@@ -394,7 +405,9 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       } else {
         hips = [0, feet[0][1] + upper + lower - 0.007, feet[0][2] - 0.01]
         knees = pair(side => [side * 0.16, hips[1] - upper, feet[0][2] + 0.03])
-        hands = pair(side => [side * 0.32, hips[1] + 0.29, 0.16])
+        // Handles travel with the shoulder carriage. A fixed world-Z target
+        // folded the upper arms upward as the body rose onto the forefoot.
+        hands = pair(side => [side * 0.32, hips[1] + 0.29, hips[2] + 0.35])
         if (single) {
           feet[1] = [0.16, feet[0][1] + 0.22, -0.24]
           knees[1] = [0.16, hips[1] - 0.40, 0.05]
@@ -402,7 +415,8 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
           lean = 0.035
         }
       }
-      const result = pose(hips, lean, knees, feet, hands, undefined, { footRotations: [[angle, 0, 0], [single ? 0 : angle, 0, 0]], grip: true, gripTargets: true })
+      const poles = !seated && !single ? pair(side => [side * 0.32, hips[1] + 0.10, hips[2] + 0.15]) : undefined
+      const result = pose(hips, lean, knees, feet, hands, poles, { footRotations: [[angle, 0, 0], [single ? 0 : angle, 0, 0]], grip: true, gripTargets: true })
       grips.forEach((grip, i) => {
         grip.position.copy(result.hands[i])
         const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.59, hips[2] + 0.13]))
@@ -410,7 +424,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       })
       if (seated) pads[0].position.copy(average(result.knees)).add(new Vector3(0, 0.055 * scale, -0.04 * scale))
       else pads.forEach((pad, i) => {
-        pad.position.set(...p([SIDES[i] * 0.20, hips[1] + 0.588, hips[2] - 0.035]))
+        pad.position.set(...p([SIDES[i] * 0.26, hips[1] + 0.588, hips[2] - 0.035]))
         pad.name = 'CalfShoulderPad'
       })
     }, [2.8, 1.9, 3.8], [0, seated ? 0.81 : 1.0, 0], seated ? 1.85 : 2.5)
