@@ -44,11 +44,6 @@ coords=[v.co.copy() for v in evalbody.data.vertices]
 # MASK changes evaluated vertex count, so first evaluate only shape keys.
 body.modifiers['Hide helpers'].show_viewport=False; bpy.context.view_layer.update()
 coords=[v.co.copy() for v in body.evaluated_get(bpy.context.evaluated_depsgraph_get()).data.vertices]
-eye_centers=[]
-for side in ['l','r']:
-    idx=body.vertex_groups['joint-'+side+'-eye'].index
-    ids=[v.index for v in body.data.vertices if any(g.group==idx for g in v.groups)]
-    eye_centers.append(sum((coords[i] for i in ids),Vector())/len(ids))
 body.shape_key_clear()
 for v,c in zip(body.data.vertices,coords): v.co=c
 body.modifiers['Hide helpers'].show_viewport=True
@@ -68,13 +63,10 @@ def material(name,color,rough=.52,metal=0):
  return m
 skin=material('M_Skin',(0.29,.34,.4),.48)
 body.data.materials.clear(); body.data.materials.append(skin)
-# Opaque neutral ocular surfaces, weighted to the actual head. No dark empty sockets.
-for center in eye_centers:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=8,radius=.0118,location=center*factor)
-    eye=bpy.context.object; eye.name='SK_EyeSurface'; eye.data.materials.append(skin)
-    eye.vertex_groups.new(name='head').add(list(range(len(eye.data.vertices))),1.0,'REPLACE')
-    bpy.ops.object.select_all(action='DESELECT'); eye.select_set(True); body.select_set(True); bpy.context.view_layer.objects.active=body; bpy.ops.object.join()
-    for p in body.data.polygons:p.use_smooth=True
+# User-requested anonymous mannequin face, with no ocular geometry or facial relief.
+# Retopology keeps the real body and existing GameEngine skeleton.
+import runpy
+runpy.run_path(str(root/'scripts/athlete-head.py'))['make_faceless_head'](body)
 # Compression shorts are cut from the actual character topology, with same skin weights.
 shorts=body.copy(); shorts.data=body.data.copy(); bpy.context.collection.objects.link(shorts); shorts.name='SK_AthleteShorts'
 bm=bmesh.new(); bm.from_mesh(shorts.data)

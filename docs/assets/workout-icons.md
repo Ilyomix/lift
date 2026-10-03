@@ -15,7 +15,7 @@ node scripts/verify-sport-models.mjs
 - `lower`: pelvis and legs in a modest bent stance, thighs/hips highlighted.
 - `legs`: pelvis and standing legs, thighs/calves highlighted; tibial front remains neutral.
 
-These are illustrative poses, not exercise instruction clips. They share the anatomical skin/shorts surface. Off-frame body geometry is removed; cut planes are capped, and disconnected hand geometry is removed from lower-body icons. The cropped topology is retained without collapse decimation: Blender's collapse mode moves anatomical boundaries despite the material delimiter. The original animated athlete is untouched by the derivative generator.
+The upper/push/pull derivatives use the same smooth anonymous head as the demonstration model, with no facial features. These are illustrative poses, not exercise instruction clips. They share the anatomical skin/shorts surface. Off-frame body geometry is removed; cut planes are capped, and disconnected hand geometry is removed from lower-body icons. The cropped topology is retained without collapse decimation: Blender's collapse mode moves anatomical boundaries despite the material delimiter. The original animated athlete is untouched by the derivative generator.
 
 Each file has three material names (`LiftSilver`, `LiftCobalt`, `LiftGraphite`), an orthographic 1:1 camera, and one `Idle` clip from 0 to 6 seconds. Only a subtle whole-object yaw is animated. The character's skinning is baked into this static derivative, so no skeleton is loaded for tiny icons. No texture, remote asset or raster picture is used at runtime.
 
