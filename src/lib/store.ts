@@ -265,6 +265,11 @@ export const useStore = create<Store>((set, get) => ({
         const state = localizeState(normalized)
         syncPlan(state)
         set({ ready: true, hasData: true, state, photos, storage: 'idb' })
+        // A newer revision of the program changed the sheets: stored at once (the change is recorded once), and said.
+        if (typeof raw.programRevision === 'number' && raw.programRevision < normalized.programRevision) {
+          void get().flush()
+          get().notify(L('Programme mis à jour : abdos, mollets et deltoïdes postérieurs passent à 10 séries par semaine.', 'Program updated: abs, calves and rear delts go to 10 sets a week.'), 'good')
+        }
       } else {
         set({ ready: true, hasData: false, storage: 'idb' })
       }

@@ -2,7 +2,7 @@ import { todayISO } from './date'
 import { DEFAULT_GYMS, HOME_GYM } from './gyms'
 import { L } from './i18n'
 import {
-  buildResearchTemplates, DEFAULT_GOAL, DEFAULT_SCHEDULE, defaultGoalFor, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, REPORT_FOUNDATION, REPORT_START,
+  buildResearchTemplates, upgradeSheets, DEFAULT_GOAL, DEFAULT_SCHEDULE, defaultGoalFor, isValidGoal, PROGRAM_ID, PROGRAM_REVISION, REPORT_FOUNDATION, REPORT_START,
   ROTATION, TOTAL_SESSIONS, TYPE_META,
 } from './program'
 import type {
@@ -281,7 +281,7 @@ export function normalizeState(raw: any): AppState {
       }
     : null
   const fullTemplates = { ...d.templates, ...templates } as Record<WorkoutType, Template>
-  return {
+  return upgradedProgram({
     ...d,
     version: 2,
     programId: str(raw.programId, 'legacy'),
@@ -332,6 +332,39 @@ export function normalizeState(raw: any): AppState {
       lastBackupAt: typeof raw.meta?.lastBackupAt === 'string' ? raw.meta.lastBackupAt : null,
       importedAt: typeof raw.meta?.importedAt === 'string' ? raw.meta.importedAt : null,
     },
+  })
+}
+
+/**
+ * A state written by an earlier revision of the research program takes the current one: its
+ * sheets (and the ones kept for the other training place) are upgraded, and the change is
+ * recorded where plan updates are listed.
+ */
+function upgradedProgram(state: AppState): AppState {
+  if (state.programId !== PROGRAM_ID || state.programRevision >= PROGRAM_REVISION) return state
+  const setup = state.settings.setup ?? { place: 'gym' as const, equipment: [] }
+  const kept = state.archive?.templatesBySetup
+  const other = (place: 'gym' | 'home') =>
+    kept?.[place] ? upgradeSheets(kept[place]!, state.programRevision, place === setup.place ? setup : { place, equipment: place === 'home' ? ['dumbbells', 'bench', 'pullupBar', 'bands'] : [] }, state.workouts) : undefined
+  return {
+    ...state,
+    programRevision: PROGRAM_REVISION,
+    templates: upgradeSheets(state.templates, state.programRevision, setup, state.workouts),
+    archive: kept ? { ...state.archive, templatesBySetup: { ...kept, ...(kept.gym ? { gym: other('gym') } : {}), ...(kept.home ? { home: other('home') } : {}) } } : state.archive,
+    appliedPlanUpdates: [
+      ...state.appliedPlanUpdates,
+      {
+        updateId: `program-revision-${PROGRAM_REVISION}`,
+        basedOnSession: state.completedSessions || null,
+        summary: L(
+          'Programme : abdos, mollets et deltoïdes postérieurs passent de 6 à 10 séries par semaine (deux séries de plus sur leurs exercices, deltoïdes postérieurs ajoutés en Push), pour suivre la règle des 10–20 séries par muscle.',
+          'Program: abs, calves and rear delts go from 6 to 10 sets a week (two more sets on their exercises, rear delts added on Push), to follow the rule of 10–20 sets per muscle.',
+        ),
+        appliedAt: new Date().toISOString(),
+        changeCount: 6,
+        source: 'program',
+      },
+    ],
   }
 }
 
