@@ -63,6 +63,14 @@ afterEach(() => {
   else Reflect.deleteProperty(globalThis, 'indexedDB')
 })
 
+test('preparing a backup does not claim that an export completed', () => {
+  const previousExport = '2026-09-01T09:00:00.000Z'
+  useStore.setState({ state: { ...defaultState(), meta: { ...defaultState().meta, lastBackupAt: previousExport } }, photos: [] })
+  const backup = useStore.getState().exportBackup()
+  assert.ok(backup.exportedAt)
+  assert.equal(useStore.getState().state.meta.lastBackupAt, previousExport)
+})
+
 test('a suspended IndexedDB connection is reopened and the save retried once', async () => {
   failures = 1
   await useStore.getState().flush()

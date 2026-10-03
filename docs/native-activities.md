@@ -23,6 +23,12 @@ The checked-in projects are complete: do not run `cap add` again. Run `native:sy
 - iOS finds existing activities after relaunch and ends activities from a different session. Android uses a non-sticky service, stops on task removal and expires tracking after eight hours without a new snapshot. iOS marks the snapshot stale at that deadline; iOS also imposes its own Live Activity lifetime.
 - The native app uses a separate browser storage origin: export a backup from the PWA and import it into the native app to carry your history over.
 
+## Native file sharing
+
+Backups and calendar exports use the official [Capacitor Filesystem](https://capacitorjs.com/docs/apis/filesystem) and [Share](https://capacitorjs.com/docs/apis/share) plugins. Files are written to the private OS cache and handed to the system share sheet only after the user requests an export. iOS removes the temporary file after the receiving activity completes or is canceled; Android keeps the cached file available for receivers that read it asynchronously. No cloud storage or additional file permission is required for this cache path.
+
+The backup date changes only after a successful share. Canceling or failing an export preserves the previous date; native failures do not fall back to unsupported `blob:capacitor://` navigation. Native coach text uses the same system share sheet. The privacy manifest includes the Filesystem plugin's required FileTimestamp reason `C617.1` alongside the activity journal's UserDefaults reason `CA92.1`.
+
 ## Languages
 
 All user-facing generated workout strings follow Lift's resolved French/English preference. Exercise names follow the app's existing localization of the store. Changing language refreshes the active native snapshot, including notification text. Bodyweight and per-hand units follow that language too. Android's OS notification channel names/descriptions have English and French resources (the OS manages their display). No native screen introduces a separate language preference.

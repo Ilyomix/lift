@@ -390,11 +390,7 @@ export const useStore = create<Store>((set, get) => ({
     await get().flush()
   },
 
-  exportBackup: () => {
-    const b = makeBackup(get().state, get().photos)
-    get().update((s) => ({ ...s, meta: { ...s.meta, lastBackupAt: b.exportedAt } }))
-    return b
-  },
+  exportBackup: () => makeBackup(get().state, get().photos),
 
   resetAll: async () => {
     try {

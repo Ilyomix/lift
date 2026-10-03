@@ -1,8 +1,23 @@
 import { L } from './i18n'
 import { useStore } from './store'
+import { Capacitor } from '@capacitor/core'
+
+const shareCancelled = (error: unknown) =>
+  (error as Error)?.name === 'AbortError' || (error as Error)?.message === 'Share canceled'
 
 /** Shares a coach brief through the phone's share sheet (straight into an AI assistant app), or copies it. */
 export async function shareText(text: string, title: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Share } = await import('@capacitor/share')
+      await Share.share({ title, text })
+      return
+    } catch (error) {
+      if (shareCancelled(error)) return
+    }
+    await copyText(text)
+    return
+  }
   const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }
   if (nav.share && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
     try {
@@ -39,15 +54,35 @@ export async function copyText(text: string): Promise<void> {
 }
 
 /** Saves a file: share sheet with a file on mobile (Save to Files / Calendar), download elsewhere. */
-export async function saveFile(name: string, content: string, type: string): Promise<void> {
+export async function saveFile(name: string, content: string, type: string): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) {
+    const path = `exports/${name}`
+    try {
+      const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
+        import('@capacitor/filesystem'), import('@capacitor/share'),
+      ])
+      const file = await Filesystem.writeFile({ path, data: content, directory: Directory.Cache, encoding: Encoding.UTF8, recursive: true })
+      try {
+        await Share.share({ files: [file.uri], title: name })
+        return true
+      } finally {
+        // iOS resolves after the receiving activity finishes. Android receivers
+        // can still be reading after the chooser closes; leave their OS cache.
+        if (Capacitor.getPlatform() === 'ios') await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(() => undefined)
+      }
+    } catch (error) {
+      if (!shareCancelled(error)) useStore.getState().notify(L('Export impossible. Réessaie depuis cette page.', 'Export failed. Try again from this page.'), 'bad')
+      return false
+    }
+  }
   const file = new File([content], name, { type })
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean; share?: (d: ShareData) => Promise<void> }
   if (/iPhone|iPad|Android/i.test(navigator.userAgent) && nav.canShare?.({ files: [file] }) && nav.share) {
     try {
       await nav.share({ files: [file], title: name })
-      return
+      return true
     } catch (e) {
-      if ((e as Error)?.name === 'AbortError') return
+      if (shareCancelled(e)) return false
     }
   }
   const url = URL.createObjectURL(file)
@@ -58,6 +93,7 @@ export async function saveFile(name: string, content: string, type: string): Pro
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 4000)
+  return true
 }
 
 export function isStandalone(): boolean {

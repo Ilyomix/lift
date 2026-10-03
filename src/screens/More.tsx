@@ -618,6 +618,7 @@ export function DataScreen() {
   const [upgrade, setUpgrade] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reset, setReset] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const onFile = async (f: File | undefined) => {
     if (!f) return
     try {
@@ -627,9 +628,19 @@ export function DataScreen() {
       setError((e as Error).message)
     }
   }
-  const doExport = () => {
-    const b = exportBackup()
-    void saveFile(`lift-${todayISO()}.json`, JSON.stringify(b), 'application/json')
+  const doExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const b = exportBackup()
+      if (await saveFile(`lift-${todayISO()}.json`, JSON.stringify(b), 'application/json')) {
+        useStore.getState().update((s) => ({ ...s, meta: { ...s.meta, lastBackupAt: b.exportedAt } }))
+      }
+    } catch {
+      useStore.getState().notify(L('Export impossible. Réessaie depuis cette page.', 'Export failed. Try again from this page.'), 'bad')
+    } finally {
+      setExporting(false)
+    }
   }
   return (
     <Screen>
@@ -641,7 +652,7 @@ export function DataScreen() {
         <Row label={L('Dernier export', 'Last export')} value={state.meta.lastBackupAt ? fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10)) : L('jamais', 'never')} />
       </Card>
       <div className="mt-4 grid gap-2">
-        <Button variant="primary" size="lg" full icon={<Download size={18} aria-hidden />} onClick={doExport}>{L('Exporter la sauvegarde', 'Export backup')}</Button>
+        <Button variant="primary" size="lg" full icon={<Download size={18} aria-hidden />} disabled={exporting} onClick={() => void doExport()}>{L('Exporter la sauvegarde', 'Export backup')}</Button>
         <Button variant="outline" size="lg" full icon={<Upload size={18} aria-hidden />} onClick={() => file.current?.click()}>{L('Importer une sauvegarde', 'Import a backup')}</Button>
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>
