@@ -69,6 +69,15 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     const offset = rotate([0, -0.067, 0.132], angle)
     return [toe[0] - offset[0], toe[1] - offset[1], toe[2] - offset[2]]
   }
+  const sagittalKneePole = (hips: Point, foot: Point, side: number): Point => {
+    const y = foot[1] - hips[1], z = foot[2] - hips[2]
+    const length = Math.hypot(y, z)
+    // A point on the nominal knee arc can cross the hip–ankle line and flip
+    // IK. Keep the pole well outside that line on the knee's flexion side.
+    return [(side * halfHip + foot[0]) / 2,
+      (hips[1] + foot[1]) / 2 + .40 * z / length,
+      (hips[2] + foot[2]) / 2 - .40 * y / length]
+  }
 
   if (id === 'goblet-squat' || id === 'smith-squat' || id === 'hack-squat' || id === 'bulgarian-split-squat' || id === 'sissy-squat') {
     const dumbbell = id === 'goblet-squat' ? eq.dumbbell() : null
@@ -317,12 +326,18 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     barbell?.scale.setScalar(scale)
     const dumbbells = id === 'db-romanian-deadlift' ? SIDES.map(() => eq.dumbbell()) : []
     dumbbells.forEach(weight => weight.scale.setScalar(scale))
+    const freeHipOffset = body.root.getObjectByName(body.manifest.bones.left.thigh)!.getWorldPosition(new Vector3())
+      .sub(body.root.getObjectByName(body.manifest.bones.pelvis)!.getWorldPosition(new Vector3())).divideScalar(scale).toArray() as Point
+    const freeLegReach = Math.sqrt((upper + lower - .009) ** 2 - (.17 - freeHipOffset[0]) ** 2)
     if (id === 'single-leg-rdl') bar([-0.47, 0.03, 0.24], [-0.47, 1.45, 0.24], 0.03)
     return motion(t => {
       const lean = 0.04 + 1.08 * t
       const hips: Point = [0, standing - 0.12 * t, -0.24 * t]
+      const freeHip = torso(hips, lean, freeHipOffset)
       const feet = id === 'single-leg-rdl'
-        ? [groundFeet[0], [0.17, hips[1] + 0.04 - (upper + lower - 0.015) * Math.cos(lean), hips[2] - (upper + lower - 0.015) * Math.sin(lean)] as Point]
+        // Extend from the true hip socket; the former pelvis-based target
+        // shortened this leg by 4–6 cm and folded the knee throughout the rep.
+        ? [groundFeet[0], [0.17, freeHip[1] - freeLegReach * Math.cos(lean), freeHip[2] - freeLegReach * Math.sin(lean)] as Point]
         : groundFeet
       const hands = pair(side => [side * 0.265, hips[1] + 0.44 * Math.cos(lean) - 0.51, hips[2] + 0.46 * Math.sin(lean) + 0.055])
       // A shared bar follows the front of the legs, not the wrist centres.
@@ -330,9 +345,13 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       // shaft through the thighs when the athlete stands upright.
       if (barbell) hands.forEach(hand => { hand[1] -= .084 + .04 * t + .004 * Math.sin(PI * t); hand[2] = .16 - .04 * t })
       if (id === 'single-leg-rdl') hands[0] = [-0.47, 1.05, 0.24]
-      const knees = id === 'single-leg-rdl' ? [[-0.18, 0.50, 0.30], [0.17, hips[1] - 0.4, hips[2] - 0.3]] as Point[] : pair(side => [side * 0.18, 0.49, 0.28])
+      const knees = id === 'single-leg-rdl' ? [[-0.18, 0.50, 0.30], sagittalKneePole(hips, feet[1], 1)] as Point[] : pair(side => [side * 0.18, 0.49, 0.28])
+      // Keep the free sole level while it leaves the floor, then point the
+      // toes with the raised leg. Both ends of this ankle blend are C2.
+      const toeLift = clamp((t - .15) / .40)
+      const freeFootAngle = lean * toeLift ** 3 * (10 + toeLift * (-15 + 6 * toeLift))
       const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
-        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: !!barbell || id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
+        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [freeFootAngle, 0, 0]] : straightFeet, grip: true, gripTargets: !!barbell || id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
       if (barbell) barbell.position.copy(average(result.hands))
       dumbbells.forEach((weight, i) => {
         weight.position.copy(result.hands[i])
@@ -528,7 +547,8 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const feet = knees.map(knee => add(knee, [0, -lower * Math.cos(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t), lower * Math.sin(hanging ? 0.40 + 0.80 * t : 0.20 + 0.45 * t)]))
       const hands: Point[] = hanging ? [[-0.33, 2.18, 0], [0.33, 2.18, 0]] : [[-0.30, 1.47, 0.30], [0.30, 1.47, 0.30]]
       const poles: Point[] = hanging ? [[-0.55, 1.80, -0.04], [0.55, 1.80, -0.04]] : [[-0.30, 1.37, -0.04], [0.30, 1.37, -0.04]]
-      pose(hips, 0, knees, feet, hands, poles, { pelvisTilt: -0.21 * t, trunkFlexion: 0.07 * t, footRotations: [[-0.2, 0, 0], [-0.2, 0, 0]], grip: true, gripTargets: true, gripAxes: hanging ? [[1, 0, 0], [-1, 0, 0]] : undefined, gripDirections: hanging ? [[0, 1, 0], [0, 1, 0]] : undefined })
+      const kneePoles = feet.map((foot, i) => sagittalKneePole(hips, foot, SIDES[i]))
+      pose(hips, 0, kneePoles, feet, hands, poles, { pelvisTilt: -0.21 * t, trunkFlexion: 0.07 * t, footRotations: [[-0.2, 0, 0], [-0.2, 0, 0]], grip: true, gripTargets: true, gripAxes: hanging ? [[1, 0, 0], [-1, 0, 0]] : undefined, gripDirections: hanging ? [[0, 1, 0], [0, 1, 0]] : undefined })
     }, [2.7, 1.8, 3.7], [0, 1.09, 0.08], hanging ? 2.43 : 2.18)
   }
   return null

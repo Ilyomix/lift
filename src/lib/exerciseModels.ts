@@ -4,6 +4,7 @@ import { ExerciseEquipment } from './exerciseModelEquipment'
 import { createUpperExercise } from './exerciseModelUpper'
 import { createArmExercise } from './exerciseModelArms'
 import { createLowerExercise } from './exerciseModelLower'
+import { exercisePhase } from './exercisePlayback'
 
 export type ExerciseView = 'technique' | 'front' | 'back'
 export type ExerciseOrbit = { yaw: number; pitch: number }
@@ -38,9 +39,7 @@ export async function createExerciseModel(id: string, weights: MuscleWeights) {
   }
   const pose = (seconds: number) => {
     if (view === 'technique' && motion) {
-      const cycle = seconds % 4.4
-      const phase = cycle < 1.9 ? Math.min(1, cycle / 1.7) : Math.max(0, 1 - (cycle - 1.9) / 2.3)
-      motion.update(phase * phase * (3 - 2 * phase))
+      motion.update(exercisePhase(id, seconds))
     } else {
       body.pose([0, 0.9828, 0], 0,
         [[-0.155, 0.523, 0.028], [0.155, 0.523, 0.028]], [[-0.205, 0.076, 0.013], [0.205, 0.076, 0.013]],

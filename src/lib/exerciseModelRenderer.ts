@@ -139,6 +139,7 @@ class ExerciseRenderer {
           }
           if (import.meta.env.DEV) {
             canvas.dataset.modelState = 'rendered'
+            canvas.dataset.playbackSeconds = slot.elapsed.toFixed(6)
             this.renderer.domElement.dataset.animationState = this.animated(slot) ? 'playing' : 'static'
             this.sampleStart ||= now
             this.sampleFrames++
@@ -196,7 +197,12 @@ class ExerciseRenderer {
       update: (options: { visible?: boolean; playing?: boolean; view?: ExerciseView; orbit?: ExerciseOrbit; width?: number }) => {
         if ((options.visible !== undefined && options.visible !== slot.visible)
           || (options.playing !== undefined && options.playing !== slot.playing)
-          || (options.view !== undefined && options.view !== slot.view)) this.metrics?.reset()
+          || (options.view !== undefined && options.view !== slot.view)) {
+          // A stopped RAF loop has no recent timestamp. Never charge its
+          // idle time (up to the 50 ms clamp) to the first resumed pose.
+          this.previous = 0; this.budget = 0
+          this.metrics?.reset()
+        }
         if (options.visible !== undefined) slot.visible = options.visible
         if (options.playing !== undefined) slot.playing = options.playing
         if (options.view !== undefined) slot.view = options.view

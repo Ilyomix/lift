@@ -25,6 +25,10 @@ const standard = { camera: [2.7, 1.75, 3.8] as Point, target: [0, 0.95, 0.04] as
 const shoulders = (hips: Point, lean: number) => pair(s => [s * 0.1922427,
   hips[1] + 0.4749603 * Math.cos(lean) - 0.0138925 * Math.sin(lean),
   hips[2] + 0.4749603 * Math.sin(lean) + 0.0138925 * Math.cos(lean)])
+// Carry the elbow's bend plane with an isolation arc. A fixed world-space
+// pole can pass almost through the shoulder–wrist axis and spin the arm.
+const arcPole = (origin: Point, pole: Point, axis: Point, angle: number): Point =>
+  new Vector3(...pole).sub(new Vector3(...origin)).applyAxisAngle(new Vector3(...axis), angle).add(new Vector3(...origin)).toArray() as Point
 
 export function createUpperExercise(id: string, context: ExerciseContext): ExerciseMotion | null {
   const motion = buildUpperExercise(id, context)
@@ -239,7 +243,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (seated) { legKnees = pair(s => [s * 0.20, 0.43, 0.44]); legFeet = pair(s => [s * 0.22, 0.10, 0.765]) }
       if (single) { hip = [0, 0.82, 0]; lean = 0.95; hands = [[-0.30, 0.60 + 0.36 * t, 0.42 - 0.34 * t], [0.19, 0.56, 0.51]]; legKnees = [[-0.25, 0.48, -0.08], [0.18, 0.60, 0.12]]; legFeet = [[-0.28, 0.08, -0.12], [0.20, 0.53, -0.32]] }
       if (band) { hip = [0, 0.17, 0]; lean = -0.04; legFeet = pair(s => [s * 0.16, 0.08, 0.89]); legKnees = pair(s => [s * 0.16, 0.18, 0.45]); hands = pair(s => [s * 0.17, 0.52, 0.52 - 0.31 * t]) }
-      if (door) { hip = [0, 0.92 + 0.05 * t, -0.073 + 0.143 * t]; lean = -0.23 + 0.20 * t; hands = [[-0.27, hip[1] + 0.10, hip[2] + 0.10], [0.40, 1.28, 0.40]]; legFeet = pair(s => [s * 0.2, 0.08, 0.15]); grips[0].visible = false }
+      if (door) { hip = [0, 0.92 + 0.05 * t, -0.073 + 0.143 * t]; lean = -0.23 + 0.20 * t; hands = [[-0.27, hip[1] + 0.10, hip[2] + 0.10], [0.40, 1.28, 0.40]]; legFeet = pair(s => [s * 0.2, 0.08, 0.15]); legKnees = pair(s => [s * .15, .52, .35]); grips[0].visible = false }
       if (inverted) {
         const hipY = 0.334 + 0.266 * t
         hip = [0, hipY, 0.80 - Math.sqrt(0.911 ** 2 - (hipY - 0.078) ** 2)]
@@ -277,8 +281,10 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     const ropes = SIDES.map(() => eq.cable(anchor, [0, 1.4, 0.5]))
     return motion(t => {
       const angle = 0.65 - 1.85 * t
-      const targets = face ? pair(s => [s * (0.12 + 0.21 * t), 1.40 + 0.08 * t, 0.54 - 0.44 * t]) : shoulders([0, 0.983, 0], 0.10).map((shoulder): Point => [shoulder[0], shoulder[1] + 0.54 * Math.sin(angle), shoulder[2] + 0.54 * Math.cos(angle)])
-      const result = stand(targets, face ? pair(s => [s * 0.7, 1.50, -0.1]) : pair(s => [s * 0.22, 1.32, 0.36]), true, face ? neutral : pronated, face ? 0 : 0.10)
+      const origins = shoulders([0, 0.983, 0], 0.10)
+      const targets = face ? pair(s => [s * (0.12 + 0.21 * t), 1.40 + 0.08 * t, 0.54 - 0.44 * t]) : origins.map((shoulder): Point => [shoulder[0], shoulder[1] + 0.54 * Math.sin(angle), shoulder[2] + 0.54 * Math.cos(angle)])
+      const poles = face ? pair(s => [s * .7, 1.50, -.1]) : origins.map((origin, i) => arcPole(origin, [SIDES[i] * .22, 1.32, .36], [1, 0, 0], .65 - angle))
+      const result = stand(targets, poles, true, face ? neutral : pronated, face ? 0 : 0.10)
       ropes.forEach((rope, i) => placeBetween(rope, anchor, grips[i](result.hands[i], anchor, gripAxis(i))))
     }, { target: [0, 1.02, 0.2], height: 2.4 })
   }
@@ -301,10 +307,12 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (rear) targets = origins.map((origin, i): Point => [origin[0] + SIDES[i] * (cable ? .52412 : .54) * Math.sin(angle), origin[1] - (cable ? .52412 : .54) * Math.cos(angle), origin[2]])
       if (prone) { const lift = -0.12 + 0.52 * t; targets = origins.map((origin, i): Point => [origin[0] + SIDES[i] * 0.54 * Math.cos(lift) * 0.60, origin[1] + 0.54 * Math.sin(lift), origin[2] + 0.54 * Math.cos(lift) * 0.80]) }
       if (cable) { targets[0] = [-.25, .98, .09]; targets[1][2] += .13 }
+      const poles = pair(s => [s * .65, rear ? 1.09 : prone ? .45 : 1.18, rear || prone ? .4 : -.05])
+      if (!cable && !apart && !prone) poles.forEach((pole, i) => { poles[i] = arcPole(origins[i], pole, [0, 0, 1], SIDES[i] * (angle - .08)) })
       const result = body.pose(hip, lean,
         prone ? pair(s => [s * 0.15, 0.12, -0.43]) : knees,
         prone ? pair(s => [s * 0.15, 0.20, -0.87]) : feet,
-        targets, pair(s => [s * 0.65, rear ? 1.09 : prone ? 0.45 : 1.18, rear || prone ? 0.4 : -0.05]),
+        targets, poles,
         { footRotations: prone ? pair(() => [Math.PI / 2, 0, 0]) : footRotations, grip: !prone, openHands: prone, gripAxes: dumbbells.length || cable || (band && !apart) ? pair(() => [0,0,1]) : neutral, gripTargets: cable, gripDirections: cable ? targets.map((target, i) => new Vector3(...target).sub(new Vector3(...origins[i])).normalize().toArray() as Point) : undefined })
       attach(dumbbells, result.hands)
       handles.forEach((handle, i) => {

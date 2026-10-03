@@ -121,6 +121,24 @@
       }
 
       const cases = [
+        ['Playback resumes without charging paused or offscreen time to its first pose', async () => {
+          const entry = mount(a, 'lat-pulldown')
+          await entry.wait()
+          const seconds = () => Number(a.dataset.playbackSeconds)
+          entry.handle.update({ view: 'technique', playing: true })
+          await until(() => seconds() > .15, 'Playback should advance')
+          for (const mode of ['playing', 'visible', 'view']) {
+            const pause = mode === 'view' ? { view: 'front' } : { [mode]: false }
+            const resume = mode === 'view' ? { view: 'technique' } : { [mode]: true }
+            entry.handle.update(pause)
+            const stopped = seconds(), at = performance.now()
+            await until(() => performance.now() - at > 120, `${mode}: wait past the delta clamp`)
+            assert(seconds() === stopped, `${mode}: paused playback advanced`)
+            entry.handle.update(resume)
+            await until(() => seconds() > stopped, `${mode}: playback should resume`)
+            assert(seconds() - stopped < .035, `${mode}: first resumed pose jumped ${seconds() - stopped}s`)
+          }
+        }],
         ['Paused A→B→A clears the old snapshot before rotation', async () => {
           const { first, second } = await twoPanels()
           second.stop()

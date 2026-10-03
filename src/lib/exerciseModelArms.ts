@@ -149,7 +149,12 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
       })
       // Two open palms support the upper head. A slight tilt near extension
       // limits wrist dorsiflexion while the dumbbell stays almost upright.
-      const supportAngle = Math.max(-Math.PI / 2, overheadAngle - 1.10)
+      const supportTilt = overheadAngle - 1.10 + Math.PI / 2
+      const tiltBlend = .16
+      const tiltProgress = Math.max(0, Math.min(1, (supportTilt + tiltBlend) / (2 * tiltBlend)))
+      // Join the flat support to its final linear tilt with matching velocity
+      // and acceleration. The former hard max kicked the wrists mid-rep.
+      const supportAngle = -Math.PI / 2 + (supportTilt >= tiltBlend ? supportTilt : tiltBlend * tiltProgress ** 3 * (2 - tiltProgress))
       const supportAlong = new Vector3(0, Math.cos(supportAngle), Math.sin(supportAngle))
       const supportNormal = new Vector3(0, -supportAlong.z, supportAlong.y)
       const gripAxes: Point[] = curl
