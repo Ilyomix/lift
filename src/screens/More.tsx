@@ -59,7 +59,7 @@ export function MoreScreen() {
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-medium">{L('Conçue par Ilyomix', 'Designed by Ilyomix')}</span>
             <span className="block truncate text-[13px] text-muted tnum" title={__APP_COMMIT__ || undefined}>
-              Lift {__APP_VERSION__} · {__APP_BUILD__ ? `build ${__APP_BUILD__}` : L('build local', 'local build')} · {fmtDate(isoFromTimestamp(__APP_BUILT__), { year: true })}
+              Lift {__APP_VERSION__}{__APP_BUILD__ ? ` · build ${__APP_BUILD__}` : isNative() ? '' : L(' · build local', ' · local build')} · {fmtDate(isoFromTimestamp(__APP_BUILT__), { year: true })}
             </span>
           </span>
           <ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
@@ -69,7 +69,7 @@ export function MoreScreen() {
         {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}{' '}
         <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium whitespace-nowrap text-text-2 underline decoration-line-strong underline-offset-2">{L('Code source sur GitHub', 'Source code on GitHub')}</a>
       </p>
-      <a href={`${import.meta.env.BASE_URL}privacy.html#${L('fr', 'en')}`} className="pressable mt-2 inline-flex min-h-11 items-center px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
+      <a href="#/plus/confidentialite" className="pressable mt-2 inline-flex min-h-11 items-center px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
         {L('Politique de confidentialité', 'Privacy policy')}
       </a>
     </Screen>

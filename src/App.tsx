@@ -19,6 +19,7 @@ import { ProgramScreen, SourcesScreen, TemplateEditor } from './screens/ProgramS
 import { ExerciseDetail, ProgressScreen } from './screens/Progress'
 import { VisualGoalScreen } from './screens/Goal'
 import { SessionScreen, SessionSummary, WorkoutDetail } from './screens/Session'
+import { PrivacyScreen } from './screens/Privacy'
 
 function Routes({ path }: { path: string[] }) {
   const [a, b, c] = path
@@ -36,6 +37,7 @@ function Routes({ path }: { path: string[] }) {
       return <ProgressScreen tab={b === 'corps' || b === 'volume' || b === 'seances' ? b : 'force'} sub={c} />
     case 'plus':
       switch (b) {
+        case 'confidentialite': return <PrivacyScreen />
         case 'nutrition': return <NutritionScreen />
         case 'programme': return c && (WORKOUT_TYPES as string[]).includes(c) ? <TemplateEditor type={c as WorkoutType} /> : <ProgramScreen />
         case 'preuves': return <SourcesScreen />
