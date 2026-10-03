@@ -305,11 +305,11 @@ def nutrition():
     for j in range(16):
         for side in range(2):
             a=j*3+side; faces.append((a,a+1,a+4,a+3))
-    leaf=mesh('AppleLeaf',verts,faces,'LiftGraphite',parent=leaf_pivot)
+    leaf=mesh('AppleLeaf',verts,faces,'LiftSilver',parent=leaf_pivot)
     solid=leaf.modifiers.new('LeafThickness','SOLIDIFY'); solid.thickness=.015
     bpy.context.view_layer.objects.active=leaf
     bpy.ops.object.modifier_apply(modifier=solid.name)
-    line('LeafVein',[(.005+.64*t,-.003,.003+.24*t+.12*math.sin(math.pi*t)) for t in [j/12 for j in range(13)]],.009,'LiftSilver',parent=leaf_pivot)
+    line('LeafVein',[(.005+.64*t,-.003,.003+.24*t+.12*math.sin(math.pi*t)) for t in [j/12 for j in range(13)]],.009,'LiftGraphite',parent=leaf_pivot)
     animate(leaf_pivot,'rotation_euler',[
         (1,(0,0,0)),(91,(0,math.radians(-14),0)),(181,(0,0,0)),
         (271,(0,math.radians(10),0)),(END,(0,0,0))])
