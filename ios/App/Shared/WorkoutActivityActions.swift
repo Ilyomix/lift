@@ -100,6 +100,12 @@ enum WorkoutActivityActions {
     /// Defined in a shared source; UIKit is unavailable to extension code for app-state access.
     static var mayStartActivity = false
 
+    // App Intents may round a Double parameter during transport. Deadlines are
+    // milliseconds, so sub-millisecond differences still identify the same rest.
+    private static func sameDeadline(_ lhs: Double, _ rhs: Double) -> Bool {
+        abs(lhs - rhs) < 1
+    }
+
     private static func startIfForeground(state: WorkoutAttributes.ContentState, content: ActivityContent<WorkoutAttributes.ContentState>) throws {
         guard mayStartActivity else { return }
         _ = try Activity.request(attributes: WorkoutAttributes(workoutId: state.workoutId), content: content, pushType: nil)
@@ -117,12 +123,12 @@ enum WorkoutActivityActions {
             // A different session or rest cannot be changed by an obsolete notification.
             let matchesPending = previous.last?.workoutId == workoutId
                 && previous.last?.restEndAt == currentEnd
-                && previous.contains { $0.workoutId == workoutId && $0.expectedRestEndAt == expectedRestEndAt }
-            guard currentEnd == expectedRestEndAt || matchesPending else { return false }
+                && previous.contains { $0.workoutId == workoutId && sameDeadline($0.expectedRestEndAt, expectedRestEndAt) }
+            guard sameDeadline(currentEnd, expectedRestEndAt) || matchesPending else { return false }
 
             if action == "add30" {
-                let now = Date().timeIntervalSince1970 * 1000
-                state.restEndAt = max(currentEnd, now) + 30_000
+                let now = (Date().timeIntervalSince1970 * 1000).rounded(.down)
+                state.restEndAt = max(currentEnd.rounded(), now) + 30_000
                 state.restTotal = currentEnd <= now ? 30 : state.restTotal + 30
             } else {
                 state.restEndAt = nil
