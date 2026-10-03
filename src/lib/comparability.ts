@@ -1,10 +1,11 @@
 import { infoFor } from './library'
 import type { Workout, WorkoutExercise } from './types'
 
-export type ContextReason = [string, string]
+import type { ContextReason } from './trainingMessages'
+export type { ContextReason } from './trainingMessages'
 type Range = { minReps: number; maxReps: number }
 const complete = (ex: WorkoutExercise) => !ex.skipped && ex.sets.some((s) => s.completed && (s.reps ?? 0) > 0)
-const context = (ex: WorkoutExercise) => ex.comparisonContext?.trim().toLocaleLowerCase() ?? ''
+const context = (ex: WorkoutExercise) => ex.comparisonContext?.trim().toLowerCase() ?? ''
 const sameRange = (a: Range, b: Range) => a.minReps === b.minReps && a.maxReps === b.maxReps
 
 /** Chronological copies: imported arrays and backdated edits need not be in date order. */
@@ -41,18 +42,18 @@ export function previousComparablePerformance(
 
 /** Different measurements must not become a physiological fatigue diagnosis. */
 export function exerciseContextReason(now: WorkoutExercise, before: WorkoutExercise): ContextReason | null {
-  if (now.unit !== before.unit) return ['Unité différente : nouvelle référence.', 'Different unit: new baseline.']
+  if (now.unit !== before.unit) return 'unit-changed'
   const currentContext = context(now)
   const oldContext = context(before)
   if (currentContext !== oldContext) {
-    return ['Machine ou conditions signalées différentes : confirme une nouvelle référence.', 'A machine or condition change was flagged: confirm a new baseline.']
+    return 'conditions-changed'
   }
   if (!sameRange(now.prescription ?? now.target, before.prescription ?? before.target)) {
-    return ['Fourchette de répétitions différente : nouvelle référence.', 'Different rep range: new baseline.']
+    return 'rep-range-changed'
   }
   const restNow = now.prescription?.restSeconds ?? now.target.restSeconds
   const restBefore = before.prescription?.restSeconds ?? before.target.restSeconds
-  if (restNow !== restBefore) return ['Repos prescrit différent : performances non directement comparables.', 'Prescribed rest changed: performances are not directly comparable.']
+  if (restNow !== restBefore) return 'rest-changed'
   return null
 }
 
@@ -72,10 +73,10 @@ function precedingWork(workout: Workout, exercise: WorkoutExercise): string {
 
 export function workoutContextReason(now: Workout, exercise: WorkoutExercise, before: Workout, previous: WorkoutExercise): ContextReason | null {
   if (!!now.periodId !== !!before.periodId) {
-    return ['Passage à un nouveau programme : établis une référence avec ses consignes.', 'Transition to a new program: establish a baseline under its instructions.']
+    return 'program-changed'
   }
   if (precedingWork(now, exercise) !== precedingWork(before, previous)) {
-    return ['Le travail précédent sur ces muscles a changé : ne pas conclure à une baisse de niveau.', 'Earlier work on these muscles changed: do not infer a loss of ability.']
+    return 'preceding-work-changed'
   }
   return exerciseContextReason(exercise, previous)
 }
