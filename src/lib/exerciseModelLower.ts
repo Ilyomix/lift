@@ -325,10 +325,14 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         ? [groundFeet[0], [0.17, hips[1] + 0.04 - (upper + lower - 0.015) * Math.cos(lean), hips[2] - (upper + lower - 0.015) * Math.sin(lean)] as Point]
         : groundFeet
       const hands = pair(side => [side * 0.265, hips[1] + 0.44 * Math.cos(lean) - 0.51, hips[2] + 0.46 * Math.sin(lean) + 0.055])
+      // A shared bar follows the front of the legs, not the wrist centres.
+      // Author its palm contacts directly so the grip offset cannot pull the
+      // shaft through the thighs when the athlete stands upright.
+      if (barbell) hands.forEach(hand => { hand[1] -= .084 + .04 * t + .004 * Math.sin(PI * t); hand[2] = .16 - .04 * t })
       if (id === 'single-leg-rdl') hands[0] = [-0.47, 1.05, 0.24]
       const knees = id === 'single-leg-rdl' ? [[-0.18, 0.50, 0.30], [0.17, hips[1] - 0.4, hips[2] - 0.3]] as Point[] : pair(side => [side * 0.18, 0.49, 0.28])
       const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
-        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
+        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [lean, 0, 0]] : straightFeet, grip: true, gripTargets: !!barbell || id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
       if (barbell) barbell.position.copy(average(result.hands))
       dumbbells.forEach((weight, i) => {
         weight.position.copy(result.hands[i])
