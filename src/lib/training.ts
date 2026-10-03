@@ -1,3 +1,6 @@
+import { effortBounds, effortTarget, progressionSets, prescribedSets, recordedRir } from './effort'
+import { exerciseContextReason, previousComparablePerformance, workoutContextReason, workoutsBefore } from './comparability'
+import { contextReasonLabel, type ContextReason } from './trainingMessages'
 import { addDays, diffDays, mondayOf, todayISO } from './date'
 import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
@@ -111,17 +114,8 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?:
  * like for like; without any in that range, the last one anywhere.
  */
 export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string, like?: RepRange): { workout: Workout; exercise: WorkoutExercise } | null {
-  let other: { workout: Workout; exercise: WorkoutExercise } | null = null
-  for (let i = workouts.length - 1; i >= 0; i--) {
-    const w = workouts[i]
-    if (w.id === excludeId) continue
-    const ex = w.exercises.find((e) => e.exerciseId === exerciseId && !e.skipped && doneSets(e).length > 0)
-    if (!ex) continue
-    if (gymId !== undefined && isGymBound(ex) && gymOf(w) !== gymId) continue
-    if (!like || sameRange(ex.target, like)) return { workout: w, exercise: ex }
-    other ??= { workout: w, exercise: ex }
-  }
-  return other
+  return previousComparablePerformance(workouts, exerciseId, excludeId, like,
+    (w, ex) => gymId === undefined || !isGymBound(ex) || gymOf(w) === gymId)
 }
 
 export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
@@ -219,7 +213,7 @@ export function stepsFor(ex: { exerciseId: string; unit: Unit }, known: number[]
 // pushed further than planned says less about the load than its reps suggest: its reps
 // are counted as if it had stopped at the planned effort.
 
-const rirBounds = (rir: string | undefined): number[] => (rir ?? '').match(/\d+/g)?.map(Number) ?? []
+const rirBounds = effortBounds
 
 /** Upper bound of an effort target such as "1–2" or "3". */
 export function rirUpper(rir: string | undefined): number | null {
@@ -235,7 +229,7 @@ function rirLower(rir: string | undefined): number | null {
 
 /** Effort logged on a set: its RIR, or 0 for a set flagged as a failure. Null when nothing was logged. */
 function setRir(s: WorkoutSet): number | null {
-  return typeof s.rir === 'number' ? s.rir : s.flags.includes('failure') ? 0 : null
+  return recordedRir(s)
 }
 
 /** A RIR is an estimate: one rep short of the plan still counts as on plan. */
@@ -245,7 +239,7 @@ type Planned = Pick<WorkoutExercise, 'prescription' | 'target'>
 
 /** Hardest effort (lowest RIR) that still counts as the planned one for this exercise. */
 function allowedRir(ex: Planned): number | null {
-  const planned = rirLower(ex.prescription?.rir ?? ex.target.rir)
+  const planned = rirLower(effortTarget(ex))
   return planned === null ? null : Math.max(0, planned - EFFORT_TOLERANCE)
 }
 
@@ -290,7 +284,7 @@ export function sessionEffort(w: Workout): { pushed: number; logged: number; pla
       logged++
       if (effortOvershoot(ex, s) > 0) {
         pushed++
-        plans.add(ex.prescription?.rir ?? ex.target.rir ?? '')
+        plans.add(effortTarget(ex) ?? '')
       }
     }
   }
@@ -305,7 +299,7 @@ export function sessionEffort(w: Workout): { pushed: number; logged: number; pla
  * come after them, with fewer reps: asking them all for the top of the range would hold the load back.
  */
 function setsToMaster(ex: WorkoutExercise): number {
-  return ex.prescription?.planSets ?? ex.prescription?.sets ?? ex.target.sets
+  return progressionSets(ex)
 }
 
 /**
@@ -320,7 +314,7 @@ function topBase(ex: WorkoutExercise, repsOf: (s: WorkoutSet) => number): number
   if (ex.prescription && ex.prescription.loadFactor < 1) return null
   const needed = setsToMaster(ex)
   const sets = doneSets(ex)
-  if (sets.length < needed) return null
+  if (sets.length < needed || sets.some((s) => s.flags.includes('pain'))) return null
   let base = Infinity
   for (const s of sets.slice(0, needed)) {
     const load = loadOf(ex, s)
@@ -394,7 +388,7 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
   const needed = setsToMaster(ex)
   // With sets added to keep the weekly volume, the load is judged on the plan's sets only: the
   // added ones come after, with fewer reps or a load the app corrected on the way.
-  const sets = ex.prescription?.planSets ? done.slice(0, needed) : done
+  const sets = done.slice(0, needed)
   const { minReps: lo, maxReps: hi } = ex.target
   const steps = stepsFor(ex, known)
   // Pain on any set of the exercise, added ones included: its load does not go up this time.
@@ -419,7 +413,7 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
       moved = { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the session: ${fmtLoad(last, ex.unit)} becomes the target`) }
     } else if (cap.weight > W) {
       // Held only by going further than planned: the target is what the planned effort allows, if that is still heavier.
-      const planned = ex.prescription?.rir ?? ex.target.rir
+      const planned = effortTarget(ex)
       moved = {
         weight: cap.weight, kind: 'up',
         text: L(
@@ -444,7 +438,8 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
 export function baselineFor(ex: WorkoutExercise): LoadDecision | null {
   if (ex.unit === 'PDC' || ex.skipped) return null
   if (ex.target.weight !== null && ex.target.weight !== undefined) return null
-  const sets = doneSets(ex).filter((s) => typeof s.weight === 'number' && (s.weight as number) > 0)
+  if (doneSets(ex).some((s) => s.flags.includes('pain'))) return null
+  const sets = doneSets(ex).slice(0, setsToMaster(ex)).filter((s) => typeof s.weight === 'number' && (s.weight as number) > 0)
   if (!sets.length) return null
   const inc = incrementFor(ex)
   const inRange = sets.filter((s) => repsAtPlannedEffort(ex, s) >= ex.target.minReps)
@@ -475,8 +470,9 @@ export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number, known:
   const steps = stepsFor(ex, known)
   const r = cleanOf(s)
   const { minReps: lo, maxReps: hi } = ex.target
-  const target = rirUpper(ex.prescription?.rir ?? ex.target.rir)
-  const easy = r >= hi + 3 || (r >= hi && typeof s.rir === 'number' && target !== null && s.rir >= target + 3)
+  const target = rirUpper(effortTarget(ex))
+  const rir = setRir(s)
+  const easy = effortOvershoot(ex, s) === 0 && (r >= hi + 3 || (r >= hi && rir !== null && target !== null && rir >= target + 3))
   if (easy) {
     const weight = steps.up(s.weight, r >= hi + 6 ? 2 : 1)
     return {
@@ -536,7 +532,7 @@ const lightened = (ex: WorkoutExercise | null): boolean => !!ex?.prescription &&
  * `prev` is the last performance in the same rep range when there is one (previousPerformance):
  * at other loads in another range, the session is the baseline of its own range.
  */
-export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | null, history: HistoryPoint[], deload: boolean, prevDeload = false, breakDays = 0): Comparison {
+export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | null, history: HistoryPoint[], deload: boolean, prevDeload = false, breakDays = 0, contextReason?: ContextReason | null): Comparison {
   const sets = doneSets(ex)
   const totalReps = sets.reduce((a, s) => a + (s.reps ?? 0), 0)
   const totalCleanReps = sets.reduce((a, s) => a + cleanOf(s), 0)
@@ -553,21 +549,23 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   const bestNow = Math.max(...sets.map((s) => setScore(s, ex.unit)))
   const bestBefore = history.length ? Math.max(...history.map((h) => h.best)) : 0
   base.isRecord = history.length > 0 && bestNow > bestBefore + 1e-9
-  if (!prev) return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première performance enregistrée', 'First performance logged') }
+  if (!prev || !doneSets(prev).length) return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première performance enregistrée', 'First performance logged') }
   const prevSets = doneSets(prev)
   base.previousTotalCleanReps = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   base.previousSetReps = prevSets.map(cleanOf)
   base.previousWeights = prevSets.map((s) => s.weight)
   if (deload) return { ...base, status: 'deload', headline: L('DÉCHARGE', 'DELOAD'), detail: L('Semaine allégée : pas de comparaison.', 'Lighter week: no comparison.') }
-  if (ex.comparisonContext?.trim()) return { ...base, status: 'different-context', headline: L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: ex.comparisonContext.trim() }
+  const reason = contextReason ?? exerciseContextReason(ex, prev)
+  if (reason) return { ...base, status: reason === 'rep-range-changed' ? 'new-baseline' : 'different-context', headline: reason === 'rep-range-changed' ? L('NOUVELLE BASELINE', 'NEW BASELINE') : L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: contextReasonLabel(reason), contextReason: reason, marked: false, isRecord: false, chargeValidated: false, suggestion: null }
   if (lightened(ex)) return { ...base, status: 'deload', headline: L('SÉANCE ALLÉGÉE', 'LIGHTER SESSION'), detail: L('Charges allégées par le programme : pas de comparaison.', 'Loads lightened by the program: no comparison.') }
   if (prevDeload || lightened(prev)) return { ...base, status: 'deload', headline: L('APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER SESSION'), detail: L('Pas de comparaison avec une séance allégée.', 'No comparison with a lighter session.') }
   if (breakDays >= BREAK_DAYS) return { ...base, status: 'deload', headline: L('APRÈS UNE PAUSE', 'AFTER A BREAK'), detail: L('Deux semaines ou plus sans séance depuis : pas de comparaison.', 'Two weeks or more without a session since: no comparison.') }
 
-  const k = Math.min(sets.length, prevSets.length)
+  const k = Math.min(sets.length, prevSets.length, prescribedSets(ex), prescribedSets(prev))
+  base.comparedSets = k
   const now = sets.slice(0, k)
   const before = prevSets.slice(0, k)
-  const common = sets.length === prevSets.length
+  const common = sets.length === prevSets.length && k === sets.length
     ? ''
     : L(
         ` Sur ${k === 1 ? 'la série commune' : `les ${k} séries communes`} (${sets.length} contre ${prevSets.length} la dernière fois).`,
@@ -575,8 +573,8 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
       )
   // Reserve is compared like with like: logged against logged; otherwise what the plans asked for,
   // which only counts when the plan asks for more reserve today than it did last time (`eased`).
-  const planBefore = rirBounds(prev.prescription?.rir ?? prev.target.rir)
-  const planNow = rirBounds(ex.prescription?.rir ?? ex.target.rir)
+  const planBefore = rirBounds(effortTarget(prev))
+  const planNow = rirBounds(effortTarget(ex))
   const eased = planNow.length && planBefore.length ? Math.max(0, Math.min(...planNow) - Math.min(...planBefore), Math.max(...planNow) - Math.max(...planBefore)) : 0
   const spared = (s: WorkoutSet, i: number): number => {
     const today = setRir(s)
@@ -659,6 +657,13 @@ export function countedDrop(h: Pick<HistoryPoint, 'sets' | 'comparison'>): boole
 export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: string, like?: RepRange): string | null {
   const hist = exerciseHistory(workouts, exerciseId, gymId, like).slice(-2)
   if (hist.length < 2 || !hist.every(countedDrop)) return null
+  for (const h of hist) {
+    const source = workouts.find((w) => w.id === h.workoutId)
+    const ex = source?.exercises.find((e) => e.exerciseId === exerciseId)
+    if (!source || !ex) return null
+    const before = previousPerformance(workoutsBefore(workouts, source), exerciseId, undefined, gymId, ex.prescription ?? ex.target)
+    if (!before || workoutContextReason(source, ex, before.workout, before.exercise)) return null
+  }
   const info = infoFor(exerciseId)
   return L(
     `${info.name} : nette baisse 2 séances de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`,
@@ -745,18 +750,20 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   const changes: AutoChange[] = []
   const records: string[] = []
   const tpl = templates?.[w.type]
+  const others = workoutsBefore(workouts, w)
   const inTemplate = (id: string) => !tpl || tpl.exercises.some((e) => e.exerciseId === id)
   const exercises = w.exercises.map((ex) => {
     const completedOnly = { ...ex, sets: ex.sets.filter((s) => s.completed) }
     const g = isGymBound(ex) ? gym : undefined
     // Compared like for like: with the last session where the exercise had this rep range.
-    const before = previousPerformance(workouts, ex.exerciseId, w.id, g, ex.target)
+    const before = previousPerformance(others, ex.exerciseId, undefined, g, ex.prescription ?? ex.target)
     const prev = before?.exercise ?? null
-    const others = workouts.filter((x) => x.id !== w.id)
     const history = exerciseHistory(others, ex.exerciseId, g)
-    let comparison = compareExercise(completedOnly, prev, history, !!w.deload, !!before?.workout.deload, before ? longestBreak(others, before.workout.date, w.date) : 0)
+    let comparison = compareExercise(completedOnly, prev, history, !!w.deload, !!before?.workout.deload, before ? longestBreak(others, before.workout.date, w.date) : 0, before ? workoutContextReason(w, ex, before.workout, before.exercise) : null)
     if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First session on this machine at this gym.') }
-    const decision = !ex.replacement && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g)) ?? baselineFor(completedOnly)) : null
+    const changedEquipment = comparison.contextReason === 'unit-changed' || comparison.contextReason === 'conditions-changed'
+    const replaced = ex.replacement && ex.replacement.fromId !== ex.exerciseId
+    const decision = !changedEquipment && !replaced && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g)) ?? baselineFor(completedOnly)) : null
     if (decision) {
       const from = completedOnly.target.weight ?? null
       const also = twinSheets(templates, w.type, ex, g ?? HOME_GYM, from)
@@ -769,7 +776,7 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
     return { ...completedOnly, comparison, validated: doneSets(completedOnly).length > 0, skipped: ex.skipped || doneSets(completedOnly).length === 0 }
   })
   const workout = { ...w, exercises }
-  const all = [...workouts.filter((x) => x.id !== w.id), workout]
+  const all = [...others, workout]
   const alerts: string[] = []
   for (const ex of exercises) {
     // The signal belongs to the session in which the second drop happens: an exercise left out today says nothing new.

@@ -709,7 +709,7 @@ test('a drop is only called when the plan or the effort does not explain it', ()
 test('the fatigue signal has a margin: a drop counts from one rep per set on average', () => {
   // Mitter 2022: at a fixed load a set moves by about one rep between two weeks; Hopkins 2000: real beyond 1.5–2 times that.
   assert.deepEqual([1, 2, 3, 4, 7].map(dropMargin), [2, 2, 3, 4, 7])
-  const reps = (...r: number[]) => exo(r.map((n) => set(100, n)))
+  const reps = (...r: number[]) => { const e = exo(r.map((n) => set(100, n))); return { ...e, target: { ...e.target, sets: r.length }, prescription: { ...e.prescription!, sets: r.length } } }
   const ref = reps(10, 10, 9)
   // One or two reps lost over three sets: shown, and inside normal variation.
   const dip = compareExercise(reps(10, 9, 9), ref, [], false)
@@ -1261,8 +1261,8 @@ test('calories in a cut: the pace has to stay in the range, on recent weigh-ins,
   const at = (today: string, pct: number, over: Partial<AppState> = {}, last = today) => calorieAdvice({ ...base, bodyEntries: weighIns(last, pct), ...over }, today)
   // The cut (−0.5 to −0.7 %/week): under the range is too slow, since its length was sized on −0.6.
   const slow = at('2027-03-01', -0.4)
-  assert.deepEqual([slow.status, slow.delta, slow.headline], ['lower', -150, 'Perte trop lente'])
-  assert.match(slow.detail, /^−0,4\d? %\/sem \(objectif : −0,5 à −0,7 %\/sem\) : −150 kcal/)
+  assert.deepEqual([slow.status, slow.delta, slow.headline], ['lower', -100, 'Perte trop lente'])
+  assert.match(slow.detail, /^−0,4\d? %\/sem \(objectif : −0,5 à −0,7 %\/sem\) : −100 kcal/)
   assert.deepEqual([at('2027-03-01', -0.6).status, at('2027-03-01', -0.6).headline], ['ok', 'Rythme dans la cible'])
   assert.deepEqual([at('2027-03-01', -0.85).status, at('2027-03-01', -0.85).headline], ['ok', 'Rythme soutenu'])
   assert.deepEqual([at('2027-03-01', -1.2).status, at('2027-03-01', -1.2).delta], ['raise', 150])
@@ -1371,7 +1371,7 @@ test('calories in a cut: one step is the plan’s deficit taken at once, behind 
   // Already near the range: the verdict waits for the trend to be the cut's own, as before.
   assert.equal(at('2027-01-04', -0.31).headline, 'Rythme à confirmer')
   // The step has to be worth more than a regular one: with 150 kcal or less to go, the regular advice.
-  assert.deepEqual(step(at('2027-03-01', -0.4)), regular)
+  assert.deepEqual(step(at('2027-03-01', -0.4)), ['lower', -100, null, null], 'the remaining estimated deficit budget also caps ordinary steps')
   assert.deepEqual(step(at('2027-03-01', -0.33)), ['ask', 0, -200, -150])
 
   // It needs a trend clean of the last calorie change. Up to a week short of it, the advice waits rather than spend a regular step.
@@ -1469,7 +1469,7 @@ test('visual goal: waist-based body fat, target weight, cut length', async () =>
   const s: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [{ id: 'w', date: '2026-09-20', weight: 93, waist: 98, arm: null, chest: null, shoulders: null }] }
   const bf = bodyFatEstimate(s)!
   assert.equal(bf.source, 'tour de taille')
-  const p = visualPlan(s, { look: 'taille', bodyFat: bf, today: '2026-09-27' })!
+  const p = visualPlan(s, { look: 'taille', bodyFat: bf, today: '2026-09-27', goal: '2027-10-31' })!
   assert.ok(p.target[0] > 75 && p.target[1] < 80, p.target.join('–'))
   assert.ok(p.cutWeeks > 23, 'a leaner look asks for a longer cut')
   assert.equal(p.fits, true)
@@ -1477,8 +1477,8 @@ test('visual goal: waist-based body fat, target weight, cut length', async () =>
   const measured = bodyFatEstimate(s, { override: 18 })!
   assert.equal(measured.source, 'mesure')
   // The plan follows the cut length of an applied look, and the base plan comes back without it.
-  assert.equal(planShape(DEFAULT_GOAL, p.cutWeeks).cutWeeks, p.cutWeeks)
-  assertTiled(buildPeriods(DEFAULT_GOAL, p.cutWeeks), DEFAULT_GOAL)
+  assert.equal(planShape('2027-10-31', p.cutWeeks).cutWeeks, p.cutWeeks)
+  assertTiled(buildPeriods('2027-10-31', p.cutWeeks), '2027-10-31')
   // Zones: one exercise per zone and per session.
   const t = tagPriorities(s.templates, ['epaules', 'bras'])
   const upper = t.UPPER.exercises.filter((e) => e.focus).map((e) => e.exerciseId)
@@ -1500,7 +1500,7 @@ test('visual goal: waist-based body fat, target weight, cut length', async () =>
 test('visual goal: half-kilo targets, looks reached, block notes follow the zones', async () => {
   const { bodyFatEstimate, lookFor, reachesLook, visualPlan, zonesText } = await import('../src/lib/visual')
   const s: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [{ id: 'w', date: '2026-09-20', weight: 93, waist: 98, arm: null, chest: null, shoulders: null }] }
-  const p = visualPlan(s, { look: 'taille', bodyFat: bodyFatEstimate(s)!, today: '2026-09-27' })!
+  const p = visualPlan(s, { look: 'taille', bodyFat: bodyFatEstimate(s)!, today: '2026-09-27', goal: '2027-10-31' })!
   assert.ok(p.target.every((x) => Number.isInteger(x * 2)), `targets in 0.5 kg steps: ${p.target.join('–')}`)
   // 8.6 % reads as 9 %: taillé, not très sec; 14.7 % is athlétique.
   assert.equal(lookFor(8.6, 'm')?.id, 'taille')
@@ -1511,53 +1511,44 @@ test('visual goal: half-kilo targets, looks reached, block notes follow the zone
   assert.equal(zonesText(['epaules', 'pectoraux', 'bras']), 'épaules, pectoraux et bras')
   assert.equal(zonesText(['dos']), 'dos')
   assert.equal(zonesText([]), null)
-  configurePlan(DEFAULT_GOAL, null, p.cutWeeks, zonesText(['epaules', 'bras']))
+  configurePlan('2027-10-31', null, p.cutWeeks, zonesText(['epaules', 'bras']))
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur épaules et bras à partir de S3, si les performances montent.')
   configurePlan(DEFAULT_GOAL)
   assert.equal(PERIODS().find((x) => x.id === 'b2')?.note, '+1 série sur deltoïdes latéraux, dos et pectoraux à partir de S3, si les performances montent.')
 })
 
-test('visual goal: the cut is re-estimated from the latest measurements before it starts', async () => {
+test('visual goal: re-estimation uses conservative needs, current measurements and remaining days', async () => {
   const { bodyFatEstimate, cutDrift, visualPlan } = await import('../src/lib/visual')
   const body = (date: string, weight: number, waist: number | null = null) => ({ id: `b-${date}`, date, weight, waist, arm: null, chest: null, shoulders: null })
+  const goal = '2027-10-31'
   const s0: AppState = { ...defaultState(), profile: { heightCm: 189, age: 33, sex: 'm' }, bodyEntries: [body('2026-09-20', 93, 98)] }
-  const p = visualPlan(s0, { look: 'taille', bodyFat: bodyFatEstimate(s0)!, today: '2026-09-27' })!
-  assert.equal(p.cutWeeks, 27)
+  const p = visualPlan(s0, { look: 'taille', bodyFat: bodyFatEstimate(s0)!, today: '2026-09-27', goal })!
+  assert.equal(p.cutWeeks, 39)
+  assert.equal(p.fits, true)
   try {
-    // The goal as applied: a 27-week cut starting on 7 December.
-    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
-    assert.equal(program.planShape(DEFAULT_GOAL, p.cutWeeks).cutStart, '2026-12-07')
+    configurePlan(goal, null, p.cutWeeks)
     const applied = (entries: ReturnType<typeof body>[], cutWeeks = p.cutWeeks): AppState => ({ ...s0, bodyEntries: [...s0.bodyEntries, ...entries], visualGoal: { look: 'taille', zones: [], bodyFat: null, cutWeeks } })
-    // Same measurements, or a small change: nothing to say.
+    const need = (state: AppState, today = '2026-10-20') => visualPlan(state, { look: 'taille', bodyFat: bodyFatEstimate(state)!, today, goal })!
     assert.equal(cutDrift(applied([body('2026-10-19', 93, 98)]), '2026-10-20'), null)
-    assert.equal(cutDrift(applied([body('2026-10-19', 93, 96)]), '2026-10-20'), null, '25 weeks for 27 planned: under three weeks')
-    // The waist sets the body fat: three centimetres less ask for a shorter cut, three more for a longer one.
-    assert.deepEqual(cutDrift(applied([body('2026-10-19', 92, 95)]), '2026-10-20'), { planned: 27, needed: 24 })
-    assert.deepEqual(cutDrift(applied([body('2026-10-19', 96, 101)]), '2026-10-20'), { planned: 27, needed: 30 })
-    // No recent weigh-in, no visual goal: nothing can be said.
-    assert.equal(cutDrift(applied([body('2026-10-19', 96, 101)]), '2026-11-08'), null, 'last weigh-in three weeks ago')
-    assert.equal(cutDrift({ ...applied([body('2026-10-19', 96, 101)]), visualGoal: null }, '2026-10-20'), null)
-    // Once the cut is under way the pace steers, not its length.
-    assert.equal(cutDrift(applied([body('2026-12-19', 96, 101)]), '2026-12-20'), null)
-    // A goal applied when the look was already reached, and a waist that grew since: a cut is needed now.
-    configurePlan(DEFAULT_GOAL, null, 0)
-    assert.deepEqual(cutDrift(applied([body('2026-10-19', 96, 101)], 0), '2026-10-20'), { planned: 0, needed: 30 })
-    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
-    // At the edge of a look the same three weeks apply, on the need before rounding: one centimetre does not flip the plan.
+    assert.equal(cutDrift(applied([body('2026-10-19', 93, 96)]), '2026-10-20'), null, 'small drift under three weeks')
+    const less = applied([body('2026-10-19', 92, 95)])
+    assert.deepEqual(cutDrift(less, '2026-10-20'), { planned: p.cutWeeks, needed: need(less).cutWeeks })
+    const more = applied([body('2026-10-19', 96, 101)])
+    assert.equal(need(more).fits, false, 'needs exceed the single-cut limit')
+    assert.deepEqual(cutDrift(more, '2026-10-20'), { planned: p.cutWeeks, needed: need(more).cutWeeks })
+    assert.equal(cutDrift(more, '2026-11-08'), null, 'stale weight')
+    assert.equal(cutDrift({ ...more, visualGoal: null }, '2026-10-20'), null)
+    const started = program.planShape(goal, p.cutWeeks).cutStart
+    assert.equal(cutDrift(applied([body(started, 93, 98)]), started), null, 'once cutting, use the observed pace')
     const edge = (waist: number, cutWeeks: number): AppState => ({ ...s0, profile: { heightCm: 180, age: 33, sex: 'm' }, bodyEntries: [body('2026-10-19', 80, waist)], visualGoal: { look: 'athletique', zones: [], bodyFat: null, cutWeeks } })
-    const need = (waist: number) => visualPlan(edge(waist, 0), { look: 'athletique', bodyFat: bodyFatEstimate(edge(waist, 0))!, today: '2026-10-20' })!
-    assert.deepEqual([need(79).cutWeeks, need(80).cutWeeks, need(80).need > 0 && need(80).need < 3], [0, 8, true], 'the look is reached at 79 cm, not at 80')
-    configurePlan(DEFAULT_GOAL, null, 0)
-    assert.equal(cutDrift(edge(80, 0), '2026-10-20'), null, 'a need under three weeks does not ask for a cut the plan has not')
-    assert.deepEqual(cutDrift(edge(84, 0), '2026-10-20'), { planned: 0, needed: need(84).cutWeeks })
-    configurePlan(DEFAULT_GOAL, null, 8)
-    assert.equal(cutDrift(edge(79, 8), '2026-10-20'), null, 'just under the target: the planned cut is not called off')
-    assert.deepEqual(cutDrift(edge(74, 8), '2026-10-20'), { planned: 8, needed: 0 })
-    // What the plan needs is not judged against today: it fits the calendar or not, as when it was applied.
-    configurePlan(DEFAULT_GOAL, null, p.cutWeeks)
-    const late = applied([body('2026-12-19', 96, 101)])
-    const fresh = visualPlan(late, { look: 'taille', bodyFat: bodyFatEstimate(late)!, today: '2026-12-20' })!
-    assert.deepEqual([fresh.cutWeeks, fresh.fits, fresh.suggestedGoal], [30, true, null])
+    configurePlan(goal, null, 0)
+    assert.equal(cutDrift(edge(76, 0), '2026-10-20'), null, 'a small change does not create an eight-week cut')
+    assert.deepEqual(cutDrift(edge(78, 0), '2026-10-20'), { planned: 0, needed: 8 })
+    configurePlan(goal, null, 8)
+    assert.equal(cutDrift(edge(74, 8), '2026-10-20'), null, 'just below the target does not flip the plan')
+    assert.deepEqual(cutDrift(edge(72, 8), '2026-10-20'), { planned: 8, needed: 0 })
+    const late = applied([body('2027-10-15', 93, 98)])
+    assert.equal(need(late, '2027-10-16').fits, false, 'past weeks cannot be reused to meet a future deadline')
   } finally {
     configurePlan(DEFAULT_GOAL)
   }

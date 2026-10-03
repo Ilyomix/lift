@@ -1,3 +1,4 @@
+import { upgradeTrainingDiagnostics } from './trainingMigration'
 import { create } from 'zustand'
 import { clear, createStore, del, entries, get as idbGet, set as idbSet } from 'idb-keyval'
 import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
@@ -262,9 +263,14 @@ export const useStore = create<Store>((set, get) => ({
       if (raw) {
         const normalized = normalizeState(raw)
         applyPrefs(normalized.prefs)
-        const state = localizeState(normalized)
+        syncPlan(normalized)
+        const state = localizeState(upgradeTrainingDiagnostics(normalized))
         syncPlan(state)
         set({ ready: true, hasData: true, state, photos, storage: 'idb' })
+        if (state.progressRevision !== normalized.progressRevision) {
+          void get().flush()
+          get().notify(L('Comparaisons recalculées : mesures et charges conservées, réductions automatiques non justifiées annulées.', 'Comparisons recalculated: measurements and loads kept, unsupported automatic volume reductions removed.'), 'good')
+        }
         // A newer revision of the program changed the sheets: stored at once (the change is recorded once), and said.
         if (typeof raw.programRevision === 'number' && raw.programRevision < normalized.programRevision) {
           void get().flush()
@@ -345,7 +351,8 @@ export const useStore = create<Store>((set, get) => ({
       /* photos stay in memory */
     }
     applyPrefs(state.prefs)
-    state = localizeState(state)
+    syncPlan(state)
+    state = localizeState(upgradeTrainingDiagnostics(state))
     syncPlan(state)
     set({ hasData: true, state, photos: parsed.photos, lastImport: { changes } })
     await get().flush()
@@ -421,6 +428,8 @@ export const useStore = create<Store>((set, get) => ({
         mapExercise(a, ex, (e) =>
           mapSet(e, i, (st) => {
             const next = { ...st, ...patch }
+            // An explicit correction of RIR also clears a contradictory failure flag.
+            if ('rir' in patch && typeof patch.rir === 'number' && patch.rir > 0) next.flags = next.flags.filter((f) => f !== 'failure')
             if ('reps' in patch && !('cleanReps' in patch)) {
               const reps = patch.reps ?? null
               next.cleanReps = reps === null ? null : st.flags.includes('bad-technique') ? Math.max(0, reps - 1) : reps
@@ -536,6 +545,11 @@ export const useStore = create<Store>((set, get) => ({
     get().update((s) =>
       withActive(s, (a) =>
         mapExercise(a, ex, (e) => {
+          if (newId === e.exerciseId) return e
+          if (e.sets.some((x) => x.completed)) {
+            get().notify(L('Des séries sont déjà enregistrées : leur exercice ne peut pas être remplacé. Garde-les dans l’historique.', 'Sets are already recorded: their exercise cannot be replaced. Keep them in the history.'), 'default')
+            return e
+          }
           const info = infoFor(newId)
           const gym = a.gymId ?? HOME_GYM
           const bound = isGymBound({ exerciseId: newId, unit: info.unit })
@@ -551,6 +565,8 @@ export const useStore = create<Store>((set, get) => ({
             role: info.role,
             bodyweight: info.unit === 'PDC' || undefined,
             technique: undefined,
+            comparisonContext: undefined,
+            note: undefined,
             gymLoads: undefined,
             target: { ...e.target, weight: w },
             prescription: e.prescription ? { ...e.prescription, weight: w } : undefined,
