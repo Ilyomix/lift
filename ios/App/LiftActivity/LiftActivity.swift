@@ -1,5 +1,6 @@
 import ActivityKit
 import SwiftUI
+import UIKit
 import WidgetKit
 
 private let accent = Color(red: 0.35, green: 0.65, blue: 1)
@@ -19,9 +20,23 @@ private extension WorkoutAttributes.ContentState {
 private struct LiftMark: View {
     var size: CGFloat
 
+    private static let icon: UIImage = {
+        guard let path = Bundle.main.path(forResource: "AppIcon-512@2x", ofType: "png"),
+              let source = UIImage(contentsOfFile: path) else { return UIImage() }
+        // This PNG is a shared bundle resource, not an asset-catalog image.
+        // Decode it explicitly and keep WidgetKit's archived image small while
+        // preserving enough pixels for the largest 28 pt mark and its crop @3x.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let bounds = CGRect(x: 0, y: 0, width: 128, height: 128)
+        return UIGraphicsImageRenderer(size: bounds.size, format: format).image { _ in
+            source.draw(in: bounds)
+        }
+    }()
+
     var body: some View {
         // Both targets copy the same official app-icon source, so they cannot drift.
-        Image("AppIcon-512", bundle: .main)
+        Image(uiImage: Self.icon)
             .resizable()
             .interpolation(.high)
             .scaledToFit()
