@@ -436,10 +436,10 @@ function layPhase(out: Period[], counter: { n: number }, start: ISODate, weeks: 
   if (cursor <= end) segment(cursor, Math.round((diffDays(cursor, end) + 1) / 7))
 }
 
-/** Building blocks (recomposition, maintenance): the first one learns the split, the next ones add the priority set from W3. */
+/** Building blocks (recomposition, maintenance): the first one is for finding loads and technique, the next ones add the priority set from W3. */
 function noteBuildBlocks(blocks: Period[]) {
   blocks.forEach((p, i) => {
-    if (i === 0) p.note = L('Nouveau split. Apprentissage du soulevé de terre roumain et du hip thrust.', 'New split. Learning the Romanian deadlift and the hip thrust.')
+    if (i === 0) p.note = L('Prise en main : trouve tes charges de départ et installe la technique. Pas encore de série prioritaire.', 'Getting started: find your starting loads and settle the technique. No priority set yet.')
     else {
       p.priorityFromWeek = 3
       p.priorityIfRising = true
