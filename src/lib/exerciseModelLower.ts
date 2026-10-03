@@ -115,10 +115,21 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
     block([0, 0.88, -0.175], [0.35, 0.58, 0.08], -0.05)
     const hips: Point = [0, 0.65, -0.025]
     const lean = id === 'hip-abduction' ? 0.15 : -0.04
-    const hands = pair(side => [side * 0.30, 0.60, -0.10])
-    const seatedPoles = pair(side => [side * 0.30, 0.85, 0.20])
-    SIDES.forEach(side => bar([side * 0.30, 0.60, -0.19], [side * 0.30, 0.60, -0.015], 0.018))
-    const options = { grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] as Point[] }
+    // Seat-height handles leave room for the palm below the wrist. Both
+    // thumbs face forward; reversing one grip twists that wrist and elbow.
+    const handleY = 0.52
+    const handleZ = 0
+    const hands = pair(side => [side * 0.30, handleY, handleZ])
+    const seatedPoles = pair(side => [side * 0.34, 0.90, handleZ])
+    SIDES.forEach(side => {
+      bar([side * 0.18, 0.50, handleZ - 0.085], [side * 0.30, handleY, handleZ - 0.085], 0.014).name = 'SeatedHandleMount'
+      bar([side * 0.30, handleY, handleZ - 0.085], [side * 0.30, handleY, handleZ + 0.09], 0.018).name = 'SeatedHandle'
+    })
+    const options = {
+      grip: true, gripTargets: true,
+      gripAxes: pair(() => [0, 0, 1]),
+      gripDirections: pair(() => [0, -1, 0]),
+    }
     if (kneeMachine) {
       // Calibrate the real knee centres once. A machine pivot cannot drift
       // because its animated ankle target was authored from an approximate hip.
