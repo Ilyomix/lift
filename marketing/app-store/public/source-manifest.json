@@ -1,0 +1,15 @@
+{
+  "importedAt": "2026-10-03T04:46:59.348Z",
+  "note": "Actual native simulator captures. Verify capture freshness against the release build before publication.",
+  "files": [
+    {
+      "file": "screenshots/fr/iphone-01-home.png",
+      "origin": ".local-release/screenshots/iphone-01-home.png",
+      "sourceModifiedAt": "2026-10-03T04:44:56.351Z",
+      "sourceBuild": "1e6de60",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "70dcb2fb35d3915f1a159141fef388c76fd3a94730d9e610be45011b46a3db6f"
+    }
+  ]
+}

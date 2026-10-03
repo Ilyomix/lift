@@ -1,0 +1,39 @@
+{
+  "name": "lift-app-store-campaign",
+  "version": "1.0.0",
+  "description": "Lift App Store screenshots and native footage campaigns, French and English",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "@remotion/fonts": "4.0.532",
+    "@remotion/media": "4.0.532",
+    "@remotion/transitions": "4.0.532",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.532",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "demo": "node --import ../../node_modules/tsx/dist/loader.mjs scripts/generate-demo.mts",
+    "sync:assets": "node scripts/render.mjs sync",
+    "sync:recordings": "node scripts/render.mjs recordings",
+    "render:stills": "node scripts/render.mjs stills",
+    "render:videos": "node scripts/render.mjs videos",
+    "render:proof": "node scripts/render.mjs proof",
+    "render:proofs": "node scripts/render.mjs proofs",
+    "demo:serve": "node scripts/serve-demo.mjs"
+  }
+}

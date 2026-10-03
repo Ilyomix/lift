@@ -1,0 +1,10 @@
+{
+  "note": "Known obsolete native captures: empty onboarding state and pre-redesign Live Activity. Never publish or resync these bytes.",
+  "obsoleteSha256": [
+    "96be3e8cc0e539dca01503069a3a9f931fd49a86f194bb3eb8ac5126a4368603",
+    "d23a2d37827f516ab826f9db278fd567d1201735996503cedd6ce7cf96bea314",
+    "704c4cf47d21090b60ab0a8f98a9e8ca836d3a7339082faa63238a9c7cccd7a9",
+    "a659863da13bf76c4428a168a0616a4f3f3d100b9b163ec8e6b309f106844a34",
+    "55407e015339bb64afa8f92f14d4add14b7cee7aeea5ef6008687dc17059b9cc"
+  ]
+}
