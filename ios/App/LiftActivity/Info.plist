@@ -20,6 +20,10 @@
 	<array>
 		<string>DSEG7ClassicMini-BoldItalic.ttf</string>
 		<string>LiftSegmentGhost-BoldItalic.ttf</string>
+		<string>LiftTimer-BoldItalic.ttf</string>
+		<string>Geologica-Medium.ttf</string>
+		<string>Geologica-SemiBold.ttf</string>
+		<string>Geologica-Bold.ttf</string>
 	</array>
 	<key>NSExtension</key>
 	<dict>

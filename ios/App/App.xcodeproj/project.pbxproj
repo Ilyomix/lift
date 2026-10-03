@@ -29,6 +29,11 @@
 		A25F91010000000000000006 /* WorkoutActivityActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000014 /* WorkoutActivityActions.swift */; };
 		A25F91010000000000000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000015 /* PrivacyInfo.xcprivacy */; };
 		A25F91010000000000000008 /* Segment ghost font in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000016 /* Segment ghost font */; };
+		A25F91010000000000000009 /* Lift timer font in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000017 /* Lift timer font */; };
+		A25F9101000000000000000A /* Geologica Medium in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000018 /* Geologica Medium */; };
+		A25F9101000000000000000B /* Geologica SemiBold in Resources */ = {isa = PBXBuildFile; fileRef = A25F91010000000000000019 /* Geologica SemiBold */; };
+		A25F9101000000000000000C /* Geologica Bold in Resources */ = {isa = PBXBuildFile; fileRef = A25F9101000000000000001A /* Geologica Bold */; };
+		A25F9101000000000000000D /* Geologica license in Resources */ = {isa = PBXBuildFile; fileRef = A25F9101000000000000001B /* Geologica license */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +59,11 @@
 		A25F91010000000000000014 /* WorkoutActivityActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "WorkoutActivityActions.swift"; path = "Shared/WorkoutActivityActions.swift"; sourceTree = SOURCE_ROOT; };
 		A25F91010000000000000015 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = "PrivacyInfo.xcprivacy"; path = "Shared/PrivacyInfo.xcprivacy"; sourceTree = SOURCE_ROOT; };
 		A25F91010000000000000016 /* Segment ghost font */ = {isa = PBXFileReference; lastKnownFileType = file; name = "LiftSegmentGhost-BoldItalic.ttf"; path = "LiftActivity/Fonts/LiftSegmentGhost-BoldItalic.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000017 /* Lift timer font */ = {isa = PBXFileReference; lastKnownFileType = file; name = "LiftTimer-BoldItalic.ttf"; path = "LiftActivity/Fonts/LiftTimer-BoldItalic.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000018 /* Geologica Medium */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Geologica-Medium.ttf"; path = "LiftActivity/Fonts/Geologica-Medium.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F91010000000000000019 /* Geologica SemiBold */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Geologica-SemiBold.ttf"; path = "LiftActivity/Fonts/Geologica-SemiBold.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F9101000000000000001A /* Geologica Bold */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Geologica-Bold.ttf"; path = "LiftActivity/Fonts/Geologica-Bold.ttf"; sourceTree = SOURCE_ROOT; };
+		A25F9101000000000000001B /* Geologica license */ = {isa = PBXFileReference; lastKnownFileType = text; name = "Geologica-LICENSE.txt"; path = "../../src/assets/fonts/Geologica-LICENSE.txt"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +100,11 @@
 				A25F91010000000000000011 /* Official app icon */,
 				A25F91010000000000000012 /* DSEG7 font */,
 				A25F91010000000000000016 /* Segment ghost font */,
+				A25F9101000000000000001B /* Geologica license */,
+				A25F9101000000000000001A /* Geologica Bold */,
+				A25F91010000000000000019 /* Geologica SemiBold */,
+				A25F91010000000000000018 /* Geologica Medium */,
+				A25F91010000000000000017 /* Lift timer font */,
 				A25F91010000000000000013 /* DSEG license */,
 			);
 			sourceTree = "<group>";
@@ -220,6 +235,11 @@
 				A25F91010000000000000001 /* Official app icon in Resources */,
 				A25F91010000000000000002 /* DSEG7 font in Resources */,
 				A25F91010000000000000008 /* Segment ghost font in Resources */,
+				A25F9101000000000000000D /* Geologica license in Resources */,
+				A25F9101000000000000000C /* Geologica Bold in Resources */,
+				A25F9101000000000000000B /* Geologica SemiBold in Resources */,
+				A25F9101000000000000000A /* Geologica Medium in Resources */,
+				A25F91010000000000000009 /* Lift timer font in Resources */,
 				A25F91010000000000000003 /* DSEG license in Resources */,
 				A25F91010000000000000007 /* PrivacyInfo.xcprivacy in Resources */,
 			);

@@ -57,10 +57,11 @@ private struct RestClock: View {
         Group {
             if isStale {
                 Text(state.restLabel == "Repos" ? "Ouvrir Lift" : "Open Lift")
-                    .font(.system(size: min(size, 15), weight: .semibold))
+                    .font(.custom("Geologica-SemiBold", fixedSize: min(size, 15)))
             } else if let range = state.timerRange {
                 // ActivityKit renders the countdown while the host app is suspended.
-                // Use the same DSEG7 face as the in-app timer, without a per-second update loop.
+                // Both faces keep DSEG7's outlines and pad a single minute digit
+                // using contextual glyphs, without a per-second update loop.
                 ZStack(alignment: .trailing) {
                     // This renamed DSEG derivative draws every digit as an eight.
                     // Matching system timers keep the ghost aligned even at 10:00 → 9:59.
@@ -70,13 +71,13 @@ private struct RestClock: View {
                         .opacity(0.10)
                         .accessibilityHidden(true)
                     Text(timerInterval: range, countsDown: true, showsHours: false)
-                        .font(.custom("DSEG7ClassicMini-BoldItalic", fixedSize: size))
+                        .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
                         .monospacedDigit()
                 }
             } else {
                 Text(state.totalSets > 0 && state.completedSets >= state.totalSets
                      ? (state.restLabel == "Repos" ? "Terminé" : "Done") : state.readyLabel)
-                    .font(.system(size: min(size, 24), weight: .semibold))
+                    .font(.custom("Geologica-SemiBold", fixedSize: min(size, 24)))
             }
         }
         .lineLimit(1)
@@ -94,7 +95,7 @@ private struct WorkoutProgress: View {
             ProgressView(value: Double(state.completedSets), total: Double(max(1, state.totalSets)))
                 .tint(accent)
             Text("\(state.completedSets)/\(state.totalSets) \(state.progressLabel)")
-                .font(.system(size: 10, weight: .medium))
+                .font(.custom("Geologica-Medium", fixedSize: 10))
                 .monospacedDigit()
                 .foregroundStyle(muted)
                 .fixedSize()
@@ -132,7 +133,7 @@ private struct WorkoutActions: View {
     private func actionLabel(_ title: String, symbol: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: symbol).font(.system(size: 10, weight: .bold))
-            Text(title).font(.system(size: 11, weight: .semibold))
+            Text(title).font(.custom("Geologica-SemiBold", fixedSize: 11))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
@@ -149,14 +150,14 @@ private struct LockScreenWorkout: View {
             HStack(spacing: 8) {
                 LiftMark(size: 24)
                 Text("Lift")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.custom("Geologica-Bold", fixedSize: 14))
                 Text("· \(state.workoutType)")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.custom("Geologica-Medium", fixedSize: 12))
                     .foregroundStyle(muted)
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Text(state.setLabel)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.custom("Geologica-SemiBold", fixedSize: 11))
                     .foregroundStyle(accent)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
@@ -167,12 +168,12 @@ private struct LockScreenWorkout: View {
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(state.exercise)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.custom("Geologica-SemiBold", fixedSize: 17))
                         .lineLimit(2)
                         .minimumScaleFactor(0.85)
                     if !state.detail.isEmpty {
                         Text(state.detail)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.custom("Geologica-Medium", fixedSize: 11))
                             .foregroundStyle(muted)
                             .lineLimit(1)
                     }
@@ -184,7 +185,7 @@ private struct LockScreenWorkout: View {
                     .overlay(alignment: .topTrailing) {
                         if state.timerRange != nil && !isStale {
                             Text(state.restLabel.uppercased())
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.7)
                                 .foregroundStyle(muted)
                                 .offset(y: -14)
@@ -219,9 +220,9 @@ struct LiftActivity: Widget {
                         LiftMark(size: 28)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lift")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.custom("Geologica-Bold", fixedSize: 12))
                             Text(state.workoutType)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.custom("Geologica-Medium", fixedSize: 11))
                                 .foregroundStyle(muted)
                                 .lineLimit(1)
                         }
@@ -231,7 +232,7 @@ struct LiftActivity: Widget {
                     VStack(alignment: .trailing, spacing: 5) {
                         if state.timerRange != nil && !context.isStale {
                             Text(state.restLabel.uppercased())
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)
                                 .foregroundStyle(muted)
                         }
@@ -242,10 +243,10 @@ struct LiftActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(state.exercise)
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.custom("Geologica-SemiBold", fixedSize: 17))
                             .lineLimit(2)
                         Text([state.setLabel, state.detail].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.custom("Geologica-Medium", fixedSize: 12))
                             .foregroundStyle(muted)
                             .lineLimit(1)
                         WorkoutActions(state: state, isStale: context.isStale)
