@@ -1,6 +1,8 @@
 name: Validate changes
 
 on:
+  push:
+    branches: [fix/training-audit-2026-10-03]
   pull_request:
     branches: [main]
 
@@ -8,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: validate-${{ github.event.pull_request.number }}
+  group: validate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,3 +28,15 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Package source and installed dependencies for local verification
+        if: github.event_name == 'push'
+        run: |
+          git archive HEAD > /tmp/lift-workspace.tar
+          tar -rf /tmp/lift-workspace.tar node_modules
+          gzip /tmp/lift-workspace.tar
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: lift-workspace
+          path: /tmp/lift-workspace.tar.gz
+          retention-days: 1
