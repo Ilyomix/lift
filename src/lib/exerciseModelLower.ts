@@ -65,7 +65,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
     }
     if (id === 'hack-squat') {
       for (const side of SIDES) bar([side * 0.42, 0.18, 0.47], [side * 0.42, 1.70, -0.74], 0.035)
-      block([0, 0.025, 0.30], [0.62, 0.05, 0.58], 0, eq.rubber)
+      block([0, 0.009, 0.30], [0.62, 0.018, 0.58], 0, eq.rubber).name = 'HackFootplate'
     }
     if (id === 'bulgarian-split-squat') eq.bench(p([0.16, 0.43, -0.72]), 0, 0.55 * scale)
     if (id === 'sissy-squat') { bar([-0.45, 0.03, 0.25], [-0.45, 1.4, 0.25], 0.032); bar([-0.62, 0.03, 0.25], [-0.25, 0.03, 0.25]) }
@@ -85,8 +85,8 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
         hips = [0, standing - 0.11 - 0.30 * t, -0.10 + 0.24 * t]; lean = -0.67
         feet = pair(side => [side * 0.18, 0.10, 0.38])
         hands = pair(side => torso(hips, lean, [side * 0.28, 0.38, 0.11]))
-        backPad!.position.set(...p(torso(hips, lean, [0, 0.26, -0.11])))
-        shoulderPads.forEach((pad, index) => pad.position.set(...p(torso(hips, lean, [SIDES[index] * 0.22, 0.49, -0.03]))))
+        backPad!.position.set(...p(torso(hips, lean, [0, 0.26, -0.15])))
+        shoulderPads.forEach((pad, index) => pad.position.set(...p(torso(hips, lean, [SIDES[index] * 0.22, 0.49, -0.03]))).add(new Vector3(0, 0.122 * scale, 0)))
       } else if (id === 'bulgarian-split-squat') {
         hips = [0, 0.90 - 0.26 * t, 0.03]; lean = 0.15 + 0.18 * t
         feet = [[-0.14, 0.078, 0.34], [0.14, 0.58, -0.67]]
@@ -110,82 +110,156 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
   }
 
   if (id === 'leg-extension' || id === 'leg-curl' || id === 'hip-adduction' || id === 'hip-abduction') {
-    seat(0.54)
-    block([0, 0.88, -0.19], [0.35, 0.58, 0.08], -0.05)
-    const pads = SIDES.map(side => block([side * 0.18, 0.26, 0.40], [0.10, 0.14, 0.22]))
-    const levers = SIDES.map(side => bar([side * 0.18, 0.58, 0.35], [side * 0.18, 0.2, 0.45]))
-    const supports = SIDES.map(side => block([side * 0.18, 0.07, 0.48], [0.20, 0.045, 0.25], 0, eq.rubber))
-    supports.forEach(support => { support.visible = id === 'hip-adduction' || id === 'hip-abduction' })
-    if (id === 'leg-curl') block([0, 0.69, 0.30], [0.46, 0.10, 0.14])
-    SIDES.forEach(side => bar([side * 0.30, 0.60, -0.02], [side * 0.30, 0.60, 0.17]))
+    const kneeMachine = id === 'leg-extension' || id === 'leg-curl'
+    seat(kneeMachine ? 0.514 : 0.50)
+    block([0, 0.88, -0.175], [0.35, 0.58, 0.08], -0.05)
+    const hips: Point = [0, 0.65, -0.025]
+    const lean = id === 'hip-abduction' ? 0.15 : -0.04
+    const hands = pair(side => [side * 0.30, 0.60, -0.10])
+    const seatedPoles = pair(side => [side * 0.30, 0.85, 0.20])
+    SIDES.forEach(side => bar([side * 0.30, 0.60, -0.19], [side * 0.30, 0.60, -0.015], 0.018))
+    const options = { grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] as Point[] }
+    if (kneeMachine) {
+      // Calibrate the real knee centres once. A machine pivot cannot drift
+      // because its animated ankle target was authored from an approximate hip.
+      const initialAngle = id === 'leg-extension' ? 0.05 : 1.32
+      const seedKnees = pair(side => [side * halfHip, 0.625, 0.405])
+      const seedFeet = seedKnees.map(knee => add(knee, [0, -lower * Math.cos(initialAngle), lower * Math.sin(initialAngle)]))
+      const fixedKnees = pose(hips, lean, seedKnees, seedFeet, hands, seatedPoles, options).knees.map(knee => knee.clone().multiplyScalar(1 / scale).toArray() as Point)
+      const rollers = SIDES.map(() => eq.bar(p([-0.08, 0, 0]), p([0.08, 0, 0]), 0.055 * scale, eq.pad))
+      const levers = SIDES.map(() => bar([0, 0, 0], [0, 0, 1]))
+      const shafts = SIDES.map(() => bar([0, 0, 0], [1, 0, 0], 0.016))
+      fixedKnees.forEach((knee, i) => {
+        const x = SIDES[i] * 0.32
+        bar([x, 0.12, 0.02], [x, knee[1], knee[2]], 0.03).name = 'KneeMachineFrame'
+        bar([x, knee[1], knee[2]], [SIDES[i] * 0.23, knee[1], knee[2]], 0.022).name = 'KneePivotAxle'
+      })
+      if (id === 'leg-curl') block([0, 0.798, 0.30], [0.44, 0.075, 0.14]).name = 'CurlThighRestraint'
+      return motion(t => {
+        const angle = id === 'leg-extension' ? 0.05 + t * 1.30 : 1.32 - t * 1.60
+        const direction = new Vector3(0, -Math.cos(angle), Math.sin(angle))
+        const normal = new Vector3(0, Math.sin(angle), Math.cos(angle)).multiplyScalar(id === 'leg-extension' ? 1 : -1)
+        const feet = fixedKnees.map(knee => new Vector3(...knee).addScaledVector(direction, lower).toArray() as Point)
+        pose(hips, lean, fixedKnees, feet, hands, seatedPoles, { ...options, footRotations: [[-angle, 0, 0], [-angle, 0, 0]] })
+        fixedKnees.forEach((knee, i) => {
+          // Foam contacts the distal shin; the metal arm runs outside the leg.
+          // Both offsets rotate with the shin, preserving a rigid lever length.
+          const center = new Vector3(...knee).addScaledVector(direction, lower - 0.075)
+            .addScaledVector(normal, id === 'leg-extension' ? 0.092 : 0.102)
+          const outboard = center.clone(); outboard.x = SIDES[i] * 0.32
+          const pivot = new Vector3(SIDES[i] * 0.32, knee[1], knee[2])
+          placeBetween(rollers[i], center.clone().add(new Vector3(-0.08, 0, 0)).multiplyScalar(scale), center.clone().add(new Vector3(0.08, 0, 0)).multiplyScalar(scale))
+          placeBetween(levers[i], pivot.multiplyScalar(scale), outboard.clone().multiplyScalar(scale))
+          placeBetween(shafts[i], center.clone().multiplyScalar(scale), outboard.multiplyScalar(scale))
+          rollers[i].name = 'ShinRoller'; levers[i].name = 'KneeMachineLever'; shafts[i].name = 'ShinRollerAxle'
+        })
+      }, [2.6, 1.65, 3.5], [0, 0.79, 0.12], 1.92)
+    }
+    const pads = SIDES.map(() => block([0, 0, 0], [0.06, 0.16, 0.18]))
+    const levers = SIDES.map(() => bar([0, 0, 0], [0, 0, 1]))
+    const links = SIDES.map(() => bar([0, 0, 0], [0, 1, 0], 0.018))
+    const footLinks = SIDES.map(() => bar([0, 0, 0], [0, 1, 0], 0.018))
+    const supports = SIDES.map(() => block([0, 0, 0], [0.20, 0.035, 0.25], 0, eq.rubber))
     return motion(t => {
-      const hips: Point = [0, 0.65, -0.025]
-      let knees: Point[], feet: Point[], footRotations: Point[]
-      if (id === 'leg-extension' || id === 'leg-curl') {
-        const angle = id === 'leg-extension' ? 0.05 + t * 1.30 : 1.32 - t * 1.6
-        knees = pair(side => [side * halfHip, 0.625, 0.405])
-        feet = knees.map(knee => add(knee, [0, -lower * Math.cos(angle), lower * Math.sin(angle)]))
-        footRotations = [[-angle, 0, 0], [-angle, 0, 0]]
-      } else {
-        const opening = id === 'hip-abduction' ? 0.08 + 0.66 * t : 0.74 - 0.66 * t
-        knees = pair(side => [side * (halfHip + upper * Math.sin(opening)), 0.62, upper * Math.cos(opening) - 0.025])
-        feet = knees.map(knee => add(knee, [0, -lower, 0.035]))
-        footRotations = pair(side => [0, side * opening, 0])
-      }
-      const result = pose(hips, id === 'hip-abduction' ? 0.15 : -0.04, knees, feet,
-        pair(side => [side * 0.30, 0.60, 0.06]), undefined, { footRotations, grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+      const opening = id === 'hip-abduction' ? 0.08 + 0.66 * t : 0.74 - 0.66 * t
+      const knees = pair(side => [side * (halfHip + upper * Math.sin(opening)), 0.62, upper * Math.cos(opening) - 0.025])
+      const feet = knees.map(knee => add(knee, [0, -lower, 0.035]))
+      const result = pose(hips, lean, knees, feet, hands, seatedPoles, { ...options, footRotations: pair(side => [0, side * opening, 0]) })
       pads.forEach((pad, i) => {
-        const knee = result.knees[i], foot = result.feet[i]
-        if (id === 'hip-adduction' || id === 'hip-abduction') {
-          pad.position.copy(knee).add(new Vector3(SIDES[i] * (id === 'hip-abduction' ? 0.065 : -0.065) * scale, 0, 0))
-          placeBetween(levers[i], p([SIDES[i] * halfHip, 0.48, -0.04]), knee)
-          supports[i].position.copy(foot).add(new Vector3(0, -0.065 * scale, 0.05 * scale))
-        } else {
-          pad.position.copy(foot).add(new Vector3(0, 0.06 * scale, (id === 'leg-extension' ? 0.045 : -0.045) * scale))
-          placeBetween(levers[i], knee, foot)
-        }
+        const side = SIDES[i]
+        const normal = new Vector3(side * Math.cos(opening), 0, -Math.sin(opening))
+        const thigh = new Vector3(side * Math.sin(opening), 0, Math.cos(opening))
+        const center = new Vector3(side * halfHip, 0.62, -0.025).addScaledVector(thigh, upper - 0.065)
+          .addScaledVector(normal, id === 'hip-abduction' ? 0.105 : -0.105)
+        pad.position.copy(center).multiplyScalar(scale); pad.rotation.y = side * opening; pad.name = 'HipContactPad'
+        const armEnd = center.clone(); armEnd.y = 0.39
+        placeBetween(levers[i], p([side * halfHip, 0.39, -0.025]), armEnd.clone().multiplyScalar(scale))
+        placeBetween(links[i], armEnd.multiplyScalar(scale), center.clone().add(new Vector3(0, -0.08, 0)).multiplyScalar(scale))
+        levers[i].name = 'HipMachineLever'; links[i].name = 'HipPadStem'
+        supports[i].position.copy(result.feet[i]).addScaledVector(thigh, 0.07 * scale).add(new Vector3(0, -0.095 * scale, 0))
+        supports[i].rotation.y = side * opening; supports[i].name = 'HipFootSupport'
+        const footAnchor = supports[i].position.clone().addScaledVector(normal, (id === 'hip-abduction' ? 0.115 : -0.115) * scale)
+        placeBetween(footLinks[i], new Vector3(center.x, 0.39, center.z).multiplyScalar(scale), footAnchor)
+        footLinks[i].name = 'HipFootSupportLink'
       })
     }, [2.6, 1.65, 3.5], [0, 0.79, 0.12], 1.92)
   }
 
   if (id === 'lying-leg-curl') {
-    eq.bench(p([0, 0.63, 0.20]), 0, 1.35 * scale)
+    eq.bench(p([0, 0.56, 0.20]), 0, 1.35 * scale)
     SIDES.forEach(side => bar([side * 0.26, 0.65, 0.62], [side * 0.26, 0.65, 0.84], 0.018))
-    const roller = bar([-0.26, 0.70, -0.85], [0.26, 0.70, -0.85], 0.07)
-    const lever = bar([0.28, 0.7, -0.45], [0.28, 0.7, -0.85])
+    const hands = pair(side => [side * 0.26, 0.65, 0.73])
+    const poles: Point[] = [[-0.50, 0.58, 0.43], [0.50, 0.58, 0.43]]
+    const options = { grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] as Point[] }
+    const seedKnees = pair(side => [side * halfHip, 0.735, -upper])
+    const seedFeet = seedKnees.map(knee => add(knee, [0, lower * Math.sin(0.1), -lower * Math.cos(0.1)]))
+    const knees = pose([0, 0.75, 0], PI / 2, seedKnees, seedFeet, hands, poles, options).knees.map(knee => knee.clone().multiplyScalar(1 / scale).toArray() as Point)
+    const roller = eq.bar(p([-0.26, 0.70, -0.85]), p([0.26, 0.70, -0.85]), 0.06 * scale, eq.pad)
+    roller.name = 'ProneCurlRoller'
+    const lever = bar([0.32, 0.7, -0.45], [0.32, 0.7, -0.85])
+    lever.name = 'ProneCurlLever'
+    const axle = bar([-0.27, 0.7, -0.85], [0.32, 0.7, -0.85], 0.016)
+    axle.name = 'ProneCurlAxle'
+    bar([0.32, 0.06, knees[1][2]], [0.32, knees[1][1], knees[1][2]], 0.03).name = 'ProneCurlFrame'
     return motion(t => {
       const angle = 0.10 + t * 1.65
-      const knees = pair(side => [side * halfHip, 0.735, -upper])
       const feet = knees.map(knee => add(knee, [0, lower * Math.sin(angle), -lower * Math.cos(angle)]))
-      const result = pose([0, 0.75, 0], PI / 2, knees, feet, pair(side => [side * 0.26, 0.65, 0.73]),
-        [[-0.50, 0.58, 0.43], [0.50, 0.58, 0.43]], { footRotations: [[PI / 2 + angle, 0, 0], [PI / 2 + angle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
-      const center = average(result.feet).add(new Vector3(0, -0.045 * scale, 0))
+      pose([0, 0.75, 0], PI / 2, knees, feet, hands, poles,
+        { ...options, footRotations: [[PI / 2 + angle, 0, 0], [PI / 2 + angle, 0, 0]] })
+      const center = new Vector3(0, knees[0][1], knees[0][2])
+        .addScaledVector(new Vector3(0, Math.sin(angle), -Math.cos(angle)), lower - 0.075)
+        .addScaledVector(new Vector3(0, Math.cos(angle), Math.sin(angle)), 0.11).multiplyScalar(scale)
       placeBetween(roller, center.clone().add(new Vector3(-0.27 * scale, 0, 0)), center.clone().add(new Vector3(0.27 * scale, 0, 0)))
-      placeBetween(lever, p([0.28, 0.735, -upper]), center.clone().add(new Vector3(0.28 * scale, 0, 0)))
+      placeBetween(lever, p([0.32, knees[1][1], knees[1][2]]), center.clone().add(new Vector3(0.32 * scale, 0, 0)))
+      placeBetween(axle, center.clone().add(new Vector3(-0.27 * scale, 0, 0)), center.clone().add(new Vector3(0.32 * scale, 0, 0)))
     }, [2.8, 2.1, 2.7], [0, 0.66, 0], 1.78)
   }
 
   if (id === 'leg-press' || id === 'calf-press') {
     const hips: Point = [0, 0.48, -0.36]
-    block([0, 0.38, -0.39], [0.43, 0.10, 0.38], -0.3)
-    block(torso(hips, -0.65, [0, 0.27, -0.11]), [0.37, 0.62, 0.085], -0.65)
+    block([0, 0.32, -0.44], [0.43, 0.08, 0.27]).name = 'PressSeat'
+    block(torso(hips, -0.65, [0, 0.27, -0.146]), [0.37, 0.62, 0.085], -0.65).name = 'PressBackPad'
+    // Rails and the sled share the same 45-degree travel line. The frame is
+    // outboard of the legs; a rear crossmember carries the foot platform.
+    const plateAngle = -3 * PI / 4
+    const plateOffset = rotate(id === 'calf-press' ? [0, -0.046, 0.15] : [0, -0.114, 0.08], plateAngle)
+    const railDifference = hips[1] - hips[2] + plateOffset[1] - plateOffset[2]
     for (const side of SIDES) {
-      bar([side * 0.42, 0.07, -0.55], [side * 0.42, 1.55, 0.93], 0.035)
+      bar([side * 0.47, 0.10, 0.10 - railDifference], [side * 0.47, 1.70, 1.70 - railDifference], 0.028).name = 'PressRail'
       bar([side * 0.28, 0.46, -0.5], [side * 0.28, 0.46, -0.22])
+      bar([side * 0.47, 0.04, -0.96], [side * 0.47, 0.04, 0.82], 0.035).name = 'PressBase'
+      bar([side * 0.47, 0.04, 0.10 - railDifference], [side * 0.47, 0.10, 0.10 - railDifference], 0.035).name = 'PressRailSupport'
+      bar([side * 0.47, 0.04, 1.70 - railDifference], [side * 0.47, 1.70, 1.70 - railDifference], 0.035).name = 'PressFrontSupport'
     }
-    const platform = block([0, 1.0, 0.25], [0.65, 0.075, 0.48], -2.35, eq.rubber)
+    for (const z of [-0.92, -0.44, 0.78]) bar([-0.47, 0.04, z], [0.47, 0.04, z], 0.035).name = 'PressBaseCrossmember'
+    bar([0, 0.04, -0.44], [0, 0.28, -0.44], 0.035).name = 'PressSeatSupport'
+    bar([0, 0.25, -0.44], torso(hips, -0.65, [0, 0.27, -0.21]), 0.03).name = 'PressBackSupport'
+    const platform = block([0, 1.0, 0.25], [0.65, 0.075, 0.48], plateAngle, eq.rubber)
+    platform.name = 'PressFootplate'
+    const carriage = bar([-0.47, 1, 0.25], [0.47, 1, 0.25], 0.025)
+    carriage.name = 'PressCarriage'
+    const shoes = SIDES.map(side => {
+      const shoe = block([side * 0.47, 1, 0.25], [0.085, 0.18, 0.09], PI / 4, eq.metal)
+      shoe.name = 'PressRailShoe'
+      return shoe
+    })
     return motion(t => {
-      const distance = id === 'leg-press' ? 0.84 - 0.29 * t : 0.945 + 0.046 * t
+      const distance = id === 'leg-press' ? 0.875 - 0.325 * t : 0.945 + 0.046 * t
       const center: Point = [0, hips[1] + distance * 0.707, hips[2] + distance * 0.707]
-      const footAngle = id === 'calf-press' ? -2.35 + 0.36 * t : -2.35
+      const footAngle = id === 'calf-press' ? plateAngle + 0.36 * t : plateAngle
       const feet = id === 'calf-press'
         ? pair(side => ankleFromToe([side * 0.17, center[1], center[2]], footAngle))
         : pair(side => [side * 0.17, center[1], center[2]])
-      pose(hips, -0.65, pair(side => [side * 0.18, 0.54, 0.64]), feet,
-        pair(side => [side * 0.28, 0.46, -0.30]), undefined, { footRotations: [[footAngle, 0, 0], [footAngle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
-      const plateCenter = id === 'calf-press' ? add(center, rotate([0, -0.035, 0.15], -2.35)) : add(center, rotate([0, -0.075, 0.08], -2.35))
+      // Knees bend toward the torso, above/behind the hip-to-ankle axis.
+      // A low forward pole picks the opposite IK branch (backward knees).
+      pose(hips, -0.65, pair(side => [side * 0.28, 1.15, -0.38]), feet,
+        pair(side => [side * 0.28, 0.46, -0.30]), pair(side => [side * 0.34, 0.74, -0.50]), { footRotations: [[footAngle, 0, 0], [footAngle, 0, 0]], grip: true, gripTargets: true, gripAxes: [[0, 0, 1], [0, 0, -1]] })
+      const plateCenter = add(center, id === 'calf-press' ? rotate([0, -0.046 - 0.020 * t, 0.15], plateAngle) : plateOffset)
       platform.position.set(...p(plateCenter))
-    }, [2.8, 2.0, 3.6], [0, 0.72, -0.05], 2.08)
+      const sled = add(plateCenter, rotate([0, -0.055, 0], plateAngle))
+      placeBetween(carriage, p(add(sled, [-0.47, 0, 0])), p(add(sled, [0.47, 0, 0])))
+      shoes.forEach((shoe, i) => shoe.position.set(...p(add(sled, [SIDES[i] * 0.47, 0, 0]))))
+    }, [3.8, 2.0, -2.2], [0, 0.72, -0.05], 2.08)
   }
 
   if (id === 'romanian-deadlift' || id === 'db-romanian-deadlift' || id === 'single-leg-rdl') {
@@ -253,12 +327,12 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
   }
 
   if (id === 'back-extension-45') {
-    block([0, 0.93, -0.11], [0.46, 0.14, 0.38], 0.72)
-    bar([0, 0.05, 0], [0, 0.88, -0.11], 0.05)
+    block([0, 0.603, -0.011], [0.46, 0.14, 0.25], -1.07).name = 'BackExtensionHipPad'
+    bar([0, 0.05, 0.15], [0, 0.57, 0.05], 0.04).name = 'BackExtensionPadSupport'
     bar([-0.40, 0.055, -0.64], [0.40, 0.055, -0.64], 0.04)
     bar([0, 0.055, -0.64], [0, 0.055, 0.4], 0.04)
-    bar([-0.30, 0.24, -0.60], [0.30, 0.24, -0.60], 0.065)
-    block([0, 0.12, -0.65], [0.55, 0.05, 0.25], -0.35, eq.rubber)
+    eq.bar(p([-0.30, 0.27, -0.73]), p([0.30, 0.27, -0.73]), 0.06 * scale, eq.pad).name = 'BackExtensionAnkleRoller'
+    block(add([0, 0.19, -0.59], rotate([0, -0.10, 0.08], 0.55)), [0.55, 0.05, 0.25], 0.55, eq.rubber).name = 'BackExtensionFootplate'
     return motion(t => {
       const lean = 1.72 - 0.97 * t
       const hips: Point = [0, 0.92, -0.08]
@@ -292,7 +366,7 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
     if (seated) seat(0.63, -0.30)
     else if (single) bar([-0.47, 0.02, 0.28], [-0.47, 1.65, 0.28], 0.03)
     else {
-      for (const side of SIDES) bar([side * 0.41, 0.02, -0.13], [side * 0.41, 1.85, -0.13], 0.035)
+      for (const side of SIDES) bar([side * 0.50, 0.02, -0.13], [side * 0.50, 1.95, -0.13], 0.035)
     }
     const grips = single ? [] : SIDES.map(() => eq.handle())
     const gripLinks = single ? [] : SIDES.map(side => bar([side * 0.20, 0.8, 0], [side * 0.20, 0.8, 0.1], 0.016))
@@ -320,11 +394,14 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       const result = pose(hips, lean, knees, feet, hands, undefined, { footRotations: [[angle, 0, 0], [single ? 0 : angle, 0, 0]], grip: true, gripTargets: true })
       grips.forEach((grip, i) => {
         grip.position.copy(result.hands[i])
-        const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.49, hips[2] + 0.05]))
+        const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.59, hips[2] + 0.13]))
         placeBetween(gripLinks[i], anchor, result.hands[i])
       })
       if (seated) pads[0].position.copy(average(result.knees)).add(new Vector3(0, 0.055 * scale, -0.04 * scale))
-      else pads.forEach((pad, i) => pad.position.set(...p([SIDES[i] * 0.20, hips[1] + 0.49, hips[2] - 0.035])))
+      else pads.forEach((pad, i) => {
+        pad.position.set(...p([SIDES[i] * 0.20, hips[1] + 0.588, hips[2] - 0.035]))
+        pad.name = 'CalfShoulderPad'
+      })
     }, [2.8, 1.9, 3.8], [0, seated ? 0.81 : 1.0, 0], seated ? 1.85 : 2.5)
   }
 
@@ -365,10 +442,10 @@ export function createLowerExercise(id: string, { body, equipment: eq }: Exercis
       for (const side of SIDES) bar([side * 0.55, 0.04, -0.08], [side * 0.55, 2.19, -0.08], 0.035)
       bar([-0.62, 2.18, 0], [0.62, 2.18, 0], 0.022)
     } else {
-      block([0, 1.25, -0.13], [0.37, 0.52, 0.09])
+      block([0, 1.42, -0.23], [0.37, 0.36, 0.09]).name = 'RomanChairBackPad'
       for (const side of SIDES) {
         bar([side * 0.38, 0.04, -0.15], [side * 0.38, 1.46, -0.15], 0.032)
-        block([side * 0.30, 1.36, 0.13], [0.15, 0.09, 0.40])
+        block([side * 0.30, 1.292, 0.13], [0.15, 0.09, 0.40]).name = 'RomanChairForearmPad'
         bar([side * 0.30, 1.38, 0.30], [side * 0.30, 1.55, 0.30], 0.018)
         bar([side * 0.38, 0.04, -0.38], [side * 0.38, 0.04, 0.48], 0.035)
       }
