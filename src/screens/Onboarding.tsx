@@ -15,6 +15,7 @@ import { ZonePicker } from '../components/ZonePicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
 import { Button, Card, cx, DateInput, Field, inputClass, Sheet, Tag } from '../components/ui'
 import { ImportSheet } from './More'
+import { SportArt } from '../components/SportArt'
 
 /** The app icon: a weight-plate dial with the progress arc in the accent colour. */
 export function Dial({ size = 56, className }: { size?: number; className?: string }) {
@@ -179,15 +180,17 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
         </div>
       </div>
       <div className="flex flex-1 flex-col justify-center py-8">
-        <Dial />
-        <h1 className="mt-8 text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
+        <div className="flex items-center gap-4">
+          <Dial />
+          <h1 className="text-[44px] leading-[1] font-semibold tracking-[-0.035em]">Lift</h1>
+        </div>
         <p className="mt-3 max-w-[440px] text-[18px] leading-[1.4] text-text-2">
           {L('Ton programme d’hypertrophie fondé sur la recherche, calé sur ta date objectif ou en entretien, sans date.', 'Your research-based hypertrophy program, built around your goal date or in maintenance mode, with no end date.')}
         </p>
         <ul className="mt-8 space-y-3 text-[15px] leading-[1.45]">
-          <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">01</span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</li>
-          <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">02</span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</li>
-          <li className="flex gap-3"><span className="font-semibold text-signal-text tnum">03</span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</li>
+          <li className="flex items-center gap-3"><SportArt kind="dumbbell" className="w-14" /><span>{L('Séances guidées, en salle ou à la maison : séries, RIR, minuteur de repos, charges qui progressent.', 'Guided sessions, at the gym or at home: sets, RIR, rest timer, loads that progress.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="stopwatch" className="w-14" /><span>{L('Un plan jusqu’à ta date, ou sans fin en entretien : blocs, décharges, sèche et reprises après pause.', 'A plan up to your date, or open-ended in maintenance: blocks, deloads, cut and returns after a break.')}</span></li>
+          <li className="flex items-center gap-3"><SportArt kind="plate" className="w-14" /><span>{L('Poids moyen sur 7 jours, taux de gras, 1RM estimé, séries par muscle.', '7-day average weight, body fat, estimated 1RM, sets per muscle.')}</span></li>
         </ul>
         <div className="mt-6 flex flex-wrap gap-2">
           {ROTATION.map((t) => <Tag key={t} tone="outline">{TYPE_META[t].label}</Tag>)}
@@ -549,4 +552,3 @@ export function ImportResultSheet() {
     </Sheet>
   )
 }
-

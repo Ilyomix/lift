@@ -25,6 +25,7 @@ import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../li
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { GymSheet } from '../components/GymSheet'
 import { RecordTag, StatusTag } from '../components/Status'
+import { SportArt } from '../components/SportArt'
 import {
   Button, Card, cx, DateInput, Empty, Eyebrow, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
 } from '../components/ui'
@@ -68,7 +69,7 @@ function SessionPreview() {
     <Screen>
       <Header
         eyebrow={isNext ? `${L('Prochaine séance', 'Next session')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Other session')}
-        title={TYPE_META[type].label}
+        title={<span className="flex items-center justify-between gap-3"><span>{TYPE_META[type].label}</span><SportArt kind="plate" className="w-16" /></span>}
         sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
@@ -185,7 +186,7 @@ function ActiveSession() {
     <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
         eyebrow={`${ctx.before ? L('Fondation', 'Foundation') : ctx.title} · ${fmtDate(a.date)}`}
-        title={TYPE_META[a.type].label}
+        title={<span className="flex items-center justify-between gap-3"><span>{TYPE_META[a.type].label}</span><SportArt kind="plate" className="w-16" /></span>}
         right={
           <div className="flex items-center gap-1">
             <GymChip id={a.gymId} onClick={() => setGymOpen(true)} />

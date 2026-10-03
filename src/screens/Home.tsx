@@ -20,6 +20,7 @@ import { GymSheet } from '../components/GymSheet'
 import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { Dial } from './Onboarding'
+import { SportArt } from '../components/SportArt'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
 export function Home() {
@@ -72,15 +73,15 @@ export function Home() {
 
   return (
     <Screen>
-      {/* Same rhythm as the other tabs: a 44 px top row, then the eyebrow, then the title. */}
-      <header className="pt-2">
-        <div className="flex min-h-11 items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
+      <header className="flex items-center justify-between gap-3 pt-2 pb-3">
+        <div className="min-w-0">
+          <span className="inline-flex items-center gap-2.5 text-[20px] font-semibold tracking-[-0.02em]">
             <Dial size={24} className="rounded-[6px]" />
             Lift
           </span>
+          <Eyebrow className="mt-3">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
         </div>
-        <Eyebrow className="mt-1">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
+        <SportArt kind="dumbbell" className="w-[104px] min-[380px]:w-[120px]" />
       </header>
 
       {/* Hero: sessions done out of the sessions planned until the goal date (maintenance: in the current cycle) */}
