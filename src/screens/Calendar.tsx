@@ -1,3 +1,4 @@
+import { isNative } from '../lib/native/bridge'
 import { useMemo, useState } from 'react'
 import { BellRing, CalendarPlus, ChevronLeft, ChevronRight, CirclePause, Flag, Play } from 'lucide-react'
 import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, monthKey, monthName, todayISO } from '../lib/date'
@@ -340,7 +341,7 @@ export function RemindersScreen() {
           <li><span className="font-semibold text-text">2.</span> {isIOS() ? L('Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.', 'Open the file from Files, then tap “Add All” in Calendar.') : L('Ouvre-le : ton application de calendrier propose d’ajouter les rappels.', 'Open it: your calendar app offers to add the reminders.')}</li>
           <li><span className="font-semibold text-text">3.</span> {L('Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.', 'Sessions follow your training days; the exact rotation is in the app.')}</li>
         </ol>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest timer.')}</p>
+        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{isNative() ? L('Active les alertes locales dans Plus → Réglages → Minuteur de repos.', 'Enable local alerts in More → Settings → Rest timer.') : L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest timer.')}</p>
       </Section>
       <Eyebrow className="mt-8">{L('Semaines de décharge', 'Deload weeks')}</Eyebrow>
       <p className="mt-1 text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload' && (!MAINTENANCE || p.end >= todayISO())).slice(0, MAINTENANCE ? 8 : undefined).map((p) => fmtDate(p.start)).join(' · ')}</p>

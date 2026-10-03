@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="workout_channel">Lift — séance en cours</string>
+  <string name="workout_channel_description">Progression et compte à rebours de la séance</string>
+</resources>
