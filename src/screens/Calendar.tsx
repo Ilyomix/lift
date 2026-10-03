@@ -14,7 +14,7 @@ import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
 import { PhaseTrack } from '../components/Program'
-import { Button, Card, cx, DateInput, Eyebrow, Header, inputClass, Screen, Section, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
+import { Button, Card, cx, DateInput, Eyebrow, Header, IconButton, inputClass, Screen, Section, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
 
 export function CalendarScreen() {
   const state = useStore((s) => s.state)
@@ -41,12 +41,12 @@ export function CalendarScreen() {
           : L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}
       />
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-[20px] font-semibold tracking-[-0.02em]">{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></h2>
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="text-[20px] font-semibold tracking-[-0.02em] whitespace-nowrap">{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></h2>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {month !== monthKey(today) && <Button size="sm" variant="ghost" onClick={() => setMonth(monthKey(today))}>{L('Aujourd’hui', 'Today')}</Button>}
-          <button type="button" aria-label={L('Mois précédent', 'Previous month')} onClick={() => setMonth(addMonths(month, -1))} className="pressable inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-line-strong hover:border-muted"><ChevronLeft size={18} /></button>
-          <button type="button" aria-label={L('Mois suivant', 'Next month')} onClick={() => setMonth(addMonths(month, 1))} className="pressable inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-line-strong hover:border-muted"><ChevronRight size={18} /></button>
+          <IconButton label={L('Mois précédent', 'Previous month')} onClick={() => setMonth(addMonths(month, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
+          <IconButton label={L('Mois suivant', 'Next month')} onClick={() => setMonth(addMonths(month, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
         </div>
       </div>
 

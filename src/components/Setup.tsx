@@ -5,7 +5,7 @@ import { LIBRARY } from '../lib/library'
 import { sessionItems } from '../lib/program'
 import { useStore } from '../lib/store'
 import type { Equipment, TrainingSetup } from '../lib/types'
-import { Button, cx, Sheet } from './ui'
+import { Button, cx, Disclosure, Sheet } from './ui'
 
 /** Home equipment, in the order people usually own it. */
 export const EQUIPMENT: { id: Equipment; readonly label: string; readonly hint: string }[] = [
@@ -89,11 +89,10 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
           </p>
         </div>
       )}
-      <details className="mt-5 border-t border-line pt-3 text-[13px] leading-[1.5] text-text-2">
-        <summary className="cursor-pointer py-2 font-medium text-text">{L('Voir les exercices prévus', 'See the planned exercises')}</summary>
+      <Disclosure title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
         <p className="mt-2">{L('Première séance : haut du corps.', 'First session: upper body.')}</p>
         <ul className="mt-2 space-y-1">{example.map((name, i) => <li key={name}>{i + 1}. {name}</li>)}</ul>
-      </details>
+      </Disclosure>
     </div>
   )
 }

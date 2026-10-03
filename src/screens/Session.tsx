@@ -410,7 +410,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       </div>
 
       <div className="mt-3 px-3 pb-3">
-        <div className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] gap-2 px-1 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+        <div className="hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] gap-2 px-1 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase min-[400px]:grid">
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>
           <span>Reps</span>
@@ -496,7 +496,7 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { 
     <input
       aria-label={label}
       disabled={disabled}
-      className="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-2.5 text-center text-[17px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted/60 focus:border-signal focus:outline-none disabled:border-transparent disabled:bg-transparent disabled:text-text-2"
+      className="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-2.5 text-center text-[17px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:border-transparent disabled:bg-transparent disabled:text-text-2"
       inputMode={decimal ? 'decimal' : 'numeric'}
       pattern={decimal ? undefined : '[0-9]*'}
       enterKeyHint="done"
@@ -535,40 +535,49 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
   const hasDetail = s.flags.length > 0 || (s.cleanReps !== null && s.reps !== null && s.cleanReps !== s.reps) || !!s.note
   return (
     <div className={cx('rounded-[12px] px-1 py-1 transition-colors', done && 'bg-surface-2', isCurrent && 'bg-signal-soft shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--signal)_55%,transparent)]')} aria-current={isCurrent ? 'step' : undefined}>
-      <div className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] items-center gap-2">
+      <div className="grid grid-cols-3 items-end gap-2 min-[400px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] min-[400px]:items-center">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
-          className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[15px] font-semibold tnum hover:bg-surface-3', isCurrent && 'text-signal-text')}
+          className={cx('pressable col-span-2 flex h-11 items-center gap-1.5 rounded-[9px] px-2 text-[15px] font-semibold tnum hover:bg-surface-3 min-[400px]:col-span-1 min-[400px]:flex-col min-[400px]:justify-center min-[400px]:gap-0 min-[400px]:px-0', isCurrent && 'text-signal-text')}
         >
-          {setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
+          <span className="min-[400px]:hidden">{L('Série', 'Set')}</span>{setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
-        {ex.unit === 'PDC' && !takesLest(ex) ? (
-          <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
-        ) : ex.unit === 'PDC' ? (
-          <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} decimal value={s.weight} placeholder={bodyweightLabel()} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
-        ) : (
-          <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
-        )}
-        <NumField
-          label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
-          value={s.reps}
-          placeholder={prevReps !== null ? String(prevReps) : `${ex.target.minReps}–${ex.target.maxReps}`}
-          onCommit={(n) => updateSet(exIndex, setIndex, { reps: n === null ? null : Math.round(n) })}
-          disabled={done}
-        />
-        <select
-          aria-label={L(`RIR série ${setIndex + 1}`, `Set ${setIndex + 1} RIR`)}
-          value={recordedRir(s) ?? ''}
-          onChange={(e) => updateSet(exIndex, setIndex, { rir: e.target.value === '' ? null : Number(e.target.value) })}
-          className="h-11 w-full appearance-none rounded-[10px] border border-line-strong bg-surface text-center text-[16px] font-semibold text-text tnum focus:border-signal focus:outline-none"
-        >
-          <option value="">—</option>
-          {[0, 1, 2, 3, 4].map((r) => <option key={r} value={r}>{r === 4 ? '4+' : r}</option>)}
-        </select>
+        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">{ex.unit === 'PDC' ? takesLest(ex) ? L('Lest', 'Added load') : bodyweightLabel() : ex.unit}</span>
+          {ex.unit === 'PDC' && !takesLest(ex) ? (
+            <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
+          ) : ex.unit === 'PDC' ? (
+            <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} decimal value={s.weight} placeholder={bodyweightLabel()} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
+          ) : (
+            <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
+          )}
+        </div>
+        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">Reps</span>
+          <NumField
+            label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
+            value={s.reps}
+            placeholder={prevReps !== null ? String(prevReps) : `${ex.target.minReps}–${ex.target.maxReps}`}
+            onCommit={(n) => updateSet(exIndex, setIndex, { reps: n === null ? null : Math.round(n) })}
+            disabled={done}
+          />
+        </div>
+        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">RIR</span>
+          <select
+            aria-label={L(`RIR série ${setIndex + 1}`, `Set ${setIndex + 1} RIR`)}
+            value={recordedRir(s) ?? ''}
+            onChange={(e) => updateSet(exIndex, setIndex, { rir: e.target.value === '' ? null : Number(e.target.value) })}
+            className="h-11 w-full appearance-none rounded-[10px] border border-line-strong bg-surface text-center text-[16px] font-semibold text-text tnum focus:border-signal focus:outline-none"
+          >
+            <option value="">—</option>
+            {[0, 1, 2, 3, 4].map((r) => <option key={r} value={r}>{r === 4 ? '4+' : r}</option>)}
+          </select>
+        </div>
         <button
           type="button"
           aria-pressed={done}
@@ -577,7 +586,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}
-          className={cx('pressable flex h-11 w-12 items-center justify-center rounded-[10px] border', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
+          className={cx('pressable order-1 flex h-11 w-full items-center justify-center rounded-[10px] border min-[400px]:order-none min-[400px]:w-12', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
         >
           <Check size={20} strokeWidth={done ? 3 : 2.2} aria-hidden />
         </button>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
 import { dayName } from '../lib/date'
 import { fmtLoad, fmtNum, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -15,7 +15,7 @@ import { RangeBars } from '../components/charts'
 import { LevelTag, RefList } from '../components/Evidence'
 import { PhaseTrack } from '../components/Program'
 import { SportArt, workoutArt } from '../components/SportArt'
-import { Button, Card, cx, Empty, Eyebrow, Field, Header, IconButton, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Eyebrow, Field, Header, IconButton, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
 
 export function ProgramScreen() {
   const state = useStore((s) => s.state)
@@ -67,13 +67,13 @@ export function ProgramScreen() {
       <Section title={L('Semaine type', 'Typical week')}>
         <Card className="divide-y divide-line">
           {[1, 2, 3, 4, 5, 6, 0].map((d) => (
-            <div key={d} className="flex items-center justify-between gap-3 px-4 py-2">
-              <span className="w-24 text-[15px] capitalize">{dayName(d)}</span>
+            <div key={d} className="grid items-center gap-2 px-4 py-3 min-[380px]:grid-cols-[6rem_minmax(0,1fr)]">
+              <span className="min-w-0 text-[15px] capitalize">{dayName(d)}</span>
               <select
                 aria-label={L(`Séance du ${dayName(d)}`, `${dayName(d)} session`)}
                 value={state.schedule[d] ?? ''}
                 onChange={(e) => setSchedule(d, (e.target.value || null) as WorkoutType | null)}
-                className="h-10 min-w-[150px] rounded-[9px] border border-line-strong bg-surface px-3 text-[16px] font-medium focus:border-signal focus:outline-none"
+                className={inputClass}
               >
                 <option value="">{L('Repos', 'Rest')}</option>
                 {ROTATION.map((t) => <option key={t} value={t}>{typeName(t)}</option>)}
@@ -124,7 +124,7 @@ export function ProgramScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Calendrier des blocs', 'Block calendar')} action={<button type="button" onClick={() => navigate('calendrier')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Calendrier', 'Calendar')}</button>}>
+      <Section title={L('Calendrier des blocs', 'Block calendar')} action={<Button variant="ghost" onClick={() => navigate('calendrier')}>{L('Calendrier', 'Calendar')}</Button>}>
         <PhaseTrack />
         <p className="mt-3 text-[13px] leading-[1.5] text-text-2">
           {MAINTENANCE ? (
@@ -158,23 +158,19 @@ export function ProgramScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Ce que dit la recherche', 'What the research says')} action={<button type="button" onClick={() => navigate('plus/preuves')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Toutes les sources', 'All sources')}</button>}>
+      <Section title={L('Ce que dit la recherche', 'What the research says')} action={<Button variant="ghost" onClick={() => navigate('plus/preuves')}>{L('Toutes les sources', 'All sources')}</Button>}>
         <Card className="divide-y divide-line">
           {PRINCIPLES.map((p) => (
-            <details key={p.id} className="group">
-              <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 flex-1">
-                  <span className="eyebrow block">{p.title}</span>
-                  <span className="mt-0.5 block text-[15px] leading-[1.35] font-semibold">{p.rule}</span>
-                </span>
-                <LevelTag level={p.level} />
-                <ChevronDown size={16} className="mt-1 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
-              </summary>
-              <div className="px-4 pb-4">
-                <p className="text-[14px] leading-[1.5] text-text-2">{p.detail}</p>
-                <RefList refs={p.refs} compact />
-              </div>
-            </details>
+            <Disclosure key={p.id} bordered={false} className="px-4" title={
+              <span className="block min-w-0">
+                <span className="eyebrow block">{p.title}</span>
+                <span className="mt-0.5 block text-[15px] leading-[1.35] font-semibold">{p.rule}</span>
+                <span className="mt-2 block"><LevelTag level={p.level} /></span>
+              </span>
+            }>
+              <p className="text-[14px] leading-[1.5] text-text-2">{p.detail}</p>
+              <RefList refs={p.refs} compact />
+            </Disclosure>
           ))}
         </Card>
       </Section>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
@@ -26,27 +26,34 @@ const VARIANTS: Record<Variant, string> = {
   soft: 'bg-surface-2 text-text hover:bg-surface-3 font-medium',
 }
 const SIZES: Record<Size, string> = {
-  sm: 'h-9 px-3 text-[13px] gap-1.5 rounded-[9px]',
-  md: 'h-11 px-4 text-sm gap-2 rounded-[10px]',
-  lg: 'h-[52px] px-5 text-[15px] gap-2 rounded-[12px]',
+  sm: 'min-h-11 px-3 py-2 text-[13px] gap-1.5 rounded-[9px]',
+  md: 'min-h-11 px-4 py-2.5 text-sm gap-2 rounded-[10px]',
+  lg: 'min-h-[52px] px-5 py-3 text-[15px] gap-2 rounded-[12px]',
+}
+
+type ButtonStyle = { variant?: Variant; size?: Size; full?: boolean; icon?: ReactNode }
+function buttonClass(variant: Variant, size: Size, full?: boolean, className?: string) {
+  return cx('pressable inline-flex min-w-0 items-center justify-center text-center leading-5 select-none disabled:opacity-40 disabled:pointer-events-none [&>svg]:shrink-0',
+    full ? 'w-full whitespace-normal' : 'whitespace-nowrap', VARIANTS[variant], SIZES[size], className)
 }
 
 export function Button({
   variant = 'outline', size = 'md', full, icon, children, className, ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size; full?: boolean; icon?: ReactNode }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & ButtonStyle) {
   return (
     <button
       type="button"
       {...rest}
-      className={cx(
-        'pressable inline-flex items-center justify-center whitespace-nowrap select-none disabled:opacity-40 disabled:pointer-events-none',
-        VARIANTS[variant], SIZES[size], full && 'w-full', className,
-      )}
+      className={buttonClass(variant, size, full, className)}
     >
       {icon}
       {children}
     </button>
   )
+}
+
+export function LinkButton({ variant = 'outline', size = 'md', full, icon, children, className, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & ButtonStyle) {
+  return <a {...rest} className={buttonClass(variant, size, full, className)}>{icon}{children}</a>
 }
 
 export function IconButton({ label, children, className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
@@ -139,14 +146,14 @@ export function Section({ title, action, children, className, art }: { title?: R
   return (
     <section className={cx(art ? 'mt-6' : 'mt-7', className)}>
       {(title || action) && (
-        <div className={cx('mb-3 flex gap-3', art ? 'items-center' : 'items-end justify-between')}>
+        <div className={cx('mb-3 flex gap-x-3 gap-y-2', art ? 'items-center' : 'flex-wrap items-center justify-between')}>
           {art && <SportArt kind={art} size="title" />}
           {art ? <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
             {title && <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
             {action && <div className="min-w-0">{action}</div>}
           </div> : <>
-            {title ? <h2 className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
-            {action}
+            {title ? <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
+            {action && <div className="min-w-0 max-w-full">{action}</div>}
           </>}
         </div>
       )}
@@ -189,21 +196,32 @@ export function Row({ label, value, hint, onClick, right, className }: { label: 
 
 // ───────────── Controls ─────────────
 
-export function Segmented<T extends string>({ value, options, onChange, className, label, disabled }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean }) {
+export function Disclosure({ title, icon, children, className, contentClassName, defaultOpen, onToggle, bordered = true }: { title: ReactNode; icon?: ReactNode; children: ReactNode; className?: string; contentClassName?: string; defaultOpen?: boolean; onToggle?: ReactEventHandler<HTMLDetailsElement>; bordered?: boolean }) {
+  return <details open={defaultOpen || undefined} onToggle={onToggle} className={cx('disclosure min-w-0', bordered && 'border-y border-line', className)}>
+    <summary className="pressable flex min-h-[52px] cursor-pointer items-center gap-3 rounded-[10px] py-3 text-[15px] font-medium leading-5 text-text-2 hover:text-text">
+      {icon && <span className="shrink-0" aria-hidden>{icon}</span>}
+      <span className="min-w-0 flex-1">{title}</span>
+      <ChevronDown size={18} className="disclosure-chevron shrink-0 text-muted" aria-hidden />
+    </summary>
+    <div className={cx('min-w-0 pb-4', contentClassName)}>{children}</div>
+  </details>
+}
+
+export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'scroll' }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
   return (
-    <div role="tablist" aria-label={label} className={cx('no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4', className)}>
+    <div role="group" aria-label={label} className={cx('flex gap-2', layout === 'fit' ? 'min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
           <button
             key={o.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             disabled={disabled}
             onClick={() => onChange(o.value)}
             className={cx(
-              'pressable h-9 shrink-0 rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none',
+              'pressable rounded-full border text-[13px] font-semibold leading-5 disabled:opacity-40 disabled:pointer-events-none',
+              layout === 'fit' ? 'min-h-11 min-w-0 flex-auto px-2 py-2 whitespace-normal' : 'h-11 shrink-0 px-4 whitespace-nowrap',
               active ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2 hover:text-text',
             )}
           >
@@ -243,7 +261,7 @@ export function Field({ label, hint, children, className }: { label: ReactNode; 
 }
 
 export const inputClass =
-  'h-12 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-3 text-[16px] text-text tnum placeholder:text-muted/70 focus:border-signal focus:outline-none'
+  'h-12 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-3 text-[16px] text-text tnum placeholder:text-muted focus:border-signal focus:outline-none aria-invalid:border-bad-mark'
 
 /**
  * Date field with an in-app month calendar. The native iOS picker closed itself
@@ -274,7 +292,7 @@ export function DateInput({
           className="flex h-full min-w-0 flex-1 items-center gap-2 px-3 text-left"
         >
           <CalendarDays size={18} className="shrink-0 text-muted" aria-hidden />
-          <span className={cx('min-w-0 flex-1 truncate text-[16px]', value ? 'text-text' : 'text-muted/80')}>{text}</span>
+          <span className={cx('min-w-0 flex-1 truncate text-[16px]', value ? 'text-text' : 'text-muted')}>{text}</span>
           <ChevronDown size={16} className={cx('shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
         {clearable && value && (
@@ -408,11 +426,12 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close.current()
       if (e.key === 'Tab' && ref.current) {
-        const f = ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        const f = [...ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+          .filter(element => !element.matches(':disabled, [tabindex="-1"]') && element.getClientRects().length > 0)
         if (!f.length) return
         const first = f[0]
         const last = f[f.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) {
           e.preventDefault()
           last.focus()
         } else if (!e.shiftKey && document.activeElement === last) {
@@ -423,7 +442,7 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus() ?? ref.current?.focus())
+    requestAnimationFrame(() => (ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current)?.focus())
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''

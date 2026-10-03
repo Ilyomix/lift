@@ -207,7 +207,7 @@ export function Home() {
         <WeekStrip days={week} />
       </Section>
 
-      <Section art="trophy" title={L('Objectifs', 'Goals')} action={<button type="button" onClick={() => navigate('progres')} className="inline-flex items-center gap-1 text-[13px] font-medium text-text-2 hover:text-text">{L('Progrès', 'Progress')} <ArrowRight size={14} aria-hidden /></button>}>
+      <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="ghost" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
         <div className="grid grid-cols-2 gap-2.5">
           <Tile
             label={L('Poids', 'Weight')}
@@ -243,7 +243,7 @@ export function Home() {
         </div>
       </Section>
 
-      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<button type="button" onClick={() => navigate('plus/nutrition')} className="text-[13px] font-medium text-text-2 hover:text-text">{L('Saisir', 'Log')}</button>}>
+      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="ghost" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')}</Button>}>
         <Card className="grid grid-cols-3 divide-x divide-line">
           <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />

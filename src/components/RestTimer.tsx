@@ -127,10 +127,10 @@ function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
   // Past an hour the readout takes three pairs of figures: smaller ones, so it stays inside the dial.
   const hours = value.length > 5
   return (
-    <span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
+    <><span role="timer" aria-live={done ? 'assertive' : 'off'} className="sr-only">{done ? L('Repos terminé', 'Rest over') : L(`Repos : ${value} restantes`, `Rest: ${value} left`)}</span><span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
       <SegDigits value={value} className={cx('leading-none', hours ? 'text-[40px]' : 'text-[60px]')} />
       <span className={cx('seg seg-ghost tnum ml-1 leading-none', hours ? 'text-[22px]' : 'text-[30px]')} data-ghost=".8">.{tenths % 10}</span>
-    </span>
+    </span></>
   )
 }
 
@@ -188,7 +188,7 @@ function DockButton({ label, onClick, children, accent }: { label: string; onCli
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={cx('pressable inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]', accent ? 'bg-signal text-signal-ink' : 'bg-inst-btn text-inst-text hover:bg-inst-btn-hover')}
+      className={cx('pressable inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]', accent ? 'bg-signal text-signal-ink' : 'bg-inst-btn text-inst-text hover:bg-inst-btn-hover')}
     >
       {children}
     </button>
@@ -220,16 +220,16 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
     { s: 60, label: '1 min', name: L('1 minute', '1 minute') },
     { s: 300, label: '5 min', name: L('5 minutes', '5 minutes') },
   ]
-  const nudge = 'pressable flex h-full w-10 shrink-0 items-center justify-center text-text disabled:opacity-35'
+  const nudge = 'pressable flex h-11 w-11 shrink-0 items-center justify-center text-text disabled:opacity-35'
   return (
-    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col bg-bg text-text safe-top safe-bottom">
+    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
         <span className="text-[15px] font-semibold text-text-2">{L('Repos', 'Rest')}</span>
         <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />
         </button>
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className="flex flex-1 shrink-0 flex-col items-center justify-center px-6">
         <div className="relative aspect-square w-[min(84vw,340px,42vh)]">
           <svg viewBox="0 0 300 300" className="absolute inset-0 h-full w-full" aria-hidden>
             {Array.from({ length: TICKS }, (_, i) => {
@@ -264,10 +264,10 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
           )}
         </div>
       </div>
-      <div className="px-5 pb-5">
-        <div className="grid grid-cols-3 gap-2">
+      <div className="shrink-0 px-5 pb-5">
+        <div className="grid gap-2 min-[440px]:grid-cols-3">
           {steps.map((x) => (
-            <div key={x.s} role="group" aria-label={x.name} className="flex h-12 items-center overflow-hidden rounded-[12px] border border-line-strong">
+            <div key={x.s} role="group" aria-label={x.name} className="flex min-h-12 items-center justify-between rounded-[12px] border border-line-strong">
               <button type="button" onClick={() => adjustRest(-x.s)} disabled={done} aria-label={L(`Retirer ${x.name}`, `Take off ${x.name}`)} className={nudge}><Minus size={18} strokeWidth={2.25} aria-hidden /></button>
               <span className="min-w-0 flex-1 text-center text-[13px] font-semibold whitespace-nowrap text-text-2 tnum" aria-hidden>{x.label}</span>
               <button type="button" onClick={() => adjustRest(x.s)} aria-label={L(`Ajouter ${x.name}`, `Add ${x.name}`)} className={nudge}><Plus size={18} strokeWidth={2.25} aria-hidden /></button>

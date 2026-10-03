@@ -20,7 +20,7 @@ import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../c
 import { LevelTag, RefList } from '../components/Evidence'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { RecordTag, StatusTag } from '../components/Status'
-import { Button, Card, cx, DateInput, Empty, Field, Header, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
 
 type Tab = 'force' | 'corps' | 'volume' | 'seances'
 
@@ -267,7 +267,7 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
           <span className="min-w-0 flex-1 text-[14px] tnum">
             {[b.weight !== null && `${fmtNum(b.weight)} kg`, b.waist !== null && L(`taille ${fmtNum(b.waist)}`, `waist ${fmtNum(b.waist)}`), b.arm !== null && L(`bras ${fmtNum(b.arm)}`, `arm ${fmtNum(b.arm)}`), b.chest !== null && L(`poitrine ${fmtNum(b.chest)}`, `chest ${fmtNum(b.chest)}`), b.shoulders !== null && L(`épaules ${fmtNum(b.shoulders)}`, `shoulders ${fmtNum(b.shoulders)}`)].filter(Boolean).join(' · ')}
           </span>
-          <button type="button" aria-label={L(`Supprimer la mesure du ${fmtDate(b.date)}`, `Delete the measurement from ${fmtDate(b.date)}`)} onClick={() => deleteBody(b.id)} className="pressable inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-muted hover:bg-surface-2 hover:text-bad"><Trash size={15} /></button>
+          <IconButton label={L(`Supprimer la mesure du ${fmtDate(b.date)}`, `Delete the measurement from ${fmtDate(b.date)}`)} onClick={() => deleteBody(b.id)}><Trash size={16} aria-hidden /></IconButton>
         </div>
       ))}
     </Card>
@@ -395,17 +395,17 @@ function VolumeTab() {
     <>
       <Section title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
         {/* The week shown, with a step to the one before and the one after: one control, the week in its middle. */}
-        <div className="mb-3 flex h-11 items-center rounded-[12px] border border-line-strong" role="group" aria-label={L('Semaine affichée', 'Week shown')}>
-          <button type="button" aria-label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)} className="pressable flex h-full w-12 shrink-0 items-center justify-center text-text">
+        <div className="mb-3 flex min-h-12 items-center rounded-[12px] border border-line-strong" role="group" aria-label={L('Semaine affichée', 'Week shown')}>
+          <IconButton label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)}>
             <ChevronLeft size={20} aria-hidden />
-          </button>
-          <p className="min-w-0 flex-1 truncate text-center text-[14px] font-semibold tnum" aria-live="polite">
+          </IconButton>
+          <p className="min-w-0 flex-1 py-1 text-center text-[14px] font-semibold tnum" aria-live="polite">
             {offset === 0 ? L('Cette semaine', 'This week') : offset === 1 ? L('Semaine dernière', 'Last week') : L(`Il y a ${offset} semaines`, `${offset} weeks ago`)}
-            <span className="font-normal text-text-2"> · {L('du', 'from')} {fmtDate(weekStart)}</span>
+            <span className="block text-[12px] font-normal text-text-2">{L('du', 'from')} {fmtDate(weekStart)}</span>
           </p>
-          <button type="button" aria-label={L('Semaine suivante', 'Next week')} disabled={offset === 0} onClick={() => setOffset(offset - 1)} className="pressable flex h-full w-12 shrink-0 items-center justify-center text-text disabled:opacity-30">
+          <IconButton label={L('Semaine suivante', 'Next week')} disabled={offset === 0} onClick={() => setOffset(offset - 1)}>
             <ChevronRight size={20} aria-hidden />
-          </button>
+          </IconButton>
         </div>
         <p className="mb-4 text-[13px] leading-[1.45] text-text-2">
           {L('Séries poussées près de l’échec, en comptage fractionnaire (directe = 1, indirecte = 0,5). Zone visée : 10–20 séries par semaine (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme pour tes jours d’entraînement, en moyenne sur la rotation.', 'Sets taken close to failure, counted fractionally (direct = 1, indirect = 0.5). Target zone: 10–20 sets a week (Schoenfeld 2017; Pelland 2025). The mark shows the volume the program plans for your training days, averaged over the rotation.')}

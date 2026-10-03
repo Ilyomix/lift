@@ -13,7 +13,7 @@ import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
 import { ZonePicker } from '../components/ZonePicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
-import { Button, Card, cx, DateInput, Field, inputClass, Sheet } from '../components/ui'
+import { Button, Card, Disclosure, cx, DateInput, Field, inputClass, Segmented, Sheet } from '../components/ui'
 import { ImportSheet } from './More'
 import { SportArt } from '../components/SportArt'
 
@@ -244,8 +244,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
         {n >= 2 && <span className="text-text-2"> · {L(`environ ${week.minutes[0]}–${week.minutes[1]} min par séance`, `about ${week.minutes[0]}–${week.minutes[1]} min per session`)}</span>}
       </p>
       {n < 2 && <p role="status" className="mt-2 text-[13px] text-text-2">{L('Choisis au moins 2 jours pour continuer.', 'Choose at least 2 days to continue.')}</p>}
-      {n >= 2 && <details className="mt-5 border-t border-line pt-3 text-[13px] leading-[1.5] text-text-2">
-        <summary className="cursor-pointer py-2 font-medium text-text">{L('Comment les séances s’adaptent', 'How sessions adapt')}</summary>
+      {n >= 2 && <Disclosure title={L('Comment les séances s’adaptent', 'How sessions adapt')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
         <p className="mt-2">
               {L(`Chaque muscle travaille environ ${fmtNum(perMuscle, 1)} fois par semaine. `, `Each muscle works about ${fmtNum(perMuscle, 1)} times a week. `)}
               {L('Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). ', 'The program rotates 5 sessions (Upper, Lower, Push, Pull, Legs). ')}
@@ -258,7 +257,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
                     : L(`Avec ${n} jours, chaque séance prend plus de séries (environ ${week.minutes[0]} à ${week.minutes[1]} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier. `, `With ${n} days, each session takes more sets (about ${week.minutes[0]} to ${week.minutes[1]} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it. `)}
               {L('Une séance manquée décale la rotation, elle n’est jamais sautée.', 'A missed session shifts the rotation, it is never skipped.')}
         </p>
-      </details>}
+      </Disclosure>}
     </div>
   )
 }
@@ -270,13 +269,7 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
       <p className="col-span-2 mb-2 text-[15px] leading-[1.5] text-text-2">{L('Ces informations servent à estimer tes besoins et ton objectif. Elles restent sur cet appareil.', 'These details help estimate your needs and goal. They stay on this device.')}</p>
       <div className="col-span-2">
         <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
-        <div className="grid h-12 grid-cols-2 gap-1 rounded-[10px] border border-line-strong p-1" role="radiogroup" aria-label={L('Sexe', 'Sex')}>
-          {([['m', L('Homme', 'Male')], ['f', L('Femme', 'Female')]] as const).map(([v, label]) => (
-            <button key={v} type="button" role="radio" aria-checked={d.sex === v} onClick={() => patch({ sex: v })} className={cx('pressable rounded-[7px] text-[14px] font-semibold', d.sex === v ? 'bg-text text-bg' : 'text-text-2')}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented label={L('Sexe', 'Sex')} value={d.sex} layout="fit" onChange={(sex) => patch({ sex })} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
       </div>
       <Field label={L('Âge', 'Age')} hint={error(d.age, 14, 90) ? L('Entre 14 et 90 ans.', 'Between 14 and 90 years.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
       <Field label={L('Taille (cm)', 'Height (cm)')} hint={error(d.height, 120, 230) ? L('Entre 120 et 230 cm.', 'Between 120 and 230 cm.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.height, 120, 230)} value={d.height} onChange={(e) => patch({ height: e.target.value })} placeholder="178" /></Field>
@@ -324,8 +317,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         {mode}
         <p className="mt-4 text-[15px] leading-[1.5] text-text-2">{L('Ton programme alterne entraînement et semaines plus légères. Tu pourras définir une date objectif plus tard.', 'Your program alternates training with lighter weeks. You can set a goal date later.')}</p>
         {preview && (
-          <details className="mt-5 border-t border-line pt-3">
-            <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Voir les estimations et le rythme', 'View estimates and training rhythm')}</summary>
+          <Disclosure title={L('Voir les estimations et le rythme', 'View estimates and training rhythm')} className="mt-5">
           <Card className="mt-2 divide-y divide-line">
             {bodyFat}
             <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Maintenance estimée : poids stable, ajustée ensuite sur ta moyenne 7 jours', 'Estimated maintenance: stable weight, then adjusted to your 7-day average')} />
@@ -335,7 +327,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
               hint={L('Les blocs se suivent sans date de fin, fêtes de fin d’année à volume réduit. Pas de sèche.', 'Blocks follow one another with no end date, year-end holidays at reduced volume. No cut.')}
             />
           </Card>
-          </details>
+          </Disclosure>
         )}
       </div>
     )
@@ -390,8 +382,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         })}
       </div>
 
-      <details className="mt-5 border-t border-line pt-3">
-        <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Personnaliser les zones prioritaires', 'Customize priority areas')}{d.zones.length > 0 && <span className="ml-2 text-muted tnum">{d.zones.length}/{MAX_ZONES}</span>}</summary>
+      <Disclosure title={<>{L('Personnaliser les zones prioritaires', 'Customize priority areas')}{d.zones.length > 0 && <span className="ml-2 text-muted tnum">{d.zones.length}/{MAX_ZONES}</span>}</>} className="mt-5">
       <div className="mt-2 mb-2 flex items-baseline justify-between gap-3">
         <p className="text-[13px] font-medium text-text-2">{L('Zones prioritaires (facultatif)', 'Priority areas (optional)')}</p>
         <span className="text-[13px] text-text-2 tnum">{d.zones.length}/{MAX_ZONES}</span>
@@ -401,13 +392,12 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every session that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
         {d.zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)}.`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)}.`)}
       </p>
-      </details>
+      </Disclosure>
 
 
 
       {preview && (
-        <details className="mt-5 border-t border-line pt-3">
-          <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Voir les estimations du plan', 'View plan estimates')}</summary>
+        <Disclosure title={L('Voir les estimations du plan', 'View plan estimates')} className="mt-5">
         <Card className="mt-5 divide-y divide-line">
           {bodyFat}
           {plan && preview.shape && (
@@ -426,7 +416,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
             </>
           )}
         </Card>
-        </details>
+        </Disclosure>
       )}
       {plan && !plan.fits && (
         <div className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
@@ -471,16 +461,14 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
         <ol className="mt-2 divide-y divide-line">
           {session.exercises.slice(0, 3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 1}</span><span>{exercise.name}</span></li>)}
         </ol>
-        {session.exercises.length > 3 && <details className="border-t border-line pt-2">
-          <summary className="cursor-pointer py-2 text-[13px] font-medium">{L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}</summary>
+        {session.exercises.length > 3 && <Disclosure title={L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}>
           <ol start={4} className="divide-y divide-line">{session.exercises.slice(3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 4}</span><span>{exercise.name}</span></li>)}</ol>
-        </details>}
+        </Disclosure>}
       </Card>
       <p className="mt-4 text-[14px] leading-[1.5]"><span className="font-medium">{plural(answers.days.length, L('séance par semaine', 'session per week'), L('séances par semaine', 'sessions per week'))}</span><br /><span className="text-text-2">{[1, 2, 3, 4, 5, 6, 0].filter((x) => answers.days.includes(x)).map((x) => dayName(x, true)).join(' · ')}</span></p>
       <p className="mt-2 text-[13px] text-text-2">{answers.maintenance ? L('Entretien · sans date limite', 'Maintenance · no deadline') : `${plan?.look.label ?? ''} · ${fmtDate(answers.goalDate, { long: true, year: true })}`}</p>
       <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L('Pour commencer, choisis des charges confortables : garde de quoi faire encore 3 répétitions à la fin de chaque série.', 'Start with comfortable weights: finish each set feeling you could do 3 more repetitions.')}</p>
-      <details className="mt-5 border-t border-line pt-3">
-        <summary className="cursor-pointer py-2 text-[14px] font-medium">{L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')}</summary>
+      <Disclosure title={L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')} className="mt-5">
       <Card className="mt-2 divide-y divide-line">
         {answers.maintenance ? (
           <>
@@ -508,7 +496,7 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
         />
         <Line label={L('Protéines', 'Protein')} value={`${fmtNum(Math.round((1.95 * answers.weight) / 5) * 5, 0)}–${fmtNum(Math.round((2.05 * answers.weight) / 5) * 5, 0)} g`} hint={L('≈ 2 g par kg de poids', '≈ 2 g per kg of body weight')} />
       </Card>
-      </details>
+      </Disclosure>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">
         {L('Rien ne démarre automatiquement. Tes choix restent modifiables dans Plus → Réglages.', 'Nothing starts automatically. You can change your choices in More → Settings.')}
       </p>

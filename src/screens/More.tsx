@@ -24,7 +24,7 @@ import { SportArt, type SportArtKind } from '../components/SportArt'
 import { RefList } from '../components/Evidence'
 import { GoalSheet } from '../components/GoalSheet'
 import { SetupSheet, setupLabel } from '../components/Setup'
-import { Button, Card, cx, Empty, Field, Header, inputClass, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
 
 
 export function MoreScreen() {
@@ -52,8 +52,7 @@ export function MoreScreen() {
           </button>
         ))}
       </Card>
-      <details className="mt-4 border-y border-line text-[13px] text-text-2">
-        <summary className="min-h-11 cursor-pointer py-3 font-medium">{L('Outils avancés', 'Advanced tools')}</summary>
+      <Disclosure title={L('Outils avancés', 'Advanced tools')} className="mt-4" contentClassName="text-[13px] text-text-2">
         <a href="#/plus/coach" className="pressable mb-2 flex min-h-11 items-center justify-between gap-3 rounded-[10px] px-3 py-2 hover:bg-surface-2">
           <span>
             <span className="block font-medium">{L('Aide IA facultative', 'Optional AI assistance')}</span>
@@ -61,7 +60,7 @@ export function MoreScreen() {
           </span>
           <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
         </a>
-      </details>
+      </Disclosure>
       {/* About: who made it and which build this is, as one row; the two notes under it. */}
       <Card className="mt-3">
         <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
@@ -108,10 +107,10 @@ export function NutritionScreen() {
   return (
     <Screen>
       <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label ?? 'Nutrition'} title="Nutrition" sub={ctx.phase?.nutrition} />
-      <div className="flex items-center justify-between">
-        <button type="button" aria-label={L('Jour précédent', 'Previous day')} onClick={() => setDate(addDays(date, -1))} className="pressable inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-line-strong"><ChevronLeft size={18} /></button>
-        <p className="text-[15px] font-semibold">{capitalize(fmtRelativeDay(date, today))}</p>
-        <button type="button" aria-label={L('Jour suivant', 'Next day')} disabled={date >= today} onClick={() => setDate(addDays(date, 1))} className="pressable inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-line-strong disabled:opacity-30"><ChevronRight size={18} /></button>
+      <div className="flex items-center justify-between gap-2">
+        <IconButton label={L('Jour précédent', 'Previous day')} onClick={() => setDate(addDays(date, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
+        <p className="min-w-0 text-center text-[15px] font-semibold">{capitalize(fmtRelativeDay(date, today))}</p>
+        <IconButton label={L('Jour suivant', 'Next day')} disabled={date >= today} onClick={() => setDate(addDays(date, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
       </div>
 
       <Card className="mt-4 divide-y divide-line">
@@ -166,7 +165,7 @@ export function NutritionScreen() {
               >
                 {L(`Passer à ${step.target} kcal`, `Switch to ${step.target} kcal`)}
               </Button>
-              <button type="button" onClick={() => setNormal(null)} className="pressable mt-2 w-full py-1 text-center text-[13px] font-medium text-text-2 hover:text-text">{L('Revenir à la question', 'Back to the question')}</button>
+              <Button variant="ghost" full onClick={() => setNormal(null)} className="mt-2">{L('Revenir à la question', 'Back to the question')}</Button>
             </>
           )}
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
@@ -237,9 +236,9 @@ function Counter({ label, unit, value, target, onSet, steps, onAdd }: { label: s
         <span className="text-[13px] text-muted">{unit}</span>
         <div className="ml-auto flex gap-1.5">
           {steps.map((s) => (
-            <button key={s} type="button" onClick={() => onAdd(s)} className="pressable h-10 rounded-[9px] border border-line-strong px-2.5 text-[13px] font-semibold tnum hover:border-muted">
+            <Button key={s} onClick={() => onAdd(s)} className="min-w-11 px-2.5 tnum">
               {s > 0 ? `+${s}` : `−${-s}`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -584,26 +583,26 @@ function GymManager() {
           <div key={g.id} className="flex items-center gap-3 px-4 py-2.5">
             <MapPin size={17} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
             {edit === g.id ? (
-              <form className="flex min-w-0 flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
-                <input data-autofocus className={cx(inputClass, 'h-10')} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
-                <Button type="submit" size="sm" variant="ink">OK</Button>
+              <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
+                <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
+                <Button type="submit" variant="ink">OK</Button>
               </form>
             ) : (
               <>
-                <button type="button" onClick={() => selectGym(g.id)} className="min-w-0 flex-1 text-left">
+                <button type="button" onClick={() => selectGym(g.id)} className="pressable min-h-11 min-w-0 flex-1 rounded-[10px] text-left hover:text-text">
                   <span className="block truncate text-[15px]">{g.name}</span>
                   <span className="block text-[12px] text-muted">{g.id === current ? L('Prochaine séance ici', 'Next session here') : g.id === HOME_GYM ? L('Salle principale', 'Main gym') : L('Toucher pour la choisir', 'Tap to choose it')}</span>
                 </button>
-                <button type="button" onClick={() => { setEdit(g.id); setName(g.name) }} aria-label={L(`Renommer ${g.name}`, `Rename ${g.name}`)} className="pressable inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-muted hover:text-text"><Pencil size={15} aria-hidden /></button>
+                <IconButton onClick={() => { setEdit(g.id); setName(g.name) }} label={L(`Renommer ${g.name}`, `Rename ${g.name}`)}><Pencil size={16} aria-hidden /></IconButton>
                 {g.id !== HOME_GYM && (
-                  <button type="button" onClick={() => removeGym(g.id)} aria-label={L(`Supprimer ${g.name}`, `Delete ${g.name}`)} className="pressable inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-muted hover:text-bad"><Trash size={15} aria-hidden /></button>
+                  <IconButton onClick={() => removeGym(g.id)} label={L(`Supprimer ${g.name}`, `Delete ${g.name}`)} className="hover:text-bad"><Trash size={16} aria-hidden /></IconButton>
                 )}
               </>
             )}
           </div>
         ))}
       </Card>
-      <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
+      <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
         <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ajouter une salle', 'Add a gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
         <Button type="submit" variant="ink" size="lg" disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
       </form>

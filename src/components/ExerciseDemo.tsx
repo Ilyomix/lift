@@ -112,7 +112,7 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
   }
 
   return (
-    <figure className={className}>
+    <figure className={`min-w-0 ${className ?? ''}`}>
       <div className="relative overflow-hidden rounded-[12px] bg-surface-2 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-signal">
         <canvas ref={canvas} width={720} height={540}
           className={`block aspect-[4/3] w-full select-none ${ready ? 'touch-none' : ''} ${dragging ? 'cursor-grabbing' : ready ? 'cursor-grab' : ''}`}
@@ -129,6 +129,7 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
       </div>
       <div className="mt-2">
         <Segmented<ExerciseView>
+          layout="fit"
           label={L('Vue du modèle', 'Model view')}
           value={ready && !rotated ? view : undefined}
           disabled={!ready}
@@ -139,11 +140,10 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
             { value: 'back', label: L('Dos', 'Back') },
           ]}
         />
-        <p className="mt-2 text-[12px] text-muted">{ready ? L('Glisse pour tourner · 360°', 'Drag to rotate · 360°') : L('Modèle 3D Lift', 'Lift 3D model')}</p>
       </div>
       <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
-        {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span><strong className="font-semibold">{L('Principal : ', 'Primary: ')}</strong>{direct.join(', ')}</span></p>}
-        {secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span><strong className="font-semibold">{L('Secondaire : ', 'Secondary: ')}</strong>{secondary.join(', ')}</span></p>}
+        {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span className="min-w-0"><strong className="font-semibold">{L('Principal : ', 'Primary: ')}</strong>{direct.join(', ')}</span></p>}
+        {secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span className="min-w-0"><strong className="font-semibold">{L('Secondaire : ', 'Secondary: ')}</strong>{secondary.join(', ')}</span></p>}
         {!direct.length && !secondary.length && <p>{L('Consulte la vidéo de référence pour les muscles sollicités.', 'See the reference video for the muscles involved.')}</p>}
         {!animated && <p className="pt-1 text-muted">{L('Repère anatomique. La vidéo de référence ci-dessous montre le mouvement.', 'Anatomy reference. The video below shows the movement.')}</p>}
       </figcaption>

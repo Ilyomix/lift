@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CirclePlay, ExternalLink } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
+import { CirclePlay, ExternalLink, Link2 } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
 import { infoFor, youtubeId, youtubeSearchUrl } from '../lib/library'
 import { alternativesFor } from '../lib/exerciseAlternatives'
@@ -12,7 +12,7 @@ import type { Prescription } from '../lib/types'
 import { LevelTag, RefList } from './Evidence'
 import { ExerciseDemo } from './ExerciseDemo'
 import { ExerciseAlternatives } from './ExerciseAlternatives'
-import { Button, Eyebrow, inputClass, Sheet, Tag } from './ui'
+import { Button, Disclosure, Eyebrow, Field, inputClass, LinkButton, Sheet, Tag } from './ui'
 
 // Retain the public export used by exercise detail/session screens.
 export const DemoFrames = ExerciseDemo
@@ -32,10 +32,15 @@ export function ExerciseSheet({
   const workouts = useStore((s) => s.state.workouts)
   const setVideo = useStore((s) => s.setExerciseVideo)
   const [draft, setDraft] = useState(video)
+  const [videoError, setVideoError] = useState(false)
+  const errorId = useId()
   const [play, setPlay] = useState(false)
   const vid = youtubeId(video)
   const history = exerciseHistory(workouts, exerciseId).slice(-3).reverse()
   const alternatives = alternativesFor(exerciseId)
+  useEffect(() => {
+    if (open) { setDraft(video); setVideoError(false); setPlay(false) }
+  }, [exerciseId, open, video])
 
   return (
     <Sheet open={open} onClose={() => { setPlay(false); onClose() }} title={name ?? info.name} tall>
@@ -67,18 +72,29 @@ export function ExerciseSheet({
             </button>
           )
         ) : (
-          <a href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" className="pressable flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-line-strong text-[14px] font-medium hover:border-muted">
-            <CirclePlay size={18} aria-hidden /> {vid ? L('Ouvrir ta vidéo sur YouTube', 'Open your video on YouTube') : L('Vidéos de technique sur YouTube', 'Technique videos on YouTube')}
+          <LinkButton full size="lg" href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" icon={<CirclePlay size={18} aria-hidden />}>
+            <span className="min-w-0">{vid ? L('Voir ma vidéo sur YouTube', 'Watch my video on YouTube') : L('Technique sur YouTube', 'Technique on YouTube')}</span>
             <ExternalLink size={14} className="text-muted" aria-hidden />
-          </a>
+          </LinkButton>
         )}
-        <details className="mt-2 text-[13px] text-text-2">
-          <summary className="cursor-pointer py-1.5">{vid ? L('Changer ta vidéo', 'Change your video') : L('Épingler ta vidéo de référence', 'Pin your reference video')}</summary>
-          <div className="mt-2 flex gap-2">
-            <input className={inputClass} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={L('Lien YouTube', 'YouTube link')} inputMode="url" aria-label={L('Lien de la vidéo', 'Video link')} />
-            <Button variant="ink" onClick={() => { setVideo(exerciseId, draft); setPlay(false) }}>OK</Button>
-          </div>
-        </details>
+        <Disclosure key={`video-${exerciseId}`} className="mt-3" title={video ? L('Modifier ma vidéo', 'Edit my video') : L('Ajouter une vidéo', 'Add a video')} icon={<Link2 size={18} />}>
+          <form className="space-y-3" onSubmit={event => {
+            event.preventDefault()
+            if (!youtubeId(draft)) { setVideoError(true); return }
+            setVideo(exerciseId, draft.trim()); setPlay(false); setVideoError(false)
+            useStore.getState().notify(L('Vidéo enregistrée pour cet exercice.', 'Video saved for this exercise.'), 'good')
+          }}>
+            <Field label={L('Lien YouTube', 'YouTube link')}>
+              <input className={inputClass} value={draft} onChange={event => { setDraft(event.target.value); setVideoError(false) }} placeholder="https://youtu.be/…" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={videoError} aria-describedby={videoError ? errorId : undefined} />
+            </Field>
+            {videoError && <p id={errorId} role="alert" className="text-[13px] leading-5 text-bad">{L('Ajoute le lien d’une vidéo YouTube pour l’enregistrer.', 'Enter a YouTube video link to save it.')}</p>}
+            <Button type="submit" full variant="ink" disabled={!draft.trim()}>{L('Enregistrer la vidéo', 'Save video')}</Button>
+            {video && <Button full variant="ghost" onClick={() => {
+              setVideo(exerciseId, ''); setDraft(''); setVideoError(false); setPlay(false)
+              useStore.getState().notify(L('Vidéo retirée de cet exercice.', 'Video removed from this exercise.'))
+            }}>{L('Retirer la vidéo', 'Remove video')}</Button>}
+          </form>
+        </Disclosure>
       </div>
 
       {prescription && (
@@ -89,10 +105,9 @@ export function ExerciseSheet({
         </div>
       )}
 
-      {alternatives.length > 0 && <details key={exerciseId} className="mt-5 border-y border-line text-[13px]">
-        <summary className="min-h-11 cursor-pointer py-3 font-medium">{L(`Voir les alternatives (${alternatives.length})`, `Compare alternatives (${alternatives.length})`)}</summary>
-        <div className="pb-4"><ExerciseAlternatives exerciseId={exerciseId} onChoose={onReplace ? id => { onReplace(id); onClose() } : undefined} /></div>
-      </details>}
+      {alternatives.length > 0 && <Disclosure key={exerciseId} bordered={!!prescription} className={prescription ? 'mt-5' : 'border-b border-line'} title={`Alternatives (${alternatives.length})`}>
+        <ExerciseAlternatives exerciseId={exerciseId} onChoose={onReplace ? id => { onReplace(id); onClose() } : undefined} />
+      </Disclosure>}
 
       {info.cues.length > 0 && (
         <section className="mt-6">
@@ -109,7 +124,7 @@ export function ExerciseSheet({
       )}
 
       <section className="mt-6">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Eyebrow>{L('Pourquoi cet exercice', 'Why this exercise')}</Eyebrow>
           <LevelTag level={info.evidence.level} />
         </div>
@@ -122,7 +137,7 @@ export function ExerciseSheet({
           <Eyebrow>{L('Dernières performances', 'Recent performances')}</Eyebrow>
           <ul className="mt-2 divide-y divide-line rounded-[12px] border border-line">
             {history.map((h) => (
-              <li key={h.workoutId} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[14px]">
+              <li key={h.workoutId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2.5 text-[14px]">
                 <span className="text-text-2">{fmtDate(h.date)}</span>
                 <span className="font-medium tnum">{setsSummary(h.sets, h.unit)}</span>
               </li>
