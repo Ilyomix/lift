@@ -149,10 +149,8 @@ export function RestDock() {
   const clock = fmtClock(Math.ceil(remaining))
   const next = splitNext(timer.next)
 
-  if (expanded) return <RestOverlay remaining={remaining} progress={progress} onClose={() => setExpanded(false)} />
-
   return (
-    <div className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
+    <><div aria-hidden={expanded || undefined} className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
       <div
         role="timer"
         aria-live={done ? 'assertive' : 'off'}
@@ -179,6 +177,7 @@ export function RestDock() {
         </div>
       </div>
     </div>
+    {expanded && <RestOverlay remaining={remaining} progress={progress} onClose={() => setExpanded(false)} />}</>
   )
 }
 
@@ -204,11 +203,40 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const { adjustRest, stopRest } = useStore.getState()
   const [step, setStep] = useState('15')
+  const dialog = useRef<HTMLDivElement>(null)
+  const close = useRef(onClose)
+  useEffect(() => { close.current = onClose })
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const previous = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        close.current()
+      }
+      if (e.key !== 'Tab' || !dialog.current) return
+      const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter(element => !element.matches(':disabled, [tabindex="-1"]') && element.getClientRects().length > 0)
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (!first || !last) { e.preventDefault(); dialog.current.focus(); return }
+      const outside = !dialog.current.contains(document.activeElement)
+      if (e.shiftKey && (outside || document.activeElement === first || document.activeElement === dialog.current)) {
+        e.preventDefault(); last.focus()
+      } else if (!e.shiftKey && (outside || document.activeElement === last || document.activeElement === dialog.current)) {
+        e.preventDefault(); first.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+    document.body.style.overflow = 'hidden'
+    const frame = requestAnimationFrame(() => dialog.current?.focus({ preventScroll: true }))
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = overflow
+      if (previous?.isConnected) previous.focus({ preventScroll: true })
+    }
+  }, [])
   if (!timer) return null
   const done = remaining <= 0
   const next = splitNext(timer.next)
@@ -223,7 +251,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   ]
   const selectedStep = steps.find((x) => x.value === step)!
   return (
-    <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text safe-top safe-bottom">
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text outline-none safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
         <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
         <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
@@ -257,7 +285,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
           {next ? (
             <>
               <p className="text-[13px] text-muted">{L('Ensuite', 'Next')}</p>
-              <p className="mt-1 truncate text-[20px] leading-[1.25] font-semibold">{next.name}</p>
+              <p className="mt-1 line-clamp-2 text-[20px] leading-[1.25] font-semibold [overflow-wrap:anywhere]">{next.name}</p>
               <p className="mt-0.5 text-[15px] text-text-2">{next.step}</p>
             </>
           ) : (

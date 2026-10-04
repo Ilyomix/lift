@@ -46,10 +46,10 @@ export function NativeActivitySettings() {
     />
     {!activityEnabled && <Row label={L('Autorisation nécessaire', 'Permission needed')} hint={ios ? L('Réglages iPhone → Lift → Activités en direct.', 'iPhone Settings → Lift → Live Activities.') : L('Autorise les notifications de Lift pour afficher le suivi.', 'Allow Lift notifications to show workout tracking.')} />}
     <Toggle label={L('Notification de fin de repos', 'End-of-rest notification')}
-      hint={L('Une seule alerte système, même écran verrouillé. Actions +30 s et reprise de séance.', 'One system alert, including on the lock screen. Actions for +30 s and resuming your workout.')}
+      hint={permission
+        ? L('Une seule alerte système, même écran verrouillé. Actions +30 s et reprise de séance.', 'One system alert, including on the lock screen. Actions for +30 s and resuming your workout.')
+        : L('Active pour autoriser les alertes de Lift sur cet appareil.', 'Turn on to allow Lift alerts on this device.')}
       checked={prefs.notifications && permission} onChange={v => { if (v) void enableAlerts(); else setPrefs({ notifications: false }) }} />
-    {!permission && <Row label={L('Notifications', 'Notifications')}
-      right={<Button size="sm" variant="ink" onClick={() => void enableAlerts()}>{L('Autoriser', 'Allow')}</Button>} />}
     {!ios && <Row label={L('Précision du minuteur', 'Timer accuracy')}
       hint={L('Autorise les alarmes et rappels pour recevoir l’alerte au bon moment en arrière-plan.', 'Allow alarms and reminders for timely background alerts.')}
       right={<Button size="sm" variant="soft" onClick={() => void LocalNotifications.changeExactNotificationSetting().catch(() => notify(L('Ouvre les autorisations de Lift dans les réglages du téléphone.', 'Open Lift permissions in your phone settings.')))}>{L('Réglages', 'Settings')}</Button>} />}

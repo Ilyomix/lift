@@ -9,6 +9,7 @@ const artwork = {
   chart: new URL('../assets/sport/chart.webp', import.meta.url).href,
   nutrition: new URL('../assets/sport/nutrition.webp', import.meta.url).href,
   settings: new URL('../assets/sport/settings.webp', import.meta.url).href,
+  appearance: new URL('../assets/sport/appearance.webp', import.meta.url).href,
   backup: new URL('../assets/sport/backup.webp', import.meta.url).href,
   coach: new URL('../assets/sport/coach.webp', import.meta.url).href,
   trophy: new URL('../assets/sport/trophy.webp', import.meta.url).href,

@@ -14,7 +14,7 @@ import { calendarMilestonesAt } from '../lib/programTimeline'
 import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
-import { Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
+import { Button, Card, cx, DateInput, Disclosure, Empty, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
 import { ProgramContent } from './ProgramScreen'
 
 export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'programme' }) {
@@ -233,7 +233,7 @@ export function PauseScreen() {
 
   return (
     <Screen>
-      <Header art="pause" backTo="plus" title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={MAINTENANCE ? L('Vacances, maladie, blessure : le calendrier continue, et la reprise est adaptée à la durée de l’arrêt.', 'Vacation, illness, injury: the calendar keeps going, and your return is adapted to how long you stopped.') : L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
+      <Header art="pause" backTo="plus/reglages/seances" title={p.active ? L('Programme en pause', 'Program paused') : L('Mettre en pause', 'Pause the program')} sub={MAINTENANCE ? L('Vacances, maladie, blessure : le calendrier continue, et la reprise est adaptée à la durée de l’arrêt.', 'Vacation, illness, injury: the calendar keeps going, and your return is adapted to how long you stopped.') : L(`Vacances, maladie, blessure : le calendrier reste calé sur le ${fmtDate(GOAL_DATE, { long: true })}, et la reprise est adaptée à la durée de l’arrêt.`, `Vacation, illness, injury: the calendar stays locked on ${fmtDate(GOAL_DATE, { long: true })}, and your return is adapted to how long you stopped.`)} />
       {p.active ? (
         <>
           <Card className="p-4">
@@ -257,7 +257,7 @@ export function PauseScreen() {
           <Section icon={<CirclePause size={18} aria-hidden />} title={L('Raison', 'Reason')} className="mt-0">
             <div className="flex flex-wrap gap-2">
               {REASONS.map((r) => (
-                <button key={r.id} type="button" aria-pressed={reason === r.id} onClick={() => setReason(r.id)} className={cx('pressable h-10 rounded-full border px-4 text-[14px] font-semibold', reason === r.id ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
+                <button key={r.id} type="button" aria-pressed={reason === r.id} onClick={() => setReason(r.id)} className={cx('pressable min-h-11 rounded-full border px-4 text-[14px] font-semibold', reason === r.id ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
                   {r.label}
                 </button>
               ))}
@@ -269,7 +269,7 @@ export function PauseScreen() {
               {[3, 7, 14, 21].map((n) => {
                 const d = addDays(today, n - 1)
                 return (
-                  <button key={n} type="button" aria-pressed={end === d} onClick={() => setEnd(d)} className={cx('pressable h-9 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold', end === d ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
+                  <button key={n} type="button" aria-pressed={end === d} onClick={() => setEnd(d)} className={cx('pressable min-h-11 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold', end === d ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
                     {n < 7 ? L(`${n} jours`, `${n} days`) : n === 7 ? L('1 semaine', '1 week') : L(`${n / 7} semaines`, `${n / 7} weeks`)}
                   </button>
                 )
@@ -278,14 +278,14 @@ export function PauseScreen() {
             {plannedGap !== null && <p className="mt-2 text-[13px] text-text-2">{L('Reprise le', 'Back on')} {fmtDate(addDays(end, 1), { weekday: true, long: true })}. {reentryForGap(plannedGap)?.advice ?? L('Moins d’une semaine : reprise normale.', 'Less than a week: normal return.')}</p>}
           </Section>
           <Section icon={<NotebookPen size={18} aria-hidden />} title="Note">
-            <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('Ex. : épaule gauche à surveiller', 'E.g. keep an eye on left shoulder')} />
+            <input aria-label={L('Note de pause', 'Pause note')} className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('Ex. : épaule gauche à surveiller', 'E.g. keep an eye on left shoulder')} />
           </Section>
           <Button variant="ink" size="lg" full className="mt-6" icon={<CirclePause size={18} aria-hidden />} onClick={() => { startPause({ reason, plannedEnd: end || null, note: note || undefined }); navigate('') }}>
             {L('Démarrer la pause', 'Start the pause')}
           </Button>
         </>
       )}
-      <Section icon={<ClipboardList size={18} aria-hidden />} title={L('Les règles de reprise', 'Return rules')}>
+      <Disclosure icon={<ClipboardList size={18} aria-hidden />} title={L('Règles de reprise', 'Return rules')} className="mt-6">
         <Card className="divide-y divide-line text-[14px]">
           {[
             [L('1 séance manquée', '1 missed session'), L('La rotation se décale, rien n’est sauté.', 'The rotation shifts; nothing is skipped.')],
@@ -300,7 +300,7 @@ export function PauseScreen() {
           ))}
         </Card>
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('1 à 3 semaines d’arrêt coûtent peu : des cycles 6 semaines on / 3 off ont donné la même hypertrophie que l’entraînement continu (Ogasawara 2013). Les seuils sont une opinion d’experts.', '1 to 3 weeks off cost little: cycles of 6 weeks on / 3 off produced the same hypertrophy as continuous training (Ogasawara 2013). The thresholds are expert opinion.')}</p>
-      </Section>
+      </Disclosure>
     </Screen>
   )
 }
@@ -316,7 +316,7 @@ export function RemindersScreen() {
   const set = (k: keyof IcsOptions) => (v: boolean) => setO((x) => ({ ...x, [k]: v }))
   return (
     <Screen>
-      <Header art="reminders" backTo="plus" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Un fichier ajoute tes rappels au calendrier de ton téléphone : notifications natives, même application fermée, sans serveur.', 'A file adds your reminders to your phone’s calendar: native notifications, even with the app closed, no server needed.')} />
+      <Header art="reminders" backTo="plus/reglages/seances" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Choisis les événements à exporter dans ton calendrier.', 'Choose which events to export to your calendar.')} />
       <Card className="divide-y divide-line">
         <Toggle label={L('Séances', 'Sessions')} hint={L(`Chaque jour d’entraînement, alerte 30 min avant`, `Every training day, alert 30 min before`)} checked={o.training} onChange={set('training')} />
         <Toggle label={L('Pesée à jeun', 'Fasted weigh-in')} hint={L('Chaque matin : la moyenne sur 7 jours guide les calories', 'Every morning: the 7-day average guides calories')} checked={o.weighIn} onChange={set('weighIn')} />
@@ -338,18 +338,18 @@ export function RemindersScreen() {
       <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile(L('lift-rappels.ics', 'lift-reminders.ics'), ics, 'text/calendar')}>
         {L('Ajouter', 'Add')} {plural(n, L('rappel', 'reminder'), L('rappels', 'reminders'))}
       </Button>
-      <Section icon={<HelpCircle size={18} aria-hidden />} title={L('Comment faire', 'How it works')}>
+      <Disclosure icon={<HelpCircle size={18} aria-hidden />} title={L('Comment ajouter les rappels', 'How to add reminders')} className="mt-4">
         <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
           {/* “Save to Files” is an entry of the iOS share sheet; other devices download the file or hand it to their calendar app. */}
           <li><span className="font-semibold text-text">1.</span> {isIOS() ? L('Touche « Ajouter » puis « Enregistrer dans Fichiers ».', 'Tap “Add”, then “Save to Files”.') : L('Touche « Ajouter » : le fichier calendrier s’enregistre sur ton appareil.', 'Tap “Add”: the calendar file is saved to your device.')}</li>
           <li><span className="font-semibold text-text">2.</span> {isIOS() ? L('Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.', 'Open the file from Files, then tap “Add All” in Calendar.') : L('Ouvre-le : ton application de calendrier propose d’ajouter les rappels.', 'Open it: your calendar app offers to add the reminders.')}</li>
           <li><span className="font-semibold text-text">3.</span> {L('Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.', 'Sessions follow your training days; the exact rotation is in the app.')}</li>
         </ol>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{isNative() ? L('Active les alertes locales dans Plus → Réglages → Minuteur de repos.', 'Enable local alerts in More → Settings → Rest timer.') : L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Minuteur de repos.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest timer.')}</p>
-      </Section>
-      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Semaines de décharge', 'Deload weeks')}>
+        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{isNative() ? L('Active les alertes locales dans Plus → Réglages → Repos et alertes.', 'Enable local alerts in More → Settings → Rest and alerts.') : L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Repos et alertes.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest and alerts.')}</p>
+      </Disclosure>
+      <Disclosure icon={<BookOpen size={18} aria-hidden />} title={L('Dates des décharges', 'Deload dates')} className="mt-3">
         <p className="text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload' && (!MAINTENANCE || p.end >= todayISO())).slice(0, MAINTENANCE ? 8 : undefined).map((p) => fmtDate(p.start)).join(' · ')}</p>
-      </Section>
+      </Disclosure>
     </Screen>
   )
 }

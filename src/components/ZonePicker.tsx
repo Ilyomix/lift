@@ -17,7 +17,7 @@ export function ZonePicker({ value, onChange }: { value: Zone[]; onChange: (zone
             aria-pressed={on}
             disabled={!on && value.length >= MAX_ZONES}
             onClick={() => toggle(z.id)}
-            className={cx('pressable h-10 rounded-full border px-4 text-[14px] font-semibold disabled:opacity-35', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2')}
+            className={cx('pressable min-h-11 rounded-full border px-4 text-[14px] font-semibold disabled:opacity-35', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2')}
           >
             {z.label}
           </button>

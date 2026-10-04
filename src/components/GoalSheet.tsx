@@ -93,7 +93,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
                     disabled={!ok}
                     onClick={() => setDraft(to)}
                     aria-label={L(`${step.label} : ${fmtDate(to, { long: true, year: true })}`, `${step.label}: ${fmtDate(to, { long: true, year: true })}`)}
-                    className="pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-3.5 text-[13px] whitespace-nowrap disabled:opacity-35"
+                    className="pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-3.5 text-[13px] whitespace-nowrap disabled:opacity-35"
                   >
                     <span className="font-semibold">{step.label}</span>
                     <span className="text-muted tnum">{fmtDate(to)}</span>

@@ -6,13 +6,13 @@ Seventeen original object models authored for Lift in Blender 5.2.2 LTS, plus fi
 
 ## Production files
 
-`public/models/sport/` contains `dumbbell`, `plate`, `stopwatch`, `calendar`, `chart`, `nutrition`, `settings`, `backup`, `coach`, `trophy`, `program`, `evidence`, `pause`, `reminders`, `privacy`, `kit`, `logbook` and `workout-{upper,lower,push,pull,legs}.glb`. The workout models are stylized category symbols, not exercise instructions. Upper and Push show chest panels, Pull shows back panels, Lower shows bent legs and a lower torso, and Legs shows extended legs.
+`public/models/sport/` contains `dumbbell`, `plate`, `stopwatch`, `calendar`, `chart`, `nutrition`, `settings`, `appearance`, `backup`, `coach`, `trophy`, `program`, `evidence`, `pause`, `reminders`, `privacy`, `kit`, `logbook` and `workout-{upper,lower,push,pull,legs}.glb`. The workout models are stylized category symbols, not exercise instructions. Upper and Push show chest panels, Pull shows back panels, Lower shows bent legs and a lower torso, and Legs shows extended legs.
 
 Each GLB contains an `ArtRoot`, a square orthographic `IconCamera`, and one six-second `Idle` clip starting at zero. glTF uses Y-up coordinates. The model is centered and normalized to approximately two units. At runtime, `frameSportMotion` frames each object's complete gesture once using its mesh vertices, preserving a square projection and transparent margins. The camera then stays fixed. The workout models retain their exported camera. **Set Blender's render resolution to square before exporting**, because the glTF exporter computes camera `xmag` and `ymag` from that aspect ratio.
 
 Four stable PBR material names permit runtime theming: `LiftGraphite`, `LiftCobalt`, `LiftSilver`, and `LiftInk`. A model includes only the materials it uses. There are no texture maps or baked vertex colors; the runtime can adapt both the neutral material colors and the blue/orange accent. The illustrative `.blend` studio lighting is not exported, so the runtime supplies its own shared environment and lights.
 
-The seventeen objects use these authored material values:
+The eighteen objects use these authored material values:
 
 | Material | sRGB color | Metallic | Roughness |
 | --- | --- | --- | --- |
@@ -39,9 +39,9 @@ node --import tsx --test tests/sport-motion.test.ts
 
 Pass model names after `--` to rebuild a subset. The generator saves editable `.blend` files, 384×384 transparent PNG review renders and individual geometry/provenance JSON files in ignored `.local-release/sport-models/`. These files can be regenerated; the scenes are retained for further manual editing.
 
-The command rebuilds only the seventeen object icons. The rejected procedural human generators have been removed. Regenerate the five anatomical workout icons with `scripts/generate-workout-icons.py`. `scripts/prototype-realistic-dumbbell.py` uses the same canonical geometry and materials while exporting only to `.local-release/sport-models/realistic-v2/` and producing a larger studio review render. There is no second, stale dumbbell implementation.
+The command rebuilds only the eighteen object icons. The rejected procedural human generators have been removed. Regenerate the five anatomical workout icons with `scripts/generate-workout-icons.py`. `scripts/prototype-realistic-dumbbell.py` uses the same canonical geometry and materials while exporting only to `.local-release/sport-models/realistic-v2/` and producing a larger studio review render. There is no second, stale dumbbell implementation.
 
-The verification script checks all twenty-two GLB binary containers, internal buffer bounds and mesh indices, finite geometry and animation values, square camera aspect, material names, absence of textures/external resources, `ArtRoot`, a single `Idle` clip, the exact zero-to-six-second time range and continuous loop endpoints. It writes source hashes, triangle counts, animated channel counts and total bytes to `.local-release/sport-models/validation.json`. Read the current verifier output for exact byte counts; the human derivatives are larger than the original object icons. Runtime motion tests additionally check actual mesh framing, rigid rolling, static rest poses, long pauses and staggered starts.
+The verification script checks all twenty-three GLB binary containers, internal buffer bounds and mesh indices, finite geometry and animation values, square camera aspect, material names, absence of textures/external resources, `ArtRoot`, a single `Idle` clip, the exact zero-to-six-second time range and continuous loop endpoints. It writes source hashes, triangle counts, animated channel counts and total bytes to `.local-release/sport-models/validation.json`. Read the current verifier output for exact byte counts; the human derivatives are larger than the original object icons. Runtime motion tests additionally check actual mesh framing, rigid rolling, static rest poses, long pauses and staggered starts.
 
 Five static fallback images live in `src/assets/sport/workout-*.webp`. The human workout generator refreshes them directly from its Blender review renders under `.local-release/workout-models/`, retaining alpha. They are distinct from the ten earlier ImageGen fallback illustrations, whose provenance remains in `src/assets/sport/README.md`.
 
@@ -57,3 +57,15 @@ Visual QA must still check actual runtime lighting, 32/64 px legibility, light/d
 Seven additional original Blender models provide distinct semantic artwork: a clipboard for the program, a research book for sources, an hourglass for program pauses, a bell for reminders, a shield and lock for privacy, a sports bag for More, and a workout journal for empty progress views. Their matching WebP fallbacks are rendered from the same Blender scenes. No old asset is copied or renamed.
 
 The new internal motions use `ProgramClipPivot`, `EvidenceBookmarkPivot`, `HourglassPivot`, `BellSwingPivot`/`BellClapperPivot`, `LockShacklePivot`, `KitZipPullPivot` and `LogbookPencilPivot`. The sports bag zipper slides along its track while its handles stay still. All seven keep a static ArtRoot; the shared runtime controls long rest intervals, theme materials and complete-motion framing. The added assets total 449,708 bytes of GLB and 69,888 bytes of transparent WebP.
+
+## Dedicated Appearance artwork
+
+`appearance.glb` is an original Lift day/night control, separate from the settings gear. Its graphite shell, steel rim, embossed sun/crescent and accent-colored thumb are real geometry. `AppearanceThumbSlide` travels horizontally within the stationary track, uncovers the sun, then returns to the crescent side. The app plays a 1.48-second gesture starting about 2.1 seconds after entering view, repeating every 30 seconds. The original six-second export clip remains available; the runtime uses its own gesture timing. ArtRoot and the camera stay fixed.
+
+The asset uses the four existing themeable PBR materials, without textures or external resources. The 81,508-byte GLB contains 4,212 triangles and five mesh primitives. Its 8,706-byte transparent WebP fallback is encoded directly from the Blender Cycles PNG. Neither the app icon nor any existing model is regenerated by this targeted command:
+
+```sh
+blender --background --factory-startup --python-exit-code 1 --python scripts/generate-sport-models.py -- appearance
+```
+
+Editable scene, geometry/license metadata and review renders are retained as `.local-release/sport-models/appearance.{blend,json,png}`. License/provenance: original procedural Lift artwork; no third-party assets or textures. Runtime camera-bound, motion and long-rest tests include Appearance.

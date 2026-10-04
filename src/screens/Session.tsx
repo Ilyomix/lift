@@ -446,11 +446,11 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
           <button type="button" onClick={() => {
             if (ex.sets.length >= prescribedSets(ex) && !window.confirm(L('Ajouter une série hors prescription ? Elle sera comptée dans le volume. Une série de plus n’est pas nécessaire pour valider la charge.', 'Add a set outside the prescription? It will count towards volume. An extra set is not needed to validate the load.'))) return
             addSet(index)
-          }} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
+          }} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
             <Plus size={16} aria-hidden /> {L('Série', 'Set')}
           </button>
           {ex.sets.length > 1 && !ex.sets[ex.sets.length - 1].completed && (
-            <button type="button" onClick={() => removeSet(index, ex.sets.length - 1)} className="pressable inline-flex h-10 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-medium text-muted hover:bg-surface-2 hover:text-text">
+            <button type="button" onClick={() => removeSet(index, ex.sets.length - 1)} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-medium text-muted hover:bg-surface-2 hover:text-text">
               <X size={15} aria-hidden /> {L('Retirer', 'Remove')}
             </button>
           )}

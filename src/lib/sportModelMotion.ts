@@ -15,7 +15,7 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
   // gesture retains its normal speed, with a long truly static interval after it.
   const timing: Record<SportArtKind, readonly [number, number]> = {
     calendar: [27, .35], chart: [29, 1.3], nutrition: [25, 2.4], backup: [31, 3.1],
-    dumbbell: [28, .8], plate: [26, 1.8], settings: [32, 3.6], stopwatch: [30, 2.8],
+    dumbbell: [28, .8], plate: [26, 1.8], settings: [32, 3.6], appearance: [30, 1.9], stopwatch: [30, 2.8],
     trophy: [24, 4.1], coach: [32, 0],
     program: [29, .9], evidence: [32, 2.2], pause: [31, 3.3], reminders: [28, 1.4],
     privacy: [30, 2.7], kit: [32, 1.7], logbook: [29, 3.8],
@@ -102,6 +102,9 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
           turn('ModelGeometry', Z, -gesture(phase, .2, .35, .15, .45) * Math.PI / 6)
           break
         }
+        case 'appearance':
+          move('AppearanceThumbSlide', X, .9 * gesture(phase, .2, .60, .18, .70))
+          break
         case 'stopwatch':
           turn('SecondHandPivot', Z, phase < 2 ? ease((phase - .2) / 1.8) * Math.PI * 2 : 0)
           break

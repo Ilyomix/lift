@@ -53,3 +53,5 @@ One compact achievement trophy: broad graphite cup with two substantial cobalt-b
 ## Original Blender page models — 4 October 2026
 
 `program`, `evidence`, `pause`, `reminders`, `privacy`, `kit`, and `logbook` are original procedural mesh models authored for Lift. Their WebP files here are transparent renders of the matching GLBs, not ImageGen outputs or third-party downloads. The canonical generator is `scripts/generate-sport-models.py`; editable Blender scenes and review PNGs are retained in `.local-release/sport-models/`. See [model documentation](../../../docs/sport-model-assets.md) for their material, animation and validation contract.
+
+`appearance.webp` is also a direct transparent Blender render, added on 4 October 2026. It depicts the dedicated day/night slider used by Appearance settings: graphite housing, steel trim, sun/crescent and a themeable accent thumb. The matching original GLB and `AppearanceThumbSlide` motion are documented in [model documentation](../../../docs/sport-model-assets.md#dedicated-appearance-artwork); it is not a recolored or renamed settings gear.

@@ -22,7 +22,7 @@ function applyEmbeddedTheme(event: SyntheticEvent<HTMLIFrameElement>) {
 export function PrivacyScreen() {
   return (
     <Screen>
-      <Header art="privacy" backTo="plus" title={L('Politique de confidentialité', 'Privacy policy')} />
+      <Header art="privacy" backTo="plus/reglages/donnees" title={L('Politique de confidentialité', 'Privacy policy')} />
       <iframe
         title={L('Politique de confidentialité', 'Privacy policy')}
         src={`${import.meta.env.BASE_URL}privacy.html?embedded=1#${L('fr', 'en')}`}

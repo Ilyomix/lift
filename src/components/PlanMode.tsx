@@ -21,15 +21,14 @@ export function PlanModePicker({ value, onChange }: { value: PlanMode; onChange:
     },
   ]
   return (
-    <div className="grid gap-2 min-[380px]:grid-cols-2" role="radiogroup" aria-label={L('Type de plan', 'Plan type')}>
+    <div className="grid gap-2 min-[380px]:grid-cols-2" role="group" aria-label={L('Type de plan', 'Plan type')}>
       {options.map(({ id, icon: Icon, title, text }) => {
         const on = id === value
         return (
           <button
             key={id}
             type="button"
-            role="radio"
-            aria-checked={on}
+            aria-pressed={on}
             onClick={() => onChange(id)}
             className={cx('pressable card flex min-w-0 flex-col items-start gap-2 p-3.5 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
           >

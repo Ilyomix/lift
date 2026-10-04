@@ -12,7 +12,7 @@ import type { Look, WorkoutType, Zone } from '../lib/types'
 import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, prioritySets, prioritySetsStart, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
 import { RefList } from '../components/Evidence'
 import { ZonePicker } from '../components/ZonePicker'
-import { Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
+import { Disclosure, Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
 
 const kg = (x: number) => `${fmtNum(x, 1)} kg`
 const pct = (x: number) => L(`${fmtNum(x, 0)} %`, `${fmtNum(x, 0)}%`)
@@ -85,7 +85,7 @@ export function VisualGoalScreen() {
   return (
     <Screen>
       <Header art="trophy"
-        backTo="plus/reglages"
+        backTo="plus/reglages/objectifs"
         title={L('Objectif visuel', 'Visual goal')}
         sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual landmark: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
       />
@@ -125,7 +125,7 @@ export function VisualGoalScreen() {
       )}
 
       <Section icon={<Eye size={18} aria-hidden />} title={L('Le look', 'The look')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
-        <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
+        <div className="grid gap-2" role="group" aria-label={L('Look visé', 'Target look')}>
           {LOOKS.map((l) => {
             const on = l.id === look
             const r = l.range[sex]
@@ -133,8 +133,7 @@ export function VisualGoalScreen() {
               <button
                 key={l.id}
                 type="button"
-                role="radio"
-                aria-checked={on}
+                aria-pressed={on}
                 onClick={() => setLook(l.id)}
                 className={cx('pressable card flex items-start gap-3 p-4 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
               >
@@ -162,7 +161,8 @@ export function VisualGoalScreen() {
           {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every session that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
           {zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)} (le V du programme).`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)} (the program’s V shape).`)}
         </p>
-        <Card className="mt-3 divide-y divide-line">
+        <Disclosure title={L('Effet sur les séances', 'Effect on sessions')} className="mt-3">
+        <Card className="divide-y divide-line">
           {effects.map((g) => (
             <div key={g.zone ?? 'programme'} className="px-4 py-3">
               <p className="text-[14px] font-semibold">{g.label} <span className="font-normal text-text-2">· {g.sets.length ? L(`+1 série sur ${plural(g.sets.length, 'exercice', 'exercices')}`, `+1 set on ${plural(g.sets.length, 'exercise', 'exercises')}`) : L('aucun exercice dans tes séances', 'no exercise in your sessions')}</span></p>
@@ -182,6 +182,7 @@ export function VisualGoalScreen() {
             {start && !start.running && L(' D’ici là, tes séances ne changent pas.', ' Until then, your sessions don’t change.')}
           </p>
         </Card>
+        </Disclosure>
       </Section>
 
       <Section icon={<Ruler size={18} aria-hidden />} title={L('Où tu en es', 'Where you stand')}>
@@ -189,9 +190,9 @@ export function VisualGoalScreen() {
           <Field label={L('Taille (cm)', 'Height (cm)')}><input className={inputClass} inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="189" /></Field>
           <div className="min-w-0">
             <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
-            <div className="grid h-12 grid-cols-2 gap-1 rounded-[10px] border border-line-strong p-1" role="radiogroup" aria-label={L('Sexe', 'Sex')}>
+            <div className="grid min-h-[54px] grid-cols-2 gap-1 rounded-[10px] border border-line-strong p-1" role="group" aria-label={L('Sexe', 'Sex')}>
               {([['m', L('Homme', 'Male')], ['f', L('Femme', 'Female')]] as const).map(([v, label]) => (
-                <button key={v} type="button" role="radio" aria-checked={sex === v} onClick={() => setSex(v)} className={cx('pressable rounded-[7px] text-[14px] font-semibold', sex === v ? 'bg-text text-bg' : 'text-text-2')}>
+                <button key={v} type="button" aria-pressed={sex === v} onClick={() => setSex(v)} className={cx('pressable min-h-11 rounded-[7px] text-[14px] font-semibold', sex === v ? 'bg-text text-bg' : 'text-text-2')}>
                   {label}
                 </button>
               ))}
@@ -202,7 +203,7 @@ export function VisualGoalScreen() {
           </Field>
         </div>
         {bf ? (
-          <Card className="mt-3 divide-y divide-line">
+          <Card className="divide-y divide-line">
             <Line label={L('Taux de gras', 'Body fat')} value={`≈ ${pct(bf.pct)}`} hint={bf.source === 'mesure' ? L('Valeur mesurée', 'Measured value') : bf.source === 'imc' ? L('Estimé avec ton IMC (poids, taille, âge) · formule de Deurenberg', 'Estimated from your BMI (weight, height, age) · Deurenberg formula') : L(`Estimé avec ton tour de taille (${fmtNum(bf.waist!, 0)} cm, ${nb(fmtRelativeDay(bf.waistDate!, today))}) · formule RFM`, `Estimated from your waist (${fmtNum(bf.waist!, 0)} cm, ${nb(fmtRelativeDay(bf.waistDate!, today))}) · RFM formula`)} />
             {plan && <Line label={L('Masse maigre', 'Lean mass')} value={kg(plan.lean)} hint={L(`Masse grasse ≈ ${kg(plan.fat)} sur ${kg(plan.weight)}`, `Fat mass ≈ ${kg(plan.fat)} of ${kg(plan.weight)}`)} />}
           </Card>
@@ -271,7 +272,7 @@ export function VisualGoalScreen() {
         </Section>
       )}
 
-      <Section icon={<Camera size={18} aria-hidden />} title={L('Photo de référence', 'Reference photo')}>
+      <Disclosure icon={<Camera size={18} aria-hidden />} title={L('Photo de référence', 'Reference photo')} className="mt-4">
         {photo ? (
           <div className="grid grid-cols-[120px_1fr] items-start gap-3">
             <img src={photo.dataUrl} alt={L('Photo de référence de l’objectif', 'Goal reference photo')} className="aspect-[3/4] w-full rounded-[10px] object-cover" />
@@ -291,16 +292,16 @@ export function VisualGoalScreen() {
           </button>
         )}
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { void onPhoto(e.target.files?.[0]); e.target.value = '' }} />
-      </Section>
+      </Disclosure>
 
-      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Sur quoi ça repose', 'What this is based on')}>
+      <Disclosure icon={<BookOpen size={18} aria-hidden />} title={L('Sur quoi ça repose', 'What this is based on')} className="mt-4">
         <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
           <li>{L('Taux de gras estimé par la masse grasse relative (RFM), validée contre la DEXA : fiable pour suivre une tendance, à quelques points près pour une valeur isolée.', 'Body fat estimated with relative fat mass (RFM), validated against DEXA: reliable for tracking a trend, within a few points for a single value.')}</li>
           <li>{L('Sèche entre −0,5 et −0,7 % du poids par semaine : au-delà, la masse maigre est moins bien préservée.', 'Cut between −0.5 and −0.7% of body weight per week: faster than that, lean mass is less well preserved.')}</li>
           <li>{L('Le calendrier ne suppose aucun gain de muscle. Le poids cible reste une estimation, à réévaluer avec des mesures récentes.', 'The calendar assumes no muscle gain. Target weight remains an estimate to revisit with recent measurements.')}</li>
         </ul>
         <RefList refs={['woolcott2018', 'garthe2011', 'helms2014']} compact />
-      </Section>
+      </Disclosure>
     </Screen>
   )
 }

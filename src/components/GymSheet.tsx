@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Check, ChevronRight, Dumbbell, House, MapPin, Plus } from 'lucide-react'
+import { Check, ChevronRight, House, MapPin, Plus } from 'lucide-react'
 import { L } from '../lib/i18n'
 import { useStore } from '../lib/store'
-import { setupLabel, SetupSheet } from './Setup'
+import { SetupSheet } from './Setup'
 import { Button, cx, inputClass, Sheet } from './ui'
 
 /**
@@ -31,22 +31,19 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
     notify(L(`${n} ajoutée : les charges machine y seront suivies à part.`, `${n} added: machine loads will be tracked separately there.`), 'good')
     pick(id)
   }
-  if (placeOpen) return <SetupSheet onClose={onClose} />
+  if (placeOpen || (home && !session)) return <SetupSheet onClose={onClose} />
   const place = !session && (
-    <button type="button" onClick={() => setPlaceOpen(true)} className={cx('pressable flex w-full items-center gap-3 rounded-[12px] border border-line px-4 py-3.5 text-left hover:bg-surface-2', !home && 'mt-4')}>
-      {home ? <Dumbbell size={18} className="shrink-0 text-muted" aria-hidden /> : <House size={18} className="shrink-0 text-muted" aria-hidden />}
+    <button type="button" onClick={() => setPlaceOpen(true)} className="pressable mt-4 flex w-full items-center gap-3 rounded-[12px] border border-line px-4 py-3.5 text-left hover:bg-surface-2">
+      <House size={18} className="shrink-0 text-muted" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-medium">{home ? L('Retourner à la salle', 'Go back to the gym') : L('S’entraîner à la maison', 'Train at home')}</span>
+        <span className="block text-[15px] font-medium">{L('S’entraîner à la maison', 'Train at home')}</span>
         <span className="block text-[13px] leading-[1.4] text-text-2">
-          {home
-            ? L(`Actuellement : ${setupLabel(setup)}. Tes séances de salle reviennent telles quelles.`, `Currently: ${setupLabel(setup)}. Your gym sessions come back as they were.`)
-            : L('Les séances sont recomposées pour ton matériel ; celles de salle reviennent telles quelles au retour.', 'Sessions are rebuilt for your equipment; your gym sessions come back as they were when you return.')}
+          {L('Les séances sont recomposées pour ton matériel ; celles de salle reviennent telles quelles au retour.', 'Sessions are rebuilt for your equipment; your gym sessions come back as they were when you return.')}
         </span>
       </span>
       <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
     </button>
   )
-  if (home && !session) return <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={L('Lieu d’entraînement', 'Where you train')}>{place}</Sheet>
   return (
     <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this session') : L('Lieu d’entraînement', 'Where you train')}>
       <div className="divide-y divide-line overflow-hidden rounded-[12px] border border-line">

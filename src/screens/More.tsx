@@ -1,89 +1,79 @@
-import { NativeActivitySettings } from '../components/NativeActivitySettings'
-import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
-import {
-  ChartColumn, Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, Dumbbell, ExternalLink, Eye, Flag, History, Infinity as InfinityIcon, MapPin, MessageSquare, Palette, Pencil, Settings2, ShieldCheck, Smartphone, Sparkles, Target, Timer, Trash, TriangleAlert, Upload, Utensils,
-} from 'lucide-react'
-import { requestNotifications, notificationsSupported } from '../lib/alerts'
+import { ChartColumn, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, History, MessageSquare, Settings2, Smartphone, Sparkles, Target, Trash, TriangleAlert, Upload, Utensils } from 'lucide-react'
+import { isNative } from '../lib/native/bridge'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
 import { L } from '../lib/i18n'
-import { addDays, capitalize, dayLetter, dayName, fmtDate, fmtRelativeDay, isoFromTimestamp, todayISO } from '../lib/date'
+import { addDays, capitalize, fmtDate, fmtRelativeDay, isoFromTimestamp, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
-import { HOME_GYM } from '../lib/gyms'
-import { contextAt, GOAL_DATE, MAINTENANCE, PLAN_DAYS, sharePhrase, templateSets, trainingDays, TYPE_META, weekShape } from '../lib/program'
-import { disablePush, enablePush, preparePush, pushReady, pushSupported, testPush } from '../lib/push'
+import { contextAt, TYPE_META } from '../lib/program'
 import { studyCount } from '../lib/research'
 import { navigate } from '../lib/router'
 import { isAndroid, isIOS, isStandalone, saveFile, shareText } from '../lib/share'
-import { calorieAdvice, calorieStepPatch, goalWeightRange, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
-import { lookInfo, ZONES, goalApplied } from '../lib/visual'
+import { calorieAdvice, calorieStepPatch, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
 import { useStore } from '../lib/store'
 import { Columns } from '../components/charts'
-import { SportArt, type SportArtKind } from '../components/SportArt'
 import { RefList } from '../components/Evidence'
-import { GoalSheet } from '../components/GoalSheet'
-import { SetupSheet, setupLabel } from '../components/Setup'
-import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, ProgressBar, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
-
-
-function MoreMenuRow({ to, art, label, hint }: { to: string; art: SportArtKind; label: string; hint: string }) {
-  return <Row
-    className="py-3.5"
-    onClick={() => navigate(to)}
-    label={<span className="flex min-w-0 items-center gap-3">
-      <SportArt kind={art} size="title" />
-      <span className="min-w-0">
-        <span className="block text-[15px] font-medium">{label}</span>
-        <span className="block text-[13px] font-normal text-muted">{hint}</span>
-      </span>
-    </span>}
-    right={<ChevronRight size={16} className="text-muted" aria-hidden />}
-  />
-}
+import { SettingsMenuRow } from '../components/SettingsMenu'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, ProgressBar, Row, Screen, Section, Sheet, Tag, Toggle } from '../components/ui'
 
 export function MoreScreen() {
-  const state = useStore((s) => s.state)
-  const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
-    { to: 'plus/nutrition', art: 'nutrition', label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
-    { to: 'plus/preuves', art: 'evidence', label: L('Sources scientifiques', 'Scientific sources'), hint: L(`${studyCount()} études · principes et limites`, `${studyCount()} studies · principles and limitations`) },
-    { to: 'plus/pause', art: 'pause', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
-    { to: 'plus/rappels', art: 'reminders', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
-    { to: 'plus/donnees', art: 'backup', label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
-    { to: 'plus/reglages', art: 'settings', label: L('Réglages', 'Settings'), hint: L('Objectifs, minuteur, apparence', 'Goals, timer, appearance') },
-  ]
   return (
     <Screen>
-      <Header art="kit" title={L('Plus', 'More')} sub={L('Nutrition, réglages et données personnelles.', 'Nutrition, settings and personal data.')} />
+      <Header art="kit" title={L('Plus', 'More')} sub={L('Nutrition, réglages et ressources.', 'Nutrition, settings and resources.')} />
       <Card className="divide-y divide-line">
-        {items.map((item) => <MoreMenuRow key={item.to} {...item} />)}
+        <SettingsMenuRow to="plus/nutrition" art="nutrition" label="Nutrition" hint={L('Calories, protéines, créatine', 'Calories, protein, creatine')} />
+        <SettingsMenuRow to="plus/reglages" art="settings" label={L('Réglages', 'Settings')} hint={L('Entraînement, préférences et données', 'Training, preferences and data')} />
+        <SettingsMenuRow to="plus/preuves" art="evidence" label={L('Sources scientifiques', 'Scientific sources')} hint={L(`${studyCount()} études · principes et limites`, `${studyCount()} studies · principles and limitations`)} />
       </Card>
       <Disclosure icon={<Settings2 size={18} aria-hidden />} title={L('Outils avancés', 'Advanced tools')} className="mt-4" contentClassName="text-[13px] text-text-2">
         <Card>
-          <MoreMenuRow to="plus/coach" art="coach" label={L('Aide IA facultative', 'Optional AI assistance')} hint={L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')} />
+          <SettingsMenuRow to="plus/coach" art="coach" label={L('Aide IA facultative', 'Optional AI assistance')} hint={L('Partager un bilan, vérifier des suggestions', 'Share a summary, review suggestions')} />
         </Card>
       </Disclosure>
-      {/* About: who made it and which build this is, as one row; the two notes under it. */}
       <Card className="mt-4">
+        <SettingsMenuRow to="plus/a-propos" art="kit" label={L('À propos de Lift', 'About Lift')} hint={L('Version, confidentialité et code source', 'Version, privacy and source code')} />
+      </Card>
+    </Screen>
+  )
+}
+
+export function AboutScreen() {
+  return (
+    <Screen>
+      <Header art="kit" backTo="plus" title={L('À propos de Lift', 'About Lift')} />
+      <Card>
         <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
           <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-full border border-line-strong object-cover" />
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-medium">{L('Conçue par Ilyomix', 'Designed by Ilyomix')}</span>
-            <span className="block truncate text-[13px] text-muted tnum" title={__APP_COMMIT__ || undefined}>
+            <span className="block text-[13px] text-muted tnum" title={__APP_COMMIT__ || undefined}>
               Lift {__APP_VERSION__}{__APP_BUILD__ ? ` · build ${__APP_BUILD__}` : isNative() ? '' : L(' · build local', ' · local build')} · {fmtDate(isoFromTimestamp(__APP_BUILT__), { year: true })}
             </span>
           </span>
           <ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
         </a>
       </Card>
-      <p className="mt-3 px-1 text-[12px] leading-[1.5] text-muted">
-        {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}{' '}
-        <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium whitespace-nowrap text-text-2 underline decoration-line-strong underline-offset-2">{L('Code source sur GitHub', 'Source code on GitHub')}</a>
-      </p>
-      <a href="#/plus/confidentialite" className="pressable mt-2 inline-flex min-h-11 items-center gap-2 px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
-        <ShieldCheck size={18} className="shrink-0" aria-hidden />
-        {L('Politique de confidentialité', 'Privacy policy')}
-      </a>
+      <p className="mt-4 text-[14px] leading-[1.5] text-text-2">{L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}</p>
+      <Card className="mt-4 divide-y divide-line">
+        <SettingsMenuRow to="plus/confidentialite" art="privacy" label={L('Politique de confidentialité', 'Privacy policy')} />
+        <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="pressable flex min-h-11 items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-medium hover:bg-surface-2">
+          {L('Code source sur GitHub', 'Source code on GitHub')}<ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
+        </a>
+      </Card>
+      <Section icon={<Smartphone size={18} aria-hidden />} title={L('Installation', 'Installation')}>
+        <Card className="p-4">
+          {isNative() || isStandalone() ? (
+            <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
+          ) : (
+            <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
+              {!isAndroid() && <li><span className="font-semibold text-text">Safari</span> · {L('touche Partager, puis « Sur l’écran d’accueil ».', 'tap Share, then “Add to Home Screen”.')}</li>}
+              {!isIOS() && <li><span className="font-semibold text-text">Chrome</span> · {L('menu ⋮, puis « Installer l’application ».', 'open the ⋮ menu, then “Install app”.')}</li>}
+              <li>{L('Lance ensuite Lift depuis l’icône : plein écran, hors ligne, notifications possibles.', 'Then open Lift from the icon: full screen, offline, notifications available.')}</li>
+            </ol>
+          )}
+        </Card>
+      </Section>
     </Screen>
   )
 }
@@ -92,7 +82,7 @@ export function MoreScreen() {
 
 export function NutritionScreen() {
   const state = useStore((s) => s.state)
-  const { setNutrition, setNutritionTargets, notify } = useStore.getState()
+  const { setNutrition } = useStore.getState()
   const today = todayISO()
   const [date, setDate] = useState(today)
   const proteinInput = useRef<HTMLInputElement>(null)
@@ -100,16 +90,10 @@ export function NutritionScreen() {
   const protein = proteinTargetFor(state, date)
   const ctx = contextAt(date)
   const days = nutritionDays(state, 14, today)
-  const advice = calorieAdvice(state, today)
-  // The sized step of a cut: offered once the lifter says his last three weeks were normal ones; the regular step otherwise.
-  const [normal, setNormal] = useState<boolean | null>(null)
-  const first = advice.status === 'ask' ? advice.first : undefined
-  const step = !first || normal === null ? null : normal ? { ...first, sized: true } : advice.otherwise ? { ...advice.otherwise, sized: false } : null
   const hit = days.filter((d) => d.protein >= protein.min).length
   const nutritionDates = Object.keys(state.nutritionEntries)
   const hasRecentNutrition = nutritionDates.some((entryDate) => entryDate >= addDays(today, -13) && entryDate <= today)
   const add = (k: 'calories' | 'protein', n: number) => setNutrition(date, { [k]: Math.max(0, (e[k] ?? 0) + n) })
-  const adaptive = state.nutritionTargets.adaptive !== false
   return (
     <Screen>
       <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label} title="Nutrition" sub={ctx.phase?.nutrition} />
@@ -125,6 +109,39 @@ export function NutritionScreen() {
         <Toggle label={L('Créatine', 'Creatine')} hint={L(`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`, `${state.nutritionTargets.creatine} g per day · makes you retain 1–2 kg of water`)} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
+      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
+        {hasRecentNutrition ? <Card className="p-4">
+          <Columns
+            ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
+            bars={days.map((d) => ({ key: d.date, label: String(Number(d.date.slice(8))), value: d.protein, tooltip: <span>{fmtDate(d.date)}{L(' : ', ': ')}{fmtNum(d.protein, 0)} g</span> }))}
+            target={{ value: protein.min, label: `${protein.min} g` }}
+            format={(v) => fmtNum(v, 0)}
+          />
+        </Card> : <Empty icon={<Utensils size={32} aria-hidden />}
+          title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutrition commence ici', 'Your nutrition log starts here')}
+          action={<Button variant="outline" onClick={() => { setDate(today); proteinInput.current?.focus() }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
+        >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
+      </Section>
+
+      <Card className="mt-6">
+        <SettingsMenuRow to="plus/reglages/nutrition" art="nutrition" label={L('Cibles et ajustements', 'Targets and adjustments')} hint={L('Protéines, calories et créatine', 'Protein, calories and creatine')} />
+      </Card>
+    </Screen>
+  )
+}
+
+export function NutritionTargetsScreen() {
+  const state = useStore((s) => s.state)
+  const { setNutritionTargets, notify } = useStore.getState()
+  const today = todayISO()
+  const advice = calorieAdvice(state, today)
+  const [normal, setNormal] = useState<boolean | null>(null)
+  const first = advice.status === 'ask' ? advice.first : undefined
+  const step = !first || normal === null ? null : normal ? { ...first, sized: true } : advice.otherwise ? { ...advice.otherwise, sized: false } : null
+  return (
+    <Screen>
+      <Header art="nutrition" backTo="plus/reglages" title={L('Cibles nutritionnelles', 'Nutrition targets')} sub={L('Tes cibles quotidiennes et leurs ajustements.', 'Your daily targets and their adjustments.')} />
+      <NutritionTargetForm />
       <Section icon={<Settings2 size={18} aria-hidden />} title={L('Ajuster les calories', 'Adjust calories')}>
         <Card className="p-4">
           <div className="flex items-start justify-between gap-3">
@@ -174,55 +191,87 @@ export function NutritionScreen() {
               <Button variant="ghost" full onClick={() => setNormal(null)} className="mt-2">{L('Revenir à la question', 'Back to the question')}</Button>
             </>
           )}
+        </Card>
+      </Section>
+
+      <Disclosure icon={<Target size={18} aria-hidden />} title={L('Comment les cibles sont calculées', 'How targets are calculated')} className="mt-6" contentClassName="text-[13px] leading-[1.5] text-text-2">
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
             {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal (un par sèche prend le déficit du plan en une fois), puis 2 semaines pour que le poids réagisse.', 'Steps of 150 kcal (one per cut takes the plan’s deficit at once), then 2 weeks for your weight to respond.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
           </p>
-        </Card>
-      </Section>
-
-      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
-        {hasRecentNutrition ? <Card className="p-4">
-          <Columns
-            ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
-            bars={days.map((d) => ({ key: d.date, label: String(Number(d.date.slice(8))), value: d.protein, tooltip: <span>{fmtDate(d.date)}{L(' : ', ': ')}{fmtNum(d.protein, 0)} g</span> }))}
-            target={{ value: protein.min, label: `${protein.min} g` }}
-            format={(v) => fmtNum(v, 0)}
-          />
-        </Card> : <Empty icon={<Utensils size={32} aria-hidden />}
-          title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutrition commence ici', 'Your nutrition log starts here')}
-          action={<Button variant="outline" onClick={() => { setDate(today); proteinInput.current?.focus() }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
-        >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
-      </Section>
-
-      <Section icon={<Target size={18} aria-hidden />} title={L('Cibles', 'Targets')}>
-        <Card className="mb-3">
-          <Toggle
-            label={L('Protéines adaptées à ton poids', 'Protein adjusted to your weight')}
-            hint={adaptive && protein.weight ? L(`${protein.min}–${protein.max} g : ≈ ${fmtNum(protein.perKg![0], 1)}–${fmtNum(protein.perKg![1], 1)} g/kg × ${fmtNum(protein.weight, 1)} kg (moyenne 7 jours)`, `${protein.min}–${protein.max} g: ≈ ${fmtNum(protein.perKg![0], 1)}–${fmtNum(protein.perKg![1], 1)} g/kg × ${fmtNum(protein.weight, 1)} kg (7-day average)`) : adaptive ? L('Dès ta première pesée', 'From your first weigh-in') : L('Fourchette fixe ci-dessous', 'Fixed range below')}
-            checked={adaptive}
-            onChange={(v) => setNutritionTargets({ adaptive: v })}
-          />
-        </Card>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Calories (kcal)"><NumInput value={state.nutritionTargets.calories} onChange={(n) => setNutritionTargets({ calories: n })} /></Field>
-          <Field label={L('Créatine (g)', 'Creatine (g)')}><NumInput value={state.nutritionTargets.creatine} onChange={(n) => setNutritionTargets({ creatine: n })} /></Field>
-          {!adaptive && (
-            <>
-              <Field label={L('Protéines min (g)', 'Protein min (g)')}><NumInput value={state.nutritionTargets.proteinMin} onChange={(n) => setNutritionTargets({ proteinMin: n })} /></Field>
-              <Field label={L('Protéines max (g)', 'Protein max (g)')}><NumInput value={state.nutritionTargets.proteinMax} onChange={(n) => setNutritionTargets({ proteinMax: n })} /></Field>
-            </>
-          )}
-        </div>
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">{L('Aucune étude ne donne ta maintenance : les calories se règlent sur ta moyenne de poids. Protéines : ≈ 2 g/kg, un peu plus en sèche, jamais en baisse pendant la sèche.', 'No study can tell you your maintenance: calories are set from your weight average. Protein: ≈ 2 g/kg, a little more during a cut, never lowered during the cut.')}</p>
         <RefList refs={['morton2018', 'helms2014', 'murphy2022', 'garthe2011', 'burke2023']} compact />
-      </Section>
+      </Disclosure>
     </Screen>
   )
 }
 
-function NumInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  const [t, setT] = useState(String(value))
-  return <input className={inputClass} inputMode="numeric" value={t} onChange={(e) => { setT(e.target.value); const n = parseNumber(e.target.value); if (n !== null) onChange(n) }} />
+type NutritionDraft = { calories: string; creatine: string; proteinMin: string; proteinMax: string; adaptive: boolean }
+type NutritionField = Exclude<keyof NutritionDraft, 'adaptive'>
+
+function NutritionTargetForm() {
+  const state = useStore((s) => s.state)
+  const targets = state.nutritionTargets
+  const protein = proteinTargetFor(state, todayISO())
+  const values = { calories: String(targets.calories), creatine: String(targets.creatine), proteinMin: String(targets.proteinMin), proteinMax: String(targets.proteinMax), adaptive: targets.adaptive !== false }
+  const [draft, setDraft] = useState<NutritionDraft>(values)
+  const [errors, setErrors] = useState<Partial<Record<NutritionField, string>>>({})
+  // Advice actions and their undo update the same stored targets. Reflect those
+  // explicit changes without writing half-entered field values to the store.
+  useEffect(() => {
+    setDraft({ calories: String(targets.calories), creatine: String(targets.creatine), proteinMin: String(targets.proteinMin), proteinMax: String(targets.proteinMax), adaptive: targets.adaptive !== false })
+    setErrors({})
+  }, [targets.calories, targets.creatine, targets.proteinMin, targets.proteinMax, targets.adaptive])
+  const dirty = (Object.keys(values) as (keyof NutritionDraft)[]).some(key => draft[key] !== values[key])
+  const save = (event: React.FormEvent) => {
+    event.preventDefault()
+    const calories = parseNumber(draft.calories)
+    const creatine = parseNumber(draft.creatine)
+    const proteinMin = parseNumber(draft.proteinMin)
+    const proteinMax = parseNumber(draft.proteinMax)
+    const next: Partial<Record<NutritionField, string>> = {}
+    if (calories === null || calories <= 0) next.calories = L('Saisis une valeur supérieure à 0.', 'Enter a value greater than 0.')
+    if (creatine === null || creatine < 0) next.creatine = L('Saisis une valeur égale ou supérieure à 0.', 'Enter a value of 0 or more.')
+    if (proteinMin === null || proteinMin < 0) next.proteinMin = L('Saisis une valeur égale ou supérieure à 0.', 'Enter a value of 0 or more.')
+    if (proteinMax === null || proteinMax < 0) next.proteinMax = L('Saisis une valeur égale ou supérieure à 0.', 'Enter a value of 0 or more.')
+    if (proteinMin !== null && proteinMax !== null && proteinMin > proteinMax) next.proteinMax = L('Le maximum doit être au moins égal au minimum.', 'The maximum must be at least the minimum.')
+    setErrors(next)
+    if (Object.keys(next).length) return
+    setDraft({ calories: String(calories), creatine: String(creatine), proteinMin: String(proteinMin), proteinMax: String(proteinMax), adaptive: draft.adaptive })
+    useStore.getState().setNutritionTargets({ calories: calories!, creatine: creatine!, proteinMin: proteinMin!, proteinMax: proteinMax!, adaptive: draft.adaptive })
+    useStore.getState().notify(L('Cibles nutritionnelles enregistrées.', 'Nutrition targets saved.'), 'good')
+  }
+  const field = (key: NutritionField, label: string) => (
+    <Field label={label} error={errors[key]}>
+      <input className={inputClass} inputMode="decimal" value={draft[key]} onChange={event => setDraft(current => ({ ...current, [key]: event.target.value }))} />
+    </Field>
+  )
+  return (
+    <form onSubmit={save} noValidate>
+      <div className="grid grid-cols-2 gap-3">
+        {field('calories', 'Calories (kcal)')}
+        {field('creatine', L('Créatine (g)', 'Creatine (g)'))}
+      </div>
+      <Card className="mt-4">
+        <Toggle label={L('Protéines adaptées à ton poids', 'Protein adjusted to your weight')}
+          hint={draft.adaptive && protein.weight ? L(`${protein.min}–${protein.max} g : ≈ ${fmtNum(protein.perKg![0], 1)}–${fmtNum(protein.perKg![1], 1)} g/kg × ${fmtNum(protein.weight, 1)} kg (moyenne 7 jours)`, `${protein.min}–${protein.max} g: ≈ ${fmtNum(protein.perKg![0], 1)}–${fmtNum(protein.perKg![1], 1)} g/kg × ${fmtNum(protein.weight, 1)} kg (7-day average)`) : draft.adaptive ? L('La fourchette fixe sert en attendant ta première pesée.', 'The fixed range is used until your first weigh-in.') : L('La fourchette fixe ci-dessous s’applique.', 'The fixed range below applies.')}
+          checked={draft.adaptive} onChange={adaptive => setDraft(current => ({ ...current, adaptive }))} />
+      </Card>
+      {draft.adaptive ? (
+        <Disclosure title={L('Fourchette fixe de secours', 'Fallback fixed range')} className="mt-4" defaultOpen={!!errors.proteinMin || !!errors.proteinMax} key={errors.proteinMin || errors.proteinMax ? 'invalid-range' : 'range'}>
+          <div className="grid grid-cols-2 gap-3">
+            {field('proteinMin', L('Protéines min (g)', 'Protein min (g)'))}
+            {field('proteinMax', L('Protéines max (g)', 'Protein max (g)'))}
+          </div>
+        </Disclosure>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {field('proteinMin', L('Protéines min (g)', 'Protein min (g)'))}
+          {field('proteinMax', L('Protéines max (g)', 'Protein max (g)'))}
+        </div>
+      )}
+      <Button type="submit" variant="primary" full className="mt-4" disabled={!dirty}>{L('Enregistrer les cibles', 'Save targets')}</Button>
+    </form>
+  )
 }
 
 function Counter({ label, unit, value, target, targetValue, targetMax, inputRef, onSet, steps, onAdd }: { label: string; unit: string; value: number; target: string; targetValue: number; targetMax?: number; inputRef?: React.RefObject<HTMLInputElement | null>; onSet: (n: number) => void; steps: number[]; onAdd: (n: number) => void }) {
@@ -245,7 +294,7 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
           inputMode="numeric"
           value={value || ''}
           placeholder="0"
-          onChange={(e) => onSet(parseNumber(e.target.value) ?? 0)}
+          onChange={(e) => onSet(Math.max(0, parseNumber(e.target.value) ?? 0))}
         />
         <span className="text-[13px] text-muted">{unit}</span>
       </div>
@@ -285,6 +334,8 @@ export function CoachScreen() {
   const paste = async () => {
     try {
       setText(await navigator.clipboard.readText())
+      setUpdate(null)
+      setError(null)
     } catch {
       useStore.getState().notify(L('Colle le texte manuellement dans le champ.', 'Paste the text into the field manually.'), 'bad')
     }
@@ -292,12 +343,8 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header art="coach" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
-      <ol className="space-y-2">
-        {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
-          <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>
-        ))}
-      </ol>
+      <Header art="coach" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift fonctionne sans IA. Partage un bilan avec ton assistant uniquement si tu le souhaites.', 'Lift works without AI. Share a summary with your assistant only if you choose.')} />
+      <p className="text-[14px] leading-[1.5] text-text-2">{L('Le bilan est préparé sur cet appareil. Tu choisis où le partager, puis tu peux coller la réponse ici. Vérifie chaque suggestion avant de l’appliquer.', 'The summary is prepared on this device. You choose where to share it, then you can paste the reply here. Review each suggestion before applying it.')}</p>
       <div className="mt-4 grid gap-2">
         <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} disabled={!last} onClick={() => last && void shareText(sessionPrompt(state, last), L(`Séance ${last.sessionNumber}`, `Session ${last.sessionNumber}`))}>
           {last ? L(`Bilan de la séance n°${last.sessionNumber}`, `Session #${last.sessionNumber} summary`) : L('Aucune séance', 'No sessions')}
@@ -306,7 +353,7 @@ export function CoachScreen() {
       </div>
 
       <Section icon={<MessageSquare size={18} aria-hidden />} title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
-        <textarea className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => setText(e.target.value)} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
+        <textarea aria-label={L('Réponse de l’IA', 'AI reply')} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Analyser', 'Analyze')}</Button>
       </Section>
@@ -332,7 +379,7 @@ export function CoachScreen() {
         </Section>
       )}
 
-      <Section icon={<History size={18} aria-hidden />} title={L('Historique des mises à jour', 'Update history')}>
+      <Disclosure className="mt-6" icon={<History size={18} aria-hidden />} title={L('Historique des mises à jour', 'Update history')}>
         {state.appliedPlanUpdates.length ? (
           <Card className="divide-y divide-line">
             {[...state.appliedPlanUpdates].reverse().slice(0, 12).map((u) => (
@@ -347,292 +394,10 @@ export function CoachScreen() {
             {L('Les ajustements appliqués apparaîtront ici. L’aide IA reste facultative : tu peux continuer tes séances sans l’utiliser.', 'Applied adjustments will appear here. AI assistance is optional: you can keep training without using it.')}
           </Empty>
         )}
-      </Section>
+      </Disclosure>
+
     </Screen>
   )
-}
-
-// ───────────────────────── Réglages ─────────────────────────
-
-export function SettingsScreen() {
-  const state = useStore((s) => s.state)
-  const { setPrefs, setGoals, toggleTrainingDay } = useStore.getState()
-  const goal = goalWeightRange(state)
-  const [perm, setPerm] = useState<string>(notificationsSupported() ? Notification.permission : 'unsupported')
-  const [goalOpen, setGoalOpen] = useState(false)
-  const [setupOpen, setSetupOpen] = useState(false)
-  const days = trainingDays(state)
-  const perWeek = days.length
-  // With fewer than five days, sessions take more sets to keep the weekly volume (unless turned off).
-  const keepVolume = state.prefs.keepWeeklyVolume !== false
-  const week = weekShape(templateSets(state.templates), perWeek, keepVolume)
-  const span = (a: number, b: number) => (a === b ? String(a) : L(`${a} à ${b}`, `${a} to ${b}`))
-  const weekPct = Math.round(week.share * 100)
-  const weekSets = span(week.sets[0], week.sets[1])
-  const weekMinutes = span(week.minutes[0], week.minutes[1])
-  return (
-    <Screen>
-      <Header art="settings" backTo="plus" title={L('Réglages', 'Settings')} />
-
-      <Section icon={<Target size={18} aria-hidden />} title={L('Objectif', 'Goal')} className="mt-0">
-        <Card className="divide-y divide-line">
-          <Row
-            label={L('Objectif visuel', 'Visual goal')}
-            hint={goalApplied(state.visualGoal) ? L(`Cible ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `zones : ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'V du programme'}`, `Target ${fmtNum(state.goals.targetWeightMin, 1)}–${fmtNum(state.goals.targetWeightMax, 1)} kg · ${state.visualGoal.zones.length ? `areas: ${state.visualGoal.zones.map((z) => ZONES.find((x) => x.id === z)?.label.toLowerCase()).join(', ')}` : 'program’s V shape'}`) : MAINTENANCE ? L('En entretien, pas de sèche : appliquer un look repasse sur une date objectif', 'In maintenance, no cut: applying a look switches back to a goal date') : L('Le look visé fixe le poids cible, la sèche et les zones prioritaires', 'Your target look sets the target weight, the cut and the priority areas')}
-            value={<span className="font-medium text-text">{goalApplied(state.visualGoal) ? lookInfo(state.visualGoal.look).label : MAINTENANCE ? (state.visualGoal ? L('En pause', 'On hold') : L('Aucun', 'None')) : L('À choisir', 'Choose')}</span>}
-            right={<ChevronRight size={16} className="text-muted" aria-hidden />}
-            onClick={() => navigate('plus/objectif')}
-          />
-          {MAINTENANCE ? (
-            <Row
-              label={L('Objectif', 'Goal')}
-              hint={L('Sans date : blocs et décharges en continu, calories à maintenance', 'No end date: blocks and deloads that keep going, maintenance calories')}
-              value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><InfinityIcon size={14} className="text-signal-text" aria-hidden />{L('Entretien', 'Maintenance')}</span>}
-              right={<Pencil size={14} className="text-muted" aria-hidden />}
-              onClick={() => setGoalOpen(true)}
-            />
-          ) : (
-            <Row
-              label={L('Date objectif', 'Goal date')}
-              hint={L('Le plan (recomposition, sèche, stabilisation) se recalcule autour. Ou mode entretien, sans date.', 'The plan (recomposition, cut, stabilization) is recalculated around it. Or maintenance mode, with no date.')}
-              value={<span className="inline-flex items-center gap-1.5 font-medium text-text"><Flag size={14} className="text-signal-text" aria-hidden />{fmtDate(GOAL_DATE, { long: true, year: true })}</span>}
-              right={<Pencil size={14} className="text-muted" aria-hidden />}
-              onClick={() => setGoalOpen(true)}
-            />
-          )}
-          <Row
-            label={L('Lieu d’entraînement', 'Where you train')}
-            hint={setupLabel(state.settings.setup)}
-            right={<ChevronRight size={16} className="text-muted" aria-hidden />}
-            onClick={() => setSetupOpen(true)}
-          />
-          <div className="px-4 py-3.5">
-            <p className="text-[15px]">{L('Jours d’entraînement', 'Training days')}</p>
-            <div className="mt-3 grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
-              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-                const on = days.includes(d)
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={dayName(d)}
-                    onClick={() => toggleTrainingDay(d)}
-                    className={cx('pressable h-11 rounded-[10px] border text-[14px] font-semibold', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong text-text-2')}
-                  >
-                    {dayLetter(d)}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-              {plural(perWeek, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine.', 'per week.')} {perWeek === PLAN_DAYS
-                ? L('Le rythme du programme : chaque muscle 2 fois par semaine.', 'The program’s pace: each muscle twice a week.')
-                : perWeek > PLAN_DAYS
-                  ? L(`Environ ${weekPct} % du volume prévu : surveille la récupération (sommeil, performances).`, `About ${weekPct}% of the planned volume: keep an eye on recovery (sleep, performance).`)
-                  : week.factor === 1
-                    ? L(`Séances du programme (${weekSets} séries, environ ${weekMinutes} min) : environ ${weekPct} % du volume hebdomadaire prévu.`, `The program’s sessions (${weekSets} sets, about ${weekMinutes} min): about ${weekPct}% of the planned weekly volume.`)
-                    : perWeek >= 3
-                      ? L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min) : la semaine garde ${sharePhrase(week.share)}, en moyenne sur la rotation.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min): the week keeps ${sharePhrase(week.share)}, on average over the rotation.`)
-                      : L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it.`)}
-              {week.factor > 1 && week.minutes[1] >= 85 && L(' Pour raccourcir : enchaîne deux exercices opposés (superset). Croissance comparable, effort ressenti plus élevé.', ' To save time: alternate two opposing exercises (superset). Similar growth, higher perceived effort.')}
-            </p>
-          </div>
-          {perWeek < PLAN_DAYS && (
-            <Toggle
-              label={L('Séances allongées', 'Longer sessions')}
-              hint={L('Plus de séries par séance : ce sont les séries par muscle et par semaine qui font progresser, pas le nombre de séances. Désactivé : séances d’une heure, volume réduit.', 'More sets per session: progress comes from the sets per muscle per week, not from the number of sessions. Off: one-hour sessions, reduced volume.')}
-              checked={keepVolume}
-              onChange={(v) => setPrefs({ keepWeeklyVolume: v })}
-            />
-          )}
-        </Card>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Field label={L('Poids cible min (kg)', 'Target weight min (kg)')} hint={goal?.computed ? L(`Plan : ${fmtNum(goal.min, 0)} kg`, `Plan: ${fmtNum(goal.min, 0)} kg`) : undefined}>
-            <GoalInput value={state.goals.targetWeightMin || null} placeholder={goal ? fmtNum(goal.min, 0) : ''} onChange={(n) => setGoals({ targetWeightMin: n ?? 0 })} />
-          </Field>
-          <Field label={L('Poids cible max (kg)', 'Target weight max (kg)')} hint={goal?.computed ? L(`Plan : ${fmtNum(goal.max, 0)} kg`, `Plan: ${fmtNum(goal.max, 0)} kg`) : undefined}>
-            <GoalInput value={state.goals.targetWeightMax || null} placeholder={goal ? fmtNum(goal.max, 0) : ''} onChange={(n) => setGoals({ targetWeightMax: n ?? 0 })} />
-          </Field>
-          <Field label={L('Tour de taille cible (cm)', 'Target waist (cm)')} className="col-span-2"><GoalInput value={state.goals.targetWaist} placeholder="—" onChange={(n) => setGoals({ targetWaist: n })} /></Field>
-        </div>
-        <p className="mt-3 text-[12px] leading-[1.45] text-muted">{MAINTENANCE ? L('Sans valeur, la cible est ton poids actuel ± 1 kg : en entretien, le poids reste stable. Taux de gras et poids restent des estimations : suis aussi ton tour de taille et tes photos.', 'With no value, the target is your current weight ± 1 kg: in maintenance, your weight stays stable. Body fat and weight are still estimates: also track your waist and your photos.') : L('Sans valeur, la cible vient de la trajectoire du plan (recomposition à poids stable, puis sèche à −0,5 %/semaine). Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.', 'With no value, the target comes from the plan’s trajectory (recomposition at a stable weight, then a cut at −0.5%/week). Body fat and target weight are still estimates: adjust with your waist and your photos.')}</p>
-      </Section>
-
-      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Sessions')}>
-        <Card className="divide-y divide-line">
-          <Toggle
-            label={L('Charges automatiques', 'Automatic loads')}
-            hint={L('Après chaque séance : charge augmentée quand toutes les séries touchent le haut de la fourchette à l’effort prévu, baissée quand elles restent sous le bas. Pendant la séance, les séries suivantes s’ajustent. Tout reste annulable.', 'After each session: the load goes up when every set hits the top of the range at the planned effort, down when they stay below the bottom. During the session, the next sets adjust. Everything can be undone.')}
-            checked={state.prefs.autoLoad}
-            onChange={(v) => setPrefs({ autoLoad: v })}
-          />
-        </Card>
-        <GymManager />
-      </Section>
-
-      <Section icon={<Timer size={18} aria-hidden />} title={L('Minuteur de repos', 'Rest timer')}>
-        <Card className="divide-y divide-line">
-          <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={isNative() ? L('Son de la notification système. Sans notification, son uniquement dans l’app ouverte.', 'System notification sound. With alerts off, sound plays only while the app is open.') : L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
-          <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the session, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
-          {isNative() ? <NativeActivitySettings /> : <PushRow />}
-          {!isNative() && !state.prefs.push && (
-            <Row
-              label={L('Alerte dans l’app', 'In-app alert')}
-              hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages de l’appareil', 'Denied in your device settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
-              right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>{L('Activer', 'Turn on')}</Button> : undefined}
-            />
-          )}
-        </Card>
-      </Section>
-
-      <Section icon={<Palette size={18} aria-hidden />} title={L('Apparence', 'Appearance')}>
-        <Segmented label={L('Langue', 'Language')} value={state.prefs.lang ?? 'auto'} onChange={(v) => setPrefs({ lang: v })} options={[{ value: 'auto', label: L('Auto (téléphone)', 'Auto (phone)') }, { value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }]} />
-        <Segmented className="mt-3" label={L('Thème', 'Theme')} value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'dark', label: L('Sombre', 'Dark') }, { value: 'light', label: L('Clair', 'Light') }]} />
-        <div className="mt-3 flex gap-2" role="radiogroup" aria-label={L('Couleur d’accent', 'Accent color')}>
-          {([['blue', L('Bleu', 'Blue'), '#3068f5'], ['orange', 'Orange', '#ff7b00']] as const).map(([v, label, color]) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={state.prefs.accent === v}
-              onClick={() => setPrefs({ accent: v })}
-              className={cx('pressable inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] border text-[14px] font-semibold', state.prefs.accent === v ? 'border-text' : 'border-line-strong text-text-2')}
-            >
-              <span className="h-4 w-4 rounded-full" style={{ background: color }} aria-hidden />
-              {label}
-              {state.prefs.accent === v && <Check size={15} aria-hidden />}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section icon={<Smartphone size={18} aria-hidden />} title={L('Installer sur le téléphone', 'Install on your phone')}>
-        <Card className="p-4">
-          {isNative() || isStandalone() ? (
-            <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
-          ) : (
-            <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
-              {/* Named after the browser, not the phone; a phone only sees the line that applies to it. */}
-              {!isAndroid() && <li><span className="font-semibold text-text">Safari</span> · {L('touche Partager, puis « Sur l’écran d’accueil ».', 'tap Share, then “Add to Home Screen”.')}</li>}
-              {!isIOS() && <li><span className="font-semibold text-text">Chrome</span> · {L('menu ⋮, puis « Installer l’application ».', 'open the ⋮ menu, then “Install app”.')}</li>}
-              <li>{L('Lance ensuite Lift depuis l’icône : plein écran, hors ligne, notifications possibles.', 'Then open Lift from the icon: full screen, offline, notifications available.')}</li>
-            </ol>
-          )}
-        </Card>
-      </Section>
-      {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
-      {setupOpen && <SetupSheet onClose={() => setSetupOpen(false)} />}
-    </Screen>
-  )
-}
-
-/** End-of-rest notifications for the web/PWA build. */
-function PushRow() {
-  const on = useStore((s) => s.state.prefs.push)
-  const { setPrefs, notify } = useStore.getState()
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    void preparePush()
-  }, [])
-  const installed = isStandalone()
-  const supported = pushSupported()
-  const active = on && pushReady()
-  if (!supported || (isIOS() && !installed)) {
-    return (
-      <Row
-        label={L('Notifications écran verrouillé', 'Lock screen notifications')}
-        hint={isIOS() && !installed ? L('Installe d’abord Lift sur l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.', 'Install Lift on your Home Screen first (Share → Add to Home Screen), then open it from the icon.') : L('Non disponibles sur ce navigateur.', 'Not available in this browser.')}
-      />
-    )
-  }
-  const toggle = async (v: boolean) => {
-    if (!v) {
-      setPrefs({ push: false })
-      await disablePush()
-      return
-    }
-    setBusy(true)
-    try {
-      const r = await enablePush()
-      if (r === 'on') {
-        setPrefs({ push: true })
-        notify(L('Activées. Touche « Tester » puis verrouille le téléphone.', 'On. Tap “Test”, then lock your phone.'), 'good')
-      } else if (r === 'denied') {
-        notify(L('Notifications refusées : autorise-les pour Lift dans les réglages de ton appareil.', 'Notifications denied: allow them for Lift in your device settings.'), 'bad')
-      } else {
-        notify(L('Notifications non disponibles ici.', 'Notifications not available here.'), 'bad')
-      }
-    } catch (e) {
-      notify((e as Error).message || L('Activation impossible.', 'Couldn’t turn them on.'), 'bad')
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div>
-      <Toggle
-        label={L('Notifications écran verrouillé', 'Lock screen notifications')}
-        hint={active ? L('Fin de repos envoyée par le serveur Lift, même app fermée.', 'End of rest sent by the Lift server, even with the app closed.') : L('La fin du repos arrive même téléphone verrouillé ou app en arrière-plan.', 'The end of rest reaches you even with the phone locked or the app in the background.')}
-        checked={active || busy}
-        onChange={(v) => void toggle(v)}
-      />
-      {active && (
-        <div className="flex items-center justify-between gap-3 px-4 pb-3">
-          <p className="text-[12px] leading-[1.4] text-muted">{L('Aucun compte : le serveur garde l’abonnement une heure au plus, le temps d’un repos.', 'No account: the server keeps the subscription for an hour at most, just long enough for one rest.')}</p>
-          <Button size="sm" variant="soft" onClick={() => { if (testPush(8)) notify(L('Verrouille ton téléphone : notification dans 8 s.', 'Lock your phone: notification in 8 s.')) }}>{L('Tester', 'Test')}</Button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Gyms: machine loads and history are kept per gym. */
-function GymManager() {
-  const gyms = useStore((s) => s.state.gyms)
-  const current = useStore((s) => s.state.gymId)
-  const { renameGym, removeGym, addGym, selectGym } = useStore.getState()
-  const [edit, setEdit] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [adding, setAdding] = useState('')
-  return (
-    <div className="mt-3">
-      <Card className="divide-y divide-line">
-        {gyms.map((g) => (
-          <div key={g.id} className="flex items-center gap-3 px-4 py-2.5">
-            <MapPin size={17} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
-            {edit === g.id ? (
-              <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
-                <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
-                <Button type="submit" variant="ink">OK</Button>
-              </form>
-            ) : (
-              <>
-                <button type="button" onClick={() => selectGym(g.id)} className="pressable min-h-11 min-w-0 flex-1 rounded-[10px] text-left hover:text-text">
-                  <span className="block truncate text-[15px]">{g.name}</span>
-                  <span className="block text-[12px] text-muted">{g.id === current ? L('Prochaine séance ici', 'Next session here') : g.id === HOME_GYM ? L('Salle principale', 'Main gym') : L('Toucher pour la choisir', 'Tap to choose it')}</span>
-                </button>
-                <IconButton onClick={() => { setEdit(g.id); setName(g.name) }} label={L(`Renommer ${g.name}`, `Rename ${g.name}`)}><Pencil size={16} aria-hidden /></IconButton>
-                {g.id !== HOME_GYM && (
-                  <IconButton onClick={() => removeGym(g.id)} label={L(`Supprimer ${g.name}`, `Delete ${g.name}`)} className="hover:text-bad"><Trash size={16} aria-hidden /></IconButton>
-                )}
-              </>
-            )}
-          </div>
-        ))}
-      </Card>
-      <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
-        <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ajouter une salle', 'Add a gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
-        <Button type="submit" variant="ink" size="lg" disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
-      </form>
-      <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres, poids du corps : communs.', 'Machines, cables and Smith machine: loads and history are specific to each gym. Dumbbells, barbells, bodyweight: shared.')}</p>
-    </div>
-  )
-}
-
-function GoalInput({ value, onChange, placeholder }: { value: number | null; onChange: (n: number | null) => void; placeholder?: string }) {
-  const [t, setT] = useState(value === null ? '' : L(String(value).replace('.', ','), String(value)))
-  return <input className={inputClass} inputMode="decimal" value={t} placeholder={placeholder} onChange={(e) => { setT(e.target.value); onChange(parseNumber(e.target.value)) }} />
 }
 
 // ───────────────────────── Données ─────────────────────────
@@ -672,7 +437,7 @@ export function DataScreen() {
   }
   return (
     <Screen>
-      <Header art="backup" backTo="plus" title={L('Sauvegarde', 'Backup')} sub={L('Tes données restent sur cet appareil. Exporte une sauvegarde pour conserver tes séances, mesures, données nutritionnelles et photos.', 'Your data stays on this device. Export a backup to keep your sessions, measurements, nutrition data and photos.')} />
+      <Header art="backup" backTo="plus/reglages/donnees" title={L('Sauvegarde', 'Backup')} sub={L('Tes données restent sur cet appareil. Exporte une sauvegarde pour conserver tes séances, mesures, données nutritionnelles et photos.', 'Your data stays on this device. Export a backup to keep your sessions, measurements, nutrition data and photos.')} />
       <Card className="divide-y divide-line">
         <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{state.workouts.length}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{state.bodyEntries.length}</span>} />

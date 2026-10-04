@@ -336,6 +336,42 @@ def settings():
     animate(GEOMETRY,'rotation_euler',[(1,(0,0,0)),(END,(0,math.tau,0))],True)
 
 
+def appearance():
+    """A physical day/night slider: fixed shell, embossed symbols, accent thumb."""
+    def capsule(name, radius, y, depth, mat):
+        points=[]
+        for center,start in [(.45,-math.pi/2),(-.45,math.pi/2)]:
+            for i in range(25):
+                angle=start+math.pi*i/24
+                points.append((center+radius*math.cos(angle),radius*math.sin(angle)))
+        return badge(name,points,y,depth,mat)
+    capsule('AppearanceShell',.59,0,.38,'LiftGraphite')
+    capsule('AppearanceRim',.50,-.205,.035,'LiftSilver')
+    capsule('AppearanceTrack',.454,-.231,.036,'LiftInk')
+    # The sun is uncovered when the thumb slides right; the moon is visible at rest.
+    cylinder('DayCenter',(-.45,-.263,0),.13,.026,'LiftSilver',vertices=32,bevel=.009)
+    for ray in range(8):
+        angle=math.tau*ray/8
+        line('DayRay'+str(ray),[
+            (-.45+.19*math.cos(angle),-.275,.19*math.sin(angle)),
+            (-.45+.255*math.cos(angle),-.275,.255*math.sin(angle))],.021,'LiftSilver')
+    radius=.245
+    points=[(.45+radius*math.cos(math.radians(60+240*i/32)),radius*math.sin(math.radians(60+240*i/32))) for i in range(33)]
+    inner_x=.17
+    tip=Vector((radius*.5-inner_x,radius*math.sin(math.pi/3)))
+    inner_radius=tip.length
+    lower_angle=math.atan2(-tip.y,tip.x)
+    upper_angle=-math.tau-lower_angle
+    points += [(.45+inner_x+inner_radius*math.cos(lower_angle+(upper_angle-lower_angle)*i/32),inner_radius*math.sin(lower_angle+(upper_angle-lower_angle)*i/32)) for i in range(1,33)]
+    badge('NightCrescent',points,-.266,.025,'LiftSilver')
+    thumb=empty('AppearanceThumbSlide',GEOMETRY,(-.45,-.295,0))
+    cylinder('AppearanceThumbEdge',(0,0,0),.407,.135,'LiftSilver',vertices=48,bevel=.018,parent=thumb)
+    cylinder('AppearanceThumbFace',(0,-.077,0),.340,.035,'LiftCobalt',vertices=48,bevel=.014,parent=thumb)
+    # A shallow, real grip notch gives the small object a machined surface.
+    line('AppearanceThumbGrip',[(0,-.103,-.14),(0,-.103,.14)],.018,'LiftSilver',parent=thumb)
+    animate(thumb,'location',[(1,(-.45,-.295,0)),(81,(.45,-.295,0)),(111,(.45,-.295,0)),(201,(-.45,-.295,0)),(END,(-.45,-.295,0))])
+
+
 def backup():
     box('ArchiveBody',(0,0,-.14),(1.5,.99,1.35),bevel=.11)
     lid=empty('LidHinge',GEOMETRY,(0,.51,.58))
@@ -581,10 +617,10 @@ def merge_static_meshes():
 
 
 MODELS = {'dumbbell': dumbbell, 'plate':plate, 'stopwatch': stopwatch, 'calendar':calendar,
-          'chart':chart,'nutrition':nutrition,'settings':settings,'backup':backup,'coach':coach,'trophy':trophy,
+          'chart':chart,'nutrition':nutrition,'settings':settings,'appearance':appearance,'backup':backup,'coach':coach,'trophy':trophy,
           'program':program,'evidence':evidence,'pause':pause,'reminders':reminders,'privacy':privacy,'kit':kit,'logbook':logbook}
 
-SECTION_MODELS = {'program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook'}
+SECTION_MODELS = {'program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'appearance'}
 
 
 def build(name):

@@ -33,7 +33,7 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
   const example = sessionItems('UPPER', value).map((i) => LIBRARY[i.id]?.name ?? i.id)
   return (
     <div>
-      <div className="grid gap-2" role="radiogroup" aria-label={L('Lieu d’entraînement', 'Where you train')}>
+      <div className="grid gap-2" role="group" aria-label={L('Lieu d’entraînement', 'Where you train')}>
         {places.map((p) => {
           const on = value.place === p.id
           const Icon = p.icon
@@ -41,8 +41,7 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
             <button
               key={p.id}
               type="button"
-              role="radio"
-              aria-checked={on}
+              aria-pressed={on}
               onClick={() => onChange({ ...value, place: p.id })}
               className={cx('pressable card flex items-start gap-3 p-4 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
             >

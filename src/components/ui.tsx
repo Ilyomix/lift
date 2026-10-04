@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type AriaAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
@@ -255,13 +255,22 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
   )
 }
 
-export function Field({ label, hint, children, className }: { label: ReactNode; hint?: ReactNode; children: ReactNode; className?: string }) {
+export function Field({ label, hint, error, children, className }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; className?: string }) {
+  const id = useId()
+  const child = isValidElement<AriaAttributes>(children) && typeof children.type === 'string' && ['input', 'textarea', 'select'].includes(children.type) ? children : undefined
+  const control = child ? cloneElement(child, {
+    'aria-describedby': [child.props['aria-describedby'], hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined,
+    'aria-invalid': error ? true : child.props['aria-invalid'],
+  }) : children
   return (
-    <label className={cx('block', className)}>
-      <span className="mb-1.5 block text-[13px] font-medium text-text-2">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[12px] text-muted">{hint}</span>}
-    </label>
+    <div className={cx('block min-w-0', className)}>
+      <label className="block">
+        <span className="mb-1.5 block text-[13px] font-medium text-text-2">{label}</span>
+        {control}
+      </label>
+      {hint && <span id={`${id}-hint`} className="mt-1 block text-[12px] text-muted">{hint}</span>}
+      {error && <span id={`${id}-error`} className="mt-1 block text-[13px] leading-[18px] text-bad">{error}</span>}
+    </div>
   )
 }
 
@@ -301,7 +310,7 @@ export function DateInput({
           <ChevronDown size={16} className={cx('shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
         {clearable && value && (
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }} aria-label={L('Effacer la date', 'Clear date')} className="pressable mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
+          <button type="button" onClick={() => { onChange(''); setOpen(false) }} aria-label={L('Effacer la date', 'Clear date')} className="pressable mr-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-muted hover:text-text">
             <X size={16} aria-hidden />
           </button>
         )}
@@ -345,9 +354,9 @@ function MonthCalendar({ id, month, onMonth, value, min, max, onPick }: { id: st
   return (
     <div id={id} className="overlay-enter mt-2 rounded-[12px] border border-line bg-surface p-3" role="group" aria-label={`${monthName(m - 1)} ${y}`}>
       <div className="flex items-center justify-between">
-        <IconButton label={L('Mois précédent', 'Previous month')} disabled={!canPrev} onClick={() => onMonth(prev)} className="h-10 w-10"><ChevronLeft size={18} /></IconButton>
+        <IconButton label={L('Mois précédent', 'Previous month')} disabled={!canPrev} onClick={() => onMonth(prev)}><ChevronLeft size={18} /></IconButton>
         <p className="text-[15px] font-semibold capitalize">{monthName(m - 1)} <span className="text-text-2">{y}</span></p>
-        <IconButton label={L('Mois suivant', 'Next month')} disabled={!canNext} onClick={() => onMonth(next)} className="h-10 w-10"><ChevronRight size={18} /></IconButton>
+        <IconButton label={L('Mois suivant', 'Next month')} disabled={!canNext} onClick={() => onMonth(next)}><ChevronRight size={18} /></IconButton>
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted" aria-hidden>
         {WEEK.map((d, i) => <span key={i}>{dayLetter(d)}</span>)}
@@ -508,7 +517,7 @@ export function Toaster() {
         {toast.tone === 'good' && <Check size={16} className="shrink-0 text-good" aria-hidden />}
         <span className="min-w-0 flex-1">{toast.message}</span>
         {toast.action && (
-          <button type="button" onClick={() => { toast.action!.run(); useStore.setState({ toast: null }) }} className="pressable -my-1 shrink-0 rounded-[8px] px-2 py-1 text-[14px] font-semibold text-signal-text hover:bg-surface-2">
+          <button type="button" onClick={() => { toast.action!.run(); useStore.setState({ toast: null }) }} className="pressable -my-1 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[8px] px-2 py-1 text-[14px] font-semibold text-signal-text hover:bg-surface-2">
             {toast.action.label}
           </button>
         )}

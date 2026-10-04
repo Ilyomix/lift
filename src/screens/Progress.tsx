@@ -5,7 +5,7 @@ import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mond
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
 import { infoFor, MUSCLES } from '../lib/library'
-import { GOAL_DATE, MAINTENANCE, PERIODS, trainingDays, TYPE_META } from '../lib/program'
+import { GOAL_DATE, MAINTENANCE, PERIODS, PROGRAM_START, trainingDays, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { imageToDataUrl } from '../lib/share'
 import {
@@ -17,8 +17,7 @@ import {
 } from '../lib/training'
 import type { AppState, BodyEntry } from '../lib/types'
 import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../components/charts'
-import { LevelTag, RefList } from '../components/Evidence'
-import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
+import { ExerciseSheet } from '../components/ExerciseSheet'
 import { RecordTag, StatusTag } from '../components/Status'
 import { SportArt } from '../components/SportArt'
 import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
@@ -119,7 +118,8 @@ export function ExerciseDetail({ id }: { id: string }) {
   const [sheet, setSheet] = useState(false)
   const all = exerciseHistory(state.workouts, id)
   const tpl = Object.values(state.templates).flatMap((t) => t.exercises).find((e) => e.exerciseId === id)
-  const info = infoFor(id, { name: tpl?.name ?? all[0]?.sets[0] ? undefined : id })
+  const historical = [...state.workouts].reverse().flatMap(workout => workout.exercises).find(exercise => exercise.exerciseId === id)
+  const info = infoFor(id, tpl ?? historical)
   // Machines: one curve per gym (the same machine elsewhere is another machine).
   const bound = isGymBound({ exerciseId: id, unit: all[0]?.unit ?? tpl?.unit ?? info.unit })
   const gymsUsed = bound ? [...new Set(all.map((x) => x.gymId))] : []
@@ -184,13 +184,10 @@ export function ExerciseDetail({ id }: { id: string }) {
             : L('Après une séance comprenant cet exercice, tes séries et tes performances apparaîtront ici. Tu peux déjà consulter sa technique.', 'After a session that includes this exercise, your sets and performance will appear here. You can explore its technique now.')}
         </Empty>
       )}
-      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Technique et preuves', 'Technique and evidence')} action={<Button size="sm" variant="soft" onClick={() => setSheet(true)}>{L('Démo', 'Demo')}</Button>}>
-        <DemoFrames id={id} name={info.name} />
-        <div className="mt-4 flex items-center gap-2"><LevelTag level={info.evidence.level} /></div>
-        <p className="mt-2 text-[14px] leading-[1.5] text-text-2">{info.evidence.text}</p>
-        <RefList refs={info.evidence.refs} compact />
-      </Section>
-      <ExerciseSheet exerciseId={id} name={tpl?.name} open={sheet} onClose={() => setSheet(false)} />
+      <Button variant="outline" full className="mt-6" icon={<BookOpen size={18} aria-hidden />} onClick={() => setSheet(true)}>
+        {L('Technique et alternatives', 'Technique and alternatives')}
+      </Button>
+      <ExerciseSheet exerciseId={id} name={tpl?.name ?? historical?.name} open={sheet} onClose={() => setSheet(false)} />
     </Screen>
   )
 }
@@ -207,10 +204,13 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
   const goal = goalWeightRange(state, today)
   const waist = measureSeries(state.bodyEntries, 'waist')
   const advice = cutAdvice(state, today)
-  const planStart = today < '2026-09-28' ? '2026-09-28' : today
+  const planStart = today < PROGRAM_START ? PROGRAM_START : today
+  const ended = !MAINTENANCE && today > GOAL_DATE
+  const currentRate = phaseRateLabel(today)
+  const firstRate = today < PROGRAM_START ? phaseRateLabel(PROGRAM_START) : ''
   // Maintenance mode has no end date: the trajectory looks 12 weeks ahead.
-  const chartEnd = MAINTENANCE ? addDays(today, 84) : GOAL_DATE
-  const plan = ws.current ? plannedWeightPath(planStart, ws.current, MAINTENANCE ? { periods: PERIODS, goal: chartEnd } : undefined) : []
+  const chartEnd = MAINTENANCE ? addDays(today, 84) : ended ? today : GOAL_DATE
+  const plan = ws.current && !ended ? plannedWeightPath(planStart, ws.current, MAINTENANCE ? { periods: PERIODS, goal: chartEnd } : undefined) : []
   const weightSeries: ChartSeries[] = [
     { id: 'raw', label: L('Pesées', 'Weigh-ins'), points: weights.map((p) => ({ x: dayNumber(p.date), y: p.value })), kind: 'dots', color: 'var(--chart-2)' },
     { id: 'ma', label: L('Moyenne 7 jours', '7-day average'), points: ma.map((p) => ({ x: dayNumber(p.date), y: p.value })), kind: 'line', color: 'var(--chart-1)' },
@@ -225,7 +225,10 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
         <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)}` : '—'} hint={goal?.computed ? 'plan · kg' : 'kg'} />
       </div>
       <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-        {phaseRateLabel(today) ? <>{L('Rythme visé maintenant : ', 'Target pace now: ')}<span className="font-semibold text-text">{phaseRateLabel(today)}</span>.</> : <>{L('Dès le 28 sept. : ', 'From 28 Sep: ')}<span className="font-semibold text-text">{phaseRateLabel('2026-09-28')}</span>{L(' (recomposition), puis sèche à −0,5 à −0,7 %/sem.', ' (recomposition), then a cut at −0.5 to −0.7%/wk.')}</>} {advice ?? ''}
+        {currentRate ? <>{L('Rythme visé maintenant : ', 'Target pace now: ')}<span className="font-semibold text-text">{currentRate}</span>.</>
+          : today < PROGRAM_START ? <>{L(`À partir du ${fmtDate(PROGRAM_START, { long: true, year: true })}`, `From ${fmtDate(PROGRAM_START, { long: true, year: true })}`)}{firstRate ? <> : <span className="font-semibold text-text">{firstRate}</span>.</> : '.'}</>
+            : ended ? L('Ton plan daté est terminé. Ajuste ton objectif pour définir la suite.', 'Your dated plan has ended. Adjust your goal to plan what comes next.')
+              : L('Consulte le programme pour voir les prochaines phases.', 'View the program to see the next phases.')} {advice ?? ''}
       </p>
 
       <Card className="mt-4 p-4">
@@ -287,18 +290,25 @@ function Figure({ label, value, hint }: { label: string; value: string; hint?: s
 
 function MeasureList({ entries }: { entries: BodyEntry[] }) {
   const deleteBody = useStore((s) => s.deleteBody)
+  const [pending, setPending] = useState<BodyEntry | null>(null)
   return (
-    <Card className="divide-y divide-line">
+    <><Card className="divide-y divide-line">
       {[...entries].reverse().slice(0, 30).map((b) => (
         <div key={b.id} className="flex items-center gap-3 px-4 py-2.5">
           <span className="w-20 shrink-0 text-[13px] text-text-2">{fmtDate(b.date)}</span>
           <span className="min-w-0 flex-1 text-[14px] tnum">
             {[b.weight !== null && `${fmtNum(b.weight)} kg`, b.waist !== null && L(`taille ${fmtNum(b.waist)}`, `waist ${fmtNum(b.waist)}`), b.arm !== null && L(`bras ${fmtNum(b.arm)}`, `arm ${fmtNum(b.arm)}`), b.chest !== null && L(`poitrine ${fmtNum(b.chest)}`, `chest ${fmtNum(b.chest)}`), b.shoulders !== null && L(`épaules ${fmtNum(b.shoulders)}`, `shoulders ${fmtNum(b.shoulders)}`)].filter(Boolean).join(' · ')}
           </span>
-          <IconButton label={L(`Supprimer la mesure du ${fmtDate(b.date)}`, `Delete the measurement from ${fmtDate(b.date)}`)} onClick={() => deleteBody(b.id)}><Trash size={16} aria-hidden /></IconButton>
+          <IconButton label={L(`Supprimer la mesure du ${fmtDate(b.date)}`, `Delete the measurement from ${fmtDate(b.date)}`)} onClick={() => setPending(b)}><Trash size={16} aria-hidden /></IconButton>
         </div>
       ))}
     </Card>
+    <Sheet open={!!pending} onClose={() => setPending(null)} icon={<Trash size={18} aria-hidden />} title={L('Supprimer cette mesure ?', 'Delete this measurement?')} footer={<div className="grid grid-cols-2 gap-2">
+      <Button full onClick={() => setPending(null)}>{L('Annuler', 'Cancel')}</Button>
+      <Button full variant="danger" onClick={() => { if (pending) deleteBody(pending.id); setPending(null) }}>{L('Supprimer', 'Delete')}</Button>
+    </div>}>
+      <p className="text-[14px] leading-[1.5] text-text-2">{pending && L(`Les mesures du ${fmtDate(pending.date, { long: true, year: true })} seront retirées de ton suivi. Cette action ne peut pas être annulée.`, `The measurements from ${fmtDate(pending.date, { long: true, year: true })} will be removed from your progress. This action cannot be undone.`)}</p>
+    </Sheet></>
   )
 }
 
@@ -307,25 +317,28 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const [date, setDate] = useState(todayISO())
   const [v, setV] = useState({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV((x) => ({ ...x, [k]: e.target.value }))
+  const invalid = (key: keyof typeof v) => v[key].trim() !== '' && (parseNumber(v[key]) === null || parseNumber(v[key])! <= 0)
+  const valid = Object.values(v).some(x => parseNumber(x) !== null) && !(Object.keys(v) as (keyof typeof v)[]).some(invalid)
+  const error = L('Saisis une valeur supérieure à zéro.', 'Enter a value greater than zero.')
   const save = () => {
+    if (!valid) return
     saveBody({ date, weight: parseNumber(v.weight), waist: parseNumber(v.waist), arm: parseNumber(v.arm), chest: parseNumber(v.chest), shoulders: parseNumber(v.shoulders) })
     setV({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
     useStore.getState().notify(L('Mesure enregistrée.', 'Measurement saved.'), 'good')
     onClose()
   }
-  const any = Object.values(v).some((x) => parseNumber(x) !== null)
   return (
-    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Nouvelle mesure', 'New measurement')} footer={<Button variant="primary" size="lg" full disabled={!any} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
+    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Nouvelle mesure', 'New measurement')} footer={<Button variant="primary" size="lg" full disabled={!valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
           <DateInput label={L('Date de la mesure', 'Measurement date')} value={date} max={todayISO()} onChange={(v) => v && setDate(v)} />
         </div>
-        <Field label={L('Poids (kg)', 'Weight (kg)')} hint={L('À jeun, même balance', 'Fasted, same scale')}><input data-autofocus className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('93,0', '93.0')} /></Field>
-        <Field label={L('Tour de taille (cm)', 'Waist (cm)')} hint={L('Au nombril', 'At the navel')}><input className={inputClass} inputMode="decimal" value={v.waist} onChange={set('waist')} /></Field>
-        <Field label={L('Bras (cm)', 'Arm (cm)')}><input className={inputClass} inputMode="decimal" value={v.arm} onChange={set('arm')} /></Field>
-        <Field label={L('Poitrine (cm)', 'Chest (cm)')}><input className={inputClass} inputMode="decimal" value={v.chest} onChange={set('chest')} /></Field>
-        <Field label={L('Épaules (cm)', 'Shoulders (cm)')}><input className={inputClass} inputMode="decimal" value={v.shoulders} onChange={set('shoulders')} /></Field>
+        <Field label={L('Poids (kg)', 'Weight (kg)')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={invalid('weight') ? error : undefined}><input data-autofocus className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('93,0', '93.0')} /></Field>
+        <Field label={L('Tour de taille (cm)', 'Waist (cm)')} hint={L('Au nombril', 'At the navel')} error={invalid('waist') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.waist} onChange={set('waist')} /></Field>
+        <Field label={L('Bras (cm)', 'Arm (cm)')} error={invalid('arm') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.arm} onChange={set('arm')} /></Field>
+        <Field label={L('Poitrine (cm)', 'Chest (cm)')} error={invalid('chest') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.chest} onChange={set('chest')} /></Field>
+        <Field label={L('Épaules (cm)', 'Shoulders (cm)')} error={invalid('shoulders') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.shoulders} onChange={set('shoulders')} /></Field>
       </div>
     </Sheet>
   )
@@ -338,8 +351,10 @@ function Photos() {
   const { addPhoto, deletePhoto } = useStore.getState()
   const input = useRef<HTMLInputElement>(null)
   const [view, setView] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
   const current = photos.find((p) => p.id === view)
+  const deleting = photos.find((p) => p.id === pendingDelete)
   const onFile = async (files: FileList | null) => {
     for (const f of Array.from(files ?? [])) {
       const dataUrl = await imageToDataUrl(f)
@@ -369,8 +384,14 @@ function Photos() {
       </button>}
       <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onFile(e.target.files); e.target.value = '' }} />
       <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos ne quittent pas ce téléphone (sauf dans tes sauvegardes).', 'Every 4 weeks, same lighting, same pose. Photos never leave this phone (except in your backups).')}</p>
-      <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { void deletePhoto(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
+      <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { setPendingDelete(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
         {current && <img src={current.dataUrl} alt="" className="w-full rounded-[12px]" />}
+      </Sheet>
+      <Sheet icon={<Trash size={18} aria-hidden />} open={!!deleting} onClose={() => { setView(pendingDelete); setPendingDelete(null) }} title={L('Supprimer cette photo ?', 'Delete this photo?')} footer={<div className="grid grid-cols-2 gap-2">
+        <Button full onClick={() => { setView(pendingDelete); setPendingDelete(null) }}>{L('Annuler', 'Cancel')}</Button>
+        <Button full variant="danger" onClick={() => { if (pendingDelete) void deletePhoto(pendingDelete); setPendingDelete(null) }}>{L('Supprimer', 'Delete')}</Button>
+      </div>}>
+        <p className="text-[14px] leading-[1.5] text-text-2">{deleting && L(`La photo du ${fmtDate(deleting.date, { long: true, year: true })} sera retirée de ton suivi. Cette action ne peut pas être annulée.`, `The photo from ${fmtDate(deleting.date, { long: true, year: true })} will be removed from your progress. This action cannot be undone.`)}</p>
       </Sheet>
       {compare && <CompareSheet onClose={() => setCompare(false)} />}
     </Section>

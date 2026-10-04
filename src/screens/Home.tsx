@@ -143,7 +143,7 @@ export function Home() {
             </div>
             {!active && nextCtx.effort && <p className="mt-3 text-[13px] text-muted">{nextCtx.title} · {nextCtx.effort}</p>}
             {!active && (
-              <button type="button" onClick={() => setGymOpen(true)} className="pressable -mx-1 mt-2 inline-flex h-9 items-center gap-1.5 rounded-[8px] px-1 text-[13px] font-medium text-text-2 hover:text-text">
+              <button type="button" onClick={() => setGymOpen(true)} className="pressable -mx-1 mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-[8px] px-1 text-[13px] font-medium text-text-2 hover:text-text">
                 <MapPin size={14} aria-hidden />
                 {placeName(state, state.gymId)}
                 <ChevronDown size={14} className="text-muted" aria-hidden />
@@ -253,7 +253,7 @@ export function Home() {
             ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données vivent sur ce téléphone. Exporte une sauvegarde.', 'Your data lives on this phone. Export a backup.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
             : []),
           ...(isIOS() && !isStandalone()
-            ? [{ icon: <Smartphone size={18} aria-hidden />, text: L('Installe Lift : Partager, puis « Sur l’écran d’accueil ».', 'Install Lift: Share, then “Add to Home Screen”.'), action: L('Aide', 'Help'), to: 'plus/reglages' }]
+            ? [{ icon: <Smartphone size={18} aria-hidden />, text: L('Installe Lift : Partager, puis « Sur l’écran d’accueil ».', 'Install Lift: Share, then “Add to Home Screen”.'), action: L('Aide', 'Help'), to: 'plus/a-propos' }]
             : []),
         ]}
       />

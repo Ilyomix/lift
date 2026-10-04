@@ -12,9 +12,19 @@ function subscribe(cb: () => void) {
 
 const snapshot = () => window.location.hash
 
+/** Invalid or incomplete URL escapes must not prevent Lift from rendering. */
+export function decodeRouteHash(hash: string): string[] {
+  try {
+    return hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
+  } catch (error) {
+    if (error instanceof URIError) return []
+    throw error
+  }
+}
+
 export function useRoute(): string[] {
   const hash = useSyncExternalStore(subscribe, snapshot, () => '')
-  return hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
+  return decodeRouteHash(hash)
 }
 
 export function navigate(path: string, opts: { replace?: boolean } = {}) {

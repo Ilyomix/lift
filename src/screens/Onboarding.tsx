@@ -164,15 +164,14 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
   return (
     <main className="screen-in mx-auto flex min-h-dvh w-full max-w-[640px] flex-col px-5 safe-top safe-bottom">
       <div className="flex min-h-11 items-center justify-end pt-2">
-        <div className="inline-flex rounded-[10px] border border-line-strong p-1" role="radiogroup" aria-label={L('Langue', 'Language')}>
+        <div className="inline-flex rounded-[10px] border border-line-strong p-1" role="group" aria-label={L('Langue', 'Language')}>
           {(['fr', 'en'] as const).map((l) => (
             <button
               key={l}
               type="button"
-              role="radio"
-              aria-checked={language === l}
+              aria-pressed={language === l}
               onClick={() => onLanguage(l)}
-              className={cx('pressable h-8 rounded-[7px] px-3 text-[13px] font-semibold', language === l ? 'bg-text text-bg' : 'text-text-2')}
+              className={cx('pressable min-h-11 rounded-[7px] px-3 text-[13px] font-semibold', language === l ? 'bg-text text-bg' : 'text-text-2')}
             >
               {l === 'fr' ? 'Français' : 'English'}
             </button>
@@ -302,11 +301,11 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
       hint={preview.bodyFat?.source === 'imc' ? L('Avec ton IMC : ± 4 points. Mesure ton tour de taille pour mieux faire.', 'From your BMI: ± 4 points. Measure your waist to do better.') : L('Avec ton tour de taille (formule RFM)', 'From your waist (RFM formula)')}
     />
   )
-  const mode = <div className="grid gap-2" role="radiogroup" aria-label={L('Type de plan', 'Plan type')}>
+  const mode = <div className="grid gap-2" role="group" aria-label={L('Type de plan', 'Plan type')}>
     {[
       { maintenance: false, title: L('Un objectif à une date', 'A goal by a date'), text: L('Choisir le physique visé et le temps pour y arriver.', 'Choose the physique you want and the time to work towards it.') },
       { maintenance: true, title: L('M’entraîner sans date limite', 'Train without a deadline'), text: L('Continuer à progresser en gardant un poids stable.', 'Keep progressing while maintaining a stable weight.') },
-    ].map((option) => <button key={String(option.maintenance)} type="button" role="radio" aria-checked={d.maintenance === option.maintenance} onClick={() => patch({ maintenance: option.maintenance })} className={cx('pressable card flex items-center gap-3 px-4 py-3 text-left', d.maintenance === option.maintenance ? 'border-signal bg-signal-soft' : 'hover:border-line-strong')}>
+    ].map((option) => <button key={String(option.maintenance)} type="button" aria-pressed={d.maintenance === option.maintenance} onClick={() => patch({ maintenance: option.maintenance })} className={cx('pressable card flex items-center gap-3 px-4 py-3 text-left', d.maintenance === option.maintenance ? 'border-signal bg-signal-soft' : 'hover:border-line-strong')}>
       <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">{option.title}</span><span className="mt-1 block text-[13px] leading-[1.45] text-text-2">{option.text}</span></span>
       {d.maintenance === option.maintenance && <Check size={18} className="shrink-0 text-signal-text" aria-hidden />}
     </button>)}
@@ -342,8 +341,9 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
             <button
               key={c.date}
               type="button"
+              aria-pressed={d.goalDate === c.date}
               onClick={() => patch({ goalDate: c.date })}
-              className={cx('pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] whitespace-nowrap', d.goalDate === c.date ? 'border-signal bg-signal-soft' : 'border-line-strong')}
+              className={cx('pressable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] whitespace-nowrap', d.goalDate === c.date ? 'border-signal bg-signal-soft' : 'border-line-strong')}
             >
               <span className="font-semibold">{c.label}</span>
               <span className="text-muted tnum">{fmtDate(c.date)}</span>
@@ -354,7 +354,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
       </div>
 
       <SectionHeading className="mt-6 mb-3" icon={<Flag size={18} aria-hidden />}>{L('Look visé', 'Target look')}</SectionHeading>
-      <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
+      <div className="grid gap-2" role="group" aria-label={L('Look visé', 'Target look')}>
         {LOOKS.map((l) => {
           const on = l.id === d.look
           const r = l.range[d.sex]
@@ -362,8 +362,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
             <button
               key={l.id}
               type="button"
-              role="radio"
-              aria-checked={on}
+              aria-pressed={on}
               onClick={() => patch({ look: l.id })}
               className={cx('pressable card flex items-center gap-3 px-4 py-3 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
             >

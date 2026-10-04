@@ -11,10 +11,12 @@ import { WORKOUT_TYPES } from './lib/types'
 import { RestDock, SessionEffects } from './components/RestTimer'
 import { TabBar } from './components/TabBar'
 import { SwipeNavigation } from './components/SwipeNavigation'
+import { RouteFocus } from './components/RouteFocus'
 import { Button, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
 import { Home } from './screens/Home'
-import { CoachScreen, DataScreen, MoreScreen, NutritionScreen, SettingsScreen } from './screens/More'
+import { AboutScreen, CoachScreen, DataScreen, MoreScreen, NutritionScreen, NutritionTargetsScreen } from './screens/More'
+import { SettingsScreen } from './screens/Settings'
 import { AppIcon, ImportResultSheet, Onboarding } from './screens/Onboarding'
 import { SourcesScreen, TemplateEditor } from './screens/ProgramScreen'
 import { ExerciseDetail, ProgressScreen } from './screens/Progress'
@@ -53,7 +55,8 @@ function Routes({ path }: { path: string[] }) {
         case 'coach': return <CoachScreen />
         case 'pause': return <PauseScreen />
         case 'rappels': return <RemindersScreen />
-        case 'reglages': return <SettingsScreen />
+        case 'reglages': return c === 'nutrition' ? <NutritionTargetsScreen /> : <SettingsScreen section={c} />
+        case 'a-propos': return <AboutScreen />
         case 'objectif': return <VisualGoalScreen />
         case 'donnees': return <DataScreen />
         default: return <MoreScreen />
@@ -141,6 +144,7 @@ export default function App() {
       <div className="status-scrim" aria-hidden />
       <SwipeNavigation path={path} />
       <Routes key={screenKey} path={path} />
+      <RouteFocus route={routeKey} />
       <RestDock />
       <TabBar current={path[0] ?? ''} />
       <ImportResultSheet />
