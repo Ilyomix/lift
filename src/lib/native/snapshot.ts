@@ -46,7 +46,7 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
     // A dismissed/abandoned session must not leave an endless native service.
     expiresAt: now + 8 * 60 * 60 * 1000,
     restLabel: lang === 'fr' ? 'Repos' : 'Rest',
-    readyLabel: lang === 'fr' ? 'À toi' : 'Go',
+    readyLabel: lang === 'fr' ? 'Prêt' : 'Ready',
     progressLabel: lang === 'fr' ? 'séries' : 'sets',
   }
 }
