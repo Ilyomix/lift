@@ -41,6 +41,10 @@ enum WorkoutActivityPresentation: Equatable {
     var canAdjustRest: Bool { self == .countdown || self == .restFinished }
 }
 
+enum WorkoutActivityStaleReason: String, Codable {
+    case restEnded, sessionExpired
+}
+
 struct WorkoutAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var version: Int
@@ -57,22 +61,39 @@ struct WorkoutAttributes: ActivityAttributes {
         var restLabel: String
         var readyLabel: String
         var progressLabel: String
+        // Native-only metadata. Optional so existing activities and JS snapshots
+        // from earlier versions continue to decode.
+        var staleReason: WorkoutActivityStaleReason? = nil
 
         var endDate: Date? { restEndAt.map { Date(timeIntervalSince1970: $0 / 1000) } }
         var expirationDate: Date { Date(timeIntervalSince1970: expiresAt / 1000) }
 
         func activityStaleDate(at now: Date = Date()) -> Date {
-            // One system refresh at the rest deadline; no background timer loop.
+            // The system selects the stale view at this deadline; it need not
+            // execute this extension's code again at that moment.
             // An already-finished rest renders immediately and next becomes stale
             // only when the workout snapshot itself expires.
             guard let end = endDate, end > now else { return expirationDate }
             return min(end, expirationDate)
         }
 
-        func presentation(isStale _: Bool = false, at now: Date = Date()) -> WorkoutActivityPresentation {
+        func activitySnapshot(at now: Date = Date()) -> (state: Self, staleDate: Date) {
+            var state = self
+            let staleDate = activityStaleDate(at: now)
+            state.staleReason = staleDate < expirationDate ? .restEnded : .sessionExpired
+            return (state, staleDate)
+        }
+
+        func presentation(isStale: Bool = false, at now: Date = Date()) -> WorkoutActivityPresentation {
             guard expirationDate > now else { return .sessionExpired }
-            // Freshness describes ActivityKit's content, not whether this rest ended.
-            // A new deadline (+30 s or the next set) wins over an old stale flag.
+            if isStale {
+                // WidgetKit can archive this variant before the deadline. Use
+                // its signal, not Date(), to select the future presentation.
+                // Legacy activities have no reason: infer their earliest event.
+                let reason = staleReason ?? (endDate.map { $0 < expirationDate } == true
+                                            ? .restEnded : .sessionExpired)
+                return reason == .restEnded ? .restFinished : .sessionExpired
+            }
             guard let end = endDate else { return .ready }
             return end <= now ? .restFinished : .countdown
         }

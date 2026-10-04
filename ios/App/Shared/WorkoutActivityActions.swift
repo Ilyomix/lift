@@ -78,7 +78,7 @@ enum WorkoutActivityActions {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
             guard enabled else { return }
-            let content = ActivityContent(state: state, staleDate: state.activityStaleDate())
+            let content = activityContent(for: state)
             if let activity = Activity<WorkoutAttributes>.activities.first(where: { $0.attributes.workoutId == state.workoutId }) {
                 await activity.update(content)
             } else if ActivityAuthorizationInfo().areActivitiesEnabled {
@@ -90,6 +90,13 @@ enum WorkoutActivityActions {
 
     /// Defined in a shared source; UIKit is unavailable to extension code for app-state access.
     static var mayStartActivity = false
+
+    private static func activityContent(for state: WorkoutAttributes.ContentState) -> ActivityContent<WorkoutAttributes.ContentState> {
+        // Prepare the fresh/stale pair and its deadline from one captured time.
+        // Every sync or intent replaces them together, including +30 after zero.
+        let snapshot = state.activitySnapshot()
+        return ActivityContent(state: snapshot.state, staleDate: snapshot.staleDate)
+    }
 
     private static func startIfForeground(state: WorkoutAttributes.ContentState, content: ActivityContent<WorkoutAttributes.ContentState>) throws {
         guard mayStartActivity else { return }
@@ -124,7 +131,7 @@ enum WorkoutActivityActions {
             UserDefaults.standard.set(try JSONEncoder().encode(state), forKey: snapshotKey)
             UserDefaults.standard.set(try JSONEncoder().encode(previous + [pending]), forKey: pendingKey)
             if let activity = Activity<WorkoutAttributes>.activities.first(where: { $0.attributes.workoutId == workoutId }) {
-                await activity.update(ActivityContent(state: state, staleDate: state.activityStaleDate()))
+                await activity.update(activityContent(for: state))
             }
             await updateRestNotification(state)
             NotificationCenter.default.post(name: .workoutActionPerformed, object: nil)

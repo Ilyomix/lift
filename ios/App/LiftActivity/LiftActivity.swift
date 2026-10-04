@@ -76,7 +76,8 @@ private struct RestClock: View {
                         .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
                 }
                 .monospacedDigit()
-                .transition(.opacity)
+                .transition(reduceMotion || isLuminanceReduced
+                            ? .identity : .asymmetric(insertion: .opacity, removal: .identity))
             } else if let range = state.timerRange {
                 // ActivityKit renders the countdown while the host app is suspended.
                 // Both faces keep DSEG7's outlines and pad a single minute digit
@@ -93,17 +94,22 @@ private struct RestClock: View {
                         .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
                         .monospacedDigit()
                 }
-                .transition(.opacity)
+                // Remove the old timer immediately at expiry. Crossfading two
+                // identical zero readouts would hide the finished-state pulse.
+                .transition(.identity)
             } else {
                 Text(state.totalSets > 0 && state.completedSets >= state.totalSets
                      ? (state.restLabel == "Repos" ? "Terminé" : "Done") : state.readyLabel)
                     .font(.custom("Geologica-SemiBold", fixedSize: min(size, 24)))
             }
         }
-        // WidgetKit limits animations to two seconds. Request one short fade,
-        // not continuous blinking; the final value remains readable at 00:00.
+        // A system-rendered insertion transition: in → out → in, then fixed zero.
+        // Autoreverse counts as a repeat, so 3 × 0.35 s stays under WidgetKit's
+        // two-second limit and finishes fully visible. No extension timer loop.
+        // iOS 16 uses system transition timing; Always-On/Reduce Motion stay still.
         .animation(presentation == .restFinished && !reduceMotion && !isLuminanceReduced
-                   ? .easeInOut(duration: 0.6) : nil, value: presentation)
+                   ? .easeInOut(duration: 0.35).repeatCount(3, autoreverses: true) : nil,
+                   value: presentation)
         .lineLimit(1)
         .minimumScaleFactor(0.65)
         .multilineTextAlignment(.trailing)
