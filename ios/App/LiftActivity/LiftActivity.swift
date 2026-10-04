@@ -48,15 +48,29 @@ private struct LiftMark: View {
 }
 
 private struct RestClock: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let state: WorkoutAttributes.ContentState
     var size: CGFloat
     var isStale = false
 
     var body: some View {
+        let presentation = state.presentation(isStale: isStale)
         Group {
-            if isStale {
+            if presentation == .sessionExpired {
                 Text(state.restLabel == "Repos" ? "Ouvrir Lift" : "Open Lift")
                     .font(.custom("Geologica-SemiBold", fixedSize: min(size, 15)))
+            } else if presentation == .restFinished {
+                ZStack(alignment: .trailing) {
+                    Text("00:00")
+                        .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
+                        .opacity(0.10)
+                        .accessibilityHidden(true)
+                    Text("00:00")
+                        .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
+                }
+                .monospacedDigit()
+                .transition(.opacity)
             } else if let range = state.timerRange {
                 // ActivityKit renders the countdown while the host app is suspended.
                 // Both faces keep DSEG7's outlines and pad a single minute digit
@@ -73,12 +87,17 @@ private struct RestClock: View {
                         .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
                         .monospacedDigit()
                 }
+                .transition(.opacity)
             } else {
                 Text(state.totalSets > 0 && state.completedSets >= state.totalSets
                      ? (state.restLabel == "Repos" ? "Terminé" : "Done") : state.readyLabel)
                     .font(.custom("Geologica-SemiBold", fixedSize: min(size, 24)))
             }
         }
+        // WidgetKit limits animations to two seconds. Request one short fade,
+        // not continuous blinking; the final value remains readable at 00:00.
+        .animation(presentation == .restFinished && !reduceMotion && !isLuminanceReduced
+                   ? .easeInOut(duration: 0.6) : nil, value: presentation)
         .lineLimit(1)
         .minimumScaleFactor(0.65)
         .multilineTextAlignment(.trailing)
@@ -108,7 +127,7 @@ private struct WorkoutActions: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            if #available(iOS 17.0, *), state.restEndAt != nil, !isStale {
+            if #available(iOS 17.0, *), state.presentation(isStale: isStale).canAdjustRest {
                 Button(intent: ChangeWorkoutRestIntent(action: "add30", state: state)) {
                     actionLabel("30 s", symbol: "plus")
                 }
@@ -145,6 +164,7 @@ private struct LockScreenWorkout: View {
     let isStale: Bool
 
     var body: some View {
+        let showRest = state.presentation(isStale: isStale).canAdjustRest
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 LiftMark(size: 24)
@@ -182,7 +202,7 @@ private struct LockScreenWorkout: View {
                 RestClock(state: state, size: 32, isStale: isStale)
                     .frame(width: 136, alignment: .trailing)
                     .overlay(alignment: .topTrailing) {
-                        if state.timerRange != nil && !isStale {
+                        if showRest {
                             Text(state.restLabel.uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.7)
@@ -193,7 +213,7 @@ private struct LockScreenWorkout: View {
             }
             // Reserve label space above the row: align the actual readout, rather
             // than the combined label/readout height, with the exercise details.
-            .padding(.top, state.timerRange != nil && !isStale ? 14 : 0)
+            .padding(.top, showRest ? 14 : 0)
 
             WorkoutActions(state: state, isStale: isStale)
             WorkoutProgress(state: state)
@@ -213,6 +233,7 @@ struct LiftActivity: Widget {
                 .widgetURL(context.state.workoutURL)
         } dynamicIsland: { context in
             let state = context.state
+            let showRest = state.presentation(isStale: context.isStale).canAdjustRest
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 7) {
@@ -229,7 +250,7 @@ struct LiftActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 3) {
-                        if state.timerRange != nil && !context.isStale {
+                        if showRest {
                             Text(state.restLabel.uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)

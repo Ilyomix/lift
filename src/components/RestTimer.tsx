@@ -127,7 +127,7 @@ function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
   // Past an hour the readout takes three pairs of figures: smaller ones, so it stays inside the dial.
   const hours = value.length > 5
   return (
-    <><span role="timer" aria-live={done ? 'assertive' : 'off'} className="sr-only">{done ? L('Repos terminé', 'Rest over') : L(`Repos : ${value} restantes`, `Rest: ${value} left`)}</span><span className={cx('flex items-baseline', done && 'text-signal-text')} aria-hidden>
+    <><span role="timer" aria-live={done ? 'assertive' : 'off'} className="sr-only">{done ? L('Repos terminé', 'Rest over') : L(`Repos : ${value} restantes`, `Rest: ${value} left`)}</span><span className={cx('flex items-baseline', done && 'text-signal-text rest-expired-pulse')} aria-hidden>
       <SegDigits value={value} className={cx('leading-none', hours ? 'text-[40px]' : 'text-[60px]')} />
       <span className={cx('seg seg-ghost tnum ml-1 leading-none', hours ? 'text-[22px]' : 'text-[30px]')} data-ghost=".8">.{tenths % 10}</span>
     </span></>
@@ -161,7 +161,7 @@ export function RestDock() {
       >
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
-            <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done' : 'text-white')} />
+            <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done rest-expired-pulse' : 'text-white')} />
             <span className="min-w-0">
               <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>

@@ -87,7 +87,7 @@ enum WorkoutActivityActions {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
             guard enabled else { return }
-            let content = ActivityContent(state: state, staleDate: state.expirationDate)
+            let content = ActivityContent(state: state, staleDate: state.activityStaleDate())
             if let activity = Activity<WorkoutAttributes>.activities.first(where: { $0.attributes.workoutId == state.workoutId }) {
                 await activity.update(content)
             } else if ActivityAuthorizationInfo().areActivitiesEnabled {
@@ -127,9 +127,7 @@ enum WorkoutActivityActions {
             guard sameDeadline(currentEnd, expectedRestEndAt) || matchesPending else { return false }
 
             if action == "add30" {
-                let now = (Date().timeIntervalSince1970 * 1000).rounded(.down)
-                state.restEndAt = max(currentEnd.rounded(), now) + 30_000
-                state.restTotal = currentEnd <= now ? 30 : state.restTotal + 30
+                guard state.extendRest(by: 30) else { return false }
             } else {
                 state.restEndAt = nil
                 state.restTotal = 0
@@ -142,7 +140,7 @@ enum WorkoutActivityActions {
             UserDefaults.standard.set(try JSONEncoder().encode(state), forKey: snapshotKey)
             UserDefaults.standard.set(try JSONEncoder().encode(previous + [pending]), forKey: pendingKey)
             if let activity = Activity<WorkoutAttributes>.activities.first(where: { $0.attributes.workoutId == workoutId }) {
-                await activity.update(ActivityContent(state: state, staleDate: state.expirationDate))
+                await activity.update(ActivityContent(state: state, staleDate: state.activityStaleDate()))
             }
             await updateRestNotification(state)
             NotificationCenter.default.post(name: .workoutActionPerformed, object: nil)

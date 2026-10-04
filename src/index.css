@@ -429,6 +429,17 @@
   animation: seg-out 320ms ease-out both;
 }
 
+/* Only the expired readout breathes; its labels and controls remain still. */
+@keyframes rest-expired-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rest-expired-pulse {
+    animation: rest-expired-pulse 2.4s ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
