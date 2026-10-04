@@ -19,7 +19,7 @@ import { SortableExerciseList } from '../components/SortableExerciseList'
 import { SportArt, workoutArt } from '../components/SportArt'
 import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, SectionHeading, Sheet, Tag } from '../components/ui'
 
-export function ProgramScreen() {
+export function ProgramContent() {
   const state = useStore((s) => s.state)
   const setSchedule = useStore((s) => s.setSchedule)
   // The week as it is trained: with fewer than five days, sessions take more sets to keep the weekly volume.
@@ -34,16 +34,13 @@ export function ProgramScreen() {
       ? L('le même volume par semaine qu’à 5 séances', 'the same weekly volume as with 5 sessions')
       : L(`environ ${weekPct} % du volume prévu`, `about ${weekPct}% of the planned volume`)
   return (
-    <Screen>
-      <Header art="program"
-        backTo="plus"
-        eyebrow={L('Fondé sur la recherche', 'Research-based')}
-        title={L('Programme', 'Program')}
-        sub={L(
+    <>
+      <p className="mb-5 text-[15px] leading-[1.45] text-text-2">
+        {L(
           `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'séance', 'séances')} par semaine, ${rhythm}.`,
           `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, ${rhythm}.`,
         )}
-      />
+      </p>
 
       <ProgramProgress paused={state.programPause.active} />
 
@@ -88,7 +85,7 @@ export function ProgramScreen() {
             const tpl = state.templates[t]
             const sets = scaledSession(sessionSlots(tpl.exercises), week.factor).reduce((a, n) => a + n, 0)
             return (
-              <button key={t} type="button" onClick={() => navigate(`plus/programme/${t}`)} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
+              <button key={t} type="button" onClick={() => navigate(`calendrier/programme/${t}`)} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
                 <SportArt kind={workoutArt[t]} size="title" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-medium">{TYPE_META[t].label}{TYPE_META[t].fr !== TYPE_META[t].label && <> <span className="font-normal text-text-2">· {TYPE_META[t].fr}</span></>}</span>
@@ -151,7 +148,7 @@ export function ProgramScreen() {
           {caveats().map((c) => <li key={c} className="flex gap-2"><span className="text-muted">—</span>{c}</li>)}
         </ul>
       </Section>
-    </Screen>
+    </>
   )
 }
 
@@ -175,7 +172,7 @@ export function SourcesScreen() {
   return (
     <Screen>
       <Header art="evidence"
-        backTo="plus/programme"
+        backTo="calendrier/programme"
         eyebrow={L('Preuves', 'Evidence')}
         title="Sources"
         sub={L(
@@ -211,13 +208,13 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const [adding, setAdding] = useState(false)
   // The plan's live values: set from the training days on every change of the state.
   const factor = daysFactor()
-  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Session not found')} action={<Button onClick={() => navigate('plus/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available session.')}</Empty></Screen>
+  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Session not found')} action={<Button onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available session.')}</Empty></Screen>
   const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
   const meta = TYPE_META[type]
   return (
     <Screen>
       <Header art={workoutArt[type]}
-        backTo="plus/programme"
+        backTo="calendrier/programme"
         eyebrow={meta.fr !== meta.label ? meta.fr : undefined}
         title={meta.label}
         sub={L('Touchez un exercice pour ajuster ses cibles. Les règles du bloc (effort, décharges, reprises) s’appliquent automatiquement par-dessus.', 'Tap an exercise to adjust its targets. The block rules (effort, deloads, returns) are applied automatically on top.')}

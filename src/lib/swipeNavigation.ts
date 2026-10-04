@@ -3,6 +3,7 @@ export type SwipeAction = { type: 'navigate'; path: string } | { type: 'back' }
 export type SwipeContext = { path: string; left: number; width: number; scrollY: number; canGoBack: boolean }
 
 export function mainRouteIndex(path: string) {
+  if (path === 'calendrier/programme') return 2
   if (['progres/corps', 'progres/volume', 'progres/seances', 'progres/force'].includes(path)) return 3
   return MAIN_ROUTES.findIndex(route => route === path)
 }

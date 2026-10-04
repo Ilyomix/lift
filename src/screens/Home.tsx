@@ -101,7 +101,7 @@ export function Home() {
               <span className="block text-[12px] leading-[18px] text-text-2 tnum">{cycle ? L(`Cycle jusqu’au ${fmtDate(cycle.end)}`, `Cycle until ${fmtDate(cycle.end)}`) : ctx.after ? L('Programme terminé', 'Program complete') : plural(weeksLeft, L('semaine restante', 'week left'), L('semaines restantes', 'weeks left'))}</span>
             </span>
           </button>
-          <Button variant="ghost" size="sm" className="-mr-2 px-2" onClick={() => navigate('plus/programme')} aria-label={L('Voir le programme', 'View program')}>
+          <Button variant="ghost" size="sm" className="-mr-2 px-2" onClick={() => navigate('calendrier/programme')} aria-label={L('Voir le programme', 'View program')}>
             {L('Programme', 'Program')}<ArrowRight size={16} aria-hidden />
           </Button>
         </div>
@@ -222,7 +222,7 @@ export function Home() {
                 run: () => { useStore.getState().cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) },
               }]
             : []),
-          ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: L('Programme', 'Program'), to: 'plus/programme' })),
+          ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: L('Programme', 'Program'), to: 'calendrier/programme' })),
           ...(cal.status === 'lower' || cal.status === 'raise'
             ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
             : []),

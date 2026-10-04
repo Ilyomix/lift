@@ -4,7 +4,7 @@ import { Fragment, useEffect, useLayoutEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { RefreshCw } from 'lucide-react'
 import { L, resolveLang } from './lib/i18n'
-import { useRoute } from './lib/router'
+import { navigate, useRoute } from './lib/router'
 import { useStore } from './lib/store'
 import type { WorkoutType } from './lib/types'
 import { WORKOUT_TYPES } from './lib/types'
@@ -16,11 +16,18 @@ import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar
 import { Home } from './screens/Home'
 import { CoachScreen, DataScreen, MoreScreen, NutritionScreen, SettingsScreen } from './screens/More'
 import { AppIcon, ImportResultSheet, Onboarding } from './screens/Onboarding'
-import { ProgramScreen, SourcesScreen, TemplateEditor } from './screens/ProgramScreen'
+import { SourcesScreen, TemplateEditor } from './screens/ProgramScreen'
 import { ExerciseDetail, ProgressScreen } from './screens/Progress'
 import { VisualGoalScreen } from './screens/Goal'
 import { SessionScreen, SessionSummary, WorkoutDetail } from './screens/Session'
 import { PrivacyScreen } from './screens/Privacy'
+
+function LegacyProgramRedirect({ type }: { type?: WorkoutType }) {
+  useLayoutEffect(() => {
+    navigate(type ? `calendrier/programme/${type}` : 'calendrier/programme', { replace: true })
+  }, [type])
+  return null
+}
 
 function Routes({ path }: { path: string[] }) {
   const [a, b, c] = path
@@ -32,7 +39,8 @@ function Routes({ path }: { path: string[] }) {
       if (b) return <WorkoutDetail id={b} />
       return <SessionScreen />
     case 'calendrier':
-      return <CalendarScreen />
+      if (b === 'programme' && c && (WORKOUT_TYPES as string[]).includes(c)) return <TemplateEditor type={c as WorkoutType} />
+      return <CalendarScreen tab={b === 'programme' ? 'programme' : 'calendrier'} />
     case 'progres':
       if (b === 'exercice' && c) return <ExerciseDetail id={c} />
       return <ProgressScreen tab={b === 'corps' || b === 'volume' || b === 'seances' ? b : 'force'} sub={c} />
@@ -40,7 +48,7 @@ function Routes({ path }: { path: string[] }) {
       switch (b) {
         case 'confidentialite': return <PrivacyScreen />
         case 'nutrition': return <NutritionScreen />
-        case 'programme': return c && (WORKOUT_TYPES as string[]).includes(c) ? <TemplateEditor type={c as WorkoutType} /> : <ProgramScreen />
+        case 'programme': return <LegacyProgramRedirect type={c && (WORKOUT_TYPES as string[]).includes(c) ? c as WorkoutType : undefined} />
         case 'preuves': return <SourcesScreen />
         case 'coach': return <CoachScreen />
         case 'pause': return <PauseScreen />
@@ -85,6 +93,8 @@ export default function App() {
   const langKey = useStore((s) => resolveLang(s.state.prefs.lang))
   const path = useRoute()
   const routeKey = path.join('/')
+  // Keep Calendar's selected month when switching its two top-level tabs.
+  const screenKey = routeKey === 'calendrier' || routeKey === 'calendrier/programme' ? 'calendrier' : routeKey
 
   useLayoutEffect(() => {
     // Hash links also navigate without calling navigate(). Reset after the
@@ -130,7 +140,7 @@ export default function App() {
       {effects}
       <div className="status-scrim" aria-hidden />
       <SwipeNavigation path={path} />
-      <Routes key={routeKey} path={path} />
+      <Routes key={screenKey} path={path} />
       <RestDock />
       <TabBar current={path[0] ?? ''} />
       <ImportResultSheet />

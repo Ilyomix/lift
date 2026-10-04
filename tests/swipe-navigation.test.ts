@@ -55,6 +55,20 @@ test('progress sub-tabs are main pages, exercise and measurement routes are not'
   f.cleanup()
 })
 
+test('program tab follows Calendar navigation while its session sheets keep edge back', () => {
+  assert.equal(mainRouteIndex('calendrier/programme'), 2)
+  assert.equal(mainRouteIndex('calendrier/programme/PUSH'), -1)
+  const program = fixture('calendrier/programme')
+  program.swipe(240, 140)
+  program.swipe(140, 240)
+  assert.deepEqual(program.actions, [{ type: 'navigate', path: 'progres' }, { type: 'navigate', path: 'seance' }])
+  const sheet = fixture('calendrier/programme/PUSH', true)
+  assert.equal(sheet.swipe(100, 220), false)
+  assert.equal(sheet.swipe(30, 130), true)
+  assert.deepEqual(sheet.actions, [{ type: 'back' }])
+  program.cleanup(); sheet.cleanup()
+})
+
 test('secondary pages return only from the inner left edge and only with real history', () => {
   const f = fixture('plus/reglages', true)
   assert.equal(f.swipe(100, 220), false)

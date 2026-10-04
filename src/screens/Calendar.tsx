@@ -14,9 +14,10 @@ import { calendarMilestonesAt } from '../lib/programTimeline'
 import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
-import { Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, Screen, Section, SectionHeading, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
+import { Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
+import { ProgramContent } from './ProgramScreen'
 
-export function CalendarScreen() {
+export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'programme' }) {
   const state = useStore((s) => s.state)
   const startSession = useStore((s) => s.startSession)
   const today = todayISO()
@@ -31,13 +32,25 @@ export function CalendarScreen() {
 
   return (
     <Screen>
-      <Header art="calendar"
-        eyebrow={cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`Plan jusqu’au ${fmtDate(GOAL_DATE, { long: true })}`, `Program through ${fmtDate(GOAL_DATE, { long: true })}`)}
-        title={L('Calendrier', 'Calendar')}
-        sub={cycle
-          ? L(`${cycle.label} : ${plan.done} faites + ${plan.planned} prévues jusqu’au ${fmtDate(cycle.end, { long: true })}. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${cycle.label}: ${plan.done} done + ${plan.planned} planned until ${fmtDate(cycle.end, { long: true })}. A missed session shifts the rotation; it’s never skipped.`)
-          : L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}
+      <Header art="calendar" title={L('Calendrier', 'Calendar')} />
+      <Segmented
+        label={L('Vue du calendrier', 'Calendar view')}
+        value={tab}
+        layout="fit"
+        onChange={(value) => navigate(value === 'programme' ? 'calendrier/programme' : 'calendrier', { replace: true })}
+        options={[
+          { value: 'calendrier', label: L('Calendrier', 'Calendar') },
+          { value: 'programme', label: L('Programme', 'Program') },
+        ]}
       />
+      <div className="mt-4">
+      {tab === 'programme' ? <ProgramContent /> : <>
+      <div className="mb-5 text-text-2">
+        <p className="text-[13px] leading-[1.4]">{cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`Plan jusqu’au ${fmtDate(GOAL_DATE, { long: true })}`, `Program through ${fmtDate(GOAL_DATE, { long: true })}`)}</p>
+        <p className="mt-2 text-[15px] leading-[1.45]">{cycle
+          ? L(`${cycle.label} : ${plan.done} faites + ${plan.planned} prévues jusqu’au ${fmtDate(cycle.end, { long: true })}. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${cycle.label}: ${plan.done} done + ${plan.planned} planned until ${fmtDate(cycle.end, { long: true })}. A missed session shifts the rotation; it’s never skipped.`)
+          : L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}</p>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></SectionHeading>
@@ -131,14 +144,14 @@ export function CalendarScreen() {
         </Section>
       )}
 
-      <Button variant="ghost" full className="mt-3" icon={<ChevronRight size={16} aria-hidden />} onClick={() => navigate('plus/programme')}>{L('Voir où j’en suis dans le programme', 'See my program progress')}</Button>
-
       <div className="mt-6 grid gap-2">
         <Button variant="outline" size="lg" full icon={<CalendarPlus size={18} aria-hidden />} onClick={() => navigate('plus/rappels')}>{L('Rappels dans ton calendrier', 'Reminders in your calendar')}</Button>
         <Button variant="outline" size="lg" full icon={<CirclePause size={18} aria-hidden />} onClick={() => navigate('plus/pause')}>{state.programPause.active ? L('Gérer la pause', 'Manage the pause') : L('Mettre le programme en pause', 'Pause the program')}</Button>
       </div>
 
       <DaySheet date={day} onClose={() => setDay(null)} planned={planned.find((p) => p.date === day) ?? null} onStart={(t) => { startSession(t); navigate('seance') }} />
+      </>}
+      </div>
     </Screen>
   )
 }
