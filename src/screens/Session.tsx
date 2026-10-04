@@ -300,6 +300,9 @@ function ActiveSession() {
 const REENTRY_NOTE_PREFIXES = ['Reprise', 'Remise', 'Return', 'Restart']
 const isReentryNote = (n: string) => REENTRY_NOTE_PREFIXES.some((x) => n.startsWith(x))
 
+// Keep labels and every set in the same compact columns, including on phones.
+const setColumns = 'grid grid-cols-[44px_minmax(0,1fr)_minmax(0,0.9fr)_52px_44px] items-center gap-1 min-[400px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.9fr)_60px_44px] min-[400px]:gap-1.5'
+
 /** The skip reason stored by « Passer cet exercice », shown in the current language; other reasons are left as typed. */
 const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : r)
 
@@ -418,7 +421,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       </div>
 
       <div className="mt-3 px-3 pb-3">
-        <div className="hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_80px_48px] gap-2 px-3 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase min-[520px]:grid">
+        <div className={cx(setColumns, 'px-2 pb-1.5 text-center text-[11px] leading-[1.25] font-medium text-text-2')}>
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>
           <span>Reps</span>
@@ -504,7 +507,7 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { 
     <input
       aria-label={label}
       disabled={disabled}
-      className="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-2.5 text-center text-[17px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:border-transparent disabled:bg-transparent disabled:text-text-2"
+      className="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center text-[16px] font-semibold text-text tnum min-[360px]:px-1 placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--text)]"
       inputMode={decimal ? 'decimal' : 'numeric'}
       pattern={decimal ? undefined : '[0-9]*'}
       enterKeyHint="done"
@@ -542,20 +545,19 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
   const done = s.completed
   const hasDetail = s.flags.length > 0 || (s.cleanReps !== null && s.reps !== null && s.cleanReps !== s.reps) || !!s.note
   return (
-    <div className={cx('rounded-[12px] p-3 transition-colors', done && 'bg-surface-2', isCurrent && 'bg-signal-soft shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--signal)_55%,transparent)]')} aria-current={isCurrent ? 'step' : undefined}>
-      <div className="grid grid-cols-3 items-end gap-2 min-[520px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_80px_48px] min-[520px]:items-center">
+    <div className={cx('rounded-[12px] p-2 transition-colors', isCurrent && 'bg-signal-soft')} aria-current={isCurrent ? 'step' : undefined}>
+      <div className={setColumns}>
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
-          className={cx('pressable col-span-2 flex h-11 items-center gap-1.5 rounded-[9px] px-2 text-[15px] font-semibold tnum hover:bg-surface-3 min-[520px]:col-span-1 min-[520px]:flex-col min-[520px]:justify-center min-[520px]:gap-0 min-[520px]:px-0', isCurrent && 'text-signal-text')}
+          className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[14px] font-semibold tnum hover:bg-surface-3', isCurrent ? 'text-signal-text' : 'text-text-2')}
         >
-          <span className="min-[520px]:hidden">{L('Série', 'Set')}</span>{setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
+          {setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
-        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">{ex.unit === 'PDC' ? takesLest(ex) ? L('Lest', 'Added load') : bodyweightLabel() : ex.unit}</span>
+        <div className="min-w-0">
           {ex.unit === 'PDC' && !takesLest(ex) ? (
             <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
           ) : ex.unit === 'PDC' ? (
@@ -564,8 +566,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
           )}
         </div>
-        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">Reps</span>
+        <div className="min-w-0">
           <NumField
             label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
             value={s.reps}
@@ -574,8 +575,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             disabled={done}
           />
         </div>
-        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">{L('En réserve', 'In reserve')}</span>
+        <div className="min-w-0">
           <select
             aria-label={L(`Répétitions en réserve, série ${setIndex + 1}`, `Reps in reserve, set ${setIndex + 1}`)}
             value={recordedRir(s) ?? ''}
@@ -594,7 +594,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}
-          className={cx('pressable order-1 flex h-11 w-full items-center justify-center rounded-[10px] border min-[520px]:order-none min-[520px]:w-12', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
+          className={cx('pressable flex h-11 w-11 items-center justify-center rounded-[10px] border', done ? 'border-transparent bg-signal-soft text-signal-text' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
         >
           <Check size={20} strokeWidth={done ? 3 : 2.2} aria-hidden />
         </button>

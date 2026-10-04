@@ -46,7 +46,7 @@ export function MoreScreen() {
   const state = useStore((s) => s.state)
   const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
     { to: 'plus/nutrition', art: 'nutrition', label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
-    { to: 'plus/preuves', art: 'evidence', label: L('Sources scientifiques', 'Scientific sources'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
+    { to: 'plus/preuves', art: 'evidence', label: L('Sources scientifiques', 'Scientific sources'), hint: L(`${studyCount()} études · principes et limites`, `${studyCount()} studies · principles and limitations`) },
     { to: 'plus/pause', art: 'pause', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
     { to: 'plus/rappels', art: 'reminders', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
     { to: 'plus/donnees', art: 'backup', label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
@@ -54,7 +54,7 @@ export function MoreScreen() {
   ]
   return (
     <Screen>
-      <Header art="kit" title={L('Plus', 'More')} sub={L('Gère ta nutrition, ton programme et tes données.', 'Manage your nutrition, program and data.')} />
+      <Header art="kit" title={L('Plus', 'More')} sub={L('Nutrition, réglages et données personnelles.', 'Nutrition, settings and personal data.')} />
       <Card className="divide-y divide-line">
         {items.map((item) => <MoreMenuRow key={item.to} {...item} />)}
       </Card>

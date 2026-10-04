@@ -44,15 +44,6 @@ export function ProgramContent() {
 
       <ProgramProgress paused={state.programPause.active} />
 
-      <Card className="p-4">
-        <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{VERDICT_FREQUENCY.title}</SectionHeading>
-        <p className="mt-3 text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.answer}</p>
-        <Disclosure bordered={false} className="mt-2" icon={<BookOpen size={18} aria-hidden />} title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
-          <p className="text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.keep}</p>
-          <RefList refs={VERDICT_FREQUENCY.refs} compact />
-        </Disclosure>
-      </Card>
-
       <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Semaine type', 'Typical week')}>
         <Card className="divide-y divide-line">
           {[1, 2, 3, 4, 5, 6, 0].map((d) => (
@@ -113,7 +104,7 @@ export function ProgramContent() {
         </Card>
       </Section>
 
-      <Section icon={<SlidersHorizontal size={18} aria-hidden />} title={L('Règles', 'Rules')}>
+      <Section icon={<SlidersHorizontal size={18} aria-hidden />} title={L('Progression et ajustements', 'Progression and adjustments')}>
         <Card className="divide-y divide-line text-[14px] leading-[1.45]">
           <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, avec les répétitions en réserve prévues, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, with the planned reps in reserve, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 sessions a week, the sheet’s sets are the ones that count: those added in the session come after, with fewer reps.') : '')} />
           <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('Répétitions en réserve : S1 3 · S2 2 · S3–S4 1–2 (polyarticulaire) et 0–1 (isolation) · S5 0–1, dernière série d’isolation à l’échec technique.', 'Reps in reserve: W1 3 · W2 2 · W3–W4 1–2 (compound) and 0–1 (isolation) · W5 0–1, last isolation set to technical failure.')} />
@@ -126,28 +117,9 @@ export function ProgramContent() {
         </Card>
       </Section>
 
-      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Ce que dit la recherche', 'What the research says')} action={<Button variant="ghost" onClick={() => navigate('plus/preuves')}>{L('Toutes les sources', 'All sources')}</Button>}>
-        <Card className="divide-y divide-line">
-          {PRINCIPLES.map((p) => (
-            <Disclosure key={p.id} bordered={false} className="px-4" title={
-              <span className="block min-w-0">
-                <span className="eyebrow block">{p.title}</span>
-                <span className="mt-0.5 block text-[15px] leading-[1.35] font-semibold">{p.rule}</span>
-                <span className="mt-2 block"><LevelTag level={p.level} /></span>
-              </span>
-            }>
-              <p className="text-[14px] leading-[1.5] text-text-2">{p.detail}</p>
-              <RefList refs={p.refs} compact />
-            </Disclosure>
-          ))}
-        </Card>
-      </Section>
-
-      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Limites', 'Limitations')}>
-        <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
-          {caveats().map((c) => <li key={c} className="flex gap-2"><span className="text-muted">—</span>{c}</li>)}
-        </ul>
-      </Section>
+      <Button variant="ghost" className="mt-4" icon={<BookOpen size={18} aria-hidden />} onClick={() => navigate('plus/preuves')}>
+        {L('Sources scientifiques', 'Scientific sources')}<ChevronRight size={16} aria-hidden />
+      </Button>
     </>
   )
 }
@@ -172,26 +144,60 @@ export function SourcesScreen() {
   return (
     <Screen>
       <Header art="evidence"
-        backTo="calendrier/programme"
-        eyebrow={L('Preuves', 'Evidence')}
-        title="Sources"
-        sub={L(
+        backTo="plus"
+        title={L('Sources scientifiques', 'Scientific sources')}
+        sub={L('Les études derrière les recommandations de Lift, leurs conclusions et leurs limites.', 'The research behind Lift’s recommendations, its findings and limitations.')}
+      />
+      <Card className="p-4">
+        <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{VERDICT_FREQUENCY.title}</SectionHeading>
+        <p className="mt-3 text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.answer}</p>
+        <Disclosure bordered={false} className="mt-2" icon={<BookOpen size={18} aria-hidden />} title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
+          <p className="text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.keep}</p>
+          <RefList refs={VERDICT_FREQUENCY.refs} compact />
+        </Disclosure>
+      </Card>
+
+      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Principes d’entraînement', 'Training principles')}>
+        <Card className="divide-y divide-line">
+          {PRINCIPLES.map((p) => (
+            <Disclosure key={p.id} bordered={false} className="px-4" title={
+              <span className="block min-w-0">
+                <span className="block text-[15px] leading-[1.35] font-semibold">{p.title}</span>
+                <span className="mt-1 block text-[13px] leading-5 font-normal text-text-2">{p.rule}</span>
+                <span className="mt-2 block"><LevelTag level={p.level} /></span>
+              </span>
+            }>
+              <p className="text-[14px] leading-[1.5] text-text-2">{p.detail}</p>
+              <RefList refs={p.refs} compact />
+            </Disclosure>
+          ))}
+        </Card>
+      </Section>
+
+      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Limites de ces recommandations', 'Limits of these recommendations')}>
+        <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
+          {caveats().map((c) => <li key={c} className="flex gap-2"><span className="text-muted">—</span>{c}</li>)}
+        </ul>
+      </Section>
+
+      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Études et recommandations', 'Studies and guidelines')}>
+        <p className="mb-4 text-[13px] leading-[1.5] text-text-2">{L(
           `${reported} publications vérifiées dans le rapport de recherche${added ? `, ${added} ajoutée${added > 1 ? 's' : ''} depuis` : ''}${guidance ? `, et ${guidance} recommandation${guidance > 1 ? 's' : ''} de santé` : ''}. Méta-analyses et essais randomisés en priorité.`,
           `${reported} publications checked in the research report${added ? `, ${added} added since` : ''}${guidance ? `, and ${guidance} piece${guidance > 1 ? 's' : ''} of health guidance` : ''}. Meta-analyses and randomized trials first.`,
-        )}
-      />
-      <Card className="divide-y divide-line">
-        {Object.values(SOURCES).sort((a, b) => a.authors.localeCompare(b.authors)).map((s) => (
-          <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="pressable block px-4 py-3 hover:bg-surface-2">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-[14px] leading-[1.4] font-medium">{s.title}</p>
-              <ExternalLink size={14} className="mt-1 shrink-0 text-muted" aria-hidden />
-            </div>
-            <p className="mt-1 text-[13px] text-text-2">{s.authors} ({s.year}) · {s.journal}</p>
-            <p className="mt-0.5 text-[12px] text-muted">{s.kind} · {s.id}{s.added ? L(' · ajoutée après le rapport', ' · added after the report') : ''}</p>
-          </a>
-        ))}
-      </Card>
+        )}</p>
+        <Card className="divide-y divide-line">
+          {Object.values(SOURCES).sort((a, b) => a.authors.localeCompare(b.authors)).map((s) => (
+            <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="pressable block px-4 py-3 hover:bg-surface-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[14px] leading-[1.4] font-medium">{s.title}</p>
+                <ExternalLink size={14} className="mt-1 shrink-0 text-muted" aria-hidden />
+              </div>
+              <p className="mt-1 text-[13px] text-text-2">{s.authors} ({s.year}) · {s.journal}</p>
+              <p className="mt-0.5 text-[12px] text-muted">{s.kind} · {s.id}{s.added ? L(' · ajoutée après le rapport', ' · added after the report') : ''}</p>
+            </a>
+          ))}
+        </Card>
+      </Section>
     </Screen>
   )
 }

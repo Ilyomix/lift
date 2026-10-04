@@ -82,14 +82,14 @@ export function Home() {
       </header>
 
       <section aria-label={cycle ? L('Progression du cycle en cours', 'Progress through the current cycle') : L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 tnum">
-            <span className="text-[64px] leading-none font-semibold tracking-[-0.04em]"><Num value={plan.done} digits={0} className="[--number-flow-mask-height:0.08em]" /></span>
-            <span className="text-[22px] leading-none font-medium text-text-2">/ {plan.total}</span>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
+          <p className="flex min-w-0 items-baseline gap-x-2 whitespace-nowrap tnum">
+            <span className="text-[48px] leading-none font-semibold tracking-[-0.04em] min-[360px]:text-[64px]"><Num value={plan.done} digits={0} className="[--number-flow-mask-height:0.08em]" /></span>
+            <span className="text-[18px] leading-none font-medium text-text-2 min-[360px]:text-[22px]">/ {plan.total}</span>
+            <span className="text-[12px] leading-5 text-text-2 min-[360px]:text-[13px]">{L(plan.done === 1 ? 'séance terminée' : 'séances terminées', plan.done === 1 ? 'session completed' : 'sessions completed')}</span>
           </p>
-          <p className="shrink-0 text-[22px] leading-none font-semibold tnum">{L(`${pct} %`, `${pct}%`)}</p>
+          <p className="ml-auto shrink-0 text-[22px] leading-none font-semibold tnum">{L(`${pct} %`, `${pct}%`)}</p>
         </div>
-        <p className="text-[13px] leading-5 text-text-2">{L(plan.done > 1 ? 'séances terminées' : 'séance terminée', plan.done === 1 ? 'session completed' : 'sessions completed')}</p>
         <div className="mt-3"><SessionTrack plan={plan} /></div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <button type="button" className="pressable -ml-2 inline-flex min-h-11 items-center gap-2 rounded-[10px] px-2 py-1 text-left hover:bg-surface-2" onClick={() => setGoalOpen(true)}
