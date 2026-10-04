@@ -130,7 +130,7 @@ export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'ill
         )}
         {right}
       </div>}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {art && <SportArt kind={art} size={artSize} />}
         <div className="min-w-0 flex-1">
           <h1 className="text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
@@ -146,7 +146,7 @@ export function Section({ title, action, children, className, art }: { title?: R
   return (
     <section className={cx(art ? 'mt-6' : 'mt-7', className)}>
       {(title || action) && (
-        <div className={cx('mb-3 flex gap-x-3 gap-y-2', art ? 'items-center' : 'flex-wrap items-center justify-between')}>
+        <div className={cx('mb-3 flex gap-y-2', art ? 'gap-x-2' : 'gap-x-3', art ? 'items-center' : 'flex-wrap items-center justify-between')}>
           {art && <SportArt kind={art} size="title" />}
           {art ? <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
             {title && <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
@@ -397,13 +397,13 @@ export function ProgressBar({ value, className, tone = 'signal', label }: { valu
   )
 }
 
-export function Empty({ icon, title, children, action }: { icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
+export function Empty({ art = 'chart', icon, title, children, action }: { art?: SportArtKind; icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center px-6 py-10 text-center">
-      {icon && <div className="mb-3 text-muted">{icon}</div>}
-      <p className="text-[15px] font-semibold">{title}</p>
-      {children && <p className="mt-1 max-w-[320px] text-[14px] leading-[1.45] text-text-2">{children}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="flex min-w-0 flex-col items-center px-5 py-8 text-center sm:py-10">
+      <div className="mb-4 flex h-16 items-center justify-center text-signal-text" aria-hidden>{icon ?? <SportArt kind={art} size="illustration" />}</div>
+      <p className="max-w-[360px] text-[16px] leading-[1.35] font-semibold text-balance">{title}</p>
+      {children && <p className="mt-2 max-w-[320px] text-[14px] leading-[1.55] text-pretty text-text-2">{children}</p>}
+      {action && <div className="mt-5 flex max-w-full flex-wrap justify-center gap-2 [&>button]:max-w-full [&>button]:whitespace-normal">{action}</div>}
     </div>
   )
 }

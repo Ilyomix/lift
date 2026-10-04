@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { fmtDate, fromDayNumber } from '../lib/date'
 import { fmtNum } from '../lib/format'
 import { L } from '../lib/i18n'
-import { cx } from './ui'
+import { cx, Empty } from './ui'
 
 // Mark specs (dataviz): 2px lines, ≥8px markers with a 2px surface ring, hairline
 // recessive grid, text in ink tokens (never the series colour), selective labels.
@@ -93,7 +93,7 @@ export function LineChart({
     }
   }, [all, band, refLine, iw, ih, xDomain, yPad, m.l, m.t])
 
-  if (!all.length) return <div ref={ref} className="flex h-24 items-center justify-center text-[13px] text-muted">{L('Pas encore de données', 'No data yet')}</div>
+  if (!all.length) return <div ref={ref}><Empty art="chart" title={L('Le suivi commence avec tes données', 'Your records will bring this chart to life')}>{L('Les valeurs enregistrées apparaîtront ici.', 'Your logged values will appear here.')}</Empty></div>
 
   const primary = series.find((s) => s.kind === 'line') ?? series[0]
   const xs = Array.from(new Set(series.flatMap((s) => s.points.map((p) => p.x)))).sort((a, b) => a - b)

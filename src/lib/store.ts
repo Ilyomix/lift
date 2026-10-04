@@ -126,6 +126,7 @@ interface Store {
   addTemplateExercise: (type: WorkoutType, exerciseId: string) => void
   removeTemplateExercise: (type: WorkoutType, index: number) => void
   moveTemplateExercise: (type: WorkoutType, index: number, dir: -1 | 1) => void
+  reorderTemplateExercise: (type: WorkoutType, from: number, to: number) => void
   setExerciseVideo: (exerciseId: string, url: string) => void
   applyPlan: (u: PlanUpdate) => void
 
@@ -1001,12 +1002,14 @@ export const useStore = create<Store>((set, get) => ({
     }),
 
   moveTemplateExercise: (type, index, dir) =>
+    get().reorderTemplateExercise(type, index, index + dir),
+
+  reorderTemplateExercise: (type, from, to) =>
     get().update((s) => {
       const tpl = s.templates[type]
-      const j = index + dir
-      if (j < 0 || j >= tpl.exercises.length) return s
+      if (!tpl || !Number.isInteger(from) || !Number.isInteger(to) || from === to || from < 0 || to < 0 || from >= tpl.exercises.length || to >= tpl.exercises.length) return s
       const exercises = [...tpl.exercises]
-      ;[exercises[index], exercises[j]] = [exercises[j], exercises[index]]
+      exercises.splice(to, 0, exercises.splice(from, 1)[0])
       const templates = { ...s.templates, [type]: { ...tpl, exercises } }
       return { ...s, templates, sessionReplacements: normalizeSessionReplacements(s.sessionReplacements, templates) }
     }),

@@ -23,6 +23,8 @@
     "@capacitor/ios": "^8.5.2",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
     "@fontsource-variable/geologica": "^5.3.0",
     "@number-flow/react": "^0.6.2",
     "idb-keyval": "^6.3.0",

@@ -24,7 +24,7 @@ import { SportArt, type SportArtKind } from '../components/SportArt'
 import { RefList } from '../components/Evidence'
 import { GoalSheet } from '../components/GoalSheet'
 import { SetupSheet, setupLabel } from '../components/Setup'
-import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, ProgressBar, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
 
 
 export function MoreScreen() {
@@ -53,10 +53,11 @@ export function MoreScreen() {
         ))}
       </Card>
       <Disclosure title={L('Outils avancés', 'Advanced tools')} className="mt-4" contentClassName="text-[13px] text-text-2">
-        <a href="#/plus/coach" className="pressable mb-2 flex min-h-11 items-center justify-between gap-3 rounded-[10px] px-3 py-2 hover:bg-surface-2">
-          <span>
-            <span className="block font-medium">{L('Aide IA facultative', 'Optional AI assistance')}</span>
-            <span className="mt-0.5 block text-[12px] text-muted">{L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')}</span>
+        <a href="#/plus/coach" className="pressable flex w-full items-center gap-3 rounded-[10px] px-4 py-3.5 text-left hover:bg-surface-2">
+          <SportArt kind="coach" size="title" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium text-text">{L('Aide IA facultative', 'Optional AI assistance')}</span>
+            <span className="block text-[13px] text-muted">{L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')}</span>
           </span>
           <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
         </a>
@@ -92,6 +93,7 @@ export function NutritionScreen() {
   const { setNutrition, setNutritionTargets, notify } = useStore.getState()
   const today = todayISO()
   const [date, setDate] = useState(today)
+  const proteinInput = useRef<HTMLInputElement>(null)
   const e = nutritionFor(state, date)
   const protein = proteinTargetFor(state, date)
   const ctx = contextAt(date)
@@ -102,11 +104,13 @@ export function NutritionScreen() {
   const first = advice.status === 'ask' ? advice.first : undefined
   const step = !first || normal === null ? null : normal ? { ...first, sized: true } : advice.otherwise ? { ...advice.otherwise, sized: false } : null
   const hit = days.filter((d) => d.protein >= protein.min).length
+  const nutritionDates = Object.keys(state.nutritionEntries)
+  const hasRecentNutrition = nutritionDates.some((entryDate) => entryDate >= addDays(today, -13) && entryDate <= today)
   const add = (k: 'calories' | 'protein', n: number) => setNutrition(date, { [k]: Math.max(0, (e[k] ?? 0) + n) })
   const adaptive = state.nutritionTargets.adaptive !== false
   return (
     <Screen>
-      <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label ?? 'Nutrition'} title="Nutrition" sub={ctx.phase?.nutrition} />
+      <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label} title="Nutrition" sub={ctx.phase?.nutrition} />
       <div className="flex items-center justify-between gap-2">
         <IconButton label={L('Jour précédent', 'Previous day')} onClick={() => setDate(addDays(date, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
         <p className="min-w-0 text-center text-[15px] font-semibold">{capitalize(fmtRelativeDay(date, today))}</p>
@@ -114,8 +118,8 @@ export function NutritionScreen() {
       </div>
 
       <Card className="mt-4 divide-y divide-line">
-        <Counter label={L('Protéines', 'Protein')} unit="g" value={e.protein} target={`${protein.min}–${protein.max} g`} onSet={(n) => setNutrition(date, { protein: n })} steps={[-10, 10, 25]} onAdd={(n) => add('protein', n)} />
-        <Counter label="Calories" unit="kcal" value={e.calories} target={`${state.nutritionTargets.calories} kcal`} onSet={(n) => setNutrition(date, { calories: n })} steps={[-100, 100, 250]} onAdd={(n) => add('calories', n)} />
+        <Counter label={L('Protéines', 'Protein')} unit="g" value={e.protein} target={`${protein.min}–${protein.max} g`} targetValue={protein.min} targetMax={protein.max} inputRef={proteinInput} onSet={(n) => setNutrition(date, { protein: n })} steps={[-10, 10, 25]} onAdd={(n) => add('protein', n)} />
+        <Counter label="Calories" unit="kcal" value={e.calories} target={`${state.nutritionTargets.calories} kcal`} targetValue={state.nutritionTargets.calories} onSet={(n) => setNutrition(date, { calories: n })} steps={[-100, 100, 250]} onAdd={(n) => add('calories', n)} />
         <Toggle label={L('Créatine', 'Creatine')} hint={L(`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`, `${state.nutritionTargets.creatine} g per day · makes you retain 1–2 kg of water`)} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
@@ -174,15 +178,18 @@ export function NutritionScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Protéines, 14 jours', 'Protein, 14 days')} action={<span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span>}>
-        <Card className="p-4">
+      <Section title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
+        {hasRecentNutrition ? <Card className="p-4">
           <Columns
             ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
             bars={days.map((d) => ({ key: d.date, label: String(Number(d.date.slice(8))), value: d.protein, tooltip: <span>{fmtDate(d.date)}{L(' : ', ': ')}{fmtNum(d.protein, 0)} g</span> }))}
             target={{ value: protein.min, label: `${protein.min} g` }}
             format={(v) => fmtNum(v, 0)}
           />
-        </Card>
+        </Card> : <Empty art="nutrition"
+          title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutrition commence ici', 'Your nutrition log starts here')}
+          action={<Button variant="outline" onClick={() => { setDate(today); proteinInput.current?.focus() }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
+        >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
       </Section>
 
       <Section title={L('Cibles', 'Targets')}>
@@ -216,31 +223,40 @@ function NumInput({ value, onChange }: { value: number; onChange: (n: number) =>
   return <input className={inputClass} inputMode="numeric" value={t} onChange={(e) => { setT(e.target.value); const n = parseNumber(e.target.value); if (n !== null) onChange(n) }} />
 }
 
-function Counter({ label, unit, value, target, onSet, steps, onAdd }: { label: string; unit: string; value: number; target: string; onSet: (n: number) => void; steps: number[]; onAdd: (n: number) => void }) {
+function Counter({ label, unit, value, target, targetValue, targetMax, inputRef, onSet, steps, onAdd }: { label: string; unit: string; value: number; target: string; targetValue: number; targetMax?: number; inputRef?: React.RefObject<HTMLInputElement | null>; onSet: (n: number) => void; steps: number[]; onAdd: (n: number) => void }) {
+  const hasTarget = Number.isFinite(targetValue) && targetValue > 0
+  const current = Number.isFinite(value) ? Math.max(0, value) : 0
+  const upper = typeof targetMax === 'number' && Number.isFinite(targetMax) && targetMax >= targetValue ? targetMax : targetValue
+  const over = hasTarget ? Math.max(0, current - upper) : 0
   return (
-    <div className="px-4 py-3.5">
-      <div className="flex items-baseline justify-between">
+    <div className="px-4 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="text-[15px] font-medium">{label}</span>
-        <span className="text-[12px] text-muted">{L(`cible ${target}`, `target ${target}`)}</span>
+        <span className="text-[12px] text-text-2">{hasTarget ? L(`cible ${target}`, `target ${target}`) : L('Cible à définir', 'Set a target')}</span>
       </div>
-      {/* On a narrow phone the steps go under the field instead of pushing the page wider. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <span aria-hidden />
         <input
+          ref={inputRef}
           aria-label={`${label} (${unit})`}
-          className="h-12 w-28 rounded-[10px] border border-line-strong bg-surface px-3 text-[22px] font-semibold tnum focus:border-signal focus:outline-none"
+          className="h-12 w-32 rounded-[10px] border border-line-strong bg-surface px-3 text-center text-[24px] font-semibold tnum focus:border-signal focus:outline-none"
           inputMode="numeric"
           value={value || ''}
           placeholder="0"
           onChange={(e) => onSet(parseNumber(e.target.value) ?? 0)}
         />
         <span className="text-[13px] text-muted">{unit}</span>
-        <div className="ml-auto flex gap-1.5">
-          {steps.map((s) => (
-            <Button key={s} onClick={() => onAdd(s)} className="min-w-11 px-2.5 tnum">
-              {s > 0 ? `+${s}` : `−${-s}`}
-            </Button>
-          ))}
-        </div>
+      </div>
+      {hasTarget && <div className="mt-3">
+        <ProgressBar value={current / targetValue} label={L(`${label} : ${fmtNum(current)} ${unit}, cible ${target}`, `${label}: ${fmtNum(current)} ${unit}, target ${target}`)} />
+        {over > 0 && <p className="mt-1.5 text-center text-[12px] text-text-2 tnum">{L(`${fmtNum(over)} ${unit} au-dessus de ${targetMax ? 'la fourchette' : 'la cible'}`, `${fmtNum(over)} ${unit} above the ${targetMax ? 'range' : 'target'}`)}</p>}
+      </div>}
+      <div className="mt-4 grid auto-cols-fr grid-flow-col gap-2" role="group" aria-label={L(`Ajuster ${label.toLowerCase()}`, `Adjust ${label.toLowerCase()}`)}>
+        {steps.map((s) => (
+          <Button key={s} onClick={() => onAdd(s)} aria-label={L(`${s > 0 ? 'Ajouter' : 'Retirer'} ${Math.abs(s)} ${unit}`, `${s > 0 ? 'Add' : 'Remove'} ${Math.abs(s)} ${unit}`)} className="min-h-11 min-w-0 px-2 tnum">
+            {s > 0 ? `+${s}` : `−${-s}`}
+          </Button>
+        ))}
       </div>
     </div>
   )
@@ -274,7 +290,7 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
+      <Header art="coach" artSize="title" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
       <ol className="space-y-2">
         {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
           <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>
@@ -325,7 +341,9 @@ export function CoachScreen() {
             ))}
           </Card>
         ) : (
-          <Empty title={L('Aucune mise à jour', 'No updates')} />
+          <Empty art="coach" title={L('Aucun ajustement appliqué', 'No adjustments applied yet')}>
+            {L('Les ajustements appliqués apparaîtront ici. L’aide IA reste facultative : tu peux continuer tes séances sans l’utiliser.', 'Applied adjustments will appear here. AI assistance is optional: you can keep training without using it.')}
+          </Empty>
         )}
       </Section>
     </Screen>

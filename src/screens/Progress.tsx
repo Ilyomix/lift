@@ -1,7 +1,7 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
 import { Camera, ChevronLeft, ChevronRight, Plus, Trash } from 'lucide-react'
-import { addDays, capitalize, dayNumber, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
+import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
 import { infoFor, MUSCLES } from '../lib/library'
@@ -13,16 +13,22 @@ import {
 } from '../lib/stats'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import {
-  averageRir, exerciseHistory, plannedVolume, sessionDurationMin, sessionSetCount, setsSummary, weekVolume, weeklySessionCounts,
+  averageRir, doneSets, exerciseHistory, plannedVolume, sessionDurationMin, sessionSetCount, setsSummary, weekVolume, weeklySessionCounts,
 } from '../lib/training'
 import type { AppState, BodyEntry } from '../lib/types'
 import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../components/charts'
 import { LevelTag, RefList } from '../components/Evidence'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { RecordTag, StatusTag } from '../components/Status'
+import { SportArt } from '../components/SportArt'
 import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
 
 type Tab = 'force' | 'corps' | 'volume' | 'seances'
+
+function SessionLink() {
+  const active = useStore((s) => s.state.activeWorkout)
+  return <Button variant="primary" onClick={() => navigate('seance')}>{active ? L('Revenir à ma séance', 'Return to my session') : L('Voir ma séance', 'View my session')}</Button>
+}
 
 export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
   return (
@@ -69,10 +75,15 @@ function ForceTab() {
   }, [state.templates, state.workouts])
   const active = rows.filter((r) => r.inProgram)
   const archived = rows.filter((r) => !r.inProgram && r.h.length)
+  if (!rows.some((row) => row.h.length)) return (
+    <Empty art="chart" title={L('Tes progrès commencent ici', 'Your progress starts here')} action={<SessionLink />}>
+      {L('Termine une séance en notant tes séries. Tu retrouveras ici tes charges, tes répétitions et leur évolution.', 'Finish a session and log your sets. Your loads, reps and how they change will appear here.')}
+    </Empty>
+  )
   return (
     <>
       <p className="text-[13px] leading-[1.45] text-text-2">{L('1RM estimé (Epley) sur les répétitions propres de la meilleure série de chaque séance. Au poids du corps : meilleure série en répétitions.', 'Estimated 1RM (Epley) from the clean reps of the best set in each session. Bodyweight exercises: best set in reps.')}</p>
-      <ExerciseList title={L('Programme actuel', 'Current program')} rows={active} />
+      {active.length > 0 && <ExerciseList title={L('Programme actuel', 'Current program')} rows={active} />}
       {archived.length > 0 && <ExerciseList title={L('Anciens exercices', 'Past exercises')} rows={archived} />}
     </>
   )
@@ -162,7 +173,16 @@ export function ExerciseDetail({ id }: { id: string }) {
           </Section>
         </>
       ) : (
-        <Empty title={L('Aucune donnée', 'No data')} />
+        <Empty art="dumbbell"
+          title={all.length ? L('Pas de séance dans cette salle', 'No sessions at this gym') : L('Ton premier repère reste à poser', 'Your first benchmark is ahead')}
+          action={all.length
+            ? <Button variant="outline" onClick={() => setGym(all[all.length - 1].gymId)}>{L('Voir la dernière salle utilisée', 'View the last gym used')}</Button>
+            : <Button variant="outline" onClick={() => setSheet(true)}>{L('Voir le mouvement', 'View the movement')}</Button>}
+        >
+          {all.length
+            ? L('Cet exercice a été enregistré dans une autre salle. Ses résultats sont conservés séparément.', 'This exercise was recorded at another gym. Its results are kept separately.')
+            : L('Après une séance comprenant cet exercice, tes séries et tes performances apparaîtront ici. Tu peux déjà consulter sa technique.', 'After a session that includes this exercise, your sets and performance will appear here. You can explore its technique now.')}
+        </Empty>
       )}
       <Section title={L('Technique et preuves', 'Technique and evidence')} action={<Button size="sm" variant="soft" onClick={() => setSheet(true)}>{L('Démo', 'Demo')}</Button>}>
         <DemoFrames id={id} name={info.name} />
@@ -198,6 +218,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
   ]
   return (
     <>
+      {weights.length > 0 ? <>
       <div className="grid grid-cols-3 gap-2.5">
         <Figure label={ws.isAverage && !ws.stale ? L('Moyenne 7 j', '7-day avg') : L('Dernière pesée', 'Last weigh-in')} value={ws.current !== null ? `${fmtNum(ws.current)} kg` : '—'} />
         <Figure label={L('Tendance', 'Trend')} value={ws.weeklyChangePct !== null ? L(`${fmtSigned(ws.weeklyChangePct, 2)} %`, `${fmtSigned(ws.weeklyChangePct, 2)}%`) : '—'} hint={L('par semaine', 'per week')} />
@@ -219,6 +240,14 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
           />
         </div>
       </Card>
+      </> : <Empty art="chart"
+        title={state.bodyEntries.length ? L('Ajoute ton premier poids', 'Add your first weigh-in') : L('Un premier repère pour ton suivi', 'A starting point for your progress')}
+        action={<Button variant="primary" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{state.bodyEntries.length ? L('Ajouter un poids', 'Add a weigh-in') : L('Ajouter une mesure', 'Add a measurement')}</Button>}
+      >
+        {state.bodyEntries.length
+          ? L('Tes autres mesures sont conservées ci-dessous. Une pesée permettra de commencer le suivi du poids.', 'Your other measurements are saved below. A weigh-in will start your weight history.')
+          : L('Poids, tour de taille ou autre mesure : choisis ce que tu souhaites suivre. Tes courbes se construiront avec tes propres données.', 'Weight, waist or another measurement: choose what you want to track. Your charts will grow from your own records.')}
+      </Empty>}
 
       {waist.length > 0 && (
         <Card className="mt-3 p-4">
@@ -234,11 +263,11 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
         </Card>
       )}
 
-      <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Nouvelle mesure', 'New measurement')}</Button>
+      {weights.length > 0 && <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Nouvelle mesure', 'New measurement')}</Button>}
 
-      <Section title={L('Mesures', 'Measurements')}>
+      {state.bodyEntries.length > 0 && <Section title={L('Mesures', 'Measurements')}>
         <MeasureList entries={state.bodyEntries} />
-      </Section>
+      </Section>}
 
       <Photos />
       <MeasureSheet open={measure} onClose={() => { setMeasure(false); if (openMeasure) navigate('progres/corps', { replace: true }) }} />
@@ -258,7 +287,6 @@ function Figure({ label, value, hint }: { label: string; value: string; hint?: s
 
 function MeasureList({ entries }: { entries: BodyEntry[] }) {
   const deleteBody = useStore((s) => s.deleteBody)
-  if (!entries.length) return <Empty title={L('Aucune mesure', 'No measurements')} >{L('Pèse-toi chaque matin, à jeun ; tour de taille toutes les 2 semaines.', 'Weigh yourself every morning, fasted; measure your waist every 2 weeks.')}</Empty>
   return (
     <Card className="divide-y divide-line">
       {[...entries].reverse().slice(0, 30).map((b) => (
@@ -321,7 +349,7 @@ function Photos() {
   }
   return (
     <Section title="Photos" action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
-      <div className="grid grid-cols-3 gap-2">
+      {photos.length > 0 ? <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
             <img src={p.dataUrl} alt={L(`Photo du ${fmtDate(p.date)}`, `Photo from ${fmtDate(p.date)}`)} className="h-full w-full object-cover" loading="lazy" />
@@ -332,7 +360,13 @@ function Photos() {
           <Camera size={20} aria-hidden />
           {L('Ajouter', 'Add')}
         </button>
-      </div>
+      </div> : <button type="button" onClick={() => input.current?.click()} className="pressable flex min-h-20 w-full items-center gap-4 rounded-[12px] border border-dashed border-line-strong p-4 text-left hover:border-muted">
+        <Camera size={24} className="shrink-0 text-signal-text" aria-hidden />
+        <span className="min-w-0">
+          <span className="block text-[14px] font-semibold">{L('Ajouter une première photo', 'Add your first photo')}</span>
+          <span className="mt-1 block text-[13px] leading-[1.45] text-text-2">{L('Un repère visuel facultatif, conservé sur ton appareil.', 'An optional visual reference, saved on your device.')}</span>
+        </span>
+      </button>}
       <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onFile(e.target.files); e.target.value = '' }} />
       <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos ne quittent pas ce téléphone (sauf dans tes sauvegardes).', 'Every 4 weeks, same lighting, same pose. Photos never leave this phone (except in your backups).')}</p>
       <Sheet open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { void deletePhoto(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
@@ -391,6 +425,15 @@ function VolumeTab() {
   const counts = weeklySessionCounts(state.workouts, 12, today)
   const recent = state.workouts.slice(-8)
   const rirs = recent.map((w) => ({ w, r: averageRir(w) })).filter((x) => x.r !== null)
+  const logged = state.workouts.filter((workout) => workout.exercises.some((exercise) => !exercise.skipped && doneSets(exercise).length > 0))
+  const latestDate = logged.reduce((date, workout) => workout.date > date ? workout.date : date, '')
+  const latestOffset = latestDate ? Math.max(0, Math.floor(diffDays(mondayOf(latestDate), monday) / 7)) : 0
+  const hasWeekVolume = Object.values(vol).some((sets) => sets > 0)
+  if (!logged.length) return (
+    <Empty art="plate" title={L('Chaque série compte', 'Every set counts')} action={<SessionLink />}>
+      {L('Tes séries enregistrées dans les séances terminées permettront de suivre le travail de chaque muscle et ton rythme d’entraînement.', 'Sets logged in completed sessions will show the work for each muscle and your training rhythm.')}
+    </Empty>
+  )
   return (
     <>
       <Section title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
@@ -407,14 +450,19 @@ function VolumeTab() {
             <ChevronRight size={20} aria-hidden />
           </IconButton>
         </div>
-        <p className="mb-4 text-[13px] leading-[1.45] text-text-2">
+        {hasWeekVolume ? <><p className="mb-4 text-[13px] leading-[1.45] text-text-2">
           {L('Séries poussées près de l’échec, en comptage fractionnaire (directe = 1, indirecte = 0,5). Zone visée : 10–20 séries par semaine (Schoenfeld 2017 ; Pelland 2025). Le trait marque le volume prévu par le programme pour tes jours d’entraînement, en moyenne sur la rotation.', 'Sets taken close to failure, counted fractionally (direct = 1, indirect = 0.5). Target zone: 10–20 sets a week (Schoenfeld 2017; Pelland 2025). The mark shows the volume the program plans for your training days, averaged over the rotation.')}
         </p>
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: vol[m.id], planned: planned[m.id] }))} />
         </Card>
+        </> : <Empty art="calendar" title={L('Aucune série cette semaine', 'No sets this week')}
+          action={offset !== latestOffset
+            ? <Button variant="outline" onClick={() => setOffset(latestOffset)}>{L('Voir la dernière semaine active', 'View the last active week')}</Button>
+            : <Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
+        >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other sessions remain in your history.')}</Empty>}
       </Section>
-      <Section title={L('Séances par semaine', 'Sessions per week')}>
+      {counts.some((count) => count.count > 0) && <Section title={L('Séances par semaine', 'Sessions per week')}>
         <Card className="p-4">
           <Columns
             ariaLabel={L('Séances par semaine sur 12 semaines', 'Sessions per week over 12 weeks')}
@@ -423,7 +471,7 @@ function VolumeTab() {
             format={(v) => fmtNum(v, 0)}
           />
         </Card>
-      </Section>
+      </Section>}
       <Section title={L('Effort (RIR moyen)', 'Effort (average RIR)')}>
         {rirs.length ? (
           <Card className="divide-y divide-line">
@@ -435,7 +483,10 @@ function VolumeTab() {
             ))}
           </Card>
         ) : (
-          <p className="text-[13px] text-text-2">{L('Renseigne le RIR de tes séries pendant la séance : la cible est 1–2 en polyarticulaire, 0–1 en isolation.', 'Log the RIR of your sets during the session: the target is 1–2 on compound lifts, 0–1 on isolation.')}</p>
+          <div className="flex items-start gap-3 py-2">
+            <SportArt kind="plate" size="title" />
+            <p className="min-w-0 text-[13px] leading-[1.5] text-text-2">{L('Renseigne le RIR de tes séries pendant la séance : la cible est 1–2 en polyarticulaire, 0–1 en isolation.', 'Log the RIR of your sets during the session: the target is 1–2 on compound lifts, 0–1 on isolation.')}</p>
+          </div>
         )}
       </Section>
     </>
@@ -447,7 +498,11 @@ function VolumeTab() {
 function HistoryTab() {
   const state = useStore((s) => s.state)
   const groups = useMemo(() => groupByMonth(state), [state])
-  if (!state.workouts.length) return <Empty title={L('Aucune séance', 'No sessions')} >{L('Ta première séance apparaîtra ici.', 'Your first session will show up here.')}</Empty>
+  if (!state.workouts.length) return <Empty art="calendar" title={L('Ton histoire reste à écrire', 'Your training story starts here')} action={<SessionLink />}>
+    {state.activeWorkout
+      ? L('Ta séance est en cours. Une fois terminée, tu retrouveras ici son détail et tes séries.', 'Your session is in progress. Once you finish it, its details and sets will appear here.')
+      : L('Tes séances terminées seront réunies ici, avec leurs exercices, tes séries et tes notes.', 'Your completed sessions will appear here with their exercises, sets and notes.')}
+  </Empty>
   return (
     <>
       {groups.map(([month, list]) => (

@@ -6,15 +6,15 @@ import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
-  calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, milestones, PERIODS, periodRangeLabel, PHASES, prescribeSession, projectSessions, reentryForGap, TYPE_META,
+  calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, PERIODS, prescribeSession, projectSessions, reentryForGap, TYPE_META,
   gapSinceLastSession, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
+import { calendarMilestonesAt } from '../lib/programTimeline'
 import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
-import { PhaseTrack } from '../components/Program'
-import { Button, Card, cx, DateInput, Eyebrow, Header, IconButton, inputClass, Screen, Section, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
+import { Button, Card, cx, DateInput, Empty, Eyebrow, Header, IconButton, inputClass, Screen, Section, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
 
 export function CalendarScreen() {
   const state = useStore((s) => s.state)
@@ -25,11 +25,9 @@ export function CalendarScreen() {
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
   const weeks = useMemo(() => calendarMonth(state, month, planned, today), [state, month, planned, today])
   const [y, m] = month.split('-').map(Number)
-  const next = milestones(today).slice(0, 5)
+  const next = calendarMilestonesAt(today)
   const plan = useMemo(() => sessionPlan(state, today), [state, today])
   const cycle = plan.cycle
-  // Maintenance mode has no end: the list shows what comes next, not the whole calendar laid out.
-  const periods = MAINTENANCE ? PERIODS.filter((p) => p.kind !== 'pre' && p.end >= today).slice(0, 8) : PERIODS.filter((p) => p.kind !== 'pre')
 
   return (
     <Screen>
@@ -104,45 +102,36 @@ export function CalendarScreen() {
         <span className="text-muted">UP Upper · LO Lower · PS Push · PL Pull · LG Legs</span>
       </div>
 
-      <Section title={L('Le programme', 'The program')}>
-        <PhaseTrack today={today} />
-        <Card className="mt-4 divide-y divide-line">
-          {periods.map((p) => {
-            const current = today >= p.start && today <= p.end
-            return (
-              <div key={p.id} className={cx('flex items-start gap-3 px-4 py-3', current && 'bg-signal-soft')}>
-                <span className={cx('mt-1 h-3 w-3 shrink-0 rounded-[3px]', p.kind === 'deload' ? 'hatch border border-line-strong' : p.kind === 'holiday' ? 'bg-surface-3' : p.kind === 'stabilization' ? 'bg-signal' : '')} style={p.kind === 'block' ? { background: `color-mix(in oklch, var(--text) ${p.phase === 'recomp' || p.phase === 'upkeep' ? 42 : 82}%, transparent)` } : undefined} aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[15px] font-semibold">{p.label}{current && <span className="ml-2 text-[12px] font-semibold text-signal-text">{L('en cours', 'current')}</span>}</p>
-                    <p className="shrink-0 text-[12px] text-muted tnum">{periodRangeLabel(p)}</p>
-                  </div>
-                  <p className="mt-0.5 text-[13px] leading-[1.4] text-text-2">{PHASES[p.phase].short} · {p.note}</p>
-                </div>
-              </div>
-            )
-          })}
-        </Card>
-        {MAINTENANCE && (
-          <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Le plan continue ensuite au même rythme, sans date de fin : blocs de 5 semaines + décharge, fêtes à volume réduit.', 'The plan then keeps the same rhythm, with no end date: 5-week blocks + deload, holidays at reduced volume.')}</p>
-        )}
-      </Section>
-
       {next.length > 0 && (
         <Section title={L('Prochaines étapes', 'Upcoming milestones')}>
-          <ol className="space-y-3">
-            {next.map((ms) => (
-              <li key={ms.date + ms.title} className="flex gap-3">
-                <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold text-muted tnum">{fmtDate(ms.date)}</span>
-                <div>
-                  <p className="text-[15px] font-medium">{ms.title}</p>
-                  <p className="text-[13px] text-text-2">{L('Dans', 'In')} {plural(diffDays(today, ms.date), L('jour', 'day'), L('jours', 'days'))}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <Card className="overflow-hidden">
+            <ol className="divide-y divide-line">
+              {next.map((ms, index) => {
+                const days = diffDays(today, ms.date)
+                const relative = days === 0 ? L('Aujourd’hui', 'Today') : days === 1 ? L('Demain', 'Tomorrow') : L(`Dans ${days} jours`, `In ${days} days`)
+                return (
+                  <li key={ms.date + ms.title}>
+                    <button type="button" onClick={() => setDay(ms.date)} aria-label={L(`Voir le ${fmtDate(ms.date, { long: true, year: true })} : ${ms.title}`, `View ${fmtDate(ms.date, { long: true, year: true })}: ${ms.title}`)} className="pressable flex min-h-[80px] w-full items-center gap-3 px-3 py-4 text-left hover:bg-surface-2">
+                      <time dateTime={ms.date} aria-hidden className={cx('flex w-11 shrink-0 flex-col items-center text-center tnum', index === 0 ? 'text-signal-text' : 'text-text-2')}>
+                        <span className="text-[24px] leading-none font-semibold tracking-[-0.02em]">{Number(ms.date.slice(8))}</span>
+                        <span className="mt-1 text-[12px] leading-4">{monthName(Number(ms.date.slice(5, 7)) - 1, true)}</span>
+                        {ms.date.slice(0, 4) !== today.slice(0, 4) && <span className="text-[11px] leading-4 text-muted">{ms.date.slice(0, 4)}</span>}
+                      </time>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] leading-5 font-semibold">{ms.title}</span>
+                        <span className={cx('mt-1 block text-[13px] leading-[18px]', index === 0 ? 'text-signal-text' : 'text-text-2')}>{relative}</span>
+                      </span>
+                      <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </Card>
         </Section>
       )}
+
+      <Button variant="ghost" full className="mt-3" icon={<ChevronRight size={16} aria-hidden />} onClick={() => navigate('plus/programme')}>{L('Voir où j’en suis dans le programme', 'See my program progress')}</Button>
 
       <div className="mt-8 grid gap-2">
         <Button variant="outline" size="lg" full icon={<CalendarPlus size={18} aria-hidden />} onClick={() => navigate('plus/rappels')}>{L('Rappels dans ton calendrier', 'Reminders in your calendar')}</Button>
@@ -196,7 +185,9 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
           )}
         </div>
       ) : (
-        <p className="mt-4 text-[15px] text-text-2">{date < today ? L('Aucune séance ce jour-là.', 'No session that day.') : L('Repos. Marche 8 000 à 10 000 pas.', 'Rest. Walk 8,000 to 10,000 steps.')}</p>
+        <Empty art="calendar" title={date < today ? L('Aucune séance ce jour-là', 'No session that day') : L('Une journée pour récupérer', 'A day to recover')} action={<Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
+          {date < today ? L('Aucune séance n’a été enregistrée à cette date.', 'No workout was recorded on this date.') : L('Aucune séance n’est prévue à cette date.', 'No workout is planned for this date.')}
+        </Empty>
       )}
       {ctx.period && <p className="mt-5 text-[13px] leading-[1.45] text-muted">{ctx.period.note}</p>}
     </Sheet>

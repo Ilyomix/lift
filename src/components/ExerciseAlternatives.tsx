@@ -7,7 +7,7 @@ import { TYPE_META, ROTATION } from '../lib/program'
 import { useStore } from '../lib/store'
 import type { WorkoutType } from '../lib/types'
 import { ExerciseDemo } from './ExerciseDemo'
-import { Button, cx, Field, inputClass, Segmented } from './ui'
+import { Button, cx, Empty, Field, inputClass, Segmented } from './ui'
 
 export type ExerciseReplacementTarget =
   | { kind: 'active'; index: number }
@@ -128,6 +128,8 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced }: {
         </div>
       })}
     </div>
-    {!choices.length && <p className="mt-3 text-[13px] text-text-2">{L('Pas d’autre option avec ton matériel actuel. Consulte « Tout le matériel » pour comparer.', 'No other option with your current equipment. Check “All equipment” to compare.')}</p>}
+    {!choices.length && <Empty art="dumbbell" title={L('Pas d’alternative avec ce matériel', 'No alternative with this equipment')}
+      action={<Button variant="outline" onClick={() => setEquipment('all')}>{L('Voir tout le matériel', 'View all equipment')}</Button>}
+    >{L('D’autres mouvements existent avec un équipement différent. Tu peux les consulter avant de choisir.', 'Other movements use different equipment. You can explore them before choosing.')}</Empty>}
   </section>
 }

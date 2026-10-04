@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
+import { ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
 import { dayName } from '../lib/date'
-import { fmtLoad, fmtNum, fmtRest, parseNumber, plural, unitLabel } from '../lib/format'
+import { fmtNum, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
-import { fmtDate } from '../lib/date'
-import { daysFactor, DEFAULT_SCHEDULE, doableAt, GOAL_DATE, keepsPlan, MAINTENANCE, PERIODS, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
+import { daysFactor, DEFAULT_SCHEDULE, doableAt, keepsPlan, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { caveats, PRINCIPLES, sourceCounts, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -15,9 +14,10 @@ import { RangeBars } from '../components/charts'
 import { LevelTag, RefList } from '../components/Evidence'
 import { ExerciseAlternatives, type ExerciseReplacementTarget } from '../components/ExerciseAlternatives'
 import { alternativesFor } from '../lib/exerciseAlternatives'
-import { PhaseTrack } from '../components/Program'
+import { ProgramProgress } from '../components/ProgramProgress'
+import { SortableExerciseList } from '../components/SortableExerciseList'
 import { SportArt, workoutArt } from '../components/SportArt'
-import { Button, Card, cx, Disclosure, Empty, Eyebrow, Field, Header, IconButton, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
 
 export function ProgramScreen() {
   const state = useStore((s) => s.state)
@@ -33,19 +33,6 @@ export function ProgramScreen() {
     : week.factor > 1 && keepsPlan(week.share)
       ? L('le même volume par semaine qu’à 5 séances', 'the same weekly volume as with 5 sessions')
       : L(`environ ${weekPct} % du volume prévu`, `about ${weekPct}% of the planned volume`)
-  const recomp = PERIODS.filter((p) => p.phase === 'recomp')
-  const cut = PERIODS.filter((p) => ['cut', 'cut-end', 'diet-break'].includes(p.phase))
-  const holidays = PERIODS.filter((p) => p.kind === 'holiday')
-  const breakWeek = PERIODS.find((p) => p.phase === 'diet-break')
-  const stab = PERIODS.find((p) => p.kind === 'stabilization')
-  const cutText = MAINTENANCE
-    ? L('en continu, sans date (mode entretien)', 'ongoing, with no end date (maintenance mode)')
-    : cut.length
-    ? L(
-        `sèche du ${fmtDate(cut[0].start, { long: true })} au ${fmtDate(cut[cut.length - 1].end, { long: true })}`,
-        `cut from ${fmtDate(cut[0].start, { long: true })} to ${fmtDate(cut[cut.length - 1].end, { long: true })}`,
-      )
-    : L('pas de sèche', 'no cut')
   return (
     <Screen>
       <Header art="calendar"
@@ -53,17 +40,20 @@ export function ProgramScreen() {
         eyebrow={L('Fondé sur la recherche', 'Research-based')}
         title={L('Programme', 'Program')}
         sub={L(
-          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'séance', 'séances')} par semaine, ${rhythm}, blocs de 5 semaines + décharge, ${cutText}.`,
-          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, ${rhythm}, 5-week blocks + deload, ${cutText}.`,
+          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'séance', 'séances')} par semaine, ${rhythm}.`,
+          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, ${rhythm}.`,
         )}
       />
 
+      <ProgramProgress paused={state.programPause.active} />
+
       <Card className="p-4">
-        <Eyebrow>{L('La question', 'The question')}</Eyebrow>
-        <h2 className="mt-1 text-[20px] leading-[1.2] font-semibold tracking-[-0.02em]">{VERDICT_FREQUENCY.title}</h2>
-        <p className="mt-2 text-[15px] leading-[1.5]">{VERDICT_FREQUENCY.answer}</p>
-        <p className="mt-2 text-[15px] leading-[1.5] text-text-2">{VERDICT_FREQUENCY.keep}</p>
-        <RefList refs={VERDICT_FREQUENCY.refs} compact />
+        <h2 className="text-[17px] leading-[1.35] font-semibold tracking-[-0.015em]">{VERDICT_FREQUENCY.title}</h2>
+        <p className="mt-3 text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.answer}</p>
+        <Disclosure bordered={false} className="mt-2" title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
+          <p className="text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.keep}</p>
+          <RefList refs={VERDICT_FREQUENCY.refs} compact />
+        </Disclosure>
       </Card>
 
       <Section title={L('Semaine type', 'Typical week')}>
@@ -124,27 +114,6 @@ export function ProgramScreen() {
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: planned[m.id] }))} />
         </Card>
-      </Section>
-
-      <Section title={L('Calendrier des blocs', 'Block calendar')} action={<Button variant="ghost" onClick={() => navigate('calendrier')}>{L('Calendrier', 'Calendar')}</Button>}>
-        <PhaseTrack />
-        <p className="mt-3 text-[13px] leading-[1.5] text-text-2">
-          {MAINTENANCE ? (
-            L('Mode entretien : blocs d’environ 5 semaines + 1 semaine de décharge, qui se suivent sans date de fin. Pas de sèche ni de stabilisation, fêtes de fin d’année à volume réduit, calories à maintenance.', 'Maintenance mode: blocks of about 5 weeks + 1 deload week, one after another with no end date. No cut and no stabilization, year-end holidays at reduced volume, maintenance calories.')
-          ) : (
-            <>
-              {L('Blocs d’environ 5 semaines + 1 semaine de décharge, calculés depuis ta date objectif.', 'Blocks of about 5 weeks + 1 deload week, calculated from your goal date.')}
-              {recomp.length
-                ? L(
-                    ` Recomposition du ${fmtDate(recomp[0].start)} au ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (fêtes en maintenance)' : ''},`,
-                    ` Recomposition from ${fmtDate(recomp[0].start)} to ${fmtDate(recomp[recomp.length - 1].end)}${holidays.length ? ' (holidays at maintenance)' : ''},`,
-                  )
-                : ''}
-              {` ${cutText}${breakWeek ? L(` avec une pause diététique le ${fmtDate(breakWeek.start)}`, ` with a diet break on ${fmtDate(breakWeek.start)}`) : ''}`}
-              {stab ? L(`, stabilisation jusqu’au ${fmtDate(GOAL_DATE, { long: true, year: true })}.`, `, stabilization until ${fmtDate(GOAL_DATE, { long: true, year: true })}.`) : '.'}
-            </>
-          )}
-        </p>
       </Section>
 
       <Section title={L('Règles', 'Rules')}>
@@ -235,14 +204,14 @@ export function SourcesScreen() {
 export function TemplateEditor({ type }: { type: WorkoutType }) {
   const tpl = useStore((s) => s.state.templates[type])
   const setup = useStore((s) => s.state.settings.setup)
-  const { moveTemplateExercise, removeTemplateExercise, addTemplateExercise } = useStore.getState()
+  const { reorderTemplateExercise, removeTemplateExercise, addTemplateExercise } = useStore.getState()
   // At home, only what the equipment allows; at the gym, everything.
   const addable = Object.values(LIBRARY).filter((x) => !setup || doableAt(x.id, setup))
   const [edit, setEdit] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   // The plan's live values: set from the training days on every change of the state.
   const factor = daysFactor()
-  if (!tpl) return <Screen><Empty title={L('Séance inconnue', 'Unknown session')} /></Screen>
+  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Session not found')} action={<Button onClick={() => navigate('plus/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available session.')}</Empty></Screen>
   const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
   const meta = TYPE_META[type]
   return (
@@ -261,23 +230,9 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
           )}
         </p>
       )}
-      <Card className="divide-y divide-line">
-        {tpl.exercises.map((e, i) => (
-          <div key={`${e.exerciseId}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
-            <button type="button" onClick={() => setEdit(i)} className="pressable min-w-0 flex-1 rounded-[8px] px-1 py-1 text-left hover:bg-surface-2">
-              <span className="block text-[15px] font-medium">
-                {e.name}{' '}
-                {(e.volumeTag === 'priority' || e.focus) && (
-                  <span className="ml-1 inline-block border border-signal/50 bg-signal-soft px-1.5 align-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap text-signal-text">{L('Prioritaire', 'Priority')}</span>
-                )}
-              </span>
-              <span className="block text-[13px] text-text-2 tnum">{e.target.sets}{inSession[i] !== e.target.sets ? L(` (${inSession[i]} en séance)`, ` (${inSession[i]} in session)`) : ''} × {e.target.minReps}–{e.target.maxReps} · <span className="whitespace-nowrap">RIR {e.target.rir ?? '—'}</span> · {fmtRest(e.target.restSeconds)} · {fmtLoad(e.target.weight, e.unit)}</span>
-            </button>
-            <IconButton label={L('Monter', 'Move up')} disabled={i === 0} onClick={() => moveTemplateExercise(type, i, -1)} className="h-9 w-9"><ArrowUp size={16} /></IconButton>
-            <IconButton label={L('Descendre', 'Move down')} disabled={i === tpl.exercises.length - 1} onClick={() => moveTemplateExercise(type, i, 1)} className="h-9 w-9"><ArrowDown size={16} /></IconButton>
-          </div>
-        ))}
-      </Card>
+      {tpl.exercises.length ? (
+        <SortableExerciseList key={type} exercises={tpl.exercises} inSession={inSession} onEdit={setEdit} onMove={(from, to) => reorderTemplateExercise(type, from, to)} />
+      ) : <Empty art={workoutArt[type]} title={L('Compose ta séance', 'Build your session')}>{L('Ajoute un exercice pour préparer cette fiche.', 'Add an exercise to prepare this session.')}</Empty>}
       <Button variant="outline" size="lg" full className="mt-3" icon={<Plus size={18} aria-hidden />} onClick={() => setAdding(true)}>{L('Ajouter un exercice', 'Add exercise')}</Button>
 
       {edit !== null && tpl.exercises[edit] && (

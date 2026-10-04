@@ -632,7 +632,9 @@ export function SessionSummary() {
     return (
       <Screen>
         <Header art="trophy" title={L('Bilan', 'Summary')} backTo="" />
-        <Empty title={L('Aucune séance terminée', 'No completed session')} />
+        <Empty art="trophy" title={L('Ton premier bilan t’attend', 'Your first summary is ahead')}
+          action={<Button variant="primary" onClick={() => navigate('seance')}>{state.activeWorkout ? L('Revenir à ma séance', 'Return to my session') : L('Voir ma séance', 'View my session')}</Button>}
+        >{L('Termine une séance pour retrouver tes séries, tes performances et les ajustements proposés.', 'Finish a session to see your sets, performance and suggested adjustments.')}</Empty>
       </Screen>
     )
   }
@@ -833,7 +835,9 @@ export function WorkoutDetail({ id }: { id: string }) {
     return (
       <Screen>
         <Header art="plate" title={L('Séance', 'Session')} backTo="progres/seances" />
-        <Empty title={L('Séance introuvable', 'Session not found')} />
+        <Empty art="calendar" title={L('Séance introuvable', 'Session not found')}
+          action={<Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Revenir à l’historique', 'Back to history')}</Button>}
+        >{L('Cette séance n’est plus disponible sur cet appareil. Retrouve les séances conservées dans ton historique.', 'This session is no longer available on this device. Your saved sessions are in your history.')}</Empty>
       </Screen>
     )
   }

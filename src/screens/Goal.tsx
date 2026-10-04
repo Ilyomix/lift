@@ -208,9 +208,15 @@ export function VisualGoalScreen() {
             {plan && <Line label={L('Masse maigre', 'Lean mass')} value={kg(plan.lean)} hint={L(`Masse grasse ≈ ${kg(plan.fat)} sur ${kg(plan.weight)}`, `Fat mass ≈ ${kg(plan.fat)} of ${kg(plan.weight)}`)} />}
           </Card>
         ) : (
-          <Card className="mt-3 p-4 text-[14px] leading-[1.45] text-text-2">
-            {!heightCm ? L('Renseigne ta taille. ', 'Enter your height. ') : ''}
-            {waistMissing ? L('Il faut un tour de taille (au nombril, à jeun) ou un taux mesuré.', 'You need a waist measurement (at the navel, fasted) or a measured body fat.') : ''}
+          <Card className="mt-3 flex items-start gap-3 p-4">
+            <Ruler size={24} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold">{L('Quelques mesures pour commencer', 'A few measurements to get started')}</p>
+              <p className="mt-1 text-[13px] leading-[1.5] text-text-2">
+                {!heightCm ? L('Renseigne ta taille. ', 'Enter your height. ') : ''}
+                {waistMissing ? L('Il faut un tour de taille (au nombril, à jeun) ou un taux mesuré.', 'You need a waist measurement (at the navel, fasted) or a measured body fat.') : ''}
+              </p>
+            </div>
           </Card>
         )}
         {waistStale && (

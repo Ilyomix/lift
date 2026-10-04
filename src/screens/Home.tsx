@@ -17,8 +17,8 @@ import { dropAlert, doneSets, sessionPace, strengthSummary } from '../lib/traini
 import { Sparkline } from '../components/charts'
 import { GoalSheet } from '../components/GoalSheet'
 import { GymSheet } from '../components/GymSheet'
-import { SessionTrack, WeekStrip } from '../components/Program'
-import { Button, Card, cx, Eyebrow, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
+import { WeekStrip } from '../components/Program'
+import { Button, Card, cx, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { AppIcon } from './Onboarding'
 import { workoutArt } from '../components/SportArt'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
@@ -73,79 +73,13 @@ export function Home() {
 
   return (
     <Screen>
-      <header className="flex items-center justify-between gap-3 pt-2 pb-3">
+      <header className="flex items-start justify-between gap-3 pt-2 pb-1">
         <div className="min-w-0">
-          <span className="inline-flex items-center gap-2.5 text-[20px] font-semibold tracking-[-0.02em]">
-            <AppIcon size={24} className="rounded-[6px]" />
-            Lift
-          </span>
-          <Eyebrow className="mt-3">{capitalize(fmtDate(today, { weekday: true, long: true }))}</Eyebrow>
+          <h1 className="text-[32px] font-semibold leading-[1.05] tracking-[-0.03em]">{L('Aujourd’hui', 'Today')}</h1>
+          <p className="mt-2 text-[13px] leading-5 text-text-2">{capitalize(fmtDate(today, { weekday: true, long: true }))}</p>
         </div>
+        <span className="shrink-0 pt-0.5" aria-label="Lift"><AppIcon size={28} className="rounded-[7px]" /></span>
       </header>
-
-      {/* Hero: sessions done out of the sessions planned until the goal date (maintenance: in the current cycle) */}
-      <section aria-label={cycle ? L('Progression du cycle en cours', 'Progress through the current cycle') : L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-2">
-        <div className="flex items-end justify-between gap-3">
-          <p className="flex items-baseline gap-2">
-            <span className="text-[64px] leading-[0.8] font-semibold tracking-[-0.04em] tnum">
-              <Num value={plan.done} digits={0} />
-            </span>
-            <span className="text-[22px] leading-none font-medium tracking-[-0.02em] text-text-2 tnum">/ {plan.total}</span>
-            <span className="sr-only">{L('séances', 'sessions')}</span>
-          </p>
-          <p className="pb-0.5 text-right">
-            <span className="block text-[22px] leading-none font-semibold tracking-[-0.02em] tnum">{L(`${pct} %`, `${pct}%`)}</span>
-            <span className="mt-1 block text-[12px] font-medium text-muted">{L('séances', 'sessions')}</span>
-          </p>
-        </div>
-        <div className="mt-4">
-          <SessionTrack plan={plan} />
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          {cycle ? (
-            <button
-              type="button"
-              onClick={() => setGoalOpen(true)}
-              className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
-              aria-label={L('Mode entretien, sans date objectif, modifier', 'Maintenance mode, no goal date, edit')}
-            >
-              <InfinityIcon size={14} className="shrink-0 text-signal-text" aria-hidden />
-              <span className="truncate">{L('Entretien', 'Maintenance')}</span>
-              <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setGoalOpen(true)}
-              className="pressable inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold hover:border-muted"
-              aria-label={L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
-            >
-              <Flag size={14} className="shrink-0 text-signal-text" aria-hidden />
-              <span className="truncate">{fmtDate(GOAL_DATE, { long: true, year: true })}</span>
-              <Pencil size={12} className="shrink-0 text-muted" aria-hidden />
-            </button>
-          )}
-          <span className="shrink-0 text-right text-[12px] leading-[1.35] text-muted tnum">
-            {plural(plan.planned, L('séance', 'session'), L('séances', 'sessions'))} {L('à faire', 'to go')}
-            <br />
-            {cycle ? L(`${cycle.label} · jusqu’au ${fmtDate(cycle.end)}`, `${cycle.label} · until ${fmtDate(cycle.end)}`) : plural(weeksLeft, L('semaine', 'week'), L('semaines', 'weeks'))}
-          </span>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {ctx.before || ctx.period?.kind === 'pre' ? (
-            <>
-              <Tag tone="ink">{L('Bloc 1', 'Block 1')} · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
-              <span className="text-[13px] text-text-2">{L(`${PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short} · RIR 3, réintroduction`, `${PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short} · RIR 3, ramp-up`)}</span>
-            </>
-          ) : (
-            <>
-              <Tag tone="ink">{ctx.title}</Tag>
-              {ctx.phase && <Tag tone="outline">{ctx.phase.short}</Tag>}
-              {ctx.effort && <span className="text-[13px] text-text-2">{ctx.effort}</span>}
-            </>
-          )}
-        </div>
-      </section>
 
       {state.programPause.active && (
         <Card className="mt-6 flex items-center gap-3 p-4">
@@ -205,6 +139,36 @@ export function Home() {
 
       <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'sessions')}</span>}>
         <WeekStrip days={week} />
+      </Section>
+
+      <Section art="calendar" title={L('Ton programme', 'Your program')} action={<Button variant="ghost" size="sm" onClick={() => navigate('plus/programme')} icon={<ArrowRight size={16} aria-hidden />}>{L('Voir', 'View')}</Button>}>
+        <div className="flex flex-wrap items-center gap-2">
+          {ctx.before || ctx.period?.kind === 'pre' ? <>
+            <Tag tone="ink">{L('Bloc 1', 'Block 1')} · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
+            <span className="text-[13px] text-text-2">{PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short}</span>
+          </> : <>
+            <Tag tone="ink">{ctx.title}</Tag>
+            {ctx.phase && <span className="text-[13px] text-text-2">{ctx.phase.short}</span>}
+          </>}
+        </div>
+        <p className="mt-3 text-[15px] leading-6">
+          <span className="font-semibold tnum">{L(plural(plan.done, 'séance terminée', 'séances terminées'), plural(plan.done, 'session completed', 'sessions completed'))}</span>
+          {' '}<span className="text-text-2">{L(`sur ${plan.total} prévues`, `of ${plan.total} planned`)}</span>
+        </p>
+        <p className="mt-1 text-[12px] leading-[18px] text-muted">
+          {cycle
+            ? L(`${cycle.label} · du ${fmtDate(cycle.start)} au ${fmtDate(cycle.end)}.`, `${cycle.label} · ${fmtDate(cycle.start)} to ${fmtDate(cycle.end)}.`)
+            : ctx.after ? L(`Programme terminé le ${fmtDate(GOAL_DATE, { long: true, year: true })}.`, `Program completed on ${fmtDate(GOAL_DATE, { long: true, year: true })}.`)
+            : L(`D’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })} · ${plural(weeksLeft, 'semaine restante', 'semaines restantes')}.`, `By ${fmtDate(GOAL_DATE, { long: true, year: true })} · ${plural(weeksLeft, 'week remaining', 'weeks remaining')}.`)}
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          <ProgressBar value={plan.done / Math.max(1, plan.total)} className="flex-1" label={cycle ? L('Séances terminées dans ce cycle', 'Sessions completed in this cycle') : L('Séances terminées vers l’objectif', 'Sessions completed toward your goal')} />
+          <span className="shrink-0 text-[12px] text-text-2 tnum">{L(`${pct} %`, `${pct}%`)}</span>
+        </div>
+        <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setGoalOpen(true)} icon={cycle ? <InfinityIcon size={15} aria-hidden /> : <Flag size={15} aria-hidden />}>
+          {cycle ? L('Mode entretien', 'Maintenance mode') : L('Modifier l’objectif', 'Edit goal')}
+          <Pencil size={13} className="text-muted" aria-hidden />
+        </Button>
       </Section>
 
       <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="ghost" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
@@ -287,7 +251,7 @@ export function Home() {
             ? [{ icon: <Scale size={18} aria-hidden />, text: ws.daysSinceLast === null ? L('Aucune pesée : la moyenne sur 7 jours guide tes calories.', 'No weigh-ins yet: the 7-day average guides your calories.') : L(`Dernière pesée il y a ${ws.daysSinceLast} jours. Pèse-toi chaque matin, à jeun.`, `Last weigh-in ${ws.daysSinceLast} days ago. Weigh yourself every morning, fasted.`), action: L('Peser', 'Weigh in'), to: 'progres/corps/mesure' }]
             : []),
           ...(!lastPhoto || (Date.now() - new Date(lastPhoto.date).getTime()) / 86_400_000 > 28
-            ? [{ icon: <Camera size={18} aria-hidden />, text: L('Photos de progression : une série toutes les 4 semaines, même lumière.', 'Progress photos: one set every 4 weeks, same lighting.'), action: 'Photos', to: 'progres/corps' }]
+            ? [{ icon: <Camera size={18} aria-hidden />, text: L('Photos de progression : une série toutes les 4 semaines, même lumière.', 'Progress photos: one set every 4 weeks, same lighting.'), action: 'Photos', to: 'progres/corps' }]
             : []),
           ...(daysSinceBackup === null || daysSinceBackup > 7
             ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données vivent sur ce téléphone. Exporte une sauvegarde.', 'Your data lives on this phone. Export a backup.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
