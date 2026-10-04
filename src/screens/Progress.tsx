@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { Camera, ChevronLeft, ChevronRight, Plus, Trash } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, ChartColumn, ChevronLeft, ChevronRight, Columns2, Dumbbell, Gauge, History, Plus, Ruler, Trash } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -33,7 +33,7 @@ function SessionLink() {
 export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
   return (
     <Screen>
-      <Header art="chart" title={L('Progrès', 'Progress')} eyebrow={L('Force · corps · volume', 'Strength · body · volume')} />
+      <Header art="chart" title={L('Progrès', 'Progress')} />
       <Segmented
         label={L('Vue', 'View')}
         value={tab}
@@ -45,7 +45,7 @@ export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
           { value: 'seances', label: L('Séances', 'Sessions') },
         ]}
       />
-      <div className="mt-5">
+      <div className="mt-4">
         {tab === 'force' && <ForceTab />}
         {tab === 'corps' && <BodyTab openMeasure={sub === 'mesure'} />}
         {tab === 'volume' && <VolumeTab />}
@@ -76,7 +76,7 @@ function ForceTab() {
   const active = rows.filter((r) => r.inProgram)
   const archived = rows.filter((r) => !r.inProgram && r.h.length)
   if (!rows.some((row) => row.h.length)) return (
-    <Empty art="chart" title={L('Tes progrès commencent ici', 'Your progress starts here')} action={<SessionLink />}>
+    <Empty art="logbook" title={L('Tes progrès commencent ici', 'Your progress starts here')} action={<SessionLink />}>
       {L('Termine une séance en notant tes séries. Tu retrouveras ici tes charges, tes répétitions et leur évolution.', 'Finish a session and log your sets. Your loads, reps and how they change will appear here.')}
     </Empty>
   )
@@ -91,7 +91,7 @@ function ForceTab() {
 
 function ExerciseList({ title, rows }: { title: string; rows: { id: string; name: string; muscle: string; h: ReturnType<typeof exerciseHistory>; delta: number | null }[] }) {
   return (
-    <Section title={title}>
+    <Section icon={<Dumbbell size={18} aria-hidden />} title={title}>
       <Card className="divide-y divide-line">
         {rows.map((r) => {
           const last = r.h[r.h.length - 1]
@@ -155,7 +155,7 @@ export function ExerciseDetail({ id }: { id: string }) {
               />
             </div>
           </Card>
-          <Section title={L('Historique', 'History')}>
+          <Section icon={<History size={18} aria-hidden />} title={L('Historique', 'History')}>
             <Card className="divide-y divide-line">
               {[...h].reverse().map((x) => (
                 <button key={x.workoutId} type="button" onClick={() => navigate(`seance/${x.workoutId}`)} className="pressable flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2">
@@ -184,7 +184,7 @@ export function ExerciseDetail({ id }: { id: string }) {
             : L('Après une séance comprenant cet exercice, tes séries et tes performances apparaîtront ici. Tu peux déjà consulter sa technique.', 'After a session that includes this exercise, your sets and performance will appear here. You can explore its technique now.')}
         </Empty>
       )}
-      <Section title={L('Technique et preuves', 'Technique and evidence')} action={<Button size="sm" variant="soft" onClick={() => setSheet(true)}>{L('Démo', 'Demo')}</Button>}>
+      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Technique et preuves', 'Technique and evidence')} action={<Button size="sm" variant="soft" onClick={() => setSheet(true)}>{L('Démo', 'Demo')}</Button>}>
         <DemoFrames id={id} name={info.name} />
         <div className="mt-4 flex items-center gap-2"><LevelTag level={info.evidence.level} /></div>
         <p className="mt-2 text-[14px] leading-[1.5] text-text-2">{info.evidence.text}</p>
@@ -219,7 +219,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
   return (
     <>
       {weights.length > 0 ? <>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-3">
         <Figure label={ws.isAverage && !ws.stale ? L('Moyenne 7 j', '7-day avg') : L('Dernière pesée', 'Last weigh-in')} value={ws.current !== null ? `${fmtNum(ws.current)} kg` : '—'} />
         <Figure label={L('Tendance', 'Trend')} value={ws.weeklyChangePct !== null ? L(`${fmtSigned(ws.weeklyChangePct, 2)} %`, `${fmtSigned(ws.weeklyChangePct, 2)}%`) : '—'} hint={L('par semaine', 'per week')} />
         <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)}` : '—'} hint={goal?.computed ? 'plan · kg' : 'kg'} />
@@ -240,7 +240,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
           />
         </div>
       </Card>
-      </> : <Empty art="chart"
+      </> : <Empty art="logbook"
         title={state.bodyEntries.length ? L('Ajoute ton premier poids', 'Add your first weigh-in') : L('Un premier repère pour ton suivi', 'A starting point for your progress')}
         action={<Button variant="primary" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{state.bodyEntries.length ? L('Ajouter un poids', 'Add a weigh-in') : L('Ajouter une mesure', 'Add a measurement')}</Button>}
       >
@@ -265,7 +265,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
 
       {weights.length > 0 && <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Nouvelle mesure', 'New measurement')}</Button>}
 
-      {state.bodyEntries.length > 0 && <Section title={L('Mesures', 'Measurements')}>
+      {state.bodyEntries.length > 0 && <Section icon={<Ruler size={18} aria-hidden />} title={L('Mesures', 'Measurements')}>
         <MeasureList entries={state.bodyEntries} />
       </Section>}
 
@@ -315,7 +315,7 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
   }
   const any = Object.values(v).some((x) => parseNumber(x) !== null)
   return (
-    <Sheet open={open} onClose={onClose} title={L('Nouvelle mesure', 'New measurement')} footer={<Button variant="primary" size="lg" full disabled={!any} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
+    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Nouvelle mesure', 'New measurement')} footer={<Button variant="primary" size="lg" full disabled={!any} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
@@ -348,7 +348,7 @@ function Photos() {
     useStore.getState().notify(L('Photo ajoutée. Elle reste sur ce téléphone.', 'Photo added. It stays on this phone.'), 'good')
   }
   return (
-    <Section title="Photos" action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
+    <Section icon={<Camera size={18} aria-hidden />} title="Photos" action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
       {photos.length > 0 ? <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
@@ -369,7 +369,7 @@ function Photos() {
       </button>}
       <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onFile(e.target.files); e.target.value = '' }} />
       <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos ne quittent pas ce téléphone (sauf dans tes sauvegardes).', 'Every 4 weeks, same lighting, same pose. Photos never leave this phone (except in your backups).')}</p>
-      <Sheet open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { void deletePhoto(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
+      <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { void deletePhoto(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
         {current && <img src={current.dataUrl} alt="" className="w-full rounded-[12px]" />}
       </Sheet>
       {compare && <CompareSheet onClose={() => setCompare(false)} />}
@@ -388,7 +388,7 @@ function CompareSheet({ onClose }: { onClose: () => void }) {
   const pa = photos.find((p) => p.id === a)
   const pb = photos.find((p) => p.id === b)
   return (
-    <Sheet open onClose={onClose} title={L('Avant / après', 'Before / after')} tall>
+    <Sheet icon={<Columns2 size={18} aria-hidden />} open onClose={onClose} title={L('Avant / après', 'Before / after')} tall>
       <div className="grid grid-cols-2 gap-2">
         {[[L('Avant', 'Before'), a, setA], [L('Après', 'After'), b, setB]].map(([label, val, set]) => (
           <Field key={label as string} label={label as string}>
@@ -436,7 +436,7 @@ function VolumeTab() {
   )
   return (
     <>
-      <Section title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
+      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
         {/* The week shown, with a step to the one before and the one after: one control, the week in its middle. */}
         <div className="mb-3 flex min-h-12 items-center rounded-[12px] border border-line-strong" role="group" aria-label={L('Semaine affichée', 'Week shown')}>
           <IconButton label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)}>
@@ -462,7 +462,7 @@ function VolumeTab() {
             : <Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
         >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other sessions remain in your history.')}</Empty>}
       </Section>
-      {counts.some((count) => count.count > 0) && <Section title={L('Séances par semaine', 'Sessions per week')}>
+      {counts.some((count) => count.count > 0) && <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Séances par semaine', 'Sessions per week')}>
         <Card className="p-4">
           <Columns
             ariaLabel={L('Séances par semaine sur 12 semaines', 'Sessions per week over 12 weeks')}
@@ -472,20 +472,20 @@ function VolumeTab() {
           />
         </Card>
       </Section>}
-      <Section title={L('Effort (RIR moyen)', 'Effort (average RIR)')}>
+      <Section icon={<Gauge size={18} aria-hidden />} title={L('Répétitions en réserve', 'Reps in reserve')}>
         {rirs.length ? (
           <Card className="divide-y divide-line">
             {rirs.map(({ w, r }) => (
-              <div key={w.id} className="flex items-center justify-between px-4 py-2.5 text-[14px]">
+              <div key={w.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-[14px]">
                 <span className="text-text-2">{fmtDate(w.date)} · {TYPE_META[w.type].label}</span>
-                <span className="font-semibold tnum">RIR {fmtNum(r!, 1)}</span>
+                <span className="font-semibold tnum">{L(`${fmtNum(r!, 1)} en moyenne`, `${fmtNum(r!, 1)} average`)}</span>
               </div>
             ))}
           </Card>
         ) : (
           <div className="flex items-start gap-3 py-2">
             <SportArt kind="plate" size="title" />
-            <p className="min-w-0 text-[13px] leading-[1.5] text-text-2">{L('Renseigne le RIR de tes séries pendant la séance : la cible est 1–2 en polyarticulaire, 0–1 en isolation.', 'Log the RIR of your sets during the session: the target is 1–2 on compound lifts, 0–1 on isolation.')}</p>
+            <p className="min-w-0 text-[13px] leading-[1.5] text-text-2">{L('Renseigne les répétitions en réserve de tes séries pendant la séance, en suivant la consigne du jour.', 'Log each set’s reps in reserve during the session, following today’s instruction.')}</p>
           </div>
         )}
       </Section>
@@ -498,7 +498,7 @@ function VolumeTab() {
 function HistoryTab() {
   const state = useStore((s) => s.state)
   const groups = useMemo(() => groupByMonth(state), [state])
-  if (!state.workouts.length) return <Empty art="calendar" title={L('Ton histoire reste à écrire', 'Your training story starts here')} action={<SessionLink />}>
+  if (!state.workouts.length) return <Empty art="logbook" title={L('Ton histoire reste à écrire', 'Your training story starts here')} action={<SessionLink />}>
     {state.activeWorkout
       ? L('Ta séance est en cours. Une fois terminée, tu retrouveras ici son détail et tes séries.', 'Your session is in progress. Once you finish it, its details and sets will appear here.')
       : L('Tes séances terminées seront réunies ici, avec leurs exercices, tes séries et tes notes.', 'Your completed sessions will appear here with their exercises, sets and notes.')}
@@ -506,7 +506,7 @@ function HistoryTab() {
   return (
     <>
       {groups.map(([month, list]) => (
-        <Section key={month} title={capitalize(parseISO(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }))} className="mt-2 first:mt-0">
+        <Section key={month} icon={<CalendarDays size={18} aria-hidden />} title={capitalize(parseISO(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }))} className="first:mt-0">
           <Card className="divide-y divide-line">
             {list.map((w) => {
               const minutes = sessionDurationMin(w)

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Camera, Check, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, Check, Eye, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -86,13 +86,12 @@ export function VisualGoalScreen() {
     <Screen>
       <Header art="trophy"
         backTo="plus/reglages"
-        eyebrow={L('Objectif', 'Goal')}
         title={L('Objectif visuel', 'Visual goal')}
         sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual landmark: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
       />
 
       {MAINTENANCE && (
-        <Card className="mb-2 flex items-center gap-3 p-4">
+        <Card className="mb-3 flex items-center gap-3 p-4">
           <InfinityIcon size={20} className="shrink-0 text-signal-text" aria-hidden />
           <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-text-2">
             <span className="block text-[15px] font-semibold text-text">{L('Tu es en mode entretien', 'You’re in maintenance mode')}</span>
@@ -106,7 +105,7 @@ export function VisualGoalScreen() {
       )}
 
       {applied && saved && (
-        <Card className="mb-2 flex items-center gap-3 p-4">
+        <Card className="mb-3 flex items-center gap-3 p-4">
           <Target size={20} className="shrink-0 text-signal-text" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold">{L('Objectif actif : ', 'Active goal: ')}{lookInfo(saved.look).label}</p>
@@ -125,7 +124,7 @@ export function VisualGoalScreen() {
         </Card>
       )}
 
-      <Section title={L('Le look', 'The look')} className="mt-4">
+      <Section icon={<Eye size={18} aria-hidden />} title={L('Le look', 'The look')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
         <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
           {LOOKS.map((l) => {
             const on = l.id === look
@@ -157,7 +156,7 @@ export function VisualGoalScreen() {
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la musculature et la répartition du gras varient. Aucun résultat visuel n’est garanti.', 'Visual landmarks for guidance only: at the same body fat, musculature and fat distribution vary. No visual outcome is guaranteed.')}</p>
       </Section>
 
-      <Section title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
+      <Section icon={<Target size={18} aria-hidden />} title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
         <ZonePicker value={zones} onChange={setZones} />
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">
           {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every session that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
@@ -168,7 +167,7 @@ export function VisualGoalScreen() {
             <div key={g.zone ?? 'programme'} className="px-4 py-3">
               <p className="text-[14px] font-semibold">{g.label} <span className="font-normal text-text-2">· {g.sets.length ? L(`+1 série sur ${plural(g.sets.length, 'exercice', 'exercices')}`, `+1 set on ${plural(g.sets.length, 'exercise', 'exercises')}`) : L('aucun exercice dans tes séances', 'no exercise in your sessions')}</span></p>
               {g.sets.map((x, i) => (
-                <p key={i} className="mt-0.5 text-[13px] leading-[1.45] text-text-2">{TYPE_META[x.type].label}{L(' : ', ': ')}{x.name}</p>
+                <p key={i} className="mt-0.5 text-[13px] leading-[1.45] text-text-2">{TYPE_META[x.type].label}{L(' : ', ': ')}{x.name}</p>
               ))}
             </div>
           ))}
@@ -185,7 +184,7 @@ export function VisualGoalScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Où tu en es', 'Where you stand')}>
+      <Section icon={<Ruler size={18} aria-hidden />} title={L('Où tu en es', 'Where you stand')}>
         <div className="grid grid-cols-2 gap-3">
           <Field label={L('Taille (cm)', 'Height (cm)')}><input className={inputClass} inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="189" /></Field>
           <div className="min-w-0">
@@ -233,7 +232,7 @@ export function VisualGoalScreen() {
       </Section>
 
       {plan && (
-        <Section title={L('Le plan', 'The plan')}>
+        <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Le plan', 'The plan')}>
           <Card className="divide-y divide-line">
             <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${kg(plan.target[1])}`} hint={L(`${plan.range[0]}–${pct(plan.range[1])} de gras, masse maigre conservée sans gain présumé`, `${plan.range[0]}–${pct(plan.range[1])} body fat, lean mass retained with no assumed gain`)} strong />
             <Line label={L('Sèche', 'Cut')} value={plan.cutWeeks === 0 ? L('Aucune', 'None') : plural(plan.cutWeeks, L('semaine', 'week'), L('semaines', 'weeks'))} hint={plan.cutWeeks === 0 ? L('Tu es déjà dans la fourchette : recomposition jusqu’à la date.', 'You’re already in the range: recomposition until the date.') : L(`Scénario prudent, limité par le budget de 500 kcal/j, pauses incluses${plan.cutWeeks !== CUT_WEEKS ? ` (le plan de base en prévoit ${CUT_WEEKS})` : ''}`, `Conservative scenario, capped by the 500 kcal/day budget, breaks included${plan.cutWeeks !== CUT_WEEKS ? ` (the base plan calls for ${CUT_WEEKS})` : ''}`)} />
@@ -272,7 +271,7 @@ export function VisualGoalScreen() {
         </Section>
       )}
 
-      <Section title={L('Photo de référence', 'Reference photo')}>
+      <Section icon={<Camera size={18} aria-hidden />} title={L('Photo de référence', 'Reference photo')}>
         {photo ? (
           <div className="grid grid-cols-[120px_1fr] items-start gap-3">
             <img src={photo.dataUrl} alt={L('Photo de référence de l’objectif', 'Goal reference photo')} className="aspect-[3/4] w-full rounded-[10px] object-cover" />
@@ -294,7 +293,7 @@ export function VisualGoalScreen() {
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { void onPhoto(e.target.files?.[0]); e.target.value = '' }} />
       </Section>
 
-      <Section title={L('Sur quoi ça repose', 'What this is based on')}>
+      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Sur quoi ça repose', 'What this is based on')}>
         <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
           <li>{L('Taux de gras estimé par la masse grasse relative (RFM), validée contre la DEXA : fiable pour suivre une tendance, à quelques points près pour une valeur isolée.', 'Body fat estimated with relative fat mass (RFM), validated against DEXA: reliable for tracking a trend, within a few points for a single value.')}</li>
           <li>{L('Sèche entre −0,5 et −0,7 % du poids par semaine : au-delà, la masse maigre est moins bien préservée.', 'Cut between −0.5 and −0.7% of body weight per week: faster than that, lean mass is less well preserved.')}</li>

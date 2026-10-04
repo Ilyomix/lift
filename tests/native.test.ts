@@ -29,7 +29,8 @@ test('native tracking translates every generated workout label in French and Eng
   assert.equal(en.progressLabel, 'sets')
   assert.equal(fr.readyLabel, 'À toi')
   assert.equal(en.readyLabel, 'Go')
-  assert.equal(en.detail, '42 kg · 10–15 reps · RIR 2')
+  assert.equal(en.detail, '42 kg · 10–15 reps · 2 in reserve')
+  assert.equal(fr.detail, '42 kg · 10–15 reps · réserve 2')
   assert.equal(en.restEndAt, 100000)
   assert.equal(en.expiresAt, 1000 + 8 * 3600000)
 })
@@ -61,7 +62,7 @@ test('native next exercise follows an out-of-order rest and current prescription
   a.timer!.next = 'Set 2/3 · Row'
   const s = workoutActivityState(a, 'en')!
   assert.equal(s.exercise, 'Row')
-  assert.match(s.detail, /8–12 reps · RIR 1–2/)
+  assert.match(s.detail, /8–12 reps · 1–2 in reserve/)
 })
 
 test('native queue coalesces pending updates and ends after a slow in-flight update', async () => {

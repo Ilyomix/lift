@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { TriangleAlert } from 'lucide-react'
+import { Flag, TriangleAlert } from 'lucide-react'
 import { addDays, capitalize, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, plural } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -71,6 +71,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
     <Sheet
       open
       onClose={onClose}
+      icon={<Flag size={18} aria-hidden />}
       title={L('Objectif', 'Goal')}
       footer={<Button variant="primary" size="lg" full disabled={!changed || (mode === 'goal' && !valid)} onClick={save}>{L('Enregistrer', 'Save')}</Button>}
     >
@@ -178,12 +179,12 @@ function MaintenancePreview({ active }: { active: boolean }) {
 
 function PlanRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3">
       <span className="min-w-0">
         <span className="block text-[14px]">{label}</span>
         {hint && <span className="block text-[12px] text-muted">{hint}</span>}
       </span>
-      <span className="shrink-0 text-[14px] font-semibold tnum">{value}</span>
+      <span className="ml-auto max-w-full text-right text-[14px] font-semibold tnum">{value}</span>
     </div>
   )
 }

@@ -1,9 +1,9 @@
-import { EffortGuidance, EffortReport } from '../components/EffortGuidance'
+import { EffortExplanation, EffortGuidance, EffortReport, reserveLabel } from '../components/EffortGuidance'
 import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
 import { exerciseContextReason } from '../lib/comparability'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Ellipsis, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, StickyNote, Timer, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, SlidersHorizontal, StickyNote, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
@@ -78,7 +78,7 @@ function SessionPreview() {
       <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <Tag tone="ink">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
+        <Tag tone="outline">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
         <span className="text-[13px] text-text-2">{ctx.effortDetail}</span>
       </div>
       {state.reentry && <p className="mt-2 text-[13px] text-text-2">{L(`${state.reentry.label} : ${state.reentry.advice}`, `${state.reentry.label}: ${state.reentry.advice}`)}</p>}
@@ -100,7 +100,7 @@ function SessionPreview() {
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
                 <span className="mt-0.5 block text-[13px] text-text-2 tnum">
-                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · RIR {rx[i].rir} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
+                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · {reserveLabel(rx[i].rir)} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
                 </span>
                 {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('Superset avec l’exercice suivant', 'Superset with the next exercise')}</span>}
                 {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this session')}</span>}
@@ -126,7 +126,7 @@ function SessionPreview() {
 function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
   const name = useStore((s) => placeName(s.state, id))
   return (
-    <button type="button" onClick={onClick} className="pressable inline-flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Lieu : ${name}, changer`, `Place: ${name}, change`)}>
+    <button type="button" onClick={onClick} className="pressable inline-flex min-h-11 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Lieu : ${name}, changer`, `Place: ${name}, change`)}>
       <MapPin size={14} className="shrink-0" aria-hidden />
       <span className="truncate">{name}</span>
       <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
@@ -166,6 +166,7 @@ function ActiveSession() {
   const pending = total - done
   const current = currentIndexOf(a.exercises)
   const cur = current >= 0 ? a.exercises[current] : null
+  const effortExercise = cur ?? a.exercises.find(ex => !ex.skipped)
   const curSet = cur ? cur.sets.findIndex((s) => !s.completed) : -1
 
   // When an exercise is finished, bring the next one into view.
@@ -231,9 +232,11 @@ function ActiveSession() {
 
       {(a.deload || a.reentry) && (
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-          {a.deload ? L('Semaine de décharge : moitié des séries, charges −10 %, RIR 3–4.', 'Deload week: half the sets, loads −10%, RIR 3–4.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
+          {a.deload ? L('Semaine de décharge : moitié des séries, charges −10 %, 3–4 répétitions en réserve.', 'Deload week: half the sets, loads −10%, 3–4 reps in reserve.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
         </p>
       )}
+
+      <EffortExplanation target={effortExercise ? effortTarget(effortExercise) : undefined} />
 
       <div className="mt-4 space-y-3">
         {a.exercises.map((ex, i) => (
@@ -241,9 +244,10 @@ function ActiveSession() {
         ))}
       </div>
 
-      <Section title={L('Notes de séance', 'Session notes')}>
+      <Section icon={<StickyNote />} title={L('Notes de séance', 'Session notes')}>
         <textarea
           className={cx(inputClass, 'h-24 resize-none py-2.5')}
+          aria-label={L('Notes de séance', 'Session notes')}
           placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')}
           value={a.notes}
           onChange={(e) => setSessionField({ notes: e.target.value })}
@@ -255,7 +259,7 @@ function ActiveSession() {
       </Button>
       <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, L('série restante', 'set left'), L('séries restantes', 'sets left'))}` : L('Toutes les séries sont validées.', 'All sets are logged.')}</p>
 
-      <Sheet open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Session')}>
+      <Sheet icon={<Dumbbell />} open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Session')}>
         <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Date de la séance', 'Session date')}</p>
         <DateInput label={L('Date de la séance', 'Session date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
         <div className="mt-5">
@@ -270,6 +274,7 @@ function ActiveSession() {
       <Sheet
         open={confirmFinish}
         onClose={() => setConfirmFinish(false)}
+        icon={<CircleCheck />}
         title={L('Terminer maintenant ?', 'Finish now?')}
         footer={
           <div className="flex gap-2">
@@ -384,7 +389,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
-        <Tag tone="signal">{L('RIR du jour', 'Today’s RIR')} {effortTarget(ex) ?? '—'}</Tag>
+        <Tag tone="signal">{reserveLabel(effortTarget(ex))}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
         {(ex.unit !== 'PDC' || !!target) && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
@@ -401,7 +406,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
             {sameLoad && <span className="text-muted"> {L('→ à battre :', '→ to beat:')} <span className="font-semibold text-text">{L(`${prevClean + 1} reps propres`, `${prevClean + 1} clean reps`)}</span></span>}
           </p>
         ) : !ex.gymTrial ? (
-          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L(`Séance d’essai : trouve une charge pour ${ex.target.minReps}–${ex.target.maxReps} reps à RIR ${effortTarget(ex) ?? '3'}.`, `Trial session: find a load for ${ex.target.minReps}–${ex.target.maxReps} reps at RIR ${effortTarget(ex) ?? '3'}.`) : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
+          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L('Séance d’essai : ajuste la charge en gardant la marge indiquée.', 'Trial session: adjust the load while keeping the indicated reserve.') : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
         {hurtLastTime && (
           <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, compare les alternatives dans les options de l’exercice (···).', 'Pain flagged last time: if it comes back, compare alternatives in the exercise options (···).')}</p>
@@ -413,11 +418,11 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       </div>
 
       <div className="mt-3 px-3 pb-3">
-        <div className="hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] gap-2 px-1 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase min-[400px]:grid">
+        <div className="hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_80px_48px] gap-2 px-3 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase min-[520px]:grid">
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>
           <span>Reps</span>
-          <span>RIR</span>
+          <span>{L('En réserve', 'In reserve')}</span>
           <span className="sr-only">{L('Valider', 'Log')}</span>
         </div>
         <div className="space-y-1.5">
@@ -469,7 +474,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       )}
 
       <ExerciseSheet exerciseId={ex.exerciseId} name={ex.name} open={info} onClose={() => setInfo(false)} prescription={p} replacement={{ kind: 'active', index }} />
-      <Sheet open={menu} onClose={() => setMenu(false)} title={ex.name}>
+      <Sheet icon={<Dumbbell />} open={menu} onClose={() => setMenu(false)} title={ex.name}>
         <div className="space-y-5">
           <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={{ kind: 'active', index }} onReplaced={() => setMenu(false)} />
           <label className="block">
@@ -537,20 +542,20 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
   const done = s.completed
   const hasDetail = s.flags.length > 0 || (s.cleanReps !== null && s.reps !== null && s.cleanReps !== s.reps) || !!s.note
   return (
-    <div className={cx('rounded-[12px] px-1 py-1 transition-colors', done && 'bg-surface-2', isCurrent && 'bg-signal-soft shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--signal)_55%,transparent)]')} aria-current={isCurrent ? 'step' : undefined}>
-      <div className="grid grid-cols-3 items-end gap-2 min-[400px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_60px_48px] min-[400px]:items-center">
+    <div className={cx('rounded-[12px] p-3 transition-colors', done && 'bg-surface-2', isCurrent && 'bg-signal-soft shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--signal)_55%,transparent)]')} aria-current={isCurrent ? 'step' : undefined}>
+      <div className="grid grid-cols-3 items-end gap-2 min-[520px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.85fr)_80px_48px] min-[520px]:items-center">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
-          className={cx('pressable col-span-2 flex h-11 items-center gap-1.5 rounded-[9px] px-2 text-[15px] font-semibold tnum hover:bg-surface-3 min-[400px]:col-span-1 min-[400px]:flex-col min-[400px]:justify-center min-[400px]:gap-0 min-[400px]:px-0', isCurrent && 'text-signal-text')}
+          className={cx('pressable col-span-2 flex h-11 items-center gap-1.5 rounded-[9px] px-2 text-[15px] font-semibold tnum hover:bg-surface-3 min-[520px]:col-span-1 min-[520px]:flex-col min-[520px]:justify-center min-[520px]:gap-0 min-[520px]:px-0', isCurrent && 'text-signal-text')}
         >
-          <span className="min-[400px]:hidden">{L('Série', 'Set')}</span>{setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
+          <span className="min-[520px]:hidden">{L('Série', 'Set')}</span>{setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
-        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">{ex.unit === 'PDC' ? takesLest(ex) ? L('Lest', 'Added load') : bodyweightLabel() : ex.unit}</span>
+        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">{ex.unit === 'PDC' ? takesLest(ex) ? L('Lest', 'Added load') : bodyweightLabel() : ex.unit}</span>
           {ex.unit === 'PDC' && !takesLest(ex) ? (
             <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
           ) : ex.unit === 'PDC' ? (
@@ -559,8 +564,8 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
           )}
         </div>
-        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">Reps</span>
+        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">Reps</span>
           <NumField
             label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
             value={s.reps}
@@ -569,10 +574,10 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             disabled={done}
           />
         </div>
-        <div className="order-2 min-w-0 min-[400px]:order-none min-[400px]:contents">
-          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[400px]:hidden">RIR</span>
+        <div className="order-2 min-w-0 min-[520px]:order-none min-[520px]:contents">
+          <span aria-hidden className="mb-1 block text-[11px] font-semibold text-muted min-[520px]:hidden">{L('En réserve', 'In reserve')}</span>
           <select
-            aria-label={L(`RIR série ${setIndex + 1}`, `Set ${setIndex + 1} RIR`)}
+            aria-label={L(`Répétitions en réserve, série ${setIndex + 1}`, `Reps in reserve, set ${setIndex + 1}`)}
             value={recordedRir(s) ?? ''}
             onChange={(e) => updateSet(exIndex, setIndex, { rir: e.target.value === '' ? null : Number(e.target.value) })}
             className="h-11 w-full appearance-none rounded-[10px] border border-line-strong bg-surface text-center text-[16px] font-semibold text-text tnum focus:border-signal focus:outline-none"
@@ -589,7 +594,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}
-          className={cx('pressable order-1 flex h-11 w-full items-center justify-center rounded-[10px] border min-[400px]:order-none min-[400px]:w-12', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
+          className={cx('pressable order-1 flex h-11 w-full items-center justify-center rounded-[10px] border min-[520px]:order-none min-[520px]:w-12', done ? 'border-signal bg-signal text-signal-ink' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
         >
           <Check size={20} strokeWidth={done ? 3 : 2.2} aria-hidden />
         </button>
@@ -600,7 +605,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             {FLAGS.map((f) => {
               const on = s.flags.includes(f.id)
               return (
-                <button key={f.id} type="button" aria-pressed={on} onClick={() => toggleFlag(exIndex, setIndex, f.id)} className={cx('pressable h-9 rounded-full border px-3 text-[13px] font-semibold', on ? (f.id === 'pain' ? 'border-bad-mark bg-bad-mark/10 text-bad' : 'border-text bg-text text-bg') : 'border-line-strong text-text-2')}>
+                <button key={f.id} type="button" aria-pressed={on} onClick={() => toggleFlag(exIndex, setIndex, f.id)} className={cx('pressable min-h-11 rounded-full border px-3 text-[13px] font-semibold', on ? (f.id === 'pain' ? 'border-bad-mark bg-bad-mark/10 text-bad' : 'border-text bg-text text-bg') : 'border-line-strong text-text-2')}>
                   {f.label}
                 </button>
               )
@@ -609,9 +614,9 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           <div className="flex items-center gap-3">
             <span className="text-[13px] text-text-2">{L('Reps propres', 'Clean reps')}</span>
             <div className="flex items-center gap-1">
-              <IconButton label={L('Une rep propre de moins', 'One fewer clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })} className="h-9 w-9"><span className="text-[18px]">−</span></IconButton>
+              <IconButton label={L('Une rep propre de moins', 'One fewer clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })}><span className="text-[18px]">−</span></IconButton>
               <span className="w-8 text-center text-[16px] font-semibold tnum">{s.cleanReps ?? s.reps ?? '—'}</span>
-              <IconButton label={L('Une rep propre de plus', 'One more clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })} className="h-9 w-9"><span className="text-[18px]">+</span></IconButton>
+              <IconButton label={L('Une rep propre de plus', 'One more clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })}><span className="text-[18px]">+</span></IconButton>
             </div>
           </div>
           <input className={cx(inputClass, 'h-11')} placeholder={L('Note (ex. : dernière rep aidée)', 'Note (e.g. last rep assisted)')} value={s.note} onChange={(e) => updateSet(exIndex, setIndex, { note: e.target.value })} />
@@ -683,7 +688,7 @@ export function SessionSummary() {
       <EffortReport exercises={w.exercises} />
 
       {records.length > 0 && (
-        <Section title={L('Records', 'Personal bests')}>
+        <Section icon={<Trophy />} title={L('Records', 'Personal bests')}>
           <div className="flex flex-wrap gap-2">
             {records.map((e) => <span key={e.exerciseId} className="inline-flex items-center gap-2 text-[14px] font-medium"><RecordTag />{e.name}</span>)}
           </div>
@@ -692,10 +697,11 @@ export function SessionSummary() {
 
       {changes.length > 0 && (
         <Section
+          icon={<SlidersHorizontal />}
           title={state.prefs.autoLoad ? L('Plan ajusté', 'Plan adjusted') : L('Ajustements proposés', 'Suggested adjustments')}
           action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>{L('Tout appliquer', 'Apply all')}</Button> : undefined}
         >
-          <p className="-mt-1 mb-3 text-[13px] leading-[1.45] text-text-2">
+          <p className="mb-3 text-[13px] leading-[1.45] text-text-2">
             {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next sessions start from these loads. Undo a change if this session wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
           </p>
           <Card className="divide-y divide-line">
@@ -705,14 +711,14 @@ export function SessionSummary() {
       )}
 
       {(pushedOften || held.length > 0) && (
-        <Section title="Effort">
+        <Section icon={<Gauge />} title="Effort">
           <Card className="p-4">
             <p className="flex gap-2 text-[14px] leading-[1.45]">
               <TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span>
                 {pushedOften && L(
-                  `${effort.pushed} séries sur ${sessionSetCount(w)} poussées plus loin que l’effort prévu${effort.planned ? ` (RIR ${effort.planned})` : ''}. `,
-                  `${effort.pushed} of ${sessionSetCount(w)} sets pushed past the planned effort${effort.planned ? ` (RIR ${effort.planned})` : ''}. `,
+                  `${effort.pushed} séries sur ${sessionSetCount(w)} poussées plus loin que l’effort prévu${effort.planned ? ` (${effort.planned} reps en réserve)` : ''}. `,
+                  `${effort.pushed} of ${sessionSetCount(w)} sets pushed past the planned effort${effort.planned ? ` (${effort.planned} reps in reserve)` : ''}. `,
                 )}
                 {w.deload
                   ? L('En décharge, garde cette marge : c’est elle qui fait récupérer.', 'On a deload, keep that margin: it is what lets you recover.')
@@ -725,7 +731,7 @@ export function SessionSummary() {
       )}
 
       {early && (
-        <Section title={L('Récupération', 'Recovery')}>
+        <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
           <Card className="p-4">
             <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices sont en nette baisse deux séances de suite : c’est le signal pour avancer la décharge.', 'Several exercises clearly dropped two sessions in a row: that’s the signal to bring the deload forward.')}</p>
             <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Décharge avancée : 7 jours dès demain.', 'Deload brought forward: 7 days starting tomorrow.'), 'good') }}>{L('Décharge dès demain (7 jours)', 'Deload from tomorrow (7 days)')}</Button>
@@ -734,7 +740,7 @@ export function SessionSummary() {
       )}
 
       {advanced && (
-        <Section title={L('Récupération', 'Recovery')}>
+        <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
           <Card className="flex items-center gap-3 p-4">
             <p className="min-w-0 flex-1 text-[14px] leading-[1.45]">{L(`Décharge avancée : du ${fmtDate(advanced.start, { long: true })} au ${fmtDate(advanced.end, { long: true })}.`, `Deload brought forward: ${fmtDate(advanced.start, { long: true })} to ${fmtDate(advanced.end, { long: true })}.`)}</p>
             <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={() => { cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) }}>{L('Annuler', 'Cancel')}</Button>
@@ -743,14 +749,14 @@ export function SessionSummary() {
       )}
 
       {watch.length > 0 && (
-        <Section title={L('À surveiller', 'To watch')}>
+        <Section icon={<TriangleAlert />} title={L('À surveiller', 'To watch')}>
           <Card className="space-y-2 p-4">
             {watch.map((a) => <p key={a} className="text-[14px] leading-[1.45]">{a}</p>)}
           </Card>
         </Section>
       )}
 
-      <Section title={L('Exercices', 'Exercises')}>
+      <Section icon={<Dumbbell />} title={L('Exercices', 'Exercises')}>
         <WorkoutExercises w={w} />
       </Section>
 
@@ -858,7 +864,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
       {changes.length > 0 && (
-        <Section title={L('Plan ajusté après cette séance', 'Plan adjusted after this session')}>
+        <Section icon={<SlidersHorizontal />} title={L('Plan ajusté après cette séance', 'Plan adjusted after this session')}>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
           </Card>
@@ -876,6 +882,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       <Sheet
         open={fix}
         onClose={() => setFix(false)}
+        icon={<Pencil />}
         title={L('Corriger cette séance ?', 'Correct this session?')}
         footer={
           <div className="flex gap-2">
@@ -892,6 +899,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       <Sheet
         open={confirm}
         onClose={() => setConfirm(false)}
+        icon={<Trash />}
         title={L('Supprimer cette séance ?', 'Delete this session?')}
         footer={
           <div className="flex gap-2">

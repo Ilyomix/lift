@@ -1,6 +1,6 @@
 import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Minus, Plus, SkipForward, X } from 'lucide-react'
+import { ChevronDown, Minus, Plus, SkipForward, Timer, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -224,7 +224,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   return (
     <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
-        <span className="text-[15px] font-semibold text-text-2">{L('Repos', 'Rest')}</span>
+        <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
         <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />
         </button>

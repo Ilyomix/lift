@@ -5,7 +5,7 @@ import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
-  contextAt, GOAL_DATE, MAINTENANCE, pauseDays, PHASES, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
+  contextAt, GOAL_DATE, pauseDays, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
@@ -17,7 +17,7 @@ import { dropAlert, doneSets, sessionPace, strengthSummary } from '../lib/traini
 import { Sparkline } from '../components/charts'
 import { GoalSheet } from '../components/GoalSheet'
 import { GymSheet } from '../components/GymSheet'
-import { WeekStrip } from '../components/Program'
+import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { AppIcon } from './Onboarding'
 import { workoutArt } from '../components/SportArt'
@@ -73,13 +73,39 @@ export function Home() {
 
   return (
     <Screen>
-      <header className="flex items-start justify-between gap-3 pt-2 pb-1">
-        <div className="min-w-0">
-          <h1 className="text-[32px] font-semibold leading-[1.05] tracking-[-0.03em]">{L('Aujourd’hui', 'Today')}</h1>
-          <p className="mt-2 text-[13px] leading-5 text-text-2">{capitalize(fmtDate(today, { weekday: true, long: true }))}</p>
-        </div>
-        <span className="shrink-0 pt-0.5" aria-label="Lift"><AppIcon size={28} className="rounded-[7px]" /></span>
+      <header className="pt-2 pb-2">
+        <h1 className="inline-flex items-center gap-2.5 text-[22px] font-semibold tracking-[-0.02em]">
+          <AppIcon size={24} className="rounded-[6px]" />
+          Lift
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-text-2">{capitalize(fmtDate(today, { weekday: true, long: true }))}</p>
       </header>
+
+      <section aria-label={cycle ? L('Progression du cycle en cours', 'Progress through the current cycle') : L('Progression vers l’objectif', 'Progress toward the goal')} className="mt-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 tnum">
+            <span className="text-[64px] leading-none font-semibold tracking-[-0.04em]"><Num value={plan.done} digits={0} className="[--number-flow-mask-height:0.08em]" /></span>
+            <span className="text-[22px] leading-none font-medium text-text-2">/ {plan.total}</span>
+          </p>
+          <p className="shrink-0 text-[22px] leading-none font-semibold tnum">{L(`${pct} %`, `${pct}%`)}</p>
+        </div>
+        <p className="text-[13px] leading-5 text-text-2">{L(plan.done > 1 ? 'séances terminées' : 'séance terminée', plan.done === 1 ? 'session completed' : 'sessions completed')}</p>
+        <div className="mt-3"><SessionTrack plan={plan} /></div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <button type="button" className="pressable -ml-2 inline-flex min-h-11 items-center gap-2 rounded-[10px] px-2 py-1 text-left hover:bg-surface-2" onClick={() => setGoalOpen(true)}
+            aria-label={cycle ? L('Mode entretien, sans date objectif, modifier', 'Maintenance mode, no goal date, edit') : L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
+          >
+            {cycle ? <InfinityIcon size={18} className="shrink-0 text-signal-text" aria-hidden /> : <Flag size={18} className="shrink-0 text-signal-text" aria-hidden />}
+            <span>
+              <span className="flex items-center gap-2 text-[13px] leading-5 font-semibold">{cycle ? L('Entretien', 'Maintenance') : fmtDate(GOAL_DATE, { long: true, year: true })}<Pencil size={12} className="text-muted" aria-hidden /></span>
+              <span className="block text-[12px] leading-[18px] text-text-2 tnum">{cycle ? L(`Cycle jusqu’au ${fmtDate(cycle.end)}`, `Cycle until ${fmtDate(cycle.end)}`) : ctx.after ? L('Programme terminé', 'Program complete') : plural(weeksLeft, L('semaine restante', 'week left'), L('semaines restantes', 'weeks left'))}</span>
+            </span>
+          </button>
+          <Button variant="ghost" size="sm" className="-mr-2 px-2" onClick={() => navigate('plus/programme')} aria-label={L('Voir le programme', 'View program')}>
+            {L('Programme', 'Program')}<ArrowRight size={16} aria-hidden />
+          </Button>
+        </div>
+      </section>
 
       {state.programPause.active && (
         <Card className="mt-6 flex items-center gap-3 p-4">
@@ -141,36 +167,6 @@ export function Home() {
         <WeekStrip days={week} />
       </Section>
 
-      <Section art="calendar" title={L('Ton programme', 'Your program')} action={<Button variant="ghost" size="sm" onClick={() => navigate('plus/programme')} icon={<ArrowRight size={16} aria-hidden />}>{L('Voir', 'View')}</Button>}>
-        <div className="flex flex-wrap items-center gap-2">
-          {ctx.before || ctx.period?.kind === 'pre' ? <>
-            <Tag tone="ink">{L('Bloc 1', 'Block 1')} · {fmtRelativeDay(PROGRAM_START, today)}</Tag>
-            <span className="text-[13px] text-text-2">{PHASES[MAINTENANCE ? 'upkeep' : 'recomp'].short}</span>
-          </> : <>
-            <Tag tone="ink">{ctx.title}</Tag>
-            {ctx.phase && <span className="text-[13px] text-text-2">{ctx.phase.short}</span>}
-          </>}
-        </div>
-        <p className="mt-3 text-[15px] leading-6">
-          <span className="font-semibold tnum">{L(plural(plan.done, 'séance terminée', 'séances terminées'), plural(plan.done, 'session completed', 'sessions completed'))}</span>
-          {' '}<span className="text-text-2">{L(`sur ${plan.total} prévues`, `of ${plan.total} planned`)}</span>
-        </p>
-        <p className="mt-1 text-[12px] leading-[18px] text-muted">
-          {cycle
-            ? L(`${cycle.label} · du ${fmtDate(cycle.start)} au ${fmtDate(cycle.end)}.`, `${cycle.label} · ${fmtDate(cycle.start)} to ${fmtDate(cycle.end)}.`)
-            : ctx.after ? L(`Programme terminé le ${fmtDate(GOAL_DATE, { long: true, year: true })}.`, `Program completed on ${fmtDate(GOAL_DATE, { long: true, year: true })}.`)
-            : L(`D’ici le ${fmtDate(GOAL_DATE, { long: true, year: true })} · ${plural(weeksLeft, 'semaine restante', 'semaines restantes')}.`, `By ${fmtDate(GOAL_DATE, { long: true, year: true })} · ${plural(weeksLeft, 'week remaining', 'weeks remaining')}.`)}
-        </p>
-        <div className="mt-3 flex items-center gap-3">
-          <ProgressBar value={plan.done / Math.max(1, plan.total)} className="flex-1" label={cycle ? L('Séances terminées dans ce cycle', 'Sessions completed in this cycle') : L('Séances terminées vers l’objectif', 'Sessions completed toward your goal')} />
-          <span className="shrink-0 text-[12px] text-text-2 tnum">{L(`${pct} %`, `${pct}%`)}</span>
-        </div>
-        <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setGoalOpen(true)} icon={cycle ? <InfinityIcon size={15} aria-hidden /> : <Flag size={15} aria-hidden />}>
-          {cycle ? L('Mode entretien', 'Maintenance mode') : L('Modifier l’objectif', 'Edit goal')}
-          <Pencil size={13} className="text-muted" aria-hidden />
-        </Button>
-      </Section>
-
       <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="ghost" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
         <div className="grid grid-cols-2 gap-2.5">
           <Tile
@@ -208,7 +204,7 @@ export function Home() {
       </Section>
 
       <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="ghost" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')}</Button>}>
-        <Card className="grid grid-cols-3 divide-x divide-line">
+        <Card className="grid grid-cols-3 divide-x divide-line overflow-hidden">
           <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />
           <NutriCell label={L('Créatine', 'Creatine')} value={nut.creatine} unit="g" target={`${state.nutritionTargets.creatine}`} ratio={nut.creatine / Math.max(1, state.nutritionTargets.creatine)} />
@@ -284,14 +280,14 @@ function Tile({ label, value, foot, detail, chart, onClick, children }: { label:
 
 function NutriCell({ label, value, unit, target, ratio }: { label: string; value: number; unit: string; target: string; ratio: number }) {
   return (
-    <div className="p-3">
+    <div className="min-w-0 bg-signal-soft p-3">
       <p className="text-[12px] font-medium text-text-2">{label}</p>
-      <p className="mt-1.5 text-[20px] leading-none font-semibold tracking-[-0.02em] tnum">
+      <p className="mt-1.5 text-[20px] leading-none font-semibold tracking-[-0.02em] text-signal-text tnum">
         {fmtNum(value, 0)}
         <span className="ml-0.5 text-[12px] font-medium text-muted">{unit}</span>
       </p>
       <p className="mt-1 text-[11px] text-muted tnum">/ {target}</p>
-      <ProgressBar value={ratio} className="mt-2 h-1" label={label} tone={ratio >= 1 ? 'good' : 'text'} />
+      <ProgressBar value={ratio} className="mt-2 h-1" label={label} tone="signal" />
     </div>
   )
 }

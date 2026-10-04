@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { createSportMotion, frameSportMotion } from '../src/lib/sportModelMotion'
 import type { SportArtKind } from '../src/components/SportArt'
 
-const kinds: SportArtKind[] = ['dumbbell', 'plate', 'calendar', 'chart', 'nutrition', 'settings', 'backup', 'stopwatch', 'trophy', 'coach']
+const kinds: SportArtKind[] = ['program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'dumbbell', 'plate', 'calendar', 'chart', 'nutrition', 'settings', 'backup', 'stopwatch', 'trophy', 'coach']
 test('prop motion uses internal parts, returns to a static rest and stays inside its icon camera', async () => {
   for (const kind of kinds) {
     const bytes = await readFile(new URL(`../public/models/sport/${kind}.glb`, import.meta.url))

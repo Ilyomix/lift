@@ -49,3 +49,7 @@ One classic sports coach whistle: substantial graphite whistle body with a cobal
 ### `trophy.webp`
 
 One compact achievement trophy: broad graphite cup with two substantial cobalt-blue side handles, short brushed-silver stem and a squat graphite base with a cobalt inset. Clear balanced trophy silhouette with no inscription or emblem. Three-quarter view slightly from above and front.
+
+## Original Blender page models — 4 October 2026
+
+`program`, `evidence`, `pause`, `reminders`, `privacy`, `kit`, and `logbook` are original procedural mesh models authored for Lift. Their WebP files here are transparent renders of the matching GLBs, not ImageGen outputs or third-party downloads. The canonical generator is `scripts/generate-sport-models.py`; editable Blender scenes and review PNGs are retained in `.local-release/sport-models/`. See [model documentation](../../../docs/sport-model-assets.md) for their material, animation and validation contract.

@@ -11,11 +11,11 @@ export function RefList({ refs, compact }: { refs: string[]; compact?: boolean }
   const list = refs.map((r) => SOURCES[r]).filter(Boolean)
   if (!list.length) return null
   return (
-    <ul className={compact ? 'mt-2 space-y-1' : 'mt-3 space-y-2'}>
+    <ul className={compact ? 'mt-1' : 'mt-2'}>
       {list.map((s) => (
         <li key={s.url}>
-          <a href={s.url} target="_blank" rel="noopener noreferrer" className="pressable group inline-flex min-h-11 items-center gap-1.5 rounded-[10px] py-2 text-[13px] leading-[18px] text-text-2 hover:text-text">
-            <ExternalLink size={13} className="mt-[3px] shrink-0 text-muted group-hover:text-text" aria-hidden />
+          <a href={s.url} target="_blank" rel="noopener noreferrer" className="pressable group inline-flex min-h-11 items-center gap-2 rounded-[10px] py-1.5 text-[13px] leading-[18px] text-text-2 hover:text-text [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:py-1">
+            <ExternalLink size={13} className="shrink-0 text-muted group-hover:text-text" aria-hidden />
             <span className="min-w-0">
               <span className="font-medium text-text">{s.authors.split(',')[0]} {s.year}</span>
               {!compact && <span> — {s.title}. </span>}

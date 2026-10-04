@@ -2,7 +2,7 @@ import { NativeActivitySettings } from '../components/NativeActivitySettings'
 import { isNative } from '../lib/native/bridge'
 import { useEffect, useRef, useState } from 'react'
 import {
-  Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Flag, Infinity as InfinityIcon, MapPin, Pencil, Sparkles, Trash, Upload,
+  ChartColumn, Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, Dumbbell, ExternalLink, Eye, Flag, History, Infinity as InfinityIcon, MapPin, MessageSquare, Palette, Pencil, Settings2, ShieldCheck, Smartphone, Sparkles, Target, Timer, Trash, TriangleAlert, Upload, Utensils,
 } from 'lucide-react'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
@@ -27,43 +27,44 @@ import { SetupSheet, setupLabel } from '../components/Setup'
 import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, ProgressBar, Row, Screen, Section, Segmented, Sheet, Tag, Toggle } from '../components/ui'
 
 
+function MoreMenuRow({ to, art, label, hint }: { to: string; art: SportArtKind; label: string; hint: string }) {
+  return <Row
+    className="py-3.5"
+    onClick={() => navigate(to)}
+    label={<span className="flex min-w-0 items-center gap-3">
+      <SportArt kind={art} size="title" />
+      <span className="min-w-0">
+        <span className="block text-[15px] font-medium">{label}</span>
+        <span className="block text-[13px] font-normal text-muted">{hint}</span>
+      </span>
+    </span>}
+    right={<ChevronRight size={16} className="text-muted" aria-hidden />}
+  />
+}
+
 export function MoreScreen() {
   const state = useStore((s) => s.state)
   const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
     { to: 'plus/nutrition', art: 'nutrition', label: 'Nutrition', hint: L('Calories, protéines, créatine', 'Calories, protein, creatine') },
-    { to: 'plus/programme', art: 'calendar', label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
-    { to: 'plus/pause', art: 'stopwatch', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
-    { to: 'plus/rappels', art: 'calendar', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
+    { to: 'plus/programme', art: 'program', label: L('Programme et preuves', 'Program and evidence'), hint: L(`${studyCount()} études citées`, `${studyCount()} studies cited`) },
+    { to: 'plus/pause', art: 'pause', label: L('Pause du programme', 'Program pause'), hint: state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie, blessure', 'Vacation, illness, injury') },
+    { to: 'plus/rappels', art: 'reminders', label: L('Rappels calendrier', 'Calendar reminders'), hint: L('Séances, pesée, décharges', 'Sessions, weigh-ins, deloads') },
     { to: 'plus/donnees', art: 'backup', label: L('Sauvegarde', 'Backup'), hint: state.meta.lastBackupAt ? L(`Dernier export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`, `Last export ${fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10))}`) : L('Jamais exportée', 'Never exported') },
     { to: 'plus/reglages', art: 'settings', label: L('Réglages', 'Settings'), hint: L('Objectifs, minuteur, apparence', 'Goals, timer, appearance') },
   ]
   return (
     <Screen>
-      <Header art="settings" title={L('Plus', 'More')} />
+      <Header art="kit" title={L('Plus', 'More')} sub={L('Gère ta nutrition, ton programme et tes données.', 'Manage your nutrition, program and data.')} />
       <Card className="divide-y divide-line">
-        {items.map(({ to, art, label, hint }) => (
-          <button key={to} type="button" onClick={() => navigate(to)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
-            <SportArt kind={art} size="title" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-medium">{label}</span>
-              <span className="block text-[13px] text-muted">{hint}</span>
-            </span>
-            <ChevronRight size={16} className="text-muted" aria-hidden />
-          </button>
-        ))}
+        {items.map((item) => <MoreMenuRow key={item.to} {...item} />)}
       </Card>
-      <Disclosure title={L('Outils avancés', 'Advanced tools')} className="mt-4" contentClassName="text-[13px] text-text-2">
-        <a href="#/plus/coach" className="pressable flex w-full items-center gap-3 rounded-[10px] px-4 py-3.5 text-left hover:bg-surface-2">
-          <SportArt kind="coach" size="title" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-medium text-text">{L('Aide IA facultative', 'Optional AI assistance')}</span>
-            <span className="block text-[13px] text-muted">{L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')}</span>
-          </span>
-          <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
-        </a>
+      <Disclosure icon={<Settings2 size={18} aria-hidden />} title={L('Outils avancés', 'Advanced tools')} className="mt-4" contentClassName="text-[13px] text-text-2">
+        <Card>
+          <MoreMenuRow to="plus/coach" art="coach" label={L('Aide IA facultative', 'Optional AI assistance')} hint={L('Exporter un bilan ou importer des suggestions', 'Export a summary or import suggestions')} />
+        </Card>
       </Disclosure>
       {/* About: who made it and which build this is, as one row; the two notes under it. */}
-      <Card className="mt-3">
+      <Card className="mt-4">
         <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
           <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-full border border-line-strong object-cover" />
           <span className="min-w-0 flex-1">
@@ -79,7 +80,8 @@ export function MoreScreen() {
         {L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}{' '}
         <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="font-medium whitespace-nowrap text-text-2 underline decoration-line-strong underline-offset-2">{L('Code source sur GitHub', 'Source code on GitHub')}</a>
       </p>
-      <a href="#/plus/confidentialite" className="pressable mt-2 inline-flex min-h-11 items-center px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
+      <a href="#/plus/confidentialite" className="pressable mt-2 inline-flex min-h-11 items-center gap-2 px-1 text-[13px] font-medium text-text-2 underline decoration-line-strong underline-offset-2">
+        <ShieldCheck size={18} className="shrink-0" aria-hidden />
         {L('Politique de confidentialité', 'Privacy policy')}
       </a>
     </Screen>
@@ -123,7 +125,7 @@ export function NutritionScreen() {
         <Toggle label={L('Créatine', 'Creatine')} hint={L(`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`, `${state.nutritionTargets.creatine} g per day · makes you retain 1–2 kg of water`)} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
-      <Section title={L('Calories : ajustement', 'Calories: adjustment')}>
+      <Section icon={<Settings2 size={18} aria-hidden />} title={L('Ajuster les calories', 'Adjust calories')}>
         <Card className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -142,7 +144,7 @@ export function NutritionScreen() {
             <div className="mt-3">
               <p className="text-[14px] font-medium leading-[1.4]">{first.question}</p>
               <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{first.hint}</p>
-              <div className="mt-2.5 grid grid-cols-2 gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button onClick={() => setNormal(true)}>{L('Oui, normales', 'Yes, normal')}</Button>
                 <Button onClick={() => setNormal(false)}>{L('Non', 'No')}</Button>
               </div>
@@ -178,7 +180,7 @@ export function NutritionScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
+      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
         {hasRecentNutrition ? <Card className="p-4">
           <Columns
             ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
@@ -186,13 +188,13 @@ export function NutritionScreen() {
             target={{ value: protein.min, label: `${protein.min} g` }}
             format={(v) => fmtNum(v, 0)}
           />
-        </Card> : <Empty art="nutrition"
+        </Card> : <Empty icon={<Utensils size={32} aria-hidden />}
           title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutrition commence ici', 'Your nutrition log starts here')}
           action={<Button variant="outline" onClick={() => { setDate(today); proteinInput.current?.focus() }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
         >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
       </Section>
 
-      <Section title={L('Cibles', 'Targets')}>
+      <Section icon={<Target size={18} aria-hidden />} title={L('Cibles', 'Targets')}>
         <Card className="mb-3">
           <Toggle
             label={L('Protéines adaptées à ton poids', 'Protein adjusted to your weight')}
@@ -239,7 +241,7 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
         <input
           ref={inputRef}
           aria-label={`${label} (${unit})`}
-          className="h-12 w-32 rounded-[10px] border border-line-strong bg-surface px-3 text-center text-[24px] font-semibold tnum focus:border-signal focus:outline-none"
+          className="h-12 w-32 rounded-[10px] border border-line-strong bg-signal-soft px-3 text-center text-[24px] font-semibold text-signal-text tnum focus:border-signal focus:outline-none"
           inputMode="numeric"
           value={value || ''}
           placeholder="0"
@@ -248,7 +250,7 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
         <span className="text-[13px] text-muted">{unit}</span>
       </div>
       {hasTarget && <div className="mt-3">
-        <ProgressBar value={current / targetValue} label={L(`${label} : ${fmtNum(current)} ${unit}, cible ${target}`, `${label}: ${fmtNum(current)} ${unit}, target ${target}`)} />
+        <ProgressBar value={current / targetValue} tone="signal" label={L(`${label} : ${fmtNum(current)} ${unit}, cible ${target}`, `${label}: ${fmtNum(current)} ${unit}, target ${target}`)} />
         {over > 0 && <p className="mt-1.5 text-center text-[12px] text-text-2 tnum">{L(`${fmtNum(over)} ${unit} au-dessus de ${targetMax ? 'la fourchette' : 'la cible'}`, `${fmtNum(over)} ${unit} above the ${targetMax ? 'range' : 'target'}`)}</p>}
       </div>}
       <div className="mt-4 grid auto-cols-fr grid-flow-col gap-2" role="group" aria-label={L(`Ajuster ${label.toLowerCase()}`, `Adjust ${label.toLowerCase()}`)}>
@@ -290,27 +292,27 @@ export function CoachScreen() {
   const preview = update ? previewPlanUpdate(state, update) : []
   return (
     <Screen>
-      <Header art="coach" artSize="title" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
+      <Header art="coach" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift prépare tes séances et suit ta progression sans IA. Si tu souhaites un avis extérieur, tu peux partager un bilan avec ton propre assistant. Chaque suggestion reste à vérifier avant de l’appliquer.', 'Lift prepares your sessions and tracks progress without AI. For an outside perspective, you can share a summary with your own assistant. Review each suggestion before applying it.')} />
       <ol className="space-y-2">
         {[L('Partage un bilan (séance ou global).', 'Share a summary (session or overall).'), L('L’IA analyse et répond avec un bloc JSON.', 'The AI analyzes it and replies with a JSON block.'), L('Colle la réponse ici, vérifie, applique.', 'Paste the reply here, check it, apply it.')].map((s, i) => (
           <li key={i} className="flex gap-3 text-[14px] text-text-2"><span className="font-semibold text-text tnum">{i + 1}.</span>{s}</li>
         ))}
       </ol>
-      <div className="mt-5 grid gap-2">
+      <div className="mt-4 grid gap-2">
         <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} disabled={!last} onClick={() => last && void shareText(sessionPrompt(state, last), L(`Séance ${last.sessionNumber}`, `Session ${last.sessionNumber}`))}>
           {last ? L(`Bilan de la séance n°${last.sessionNumber}`, `Session #${last.sessionNumber} summary`) : L('Aucune séance', 'No sessions')}
         </Button>
         <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), L('Bilan Lift', 'Lift summary'))}>{L('Bilan global du programme', 'Overall program summary')}</Button>
       </div>
 
-      <Section title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
+      <Section icon={<MessageSquare size={18} aria-hidden />} title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
         <textarea className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => setText(e.target.value)} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Analyser', 'Analyze')}</Button>
       </Section>
 
       {update && (
-        <Section title={L('Aperçu', 'Preview')}>
+        <Section icon={<Eye size={18} aria-hidden />} title={L('Aperçu', 'Preview')}>
           <p className="mb-3 text-[14px] leading-[1.45]">{update.summary}</p>
           <Card className="divide-y divide-line">
             {preview.map((p, i) => (
@@ -330,7 +332,7 @@ export function CoachScreen() {
         </Section>
       )}
 
-      <Section title={L('Historique des mises à jour', 'Update history')}>
+      <Section icon={<History size={18} aria-hidden />} title={L('Historique des mises à jour', 'Update history')}>
         {state.appliedPlanUpdates.length ? (
           <Card className="divide-y divide-line">
             {[...state.appliedPlanUpdates].reverse().slice(0, 12).map((u) => (
@@ -341,7 +343,7 @@ export function CoachScreen() {
             ))}
           </Card>
         ) : (
-          <Empty art="coach" title={L('Aucun ajustement appliqué', 'No adjustments applied yet')}>
+          <Empty icon={<History size={32} aria-hidden />} title={L('Aucun ajustement appliqué', 'No adjustments applied yet')}>
             {L('Les ajustements appliqués apparaîtront ici. L’aide IA reste facultative : tu peux continuer tes séances sans l’utiliser.', 'Applied adjustments will appear here. AI assistance is optional: you can keep training without using it.')}
           </Empty>
         )}
@@ -372,7 +374,7 @@ export function SettingsScreen() {
     <Screen>
       <Header art="settings" backTo="plus" title={L('Réglages', 'Settings')} />
 
-      <Section title={L('Objectif', 'Goal')} className="mt-0">
+      <Section icon={<Target size={18} aria-hidden />} title={L('Objectif', 'Goal')} className="mt-0">
         <Card className="divide-y divide-line">
           <Row
             label={L('Objectif visuel', 'Visual goal')}
@@ -406,7 +408,7 @@ export function SettingsScreen() {
           />
           <div className="px-4 py-3.5">
             <p className="text-[15px]">{L('Jours d’entraînement', 'Training days')}</p>
-            <div className="mt-2.5 grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
+            <div className="mt-3 grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
               {[1, 2, 3, 4, 5, 6, 0].map((d) => {
                 const on = days.includes(d)
                 return (
@@ -423,7 +425,7 @@ export function SettingsScreen() {
                 )
               })}
             </div>
-            <p className="mt-2.5 text-[13px] leading-[1.45] text-text-2">
+            <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
               {plural(perWeek, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine.', 'per week.')} {perWeek === PLAN_DAYS
                 ? L('Le rythme du programme : chaque muscle 2 fois par semaine.', 'The program’s pace: each muscle twice a week.')
                 : perWeek > PLAN_DAYS
@@ -457,7 +459,7 @@ export function SettingsScreen() {
         <p className="mt-3 text-[12px] leading-[1.45] text-muted">{MAINTENANCE ? L('Sans valeur, la cible est ton poids actuel ± 1 kg : en entretien, le poids reste stable. Taux de gras et poids restent des estimations : suis aussi ton tour de taille et tes photos.', 'With no value, the target is your current weight ± 1 kg: in maintenance, your weight stays stable. Body fat and weight are still estimates: also track your waist and your photos.') : L('Sans valeur, la cible vient de la trajectoire du plan (recomposition à poids stable, puis sèche à −0,5 %/semaine). Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.', 'With no value, the target comes from the plan’s trajectory (recomposition at a stable weight, then a cut at −0.5%/week). Body fat and target weight are still estimates: adjust with your waist and your photos.')}</p>
       </Section>
 
-      <Section title={L('Séances', 'Sessions')}>
+      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Sessions')}>
         <Card className="divide-y divide-line">
           <Toggle
             label={L('Charges automatiques', 'Automatic loads')}
@@ -469,7 +471,7 @@ export function SettingsScreen() {
         <GymManager />
       </Section>
 
-      <Section title={L('Minuteur de repos', 'Rest timer')}>
+      <Section icon={<Timer size={18} aria-hidden />} title={L('Minuteur de repos', 'Rest timer')}>
         <Card className="divide-y divide-line">
           <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={isNative() ? L('Son de la notification système. Sans notification, son uniquement dans l’app ouverte.', 'System notification sound. With alerts off, sound plays only while the app is open.') : L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
           <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the session, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
@@ -484,10 +486,9 @@ export function SettingsScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Apparence', 'Appearance')}>
+      <Section icon={<Palette size={18} aria-hidden />} title={L('Apparence', 'Appearance')}>
         <Segmented label={L('Langue', 'Language')} value={state.prefs.lang ?? 'auto'} onChange={(v) => setPrefs({ lang: v })} options={[{ value: 'auto', label: L('Auto (téléphone)', 'Auto (phone)') }, { value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }]} />
-        <div className="mt-3" />
-        <Segmented label={L('Thème', 'Theme')} value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'dark', label: L('Sombre', 'Dark') }, { value: 'light', label: L('Clair', 'Light') }]} />
+        <Segmented className="mt-3" label={L('Thème', 'Theme')} value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'dark', label: L('Sombre', 'Dark') }, { value: 'light', label: L('Clair', 'Light') }]} />
         <div className="mt-3 flex gap-2" role="radiogroup" aria-label={L('Couleur d’accent', 'Accent color')}>
           {([['blue', L('Bleu', 'Blue'), '#3068f5'], ['orange', 'Orange', '#ff7b00']] as const).map(([v, label, color]) => (
             <button
@@ -506,7 +507,7 @@ export function SettingsScreen() {
         </div>
       </Section>
 
-      <Section title={L('Installer sur le téléphone', 'Install on your phone')}>
+      <Section icon={<Smartphone size={18} aria-hidden />} title={L('Installer sur le téléphone', 'Install on your phone')}>
         <Card className="p-4">
           {isNative() || isStandalone() ? (
             <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
@@ -686,12 +687,12 @@ export function DataScreen() {
       {error && <p className="mt-3 text-[13px] text-bad">{error}</p>}
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Compatible avec les sauvegardes de ton ancien Golgoth Tracker (même format).', 'Compatible with backups from your old Golgoth Tracker (same format).')}</p>
 
-      <Section title={L('Zone sensible', 'Danger zone')}>
+      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Zone sensible', 'Danger zone')}>
         <Button variant="danger" full onClick={() => setReset(true)}>{L('Tout effacer sur cet appareil', 'Erase everything on this device')}</Button>
       </Section>
 
       <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={async () => { await importBackup(parsed!, { upgrade }); setParsed(null); navigate('') }} />
-      <Sheet open={reset} onClose={() => setReset(false)} title={L('Tout effacer ?', 'Erase everything?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { await resetAll(); navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
+      <Sheet icon={<Trash size={18} aria-hidden />} open={reset} onClose={() => setReset(false)} title={L('Tout effacer ?', 'Erase everything?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { await resetAll(); navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
         <p className="text-[15px] leading-[1.5] text-text-2">{L('Séances, mesures, photos et réglages seront supprimés de cet appareil. Exporte une sauvegarde avant si tu veux les garder.', 'Sessions, measurements, photos and settings will be deleted from this device. Export a backup first if you want to keep them.')}</p>
       </Sheet>
     </Screen>
@@ -702,7 +703,7 @@ export function ImportSheet({ parsed, upgrade, setUpgrade, onClose, onConfirm }:
   if (!parsed) return null
   const s = parsed.summary
   return (
-    <Sheet open onClose={onClose} title={L('Importer cette sauvegarde', 'Import this backup')} footer={<Button variant="primary" size="lg" full onClick={onConfirm}>{L('Importer', 'Import')}</Button>}>
+    <Sheet icon={<Upload size={18} aria-hidden />} open onClose={onClose} title={L('Importer cette sauvegarde', 'Import this backup')} footer={<Button variant="primary" size="lg" full onClick={onConfirm}>{L('Importer', 'Import')}</Button>}>
       <Card className="divide-y divide-line">
         <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{s.workouts}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{s.bodyEntries}</span>} />

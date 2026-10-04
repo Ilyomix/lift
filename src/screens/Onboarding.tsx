@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, TriangleAlert, Upload } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChartNoAxesColumn, Check, Flag, Focus, ListChecks, TriangleAlert, Upload, Utensils } from 'lucide-react'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
@@ -13,7 +13,7 @@ import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
 import { ZonePicker } from '../components/ZonePicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
-import { Button, Card, Disclosure, cx, DateInput, Field, inputClass, Segmented, Sheet } from '../components/ui'
+import { Button, Card, Disclosure, cx, DateInput, Field, inputClass, SectionHeading, Segmented, Sheet } from '../components/ui'
 import { ImportSheet } from './More'
 import { SportArt } from '../components/SportArt'
 
@@ -120,9 +120,9 @@ export function Onboarding() {
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden>
         <div className="h-full rounded-full bg-signal transition-[width] duration-300" style={{ width: `${(step / STEPS) * 100}%` }} />
       </div>
-      <div className="mt-5 flex items-center gap-3">
+      <div className="mt-5 flex items-center gap-2">
         <SportArt kind={step === 1 ? 'dumbbell' : step === 2 ? 'calendar' : step === 3 ? 'chart' : 'trophy'} size="illustration" />
-        <h1 ref={title} tabIndex={-1} className="min-w-0 flex-1 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em] outline-none">{titles[step]}</h1>
+        <h1 ref={title} tabIndex={-1} className="min-w-0 flex-1 text-[32px] leading-[1.05] font-semibold tracking-[-0.03em] outline-none">{titles[step]}</h1>
       </div>
 
       <div className="flex-1 py-5 [&_.disclosure]:border-b-0">
@@ -244,7 +244,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
         {n >= 2 && <span className="text-text-2"> · {L(`environ ${week.minutes[0]}–${week.minutes[1]} min par séance`, `about ${week.minutes[0]}–${week.minutes[1]} min per session`)}</span>}
       </p>
       {n < 2 && <p role="status" className="mt-2 text-[13px] text-text-2">{L('Choisis au moins 2 jours pour continuer.', 'Choose at least 2 days to continue.')}</p>}
-      {n >= 2 && <Disclosure title={L('Comment les séances s’adaptent', 'How sessions adapt')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
+      {n >= 2 && <Disclosure icon={<CalendarDays size={18} aria-hidden />} title={L('Comment les séances s’adaptent', 'How sessions adapt')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
         <p className="mt-2">
               {L(`Chaque muscle travaille environ ${fmtNum(perMuscle, 1)} fois par semaine. `, `Each muscle works about ${fmtNum(perMuscle, 1)} times a week. `)}
               {L('Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). ', 'The program rotates 5 sessions (Upper, Lower, Push, Pull, Legs). ')}
@@ -317,7 +317,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         {mode}
         <p className="mt-4 text-[15px] leading-[1.5] text-text-2">{L('Ton programme alterne entraînement et semaines plus légères. Tu pourras définir une date objectif plus tard.', 'Your program alternates training with lighter weeks. You can set a goal date later.')}</p>
         {preview && (
-          <Disclosure title={L('Voir les estimations et le rythme', 'View estimates and training rhythm')} className="mt-5">
+          <Disclosure icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Voir les estimations et le rythme', 'View estimates and training rhythm')} className="mt-5">
           <Card className="mt-2 divide-y divide-line">
             {bodyFat}
             <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Maintenance estimée : poids stable, ajustée ensuite sur ta moyenne 7 jours', 'Estimated maintenance: stable weight, then adjusted to your 7-day average')} />
@@ -353,7 +353,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         {!isValidGoal(d.goalDate, start) && <p role="status" className="mt-2 text-[13px] text-bad">{L(`Choisis une date à partir du ${fmtDate(min, { long: true, year: true })}.`, `Choose a date from ${fmtDate(min, { long: true, year: true })} onwards.`)}</p>}
       </div>
 
-      <p className="mt-5 mb-2 text-[13px] font-medium text-text-2">{L('Look visé', 'Target look')}</p>
+      <SectionHeading className="mt-6 mb-3" icon={<Flag size={18} aria-hidden />}>{L('Look visé', 'Target look')}</SectionHeading>
       <div className="grid gap-2" role="radiogroup" aria-label={L('Look visé', 'Target look')}>
         {LOOKS.map((l) => {
           const on = l.id === d.look
@@ -371,7 +371,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
                 {on && <Check size={12} strokeWidth={3} aria-hidden />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
+                <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                   <span className="text-[15px] font-semibold">{l.label}</span>
                   <span className="shrink-0 text-[13px] font-semibold text-text-2 tnum">{r[0]}–{r[1]}{L(' % de gras', '% fat')}</span>
                 </span>
@@ -382,11 +382,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         })}
       </div>
 
-      <Disclosure title={<>{L('Personnaliser les zones prioritaires', 'Customize priority areas')}{d.zones.length > 0 && <span className="ml-2 text-muted tnum">{d.zones.length}/{MAX_ZONES}</span>}</>} className="mt-5">
-      <div className="mt-2 mb-2 flex items-baseline justify-between gap-3">
-        <p className="text-[13px] font-medium text-text-2">{L('Zones prioritaires (facultatif)', 'Priority areas (optional)')}</p>
-        <span className="text-[13px] text-text-2 tnum">{d.zones.length}/{MAX_ZONES}</span>
-      </div>
+      <Disclosure icon={<Focus size={18} aria-hidden />} title={<span className="block">{L('Personnaliser les zones prioritaires', 'Customize priority areas')}<span className="mt-1 block text-[13px] font-normal text-muted">{L('Facultatif', 'Optional')} · <span className="tnum">{d.zones.length}/{MAX_ZONES}</span></span></span>} className="mt-5">
       <ZonePicker value={d.zones} onChange={(zones) => patch({ zones })} />
       <p className="mt-2 text-[12px] leading-[1.45] text-muted">
         {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every session that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
@@ -397,8 +393,8 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
 
 
       {preview && (
-        <Disclosure title={L('Voir les estimations du plan', 'View plan estimates')} className="mt-5">
-        <Card className="mt-5 divide-y divide-line">
+        <Disclosure icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Voir les estimations du plan', 'View plan estimates')} className="mt-5">
+        <Card className="mt-2 divide-y divide-line">
           {bodyFat}
           {plan && preview.shape && (
             <>
@@ -450,25 +446,20 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
     <div>
       <p className="text-[15px] leading-[1.5] text-text-2">{L('Voici le programme construit avec tes choix. Tu pourras regarder chaque mouvement avant de démarrer.', 'Here is the program built from your choices. You can view each movement before starting.')}</p>
       <Card className="mt-5 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-[22px] font-semibold tracking-[-0.02em]">{firstType.fr}</h2>
-            <p className="mt-1 text-[13px] text-text-2">{capitalize(fmtDate(preview.firstSession, { weekday: true }))}</p>
-          </div>
-          <SportArt kind="workout-upper" />
-        </div>
+        <SectionHeading>{firstType.fr}</SectionHeading>
+        <p className="mt-1 text-[13px] text-text-2">{capitalize(fmtDate(preview.firstSession, { weekday: true }))}</p>
         <p className="mt-4 text-[13px] text-text-2">{setupLabel(answers.setup)} · {plural(session.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))}</p>
         <ol className="mt-2 divide-y divide-line">
           {session.exercises.slice(0, 3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 1}</span><span>{exercise.name}</span></li>)}
         </ol>
-        {session.exercises.length > 3 && <Disclosure title={L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}>
+        {session.exercises.length > 3 && <Disclosure icon={<ListChecks size={18} aria-hidden />} title={L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}>
           <ol start={4} className="divide-y divide-line">{session.exercises.slice(3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 4}</span><span>{exercise.name}</span></li>)}</ol>
         </Disclosure>}
       </Card>
       <p className="mt-4 text-[14px] leading-[1.5]"><span className="font-medium">{plural(answers.days.length, L('séance par semaine', 'session per week'), L('séances par semaine', 'sessions per week'))}</span><br /><span className="text-text-2">{[1, 2, 3, 4, 5, 6, 0].filter((x) => answers.days.includes(x)).map((x) => dayName(x, true)).join(' · ')}</span></p>
       <p className="mt-2 text-[13px] text-text-2">{answers.maintenance ? L('Entretien · sans date limite', 'Maintenance · no deadline') : `${plan?.look.label ?? ''} · ${fmtDate(answers.goalDate, { long: true, year: true })}`}</p>
       <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L('Pour commencer, choisis des charges confortables : garde de quoi faire encore 3 répétitions à la fin de chaque série.', 'Start with comfortable weights: finish each set feeling you could do 3 more repetitions.')}</p>
-      <Disclosure title={L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')} className="mt-5">
+      <Disclosure icon={<Utensils size={18} aria-hidden />} title={L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')} className="mt-5">
       <Card className="mt-2 divide-y divide-line">
         {answers.maintenance ? (
           <>
@@ -531,6 +522,7 @@ export function ImportResultSheet() {
     <Sheet
       open
       onClose={close}
+      icon={<Upload size={18} aria-hidden />}
       title={L('Import terminé', 'Import complete')}
       footer={
         <Button variant="primary" size="lg" full onClick={() => {

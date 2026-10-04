@@ -417,8 +417,8 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
       moved = {
         weight: cap.weight, kind: 'up',
         text: L(
-          `${fmtLoad(last, ex.unit)} à RIR ${cap.rir} pour RIR ${planned} prévu : ${fmtLoad(cap.weight, ex.unit)} la prochaine fois`,
-          `${fmtLoad(last, ex.unit)} at RIR ${cap.rir} with RIR ${planned} planned: ${fmtLoad(cap.weight, ex.unit)} next time`,
+          `${fmtLoad(last, ex.unit)} avec ${cap.rir} reps en réserve pour ${planned} prévues : ${fmtLoad(cap.weight, ex.unit)} la prochaine fois`,
+          `${fmtLoad(last, ex.unit)} with ${cap.rir} reps in reserve instead of the planned ${planned}: ${fmtLoad(cap.weight, ex.unit)} next time`,
         ),
       }
     }
@@ -478,8 +478,8 @@ export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number, known:
     return {
       weight,
       text: L(
-        `${r} reps${typeof s.rir === 'number' ? ` à RIR ${s.rir}` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite`,
-        `${r} reps${typeof s.rir === 'number' ? ` at RIR ${s.rir}` : ''}: ${fmtLoad(weight, ex.unit)} for the next sets`,
+        `${r} reps${typeof s.rir === 'number' ? ` avec ${s.rir} reps en réserve` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite`,
+        `${r} reps${typeof s.rir === 'number' ? ` with ${s.rir} reps in reserve` : ''}: ${fmtLoad(weight, ex.unit)} for the next sets`,
       ),
     }
   }

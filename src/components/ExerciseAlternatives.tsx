@@ -7,7 +7,7 @@ import { TYPE_META, ROTATION } from '../lib/program'
 import { useStore } from '../lib/store'
 import type { WorkoutType } from '../lib/types'
 import { ExerciseDemo } from './ExerciseDemo'
-import { Button, cx, Empty, Field, inputClass, Segmented } from './ui'
+import { Button, cx, Empty, Field, inputClass, SectionHeading, Segmented } from './ui'
 
 export type ExerciseReplacementTarget =
   | { kind: 'active'; index: number }
@@ -16,10 +16,11 @@ export type ExerciseReplacementTarget =
 type Scope = 'session' | 'program'
 const targetKey = (target: ExerciseReplacementTarget) => `${target.kind}:${target.kind === 'active' ? '' : target.type}:${target.index}`
 
-export function ExerciseAlternatives({ exerciseId, replacement, onReplaced }: {
+export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, showHeading = true }: {
   exerciseId: string
   replacement?: ExerciseReplacementTarget
   onReplaced?: () => void
+  showHeading?: boolean
 }) {
   const state = useStore(s => s.state)
   const setup = state.settings.setup
@@ -76,8 +77,8 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced }: {
   if (!all.length) return null
 
   return <section aria-label={L('Alternatives à cet exercice', 'Exercise alternatives')}>
-    <h3 className="text-[16px] font-semibold">{L('Remplacer cet exercice', 'Replace this exercise')}</h3>
-    <p className="mt-1 text-[13px] leading-[1.5] text-text-2">{L('Choisis une alternative, ou ouvre sa démo pour comparer le mouvement.', 'Choose an alternative, or open its demo to compare the movement.')}</p>
+    {showHeading && <SectionHeading icon={<Replace size={18} aria-hidden />}>{L('Remplacer cet exercice', 'Replace this exercise')}</SectionHeading>}
+    <p className={cx('text-[13px] leading-[1.5] text-text-2', showHeading && 'mt-2')}>{L('Choisis une alternative, ou ouvre sa démo pour comparer le mouvement.', 'Choose an alternative, or open its demo to compare the movement.')}</p>
     {target && <div className="mt-3 space-y-3">
       {targets.length > 1 ? <Field label={L('Séance à modifier', 'Session to change')}>
         <select className={inputClass} value={targetKey(target)} onChange={event => { setSelected(event.target.value); setScope('session') }}>

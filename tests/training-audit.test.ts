@@ -132,7 +132,7 @@ test('effort UI and persisted diagnostic reasons switch FR to EN to FR', () => {
     setLang(language)
     const html = renderToStaticMarkup(createElement(EffortGuidance, { exercise: ex }))
     assert.match(html, language === 'en' ? /Today’s instruction/ : /Consigne du jour/)
-    assert.match(html, /RIR 3/)
+    assert.match(html, language === 'en' ? /about 3 repetitions still possible/ : /environ 3 répétitions encore possibles/)
     const report = renderToStaticMarkup(createElement(EffortReport, { exercises: [ex] }))
     assert.match(report, language === 'en' ? /extra set/ : /supplémentaire/)
     const prev = exercise(); prev.prescription!.restSeconds = 60

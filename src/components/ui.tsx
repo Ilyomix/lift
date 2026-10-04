@@ -142,19 +142,24 @@ export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'ill
   )
 }
 
-export function Section({ title, action, children, className, art }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; art?: SportArtKind }) {
+/** Shared heading rhythm for sections and compact sheet content. */
+export function SectionHeading({ children, icon, action, className }: { children: ReactNode; icon?: ReactNode; action?: ReactNode; className?: string }) {
+  return <div className={cx('flex flex-wrap items-center justify-between gap-x-3 gap-y-2', className)}>
+    {children && <h2 className="flex min-w-0 items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">
+      {icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
+      <span className="min-w-0">{children}</span>
+    </h2>}
+    {action && <div className="min-w-0 max-w-full">{action}</div>}
+  </div>
+}
+
+export function Section({ title, action, children, className, art, icon }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; art?: SportArtKind; icon?: ReactNode }) {
   return (
-    <section className={cx(art ? 'mt-6' : 'mt-7', className)}>
+    <section className={cx('mt-6', className)}>
       {(title || action) && (
-        <div className={cx('mb-3 flex gap-y-2', art ? 'gap-x-2' : 'gap-x-3', art ? 'items-center' : 'flex-wrap items-center justify-between')}>
+        <div className={cx('mb-3', art && 'flex items-center gap-2')}>
           {art && <SportArt kind={art} size="title" />}
-          {art ? <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            {title && <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>}
-            {action && <div className="min-w-0">{action}</div>}
-          </div> : <>
-            {title ? <h2 className="min-w-0 text-[17px] font-semibold tracking-[-0.015em]">{title}</h2> : <span />}
-            {action && <div className="min-w-0 max-w-full">{action}</div>}
-          </>}
+          <SectionHeading icon={art ? undefined : icon} action={action} className={art ? 'min-w-0 flex-1' : undefined}>{title}</SectionHeading>
         </div>
       )}
       {children}
@@ -410,7 +415,7 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 
 // ───────────── Sheet (dialog) ─────────────
 
-export function Sheet({ open, onClose, title, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
+export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
   // The latest onClose, without re-running the focus effect: parents re-render
@@ -465,7 +470,10 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
         )}
       >
         <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
-          <h2 id={titleId} className="text-[17px] font-semibold tracking-[-0.015em]">{title}</h2>
+          <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">
+            {icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
+            <span className="min-w-0">{title}</span>
+          </h2>
           <IconButton label={L('Fermer', 'Close')} onClick={onClose} className="-mr-2">
             <X size={20} aria-hidden />
           </IconButton>

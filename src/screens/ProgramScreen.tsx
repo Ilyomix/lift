@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, ExternalLink, Plus, Trash } from 'lucide-react'
+import { BookOpen, CalendarDays, ChartNoAxesColumn, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, SlidersHorizontal, Trash, TriangleAlert } from 'lucide-react'
 import { dayName } from '../lib/date'
 import { fmtNum, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -17,7 +17,7 @@ import { alternativesFor } from '../lib/exerciseAlternatives'
 import { ProgramProgress } from '../components/ProgramProgress'
 import { SortableExerciseList } from '../components/SortableExerciseList'
 import { SportArt, workoutArt } from '../components/SportArt'
-import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, SectionHeading, Sheet, Tag } from '../components/ui'
 
 export function ProgramScreen() {
   const state = useStore((s) => s.state)
@@ -35,7 +35,7 @@ export function ProgramScreen() {
       : L(`environ ${weekPct} % du volume prévu`, `about ${weekPct}% of the planned volume`)
   return (
     <Screen>
-      <Header art="calendar"
+      <Header art="program"
         backTo="plus"
         eyebrow={L('Fondé sur la recherche', 'Research-based')}
         title={L('Programme', 'Program')}
@@ -48,15 +48,15 @@ export function ProgramScreen() {
       <ProgramProgress paused={state.programPause.active} />
 
       <Card className="p-4">
-        <h2 className="text-[17px] leading-[1.35] font-semibold tracking-[-0.015em]">{VERDICT_FREQUENCY.title}</h2>
+        <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{VERDICT_FREQUENCY.title}</SectionHeading>
         <p className="mt-3 text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.answer}</p>
-        <Disclosure bordered={false} className="mt-2" title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
+        <Disclosure bordered={false} className="mt-2" icon={<BookOpen size={18} aria-hidden />} title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
           <p className="text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.keep}</p>
           <RefList refs={VERDICT_FREQUENCY.refs} compact />
         </Disclosure>
       </Card>
 
-      <Section title={L('Semaine type', 'Typical week')}>
+      <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Semaine type', 'Typical week')}>
         <Card className="divide-y divide-line">
           {[1, 2, 3, 4, 5, 6, 0].map((d) => (
             <div key={d} className="grid items-center gap-2 px-4 py-3 min-[380px]:grid-cols-[6rem_minmax(0,1fr)]">
@@ -82,7 +82,7 @@ export function ProgramScreen() {
         </p>
       </Section>
 
-      <Section title={L('Séances', 'Sessions')}>
+      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Sessions')}>
         <Card className="divide-y divide-line">
           {ROTATION.map((t) => {
             const tpl = state.templates[t]
@@ -109,27 +109,27 @@ export function ProgramScreen() {
         )}
       </Section>
 
-      <Section title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
+      <Section icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
         <p className="-mt-1 mb-4 text-[13px] leading-[1.45] text-text-2">{L(`Volume prévu par le programme pour ${plural(weekly, 'séance', 'séances')} par semaine, en moyenne sur la rotation (comptage fractionnaire). Zone visée : 10–20.`, `Volume planned by the program for ${plural(weekly, 'session', 'sessions')} a week, on average over the rotation (fractional counting). Target zone: 10–20.`)}</p>
         <Card className="p-4">
           <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: planned[m.id] }))} />
         </Card>
       </Section>
 
-      <Section title={L('Règles', 'Rules')}>
+      <Section icon={<SlidersHorizontal size={18} aria-hidden />} title={L('Règles', 'Rules')}>
         <Card className="divide-y divide-line text-[14px] leading-[1.45]">
-          <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, au RIR visé, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, at the target RIR, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 sessions a week, the sheet’s sets are the ones that count: those added in the session come after, with fewer reps.') : '')} />
-          <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('S1 RIR 3 · S2 RIR 2 · S3–S4 RIR 1–2 (polyarticulaire) et 0–1 (isolation) · S5 RIR 0–1, dernière série d’isolation à l’échec technique.', 'W1 RIR 3 · W2 RIR 2 · W3–W4 RIR 1–2 (compound) and 0–1 (isolation) · W5 RIR 0–1, last isolation set to technical failure.')} />
+          <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, avec les répétitions en réserve prévues, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, with the planned reps in reserve, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 sessions a week, the sheet’s sets are the ones that count: those added in the session come after, with fewer reps.') : '')} />
+          <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('Répétitions en réserve : S1 3 · S2 2 · S3–S4 1–2 (polyarticulaire) et 0–1 (isolation) · S5 0–1, dernière série d’isolation à l’échec technique.', 'Reps in reserve: W1 3 · W2 2 · W3–W4 1–2 (compound) and 0–1 (isolation) · W5 0–1, last isolation set to technical failure.')} />
           <RuleRow title="Volume" text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
-          <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que le RIR prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned RIR counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
+          <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que l’effort prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned effort counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
           <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Une baisse compte à partir d’une rep par série en moyenne : en dessous, c’est la variation normale d’une séance à l’autre. Deux baisses de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'A drop counts from one rep per set on average: below that, it is the normal variation from one session to the next. Two drops in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 sessions without progress: flagged at the end of the session.')} />
           <RuleRow title={L('Exercice dans deux séances', 'Exercise in two sessions')} text={L('Même fourchette de reps : une seule charge, qui suit dans les deux séances. Fourchettes différentes (lourd dans l’une, plus léger dans l’autre) : chaque version garde sa charge et se compare à elle-même.', 'Same rep range: one load, which follows in both sessions. Different ranges (heavy in one, lighter in the other): each version keeps its own load and is compared with itself.')} />
-          <RuleRow title={L('Décharge', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')} />
+          <RuleRow title={L('Décharge', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, 3–4 reps en réserve.', 'Same exercises, half the sets, loads −10%, 3–4 reps in reserve.')} />
           <RuleRow title={L('Corrections', 'Corrections')} text={L('Un ajustement s’annule ou s’applique depuis la séance qui l’a fait (Progrès → Séances), tant que la fiche n’a pas changé et que l’exercice n’a pas été refait. La dernière séance terminée peut être rouverte pour corriger une série : tout est recalculé. Une décharge avancée s’annule depuis l’accueil.', 'An adjustment can be undone or applied from the session that made it (Progress → Sessions), as long as the sheet has not changed and the exercise has not been done again. The last finished session can be reopened to fix a set: everything is worked out again. An early deload can be cancelled from the home screen.')} />
         </Card>
       </Section>
 
-      <Section title={L('Ce que dit la recherche', 'What the research says')} action={<Button variant="ghost" onClick={() => navigate('plus/preuves')}>{L('Toutes les sources', 'All sources')}</Button>}>
+      <Section icon={<BookOpen size={18} aria-hidden />} title={L('Ce que dit la recherche', 'What the research says')} action={<Button variant="ghost" onClick={() => navigate('plus/preuves')}>{L('Toutes les sources', 'All sources')}</Button>}>
         <Card className="divide-y divide-line">
           {PRINCIPLES.map((p) => (
             <Disclosure key={p.id} bordered={false} className="px-4" title={
@@ -146,7 +146,7 @@ export function ProgramScreen() {
         </Card>
       </Section>
 
-      <Section title={L('Limites', 'Limitations')}>
+      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Limites', 'Limitations')}>
         <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
           {caveats().map((c) => <li key={c} className="flex gap-2"><span className="text-muted">—</span>{c}</li>)}
         </ul>
@@ -174,7 +174,7 @@ export function SourcesScreen() {
   const { reported, added, guidance } = sourceCounts()
   return (
     <Screen>
-      <Header art="calendar"
+      <Header art="evidence"
         backTo="plus/programme"
         eyebrow={L('Preuves', 'Evidence')}
         title="Sources"
@@ -220,7 +220,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         backTo="plus/programme"
         eyebrow={meta.fr !== meta.label ? meta.fr : undefined}
         title={meta.label}
-        sub={L('Touchez un exercice pour ajuster ses cibles. Les règles du bloc (RIR, décharges, reprises) s’appliquent automatiquement par-dessus.', 'Tap an exercise to adjust its targets. The block rules (RIR, deloads, returns) are applied automatically on top.')}
+        sub={L('Touchez un exercice pour ajuster ses cibles. Les règles du bloc (effort, décharges, reprises) s’appliquent automatiquement par-dessus.', 'Tap an exercise to adjust its targets. The block rules (effort, deloads, returns) are applied automatically on top.')}
       />
       {factor > 1 && (
         <p className="-mt-2 mb-4 text-[13px] leading-[1.45] text-text-2">
@@ -244,7 +244,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
           onSave={(patch) => { useStore.getState().editTemplateExercise(type, edit, patch); setEdit(null) }}
         />
       )}
-      <Sheet open={adding} onClose={() => setAdding(false)} title={L('Ajouter un exercice', 'Add exercise')} tall>
+      <Sheet open={adding} onClose={() => setAdding(false)} icon={<Plus size={18} aria-hidden />} title={L('Ajouter un exercice', 'Add exercise')} tall>
         <div className="divide-y divide-line">
           {addable.map((x) => (
             <button key={x.id} type="button" onClick={() => { addTemplateExercise(type, x.id); setAdding(false) }} className="pressable flex w-full items-center justify-between gap-3 px-1 py-3 text-left hover:bg-surface-2">
@@ -286,15 +286,15 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
       nextTarget: undefined,
     })
   return (
-    <Sheet open onClose={onClose} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
-      {alternativesFor(ex.exerciseId).length > 0 && <Disclosure className="mb-4" title={L('Alternatives à cet exercice', 'Exercise alternatives')}>
+    <Sheet open onClose={onClose} icon={<Dumbbell size={18} aria-hidden />} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
+      {alternativesFor(ex.exerciseId).length > 0 && <Disclosure className="mb-4" icon={<Repeat2 size={18} aria-hidden />} title={L('Alternatives à cet exercice', 'Exercise alternatives')}>
         <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} onReplaced={onClose} />
       </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
         {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À trouver', 'To find')} /></Field>}
         {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('Aucun', 'None')} /></Field>}
         <Field label={L('Séries', 'Sets')}><input className={inputClass} inputMode="numeric" value={v.sets} onChange={set('sets')} /></Field>
-        <Field label={L('RIR visé', 'Target RIR')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
+        <Field label={L('Répétitions en réserve visées', 'Target reps in reserve')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
         <Field label={L('Reps min', 'Min reps')}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>
         <Field label={L('Reps max', 'Max reps')}><input className={inputClass} inputMode="numeric" value={v.maxReps} onChange={set('maxReps')} /></Field>
         <Field label={L('Repos (s)', 'Rest (s)')} className="col-span-2"><input className={inputClass} inputMode="numeric" value={v.rest} onChange={set('rest')} /></Field>

@@ -34,7 +34,7 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
   const detail = exercise && prescription ? [
     exercise.unit === 'PDC' ? (weight ? `${lang === 'fr' ? 'PDC' : 'BW'} + ${displayWeight} kg` : (lang === 'fr' ? 'PDC' : 'BW')) : weight == null ? '' : `${displayWeight} ${exercise.unit === 'kg/main' ? (lang === 'fr' ? 'kg/main' : 'kg/hand') : exercise.unit}`,
     `${prescription.minReps}–${prescription.maxReps} reps`,
-    prescription.rir ? `RIR ${prescription.rir}` : '',
+    prescription.rir ? (lang === 'fr' ? `réserve ${prescription.rir}` : `${prescription.rir} in reserve`) : '',
   ].filter(Boolean).join(' · ') : ''
   const restEndAt = a.timer && Number.isFinite(a.timer.endAt) ? a.timer.endAt : null
   return {

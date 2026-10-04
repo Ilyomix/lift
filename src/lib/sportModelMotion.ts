@@ -17,6 +17,8 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
     calendar: [27, .35], chart: [29, 1.3], nutrition: [25, 2.4], backup: [31, 3.1],
     dumbbell: [28, .8], plate: [26, 1.8], settings: [32, 3.6], stopwatch: [30, 2.8],
     trophy: [24, 4.1], coach: [32, 0],
+    program: [29, .9], evidence: [32, 2.2], pause: [31, 3.3], reminders: [28, 1.4],
+    privacy: [30, 2.7], kit: [32, 1.7], logbook: [29, 3.8],
     'workout-upper': [28, 1.1], 'workout-lower': [30, 2.1], 'workout-push': [28.5, .5],
     'workout-pull': [29, 1.6], 'workout-legs': [31, 2.6],
   }
@@ -105,6 +107,30 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
           break
         case 'trophy':
           turn('CupPivot', Y, .20 * gesture(phase, .55, .5, .15, .7))
+          break
+        case 'program':
+          turn('ProgramClipPivot', X, -.24 * gesture(phase, .2, .35, .15, .55))
+          break
+        case 'evidence':
+          turn('EvidenceBookmarkPivot', X, .30 * gesture(phase, .2, .55, .10, .80))
+          break
+        case 'pause':
+          turn('HourglassPivot', X, .25 * gesture(phase, .2, .65, .15, .85))
+          break
+        case 'reminders': {
+          const ring = gesture(phase, .15, .25, 0, .35) - .65 * gesture(phase, .75, .25, 0, .45)
+          turn('BellSwingPivot', Z, .22 * ring)
+          turn('BellClapperPivot', Z, -.30 * ring)
+          break
+        }
+        case 'privacy':
+          move('LockShacklePivot', Y, .09 * gesture(phase, .2, .45, .20, .65))
+          break
+        case 'kit':
+          move('KitZipPullPivot', X, -.32 * gesture(phase, .2, .55, .20, .70))
+          break
+        case 'logbook':
+          turn('LogbookPencilPivot', Z, .16 * gesture(phase, .2, .55, .1, .70))
           break
       }
       return changed

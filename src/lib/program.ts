@@ -365,7 +365,7 @@ export function buildPeriods(
     last.phase = 'cut-end'
     last.volumeFactor = 0.8
     last.fixedRir = '1–2'
-    last.note = L('Volume ~80 % du bloc précédent, RIR 1–2.', 'Volume ~80% of the previous block, RIR 1–2.')
+    last.note = L('Volume ~80 % du bloc précédent, 1–2 reps en réserve.', 'Volume ~80% of the previous block, 1–2 reps in reserve.')
   }
   noteDeloads(out)
   const cutDeloads = out.filter((p) => p.kind === 'deload' && p.phase === 'cut')
@@ -452,7 +452,7 @@ function noteDeloads(out: Period[]) {
   for (const p of out) {
     if (p.kind !== 'deload') continue
     p.note = p.phase === 'recomp' || p.phase === 'upkeep'
-      ? L('Mêmes exercices, moitié des séries, charges −10 %, RIR 3–4.', 'Same exercises, half the sets, loads −10%, RIR 3–4.')
+      ? L('Mêmes exercices, moitié des séries, charges −10 %, 3–4 reps en réserve.', 'Same exercises, half the sets, loads −10%, 3–4 reps in reserve.')
       : L('Moitié des séries, déficit maintenu.', 'Half the sets, deficit kept.')
   }
 }
@@ -574,7 +574,7 @@ export function contextAt(date: ISODate): ProgramContext {
   if (manualDeloadAt(date) && period.kind !== 'deload') {
     return {
       date, period, phase, week, weeks, deload: true, title: L('Décharge anticipée', 'Early deload'),
-      effort: L('RIR 3–4 · séries ÷ 2', 'RIR 3–4 · sets ÷ 2'),
+      effort: L('3–4 reps en réserve · séries ÷ 2', '3–4 reps in reserve · sets ÷ 2'),
       effortDetail: L('Décharge avancée après une baisse générale des performances.', 'Deload brought forward after a general drop in performance.'),
       before: false, after: false,
     }
@@ -586,16 +586,16 @@ export function contextAt(date: ISODate): ProgramContext {
 }
 
 function weekEffort(p: Period, week: number): { short: string; detail: string } {
-  if (p.kind === 'deload') return { short: L('RIR 3–4 · séries ÷ 2', 'RIR 3–4 · sets ÷ 2'), detail: L('Semaine de décharge : mêmes exercices, moitié des séries, charges −10 %.', 'Deload week: same exercises, half the sets, loads −10%.') }
-  if (p.kind === 'holiday') return { short: L('RIR 2–3 · volume réduit', 'RIR 2–3 · reduced volume'), detail: L('3–4 séances à volume réduit pendant les fêtes.', '3–4 sessions at reduced volume over the holidays.') }
-  if (p.kind === 'stabilization') return { short: L('RIR 1–2 · volume −30 %', 'RIR 1–2 · volume −30%'), detail: L('Charges maintenues, volume réduit de 30 %.', 'Loads kept, volume reduced by 30%.') }
+  if (p.kind === 'deload') return { short: L('3–4 reps en réserve · séries ÷ 2', '3–4 reps in reserve · sets ÷ 2'), detail: L('Semaine de décharge : mêmes exercices, moitié des séries, charges −10 %.', 'Deload week: same exercises, half the sets, loads −10%.') }
+  if (p.kind === 'holiday') return { short: L('2–3 reps en réserve · volume réduit', '2–3 reps in reserve · reduced volume'), detail: L('3–4 séances à volume réduit pendant les fêtes.', '3–4 sessions at reduced volume over the holidays.') }
+  if (p.kind === 'stabilization') return { short: L('1–2 reps en réserve · volume −30 %', '1–2 reps in reserve · volume −30%'), detail: L('Charges maintenues, volume réduit de 30 %.', 'Loads kept, volume reduced by 30%.') }
   if (p.kind === 'pre') return { short: 'Baselines', detail: L('Ancien programme.', 'Previous program.') }
-  if (p.fixedRir) return { short: L(`RIR ${p.fixedRir} · volume 80 %`, `RIR ${p.fixedRir} · volume 80%`), detail: L('Fin de sèche : volume ~80 % du bloc précédent.', 'End of cut: volume ~80% of the previous block.') }
+  if (p.fixedRir) return { short: L(`${p.fixedRir} reps en réserve · volume 80 %`, `${p.fixedRir} reps in reserve · volume 80%`), detail: L('Fin de sèche : volume ~80 % du bloc précédent.', 'End of cut: volume ~80% of the previous block.') }
   const weeks = periodWeeks(p)
-  if (week === 1) return { short: L('RIR 3 · réintroduction', 'RIR 3 · ramp-up'), detail: L('Semaine 1 du bloc : on garde 3 répétitions en réserve.', 'Week 1 of the block: keep 3 reps in reserve.') }
-  if (week === 2) return { short: 'RIR 2', detail: L('Semaine 2 : 2 répétitions en réserve.', 'Week 2: 2 reps in reserve.') }
-  if (week >= weeks) return { short: L('RIR 0–1 · dernière semaine', 'RIR 0–1 · last week'), detail: L('Dernière série d’isolation jusqu’à l’échec technique.', 'Last isolation set to technical failure.') }
-  return { short: 'RIR 1–2 / 0–1', detail: L('RIR 1–2 en polyarticulaire, 0–1 en isolation.', 'RIR 1–2 on compound lifts, 0–1 on isolation.') }
+  if (week === 1) return { short: L('3 reps en réserve · réintroduction', '3 reps in reserve · ramp-up'), detail: L('Semaine 1 du bloc : on garde 3 répétitions en réserve.', 'Week 1 of the block: keep 3 reps in reserve.') }
+  if (week === 2) return { short: L('2 reps en réserve', '2 reps in reserve'), detail: L('Semaine 2 : 2 répétitions en réserve.', 'Week 2: 2 reps in reserve.') }
+  if (week >= weeks) return { short: L('0–1 rep en réserve · dernière semaine', '0–1 rep in reserve · last week'), detail: L('Dernière série d’isolation jusqu’à l’échec technique.', 'Last isolation set to technical failure.') }
+  return { short: L('1–2 / 0–1 reps en réserve', '1–2 / 0–1 reps in reserve'), detail: L('Garde 1–2 reps en réserve en polyarticulaire, 0–1 en isolation.', 'Keep 1–2 reps in reserve on compound lifts, 0–1 on isolation.') }
 }
 
 /** Effort target for one exercise on a given date. */
@@ -902,7 +902,7 @@ function lastWorkingWeight(workouts: Workout[], id: string): number | null {
 export function nextTargetText(ex: Pick<TemplateExercise, 'unit' | 'target'>): string {
   const { weight, sets, minReps, maxReps } = ex.target
   if (ex.unit !== 'PDC' && (weight === null || weight === undefined)) {
-    return L(`Séance d’essai : trouve une charge pour ${minReps}–${maxReps} reps à RIR 3.`, `Trial session: find a load for ${minReps}–${maxReps} reps at RIR 3.`)
+    return L(`Séance d’essai : trouve une charge pour ${minReps}–${maxReps} reps avec 3 reps en réserve.`, `Trial session: find a load for ${minReps}–${maxReps} reps with 3 reps in reserve.`)
   }
   return L(`${fmtLoad(weight, ex.unit)} · viser ${sets} × ${minReps}–${maxReps} propres, puis augmenter.`, `${fmtLoad(weight, ex.unit)} · aim for ${sets} × ${minReps}–${maxReps} clean reps, then go heavier.`)
 }
@@ -1299,18 +1299,18 @@ export function reentryForGap(days: number): ReentryInfo | null {
   if (days <= 13) {
     return {
       sessionsLeft: 2, days, setsFactor: 1, loadFactor: 0.925, rir: '2–3', label: L(`Reprise après ${days} j`, `Return after ${days} days`),
-      advice: L('Charges −5 à −10\u00a0% et RIR\u00a02–\u20603 pendant 2 séances, puis retour au bloc en cours.', 'Loads −5 to −10% and RIR\u00a02–\u20603 for 2 sessions, then back to the current block.'),
+      advice: L('Charges −5 à −10\u00a0% et 2–3 reps en réserve pendant 2 séances, puis retour au bloc en cours.', 'Loads −5 to −10% and 2–3 reps in reserve for 2 sessions, then back to the current block.'),
     }
   }
   if (days <= 21) {
     return {
       sessionsLeft: 5, days, setsFactor: 0.7, loadFactor: 1, rir: '3', label: L(`Reprise après ${days} j`, `Return after ${days} days`),
-      advice: L('Une semaine comme une semaine 1 : RIR\u00a03, −30\u00a0% de séries. Les gains reviennent vite.', 'One week run like week 1: RIR\u00a03, sets −30%. Gains come back quickly.'),
+      advice: L('Une semaine comme une semaine 1 : 3 reps en réserve, −30\u00a0% de séries. Les gains reviennent vite.', 'One week run like week 1: 3 reps in reserve, sets −30%. Gains come back quickly.'),
     }
   }
   return {
     sessionsLeft: 10, days, setsFactor: 0.7, loadFactor: 0.9, rir: '3', label: L(`Remise en route (${days} j)`, `Restart (${days} days)`),
-    advice: L('Deux semaines de remise en route : RIR\u00a03, −30\u00a0% de séries, charges −10\u00a0%.', 'Two restart weeks: RIR\u00a03, sets −30%, loads −10%.'),
+    advice: L('Deux semaines de remise en route : 3 reps en réserve, −30\u00a0% de séries, charges −10\u00a0%.', 'Two restart weeks: 3 reps in reserve, sets −30%, loads −10%.'),
   }
 }
 

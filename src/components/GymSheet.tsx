@@ -46,9 +46,9 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
       <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
     </button>
   )
-  if (home && !session) return <Sheet open onClose={onClose} title={L('Lieu d’entraînement', 'Where you train')}>{place}</Sheet>
+  if (home && !session) return <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={L('Lieu d’entraînement', 'Where you train')}>{place}</Sheet>
   return (
-    <Sheet open onClose={onClose} title={session ? L('Salle de cette séance', 'Gym for this session') : L('Lieu d’entraînement', 'Where you train')}>
+    <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this session') : L('Lieu d’entraînement', 'Where you train')}>
       <div className="divide-y divide-line overflow-hidden rounded-[12px] border border-line">
         {gyms.map((g) => (
           <button key={g.id} type="button" onClick={() => pick(g.id)} aria-pressed={g.id === current} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">

@@ -494,7 +494,7 @@ test('effort: a set pushed past the planned RIR counts for fewer reps, and never
   // A heavier load held only at failure: the target is what the planned effort allows, not the load itself.
   const jump = loadDecision(exo(all(120, 8, 0), week1))
   assert.deepEqual([jump?.kind, jump?.weight], ['up', 110])
-  assert.match(jump!.text, /RIR 0 .* RIR 3/)
+  assert.match(jump!.text, /0 reps en réserve .* 3 prévues/)
   assert.equal(loadDecision(exo(all(120, 8, 3), week1))?.weight, 120, 'held at the planned effort: adopted as it is')
   assert.equal(loadDecision(exo(all(105, 8, 0), week1)), null, 'no heavier than the target once brought back to the planned effort')
   // The case that showed the gap: a chest press taken from 60 to 80 kg, 3 × 6 at failure, with RIR 3 planned.

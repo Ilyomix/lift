@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Check, Dumbbell, House } from 'lucide-react'
+import { Check, Dumbbell, House, ListChecks, MapPin } from 'lucide-react'
 import { L } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { sessionItems } from '../lib/program'
 import { useStore } from '../lib/store'
 import type { Equipment, TrainingSetup } from '../lib/types'
-import { Button, cx, Disclosure, Sheet } from './ui'
+import { Button, cx, Disclosure, SectionHeading, Sheet } from './ui'
 
 /** Home equipment, in the order people usually own it. */
 export const EQUIPMENT: { id: Equipment; readonly label: string; readonly hint: string }[] = [
@@ -46,9 +46,9 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
               onClick={() => onChange({ ...value, place: p.id })}
               className={cx('pressable card flex items-start gap-3 p-4 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
             >
-              <Icon size={20} className={cx('mt-0.5 shrink-0', on ? 'text-signal-text' : 'text-text-2')} aria-hidden />
+              <Icon size={18} className={cx('mt-0.5 shrink-0', on ? 'text-signal-text' : 'text-text-2')} aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block text-[16px] font-semibold">{p.title}</span>
+                <span className="block text-[15px] font-semibold">{p.title}</span>
                 <span className="mt-0.5 block text-[13px] leading-[1.45] text-text-2">{p.text}</span>
               </span>
               <span className={cx('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border', on ? 'border-signal bg-signal text-signal-ink' : 'border-line-strong')}>
@@ -59,9 +59,9 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
         })}
       </div>
       {value.place === 'home' && (
-        <div className="mt-5">
-          <p className="text-[13px] font-medium text-text-2">{L('Ton matériel', 'Your equipment')}</p>
-          <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label={L('Ton matériel', 'Your equipment')}>
+        <div className="mt-6">
+          <SectionHeading icon={<Dumbbell size={18} aria-hidden />}>{L('Ton matériel', 'Your equipment')}</SectionHeading>
+          <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label={L('Ton matériel', 'Your equipment')}>
             {EQUIPMENT.map((e) => {
               const on = value.equipment.includes(e.id)
               return (
@@ -89,8 +89,8 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
           </p>
         </div>
       )}
-      <Disclosure title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
-        <p className="mt-2">{L('Première séance : haut du corps.', 'First session: upper body.')}</p>
+      <Disclosure icon={<ListChecks size={18} aria-hidden />} title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
+        <p>{L('Première séance : haut du corps.', 'First session: upper body.')}</p>
         <ul className="mt-2 space-y-1">{example.map((name, i) => <li key={name}>{i + 1}. {name}</li>)}</ul>
       </Disclosure>
     </div>
@@ -111,6 +111,7 @@ export function SetupSheet({ onClose }: { onClose: () => void }) {
     <Sheet
       open
       onClose={onClose}
+      icon={<MapPin size={18} aria-hidden />}
       title={L('Lieu d’entraînement', 'Where you train')}
       tall
       footer={<Button variant="primary" size="lg" full disabled={!changed} onClick={save}>{L('Enregistrer', 'Save')}</Button>}

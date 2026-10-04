@@ -23,7 +23,7 @@ function exerciseLines(state: AppState, w: Workout): string[] {
     const t = ex.prescription ?? { sets: ex.target.sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir: ex.target.rir ?? '', weight: ex.target.weight }
     // The session's sets can differ from the sheet's (deload, priority set, fewer than five days): the coach answers on the sheet.
     const sheet = t.sets !== ex.target.sets ? L(` (fiche : ${ex.target.sets})`, ` (sheet: ${ex.target.sets})`) : ''
-    const scheme = `${t.sets}${sheet} × ${t.minReps}–${t.maxReps}${t.rir ? `, RIR ${t.rir}` : ''}`
+    const scheme = `${t.sets}${sheet} × ${t.minReps}–${t.maxReps}${t.rir ? L(`, ${t.rir} reps en réserve`, `, ${t.rir} reps in reserve`) : ''}`
     lines.push(L(`- ${ex.name} [${ex.exerciseId}] · cible ${scheme} à ${fmtLoad(t.weight, ex.unit)}`, `- ${ex.name} [${ex.exerciseId}] · target ${scheme} at ${fmtLoad(t.weight, ex.unit)}`))
     if (ex.skipped) {
       const reason = ex.skipReason ? ` (${ex.skipReason})` : ''
@@ -35,7 +35,7 @@ function exerciseLines(state: AppState, w: Workout): string[] {
       const flags = s.flags.map((f) => FLAG_LABEL[f]).join(', ')
       const load = fmtLoad(s.weight, ex.unit)
       const clean = s.cleanReps ?? s.reps ?? 0
-      const extra = `${typeof s.rir === 'number' ? `, RIR ${s.rir}` : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`
+      const extra = `${typeof s.rir === 'number' ? L(`, ${s.rir} reps en réserve`, `, ${s.rir} reps in reserve`) : ''}${flags ? `, ${flags}` : ''}${s.note ? ` — ${s.note}` : ''}`
       lines.push(L(`  S${i + 1} : ${load} × ${s.reps ?? 0} (${clean} propres)${extra}`, `  Set ${i + 1}: ${load} × ${s.reps ?? 0} (${clean} clean)${extra}`))
     })
     if (ex.comparison) {
@@ -82,11 +82,11 @@ const rules = (share: number) =>
               `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week with the base sessions: the 5-session rotation spreads out, the week holds ${sharePhrase(share)}.`,
             )]
       : []),
-    L('- RIR 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc RIR 3, S2 RIR 2, dernière semaine RIR 0–1.', '- RIR 1–2 on compounds, 0–1 on isolation; block week 1 RIR 3, week 2 RIR 2, last week RIR 0–1.'),
-    L('- Double progression : quand toutes les séries atteignent le haut de la fourchette au RIR visé, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range at the target RIR, about +2.5% (smallest increment).'),
+    L('- Répétitions en réserve : 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc 3, S2 2, dernière semaine 0–1.', '- Reps in reserve: 1–2 on compounds, 0–1 on isolation; block week 1 3, week 2 2, last week 0–1.'),
+    L('- Double progression : quand toutes les séries atteignent le haut de la fourchette avec les répétitions en réserve prévues, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range with the planned reps in reserve, about +2.5% (smallest increment).'),
     L('- Performance en nette baisse 2 séances de suite sur un exercice (une rep par série ou plus à chaque fois ; moins, c’est la variation normale) : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.', '- Performance clearly down 2 sessions in a row on an exercise (one rep per set or more each time; less is normal variation): remove 1 set for that muscle; general drop: bring the deload forward.'),
     L('- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).', '- The app already adjusts loads after each session (double progression, lower when every set stays below the range): mostly suggest what it can’t see (technique, exercise choice, volume, recovery).'),
-    L('- Décharge : moitié des séries, charges −10 %, RIR 3–4.', '- Deload: half the sets, loads −10%, RIR 3–4.'),
+    L('- Décharge : moitié des séries, charges −10 %, 3–4 reps en réserve.', '- Deload: half the sets, loads −10%, 3–4 reps in reserve.'),
   ].join('\n')
 
 export function sessionPrompt(state: AppState, w: Workout): string {
@@ -169,7 +169,7 @@ export function globalPrompt(state: AppState): string {
   for (const type of WORKOUT_TYPES) {
     lines.push(L(`${type} :`, `${type}:`))
     for (const e of state.templates[type].exercises) {
-      lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, RIR ${e.target.rir ?? '—'}, ${fmtLoad(e.target.weight, e.unit)}`)
+      lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, ${L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}, ${fmtLoad(e.target.weight, e.unit)}`)
     }
   }
   lines.push('', L('Dernières séances :', 'Recent sessions:'))
@@ -253,7 +253,7 @@ export interface ChangePreview {
 }
 
 const describe = (e: Pick<TemplateExercise, 'unit' | 'target'>) =>
-  `${e.target.sets} × ${e.target.minReps}–${e.target.maxReps} · ${fmtLoad(e.target.weight, e.unit)}${e.target.rir ? ` · RIR ${e.target.rir}` : ''}`
+  `${e.target.sets} × ${e.target.minReps}–${e.target.maxReps} · ${fmtLoad(e.target.weight, e.unit)}${e.target.rir ? L(` · ${e.target.rir} reps en réserve`, ` · ${e.target.rir} reps in reserve`) : ''}`
 
 export function previewPlanUpdate(state: AppState, u: PlanUpdate): ChangePreview[] {
   return u.changes.map((c) => {

@@ -123,6 +123,12 @@ test('generated targets follow the language; personalised targets stay unchanged
   assert.equal(JSON.stringify(s), original)
   assert.equal(isGeneratedTarget('20 kg : viser 10 / 10 avec la consigne de mon coach'), false)
   assert.equal(isGeneratedTarget('Trial session: find a load for 8–12 reps at RIR 3.'), true)
+  assert.equal(isGeneratedTarget('Séance d’essai : trouve une charge pour 8–12 reps à RIR 3.'), true)
+  const trial = { ...ex, target: { ...ex.target, weight: null } }
+  for (const language of ['fr', 'en'] as const) {
+    setLang(language)
+    assert.equal(isGeneratedTarget(nextTargetText(trial)), true)
+  }
 })
 
 test('persisted active-session load hints switch languages and retain their data', () => {
@@ -130,12 +136,12 @@ test('persisted active-session load hints switch languages and retain their data
   const original = JSON.stringify(ex)
   setLang('en')
   const en = localizeLoadHint(ex)!
-  assert.equal(en.text, `18 reps at RIR 4: ${fmtLoad(22.5, ex.unit)} for the next sets`)
+  assert.equal(en.text, `18 reps with 4 reps in reserve: ${fmtLoad(22.5, ex.unit)} for the next sets`)
   assert.deepEqual(en.sets, [1, 2])
   setLang('fr')
-  assert.equal(localizeLoadHint({ ...ex, hint: en })?.text, `18 reps à RIR 4 : ${fmtLoad(22.5, ex.unit)} pour la suite`)
+  assert.equal(localizeLoadHint({ ...ex, hint: en })?.text, `18 reps avec 4 reps en réserve : ${fmtLoad(22.5, ex.unit)} pour la suite`)
   assert.equal(JSON.stringify(ex), original)
-  const custom = { ...ex, hint: { ...ex.hint!, text: 'Message externe : à vérifier' } }
+  const custom = { ...ex, hint: { ...ex.hint!, text: 'Message externe : garder RIR 3, à vérifier' } }
   setLang('en')
   assert.equal(localizeLoadHint(custom)?.text, custom.hint.text)
 })

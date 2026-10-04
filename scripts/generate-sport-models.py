@@ -3,11 +3,15 @@
 blender -b --factory-startup --python scripts/generate-sport-models.py -- dumbbell stopwatch
 Models: public/models/sport. Editable scenes and review renders: .local-release/sport-models.
 One Blender unit is one meter; these are normalized illustration props, not physical products.
+Section icons also produce alpha WebP fallbacks through the installed Python/Pillow
+encoder from their Blender PNG renders; no external illustration is substituted.
 """
 import bpy
 import bmesh
 import json
 import math
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from mathutils import Vector
@@ -372,6 +376,181 @@ def trophy():
     animate(cup,'rotation_euler',[(1,(0,0,0)),(91,(0,0,.12)),(181,(0,0,0)),(271,(0,0,-.12)),(END,(0,0,0))])
 
 
+def program():
+    """Three physical check rows on a sprung clipboard, not a calendar alias."""
+    box('ClipboardBoard',(0,0,0),(1.48,.17,1.98),'LiftGraphite',bevel=.085)
+    box('ClipboardPaper',(0,-.102,-.055),(1.27,.043,1.65),'LiftSilver',bevel=.035)
+    for row,z in enumerate([.48,.015,-.45]):
+        box('TaskTile'+str(row),(-.38,-.142,z),(.28,.033,.28),'LiftCobalt',bevel=.04)
+        line('TaskCheck'+str(row),[(-.463,-.168,z+.008),(-.405,-.168,z-.058),(-.30,-.168,z+.073)],.021,'LiftSilver')
+        box('TaskTitle'+str(row),(.16,-.143,z+.05),(.55,.025,.075),'LiftGraphite',bevel=.014)
+        box('TaskDetail'+str(row),(.095,-.143,z-.073),(.42,.025,.039),'LiftGraphite',bevel=.012)
+    clip=empty('ProgramClipPivot',GEOMETRY,(0,-.025,.91))
+    cylinder('ClipAxle',(0,0,0),.055,.65,'LiftSilver',axis='X',vertices=24,bevel=.01,parent=clip)
+    box('SpringClip',(0,-.13,-.062),(.64,.21,.23),'LiftCobalt',bevel=.047,parent=clip)
+    box('ClipLip',(0,-.245,-.135),(.65,.047,.056),'LiftSilver',bevel=.014,parent=clip)
+    animate(clip,'rotation_euler',[(1,(0,0,0)),(71,(-.16,0,0)),(141,(0,0,0)),(END,(0,0,0))])
+
+
+def evidence():
+    """Open bound research book, curved page blocks and a real ribbon hinge."""
+    def page_y(t):
+        return -.16+.19*(t-.32)**2
+    def panel(name,side,y_offset,mat,depth):
+        verts=[]; faces=[]; steps=12
+        for back in [False,True]:
+            for i in range(steps+1):
+                t=i/steps
+                x=side*(.055+1.025*t)
+                y=page_y(t)+y_offset+(depth if back else 0)
+                for z in [-.72,.72]:
+                    verts.append((x,y,z))
+        layer=(steps+1)*2
+        for i in range(steps):
+            a=i*2
+            faces += [(a,a+1,a+3,a+2),(layer+a+2,layer+a+3,layer+a+1,layer+a),
+                      (a,a+2,layer+a+2,layer+a),(a+1,layer+a+1,layer+a+3,a+3)]
+        faces += [(0,layer,layer+1,1),(steps*2,steps*2+1,layer+steps*2+1,layer+steps*2)]
+        return mesh(name,verts,faces,mat,bevel=.012)
+    for side in [-1,1]:
+        panel('BookCover'+str(side),side,.095,'LiftGraphite',.05)
+        panel('PageBlock'+str(side),side,0,'LiftSilver',.086)
+        for z in [-.688,-.647,.647,.688]:
+            line('LeafEdge',[(side*(.055+1.025*t),page_y(t)+.063,z) for t in [j/12 for j in range(13)]],.006,'LiftGraphite')
+    cylinder('BookSpine',(0,.052,0),.081,1.48,'LiftGraphite',axis='Z',vertices=24,bevel=.02)
+    for row,z in enumerate([.39,.17,-.05,-.27,-.49]):
+        line('PrintedParagraph'+str(row),[(-(.055+1.025*t),page_y(t)-.011,z) for t in [.16,.3,.5,.72,.86]],.016,'LiftGraphite')
+    # A small connected molecular figure is authored mesh, not external text/art.
+    centers=[(.40,.29),(.76,.16),(.72,-.23),(.36,-.32),(.19,-.03)]
+    for i,(x,z) in enumerate(centers):
+        t=(x-.055)/1.025; y=page_y(t)-.026
+        sphere('ResearchAtom'+str(i),(x,y,z),(.057,.032,.057),'LiftCobalt',segments=16)
+        nx,nz=centers[(i+1)%len(centers)]
+        nt=(nx-.055)/1.025
+        line('ResearchBond'+str(i),[(x,y,z),(nx,page_y(nt)-.026,nz)],.017,'LiftCobalt')
+    ribbon=empty('EvidenceBookmarkPivot',GEOMETRY,(.83,-.095,.755))
+    badge('Ribbon',[(-.11,.025),(.11,.025),(.11,-.83),(0,-.745),(-.11,-.83)],-.06,.025,'LiftCobalt',parent=ribbon)
+    animate(ribbon,'rotation_euler',[(1,(0,0,0)),(101,(.14,0,0)),(201,(0,0,0)),(END,(0,0,0))])
+
+
+def lathed_shell(name,profile,mat='LiftSilver',parent=None,segments=36):
+    """Closed radial profile: real shell thickness and no shader transparency."""
+    verts=[]; faces=[]
+    for radius,z in profile:
+        for i in range(segments):
+            a=math.tau*i/segments
+            verts.append((radius*math.cos(a),radius*math.sin(a),z))
+    for j in range(len(profile)):
+        nj=(j+1)%len(profile)
+        for i in range(segments):
+            ni=(i+1)%segments
+            faces.append((j*segments+i,j*segments+ni,nj*segments+ni,nj*segments+i))
+    return mesh(name,verts,faces,mat,parent=parent)
+
+
+def pause():
+    """Recovery hourglass held by a static frame on two real side trunnions."""
+    for z in [-.86,.86]:
+        cylinder('HourglassStand',(0,0,z),.62,.105,'LiftGraphite',axis='Z',vertices=32,bevel=.025)
+        torus('StandTrim',(0,0,z),.575,.018,'LiftSilver',axis='Z')
+    for side in [-1,1]:
+        cylinder('FrameColumn'+str(side),(side*.535,.075,0),.048,1.70,'LiftGraphite',axis='Z',vertices=20,bevel=.012)
+        cylinder('Trunnion'+str(side),(side*.31,0,0),.043,.45,'LiftSilver',axis='X',vertices=20,bevel=.01)
+    glass=empty('HourglassPivot',GEOMETRY)
+    torus('VesselWaist',(0,0,0),.073,.016,'LiftSilver',axis='Z',parent=glass)
+    for z in [-.685,.685]:
+        cylinder('VesselCap',(0,0,z),.395,.065,'LiftCobalt',axis='Z',vertices=32,bevel=.015,parent=glass)
+        torus('VesselRim',(0,0,z),.36,.018,'LiftSilver',axis='Z',parent=glass)
+    profile=[(.34,-.65),(.30,-.46),(.18,-.22),(.073,0),(.18,.22),(.30,.46),(.34,.65)]
+    for j in range(4):
+        angle=math.pi/4+j*math.pi/2
+        line('VesselMeridian'+str(j),[(r*math.cos(angle),r*math.sin(angle),z) for r,z in profile],.018,'LiftSilver',parent=glass)
+    lathed_shell('UpperSand',[(.018,.12),(.27,.50),(.27,.515),(.018,.515)],'LiftCobalt',glass,28)
+    lathed_shell('LowerSand',[(.012,-.30),(.31,-.64),(.012,-.64)],'LiftCobalt',glass,28)
+    cylinder('SandStream',(0,0,-.09),.018,.43,'LiftCobalt',axis='Z',vertices=12,bevel=0,parent=glass)
+    animate(glass,'rotation_euler',[(1,(0,0,0)),(101,(.12,0,0)),(191,(0,0,0)),(END,(0,0,0))])
+
+
+def reminders():
+    """Hollow metal bell, separate clapper and a fixed handle above its axle."""
+    torus('BellHandle',(0,0,.84),.185,.042,'LiftGraphite',axis='Y')
+    cylinder('BellAxle',(0,0,.635),.069,.24,'LiftSilver',axis='X',vertices=20,bevel=.012)
+    bell=empty('BellSwingPivot',GEOMETRY,(0,0,.635))
+    profile=[(.10,-.055),(.22,-.10),(.32,-.24),(.365,-.50),(.40,-.77),(.54,-.98),(.59,-1.01),
+             (.585,-1.08),(.525,-1.08),(.48,-1.01),(.345,-.80),(.31,-.51),(.26,-.27),(.15,-.17),(.075,-.15)]
+    lathed_shell('BellShell',profile,'LiftSilver',bell,40)
+    torus('BellCobaltLip',(0,0,-1.035),.564,.033,'LiftCobalt',axis='Z',parent=bell)
+    cylinder('BellCrown',(0,0,-.07),.135,.12,'LiftCobalt',axis='Z',vertices=24,bevel=.021,parent=bell)
+    clapper=empty('BellClapperPivot',bell,(0,0,-.20))
+    cylinder('ClapperStem',(0,0,-.42),.027,.83,'LiftGraphite',axis='Z',vertices=16,bevel=.009,parent=clapper)
+    sphere('ClapperBall',(0,0,-.86),(.113,.113,.13),'LiftGraphite',parent=clapper,segments=20)
+    animate(bell,'rotation_euler',[(1,(0,0,0)),(61,(0,.14,0)),(111,(0,-.09,0)),(161,(0,0,0)),(END,(0,0,0))])
+    animate(clapper,'rotation_euler',[(1,(0,0,0)),(71,(0,-.18,0)),(121,(0,.12,0)),(171,(0,0,0)),(END,(0,0,0))])
+
+
+def privacy():
+    """Forged shield with layered rim and an independently lifting lock shackle."""
+    shape=[(0,1.0),(.29,.92),(.65,.78),(.70,.42),(.66,.03),(.53,-.39),(.29,-.71),(0,-.91),
+           (-.29,-.71),(-.53,-.39),(-.66,.03),(-.70,.42),(-.65,.78),(-.29,.92)]
+    badge('ShieldBacking',shape,.06,.20,'LiftGraphite')
+    badge('ShieldRim',[(x*.956,z*.956) for x,z in shape],-.065,.065,'LiftSilver')
+    badge('ShieldFace',[(x*.84,z*.84+.017) for x,z in shape],-.11,.05,'LiftCobalt')
+    lock=empty('LockShacklePivot',GEOMETRY,(0,-.20,.14))
+    points=[(-.23,0,.02),(-.23,0,.28)]
+    points += [(.23*math.cos(a),0,.28+.23*math.sin(a)) for a in [math.pi-j*math.pi/18 for j in range(19)]]
+    points += [(.23,0,.02)]
+    line('LockShackle',points,.045,'LiftSilver',parent=lock)
+    box('LockBody',(0,-.25,-.055),(.64,.21,.49),'LiftGraphite',bevel=.075)
+    cylinder('KeyholeHead',(0,-.366,-.007),.060,.018,'LiftSilver',axis='Y',vertices=20,bevel=.006)
+    box('KeyholeStem',(0,-.366,-.079),(.038,.018,.11),'LiftSilver',bevel=.009)
+    animate(lock,'location',[(1,(0,-.20,.14)),(91,(0,-.20,.21)),(161,(0,-.20,.14)),(END,(0,-.20,.14))])
+
+
+def kit():
+    """Soft-sided sports duffel with sewn straps, front pocket and zip hardware."""
+    box('DuffelBody',(0,0,0),(1.98,.90,.99),'LiftGraphite',bevel=.20)
+    for side in [-1,1]:
+        box('EndPanel'+str(side),(side*.953,0,0),(.069,.77,.83),'LiftInk',bevel=.08)
+        line('WebbingFront'+str(side),[(side*.59,-.40,-.32),(side*.59,-.46,.15),(side*.59,-.35,.48)],.047,'LiftInk')
+        line('WebbingBack'+str(side),[(side*.59,.40,-.32),(side*.59,.46,.15),(side*.59,.35,.48)],.047,'LiftInk')
+        torus('StrapRing'+str(side),(side*1.012,0,.24),.079,.016,'LiftSilver',axis='X')
+    box('FrontPocket',(0,-.465,-.04),(1.06,.085,.43),'LiftCobalt',bevel=.073)
+    line('PocketZip',[(-.40,-.512,.12),(.40,-.512,.12)],.018,'LiftSilver')
+    zipper=empty('KitZipPullPivot',GEOMETRY,(.30,-.531,.066))
+    box('PocketZipPull',(0,0,0),(.040,.021,.092),'LiftSilver',bevel=.009,parent=zipper)
+    line('TopZip',[(-.73,-.035,.484),(.73,-.035,.484)],.023,'LiftSilver')
+    handles=empty('KitHandlePivot',GEOMETRY,(0,0,.43))
+    for y in [-.29,.29]:
+        points=[(-.58,y,.02),(-.47,y,.27),(-.35,y,.48),(-.17,y,.59),(.17,y,.59),(.35,y,.48),(.47,y,.27),(.58,y,.02)]
+        line('CarryHandle',points,.048,'LiftGraphite',parent=handles)
+    box('HandleWrap',(0,0,.60),(.38,.66,.12),'LiftGraphite',bevel=.05,parent=handles)
+    animate(zipper,'location',[(1,(.30,-.531,.066)),(101,(-.27,-.531,.066)),(181,(.30,-.531,.066)),(END,(.30,-.531,.066))])
+
+
+def logbook():
+    """Closed workout journal and a separately articulated mechanical pencil."""
+    box('JournalPages',(.025,0,-.015),(1.17,.24,1.69),'LiftSilver',bevel=.025)
+    for y in [-.15,.15]:
+        box('JournalCover',(0,y,0),(1.29,.065,1.82),'LiftGraphite',bevel=.05)
+    box('JournalSpine',(-.60,0,0),(.16,.36,1.81),'LiftCobalt',bevel=.065)
+    for y in [-.075,0,.075]:
+        line('PageEdges',[(.615,y,-.78),(.615,y,.76)],.005,'LiftGraphite')
+    # An embossed training graph differentiates a workout log from plain notes.
+    line('JournalChartAxes',[(-.36,-.193,.42),(-.36,-.193,-.12),(.23,-.193,-.12)],.017,'LiftSilver')
+    line('JournalChart',[(-.28,-.204,.025),(-.11,-.204,.12),(.035,-.204,.12),(.21,-.204,.35)],.028,'LiftCobalt')
+    for z,width in [(-.38,.55),(-.52,.42)]:
+        box('JournalEntry',(-.055,-.193,z),(width,.023,.043),'LiftSilver',bevel=.009)
+    box('ElasticClosure',(.40,-.192,0),(.064,.025,1.70),'LiftInk',bevel=.012)
+    pencil=empty('LogbookPencilPivot',GEOMETRY,(.67,-.24,.02))
+    cylinder('PencilBarrel',(0,0,.13),.056,1.30,'LiftGraphite',axis='Z',vertices=6,bevel=.008,parent=pencil)
+    cylinder('PencilGrip',(0,0,-.54),.059,.20,'LiftSilver',axis='Z',vertices=24,bevel=.013,parent=pencil)
+    lathed_shell('PencilTip',[(.055,-.63),(.020,-.80),(.014,-.85),(.005,-.85),(.043,-.63)],'LiftSilver',pencil,24)
+    cylinder('PencilLead',(0,0,-.866),.009,.036,'LiftInk',axis='Z',vertices=12,bevel=0,parent=pencil)
+    cylinder('PencilEnd',(0,0,.80),.068,.12,'LiftCobalt',axis='Z',vertices=24,bevel=.018,parent=pencil)
+    line('PencilClip',[(0,-.055,.72),(0,-.095,.64),(0,-.095,.37),(0,-.065,.33)],.015,'LiftSilver',parent=pencil)
+    animate(pencil,'rotation_euler',[(1,(0,-.08,0)),(101,(0,.025,0)),(181,(0,-.08,0)),(END,(0,-.08,0))])
+
+
 def merge_static_meshes():
     """Lossless batching: never cross a material boundary or animated pivot."""
     meshes=[obj for obj in bpy.context.scene.objects if obj.type=='MESH']
@@ -402,7 +581,10 @@ def merge_static_meshes():
 
 
 MODELS = {'dumbbell': dumbbell, 'plate':plate, 'stopwatch': stopwatch, 'calendar':calendar,
-          'chart':chart,'nutrition':nutrition,'settings':settings,'backup':backup,'coach':coach,'trophy':trophy}
+          'chart':chart,'nutrition':nutrition,'settings':settings,'backup':backup,'coach':coach,'trophy':trophy,
+          'program':program,'evidence':evidence,'pause':pause,'reminders':reminders,'privacy':privacy,'kit':kit,'logbook':logbook}
+
+SECTION_MODELS = {'program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook'}
 
 
 def build(name):
@@ -435,7 +617,7 @@ def build(name):
     scale = 2 / max(high-low)
     GEOMETRY.location = -center * scale
     GEOMETRY.scale = (scale,)*3
-    if name not in {'nutrition', 'plate'}:
+    if name not in {'nutrition', 'plate'} | SECTION_MODELS:
         yaw = math.radians(7)
         animate(art, 'rotation_euler', [(1, (0, 0, 0)), (91, (0, 0, yaw)), (181, (0, 0, 0)), (271, (0, 0, -yaw)), (END, (0, 0, 0))])
     scene.frame_set(0)
@@ -488,7 +670,20 @@ def build(name):
     bpy.ops.wm.save_as_mainfile(filepath=str(WORK / (name+'.blend')))
     scene.render.filepath = str(WORK / (name+'.png'))
     bpy.ops.render.render(write_still=True)
-    record = {'name': name, 'bytes': path.stat().st_size, 'meshes': len(meshes), 'meshBatching': {'before':before_merge,'after':after_merge,'method':'Lossless join by direct parent and identical material; animated pivots preserved'}, 'triangles': sum(len(o.data.loop_triangles) for o in meshes), 'sourceBounds': [list(low), list(high)], 'normalizationScale': scale, 'cameraOrthoScale': cam_data.ortho_scale, 'durationSeconds': 6, 'authoringFps': FPS, 'materials': list(MAT), 'license': 'Original Lift artwork; no external assets or textures'}
+    fallback = None
+    if name in SECTION_MODELS:
+        fallback = ROOT / 'src/assets/sport' / (name+'.webp')
+        encoder = shutil.which('python3')
+        if encoder is None:
+            raise RuntimeError('Python with Pillow is required for section-icon fallbacks')
+        subprocess.run([encoder, '-c',
+            "from PIL import Image; import sys; Image.open(sys.argv[1]).convert('RGBA').save(sys.argv[2], 'WEBP', quality=92, method=6)",
+            scene.render.filepath, str(fallback)], check=True)
+    for obj in meshes:
+        obj.data.calc_loop_triangles()
+    record = {'name': name, 'bytes': path.stat().st_size, 'meshes': len(meshes), 'meshBatching': {'before':before_merge,'after':after_merge,'method':'Lossless join by direct parent and identical material; animated pivots preserved'}, 'triangles': sum(len(o.data.loop_triangles) for o in meshes), 'sourceBounds': [list(low), list(high)], 'normalizationScale': scale, 'cameraOrthoScale': cam_data.ortho_scale, 'durationSeconds': 6, 'authoringFps': FPS, 'materials': list(MAT), 'animatedPivots': [obj.name for obj in scene.objects if obj.animation_data], 'staticArtRoot': art.animation_data is None, 'license': 'Original Lift artwork; no external assets or textures'}
+    if fallback:
+        record['fallback'] = {'path': str(fallback.relative_to(ROOT)), 'bytes': fallback.stat().st_size, 'source': str((WORK / (name+'.png')).relative_to(ROOT)), 'method': 'Blender Cycles RGBA PNG encoded as WebP with Pillow; alpha preserved'}
     (WORK / (name+'.json')).write_text(json.dumps(record, indent=2)+'\n')
     print('LIFT_MODEL', json.dumps(record), flush=True)
 
