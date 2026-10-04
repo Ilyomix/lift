@@ -25,7 +25,7 @@ private struct LiftMark: View {
               let source = UIImage(contentsOfFile: path) else { return UIImage() }
         // This PNG is a shared bundle resource, not an asset-catalog image.
         // Decode it explicitly and keep WidgetKit's archived image small while
-        // preserving enough pixels for the largest 28 pt mark @3x.
+        // preserving enough pixels for the largest 24 pt mark @3x.
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let bounds = CGRect(x: 0, y: 0, width: 128, height: 128)
@@ -237,7 +237,7 @@ struct LiftActivity: Widget {
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 7) {
-                        LiftMark(size: 28)
+                        LiftMark(size: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lift")
                                 .font(.custom("Geologica-Bold", fixedSize: 12))
@@ -247,6 +247,10 @@ struct LiftActivity: Widget {
                                 .lineLimit(1)
                         }
                     }
+                    // Keep the artwork inside the expanded island's curved corner.
+                    // Padding reserves real space without replacing system margins.
+                    .padding(.leading, 12)
+                    .padding(.top, 6)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 3) {
@@ -281,12 +285,16 @@ struct LiftActivity: Widget {
                     .padding(.top, 2)
                 }
             } compactLeading: {
-                LiftMark(size: 26)
+                LiftMark(size: 22)
+                    .padding(2)
+                    .frame(width: 26, height: 26)
             } compactTrailing: {
                 RestClock(state: state, size: 12, isStale: context.isStale)
                     .frame(width: 52, alignment: .trailing)
             } minimal: {
-                LiftMark(size: 26)
+                LiftMark(size: 22)
+                    .padding(2)
+                    .frame(width: 26, height: 26)
             }
             .keylineTint(accent)
             .widgetURL(state.workoutURL)
