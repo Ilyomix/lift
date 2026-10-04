@@ -1,6 +1,6 @@
 import { NativeSessionEffects } from './components/NativeSessionEffects'
 import { isNative } from './lib/native/bridge'
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useLayoutEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { RefreshCw } from 'lucide-react'
 import { L, resolveLang } from './lib/i18n'
@@ -10,6 +10,7 @@ import type { WorkoutType } from './lib/types'
 import { WORKOUT_TYPES } from './lib/types'
 import { RestDock, SessionEffects } from './components/RestTimer'
 import { TabBar } from './components/TabBar'
+import { SwipeNavigation } from './components/SwipeNavigation'
 import { Button, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
 import { Home } from './screens/Home'
@@ -83,6 +84,13 @@ export default function App() {
   // Strings are read at render: a language change remounts the whole tree.
   const langKey = useStore((s) => resolveLang(s.state.prefs.lang))
   const path = useRoute()
+  const routeKey = path.join('/')
+
+  useLayoutEffect(() => {
+    // Hash links also navigate without calling navigate(). Reset after the
+    // destination mounts, so a long source page cannot leave it scrolled down.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [routeKey])
 
   useEffect(() => {
     void useStore.getState().init()
@@ -121,7 +129,8 @@ export default function App() {
     <Fragment key={langKey}>
       {effects}
       <div className="status-scrim" aria-hidden />
-      <Routes key={path.join('/')} path={path} />
+      <SwipeNavigation path={path} />
+      <Routes key={routeKey} path={path} />
       <RestDock />
       <TabBar current={path[0] ?? ''} />
       <ImportResultSheet />
