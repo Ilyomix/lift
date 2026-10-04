@@ -6,7 +6,7 @@ import { fmtClock } from '../lib/format'
 import { L } from '../lib/i18n'
 import { preparePush, pushReady } from '../lib/push'
 import { useStore } from '../lib/store'
-import { cx } from './ui'
+import { cx, IconButton, Segmented } from './ui'
 
 function useNow(active: boolean) {
   const [now, setNow] = useState(() => Date.now())
@@ -197,12 +197,13 @@ function DockButton({ label, onClick, children, accent }: { label: string; onCli
 
 /**
  * Full-screen rest: the time left in seven-segment figures inside a bezel of 180 graduations
- * that go out one by one, what comes next under it, and the three actions within thumb reach.
+ * that go out one by one, what comes next under it, and compact adjustments within thumb reach.
  * It follows the app's theme and accent.
  */
 function RestOverlay({ remaining, progress, onClose }: { remaining: number; progress: number; onClose: () => void }) {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const { adjustRest, stopRest } = useStore.getState()
+  const [step, setStep] = useState('15')
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
@@ -214,13 +215,13 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   // 180 graduations, lit clockwise from the top for the time left; all lit again when the rest is over.
   const TICKS = 180
   const lit = done ? TICKS : Math.ceil((1 - progress) * TICKS)
-  // Fifteen seconds, one minute, five minutes: one stepper each on a single row, minus on its left, plus on its right.
+  // Choose the adjustment step, then use one shared pair of controls.
   const steps = [
-    { s: 15, label: '15 s', name: L('15 secondes', '15 seconds') },
-    { s: 60, label: '1 min', name: L('1 minute', '1 minute') },
-    { s: 300, label: '5 min', name: L('5 minutes', '5 minutes') },
+    { value: '15', label: '15 s', name: L('15 secondes', '15 seconds') },
+    { value: '60', label: '1 min', name: L('1 minute', '1 minute') },
+    { value: '300', label: '5 min', name: L('5 minutes', '5 minutes') },
   ]
-  const nudge = 'pressable flex h-11 w-11 shrink-0 items-center justify-center text-text disabled:opacity-35'
+  const selectedStep = steps.find((x) => x.value === step)!
   return (
     <div role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
@@ -264,15 +265,15 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
           )}
         </div>
       </div>
-      <div className="shrink-0 px-5 pb-5">
-        <div className="grid gap-2 min-[440px]:grid-cols-3">
-          {steps.map((x) => (
-            <div key={x.s} role="group" aria-label={x.name} className="flex min-h-12 items-center justify-between rounded-[12px] border border-line-strong">
-              <button type="button" onClick={() => adjustRest(-x.s)} disabled={done} aria-label={L(`Retirer ${x.name}`, `Take off ${x.name}`)} className={nudge}><Minus size={18} strokeWidth={2.25} aria-hidden /></button>
-              <span className="min-w-0 flex-1 text-center text-[13px] font-semibold whitespace-nowrap text-text-2 tnum" aria-hidden>{x.label}</span>
-              <button type="button" onClick={() => adjustRest(x.s)} aria-label={L(`Ajouter ${x.name}`, `Add ${x.name}`)} className={nudge}><Plus size={18} strokeWidth={2.25} aria-hidden /></button>
-            </div>
-          ))}
+      <div className="mx-auto w-full max-w-[440px] shrink-0 px-5 pb-5">
+        <div className="flex items-center gap-2">
+          <IconButton label={L(`Retirer ${selectedStep.name}`, `Take off ${selectedStep.name}`)} onClick={() => adjustRest(-Number(step))} disabled={done} className="border border-line-strong">
+            <Minus size={18} strokeWidth={2.25} aria-hidden />
+          </IconButton>
+          <Segmented value={step} onChange={setStep} options={steps} layout="fit" label={L('Pas d’ajustement du repos', 'Rest adjustment step')} className="min-w-0 flex-1 tnum" />
+          <IconButton label={L(`Ajouter ${selectedStep.name}`, `Add ${selectedStep.name}`)} onClick={() => adjustRest(Number(step))} className="border border-line-strong">
+            <Plus size={18} strokeWidth={2.25} aria-hidden />
+          </IconButton>
         </div>
         <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer le repos', 'Skip rest')}</button>
       </div>
