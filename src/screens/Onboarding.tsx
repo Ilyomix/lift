@@ -125,7 +125,7 @@ export function Onboarding() {
         <h1 ref={title} tabIndex={-1} className="min-w-0 flex-1 text-[30px] leading-[1.1] font-semibold tracking-[-0.03em] outline-none">{titles[step]}</h1>
       </div>
 
-      <div className="flex-1 py-5">
+      <div className="flex-1 py-5 [&_.disclosure]:border-b-0">
         {step === 1 && <SetupPicker value={d.setup} onChange={(setup) => patch({ setup })} />}
         {step === 2 && <DaysStep days={d.days} onChange={(days) => patch({ days })} />}
         {step === 3 && <BodyStep d={d} patch={patch} />}

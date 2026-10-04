@@ -25,7 +25,7 @@ private struct LiftMark: View {
               let source = UIImage(contentsOfFile: path) else { return UIImage() }
         // This PNG is a shared bundle resource, not an asset-catalog image.
         // Decode it explicitly and keep WidgetKit's archived image small while
-        // preserving enough pixels for the largest 28 pt mark and its crop @3x.
+        // preserving enough pixels for the largest 28 pt mark @3x.
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let bounds = CGRect(x: 0, y: 0, width: 128, height: 128)
@@ -41,8 +41,7 @@ private struct LiftMark: View {
             .interpolation(.high)
             .scaledToFit()
             .frame(width: size, height: size)
-            // Trim the icon's outer safe area so its official mark remains legible at 24 pt.
-            .scaleEffect(1.5)
+            // Preserve the official artwork's safe area on every activity surface.
             .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
             .accessibilityLabel("Lift")
     }
@@ -229,22 +228,27 @@ struct LiftActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 5) {
+                    VStack(alignment: .trailing, spacing: 3) {
                         if state.timerRange != nil && !context.isStale {
                             Text(state.restLabel.uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)
                                 .foregroundStyle(muted)
+                                .lineLimit(1)
+                                // The top-right corner curves inward above the clock.
+                                .padding(.trailing, 12)
                         }
                         RestClock(state: state, size: 25, isStale: context.isStale)
                     }
                     .frame(width: 112, alignment: .trailing)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    // Keep the full summary and progress inside the expanded height budget.
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(state.exercise)
                             .font(.custom("Geologica-SemiBold", fixedSize: 17))
-                            .lineLimit(2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                         Text([state.setLabel, state.detail].filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.custom("Geologica-Medium", fixedSize: 12))
                             .foregroundStyle(muted)
@@ -253,7 +257,7 @@ struct LiftActivity: Widget {
                         WorkoutProgress(state: state)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 6)
+                    .padding(.top, 2)
                 }
             } compactLeading: {
                 LiftMark(size: 26)
