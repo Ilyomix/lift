@@ -280,6 +280,9 @@ struct LiftActivity: Widget {
                             .lineLimit(1)
                         WorkoutActions(state: state, isStale: context.isStale)
                         WorkoutProgress(state: state)
+                            // This final row sits inside the island's lower curve.
+                            // Inset both ends without increasing the height budget.
+                            .padding(.horizontal, 20)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
