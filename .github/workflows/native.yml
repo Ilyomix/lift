@@ -40,6 +40,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test native rest timing
+        run: swift test --package-path tests/native-timing
       - uses: actions/setup-node@v4
         with:
           node-version: 24

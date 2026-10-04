@@ -8,6 +8,12 @@ private let muted = Color(red: 0.65, green: 0.70, blue: 0.79)
 private let activityBackground = Color(red: 0.035, green: 0.05, blue: 0.085)
 
 private extension WorkoutAttributes.ContentState {
+    func restHeading(isStale: Bool) -> String {
+        presentation(isStale: isStale) == .restFinished
+            ? (restLabel == "Repos" ? "Repos terminé" : "Rest over")
+            : restLabel
+    }
+
     var workoutURL: URL? {
         var components = URLComponents()
         components.scheme = "lift"
@@ -165,7 +171,7 @@ private struct LockScreenWorkout: View {
 
     var body: some View {
         let showRest = state.presentation(isStale: isStale).canAdjustRest
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 LiftMark(size: 24)
                 Text("Lift")
@@ -184,42 +190,43 @@ private struct LockScreenWorkout: View {
                     .fixedSize()
             }
 
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(state.exercise)
-                        .font(.custom("Geologica-SemiBold", fixedSize: 17))
+                        .font(.custom("Geologica-SemiBold", fixedSize: 16))
                         .lineLimit(2)
                         .minimumScaleFactor(0.85)
                     if !state.detail.isEmpty {
                         Text(state.detail)
-                            .font(.custom("Geologica-Medium", fixedSize: 11))
+                            .font(.custom("Geologica-Medium", fixedSize: 10))
                             .foregroundStyle(muted)
                             .lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                RestClock(state: state, size: 32, isStale: isStale)
-                    .frame(width: 136, alignment: .trailing)
+                RestClock(state: state, size: 30, isStale: isStale)
+                    .frame(width: 128, alignment: .trailing)
                     .overlay(alignment: .topTrailing) {
                         if showRest {
-                            Text(state.restLabel.uppercased())
+                            Text(state.restHeading(isStale: isStale).uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.7)
                                 .foregroundStyle(muted)
-                                .offset(y: -14)
+                                .lineLimit(1)
+                                .offset(y: -12)
                         }
                     }
             }
             // Reserve label space above the row: align the actual readout, rather
             // than the combined label/readout height, with the exercise details.
-            .padding(.top, showRest ? 14 : 0)
+            .padding(.top, showRest ? 10 : 0)
 
             WorkoutActions(state: state, isStale: isStale)
             WorkoutProgress(state: state)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .activityBackgroundTint(activityBackground)
         .activitySystemActionForegroundColor(.white)
         .foregroundStyle(.white)
@@ -247,23 +254,18 @@ struct LiftActivity: Widget {
                                 .lineLimit(1)
                         }
                     }
-                    // Keep the artwork inside the expanded island's curved corner.
-                    // Padding reserves real space without replacing system margins.
-                    .padding(.leading, 12)
-                    .padding(.top, 6)
+                    .padding(.leading, 6)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 3) {
                         if showRest {
-                            Text(state.restLabel.uppercased())
+                            Text(state.restHeading(isStale: context.isStale).uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)
                                 .foregroundStyle(muted)
                                 .lineLimit(1)
-                                // The top-right corner curves inward above the clock.
-                                .padding(.trailing, 12)
                         }
-                        RestClock(state: state, size: 25, isStale: context.isStale)
+                        RestClock(state: state, size: 23, isStale: context.isStale)
                     }
                     .frame(width: 112, alignment: .trailing)
                 }
@@ -271,34 +273,38 @@ struct LiftActivity: Widget {
                     // Keep the full summary and progress inside the expanded height budget.
                     VStack(alignment: .leading, spacing: 4) {
                         Text(state.exercise)
-                            .font(.custom("Geologica-SemiBold", fixedSize: 17))
+                            .font(.custom("Geologica-SemiBold", fixedSize: 16))
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                         Text([state.setLabel, state.detail].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.custom("Geologica-Medium", fixedSize: 12))
+                            .font(.custom("Geologica-Medium", fixedSize: 11))
                             .foregroundStyle(muted)
                             .lineLimit(1)
-                        WorkoutActions(state: state, isStale: context.isStale)
                         WorkoutProgress(state: state)
-                            // This final row sits inside the island's lower curve.
-                            // Inset both ends without increasing the height budget.
-                            .padding(.horizontal, 20)
+                        WorkoutActions(state: state, isStale: context.isStale)
+                            .padding(.horizontal, 8)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
                 }
             } compactLeading: {
-                LiftMark(size: 22)
-                    .padding(2)
+                LiftMark(size: 20)
+                    .padding(3)
                     .frame(width: 26, height: 26)
             } compactTrailing: {
                 RestClock(state: state, size: 12, isStale: context.isStale)
                     .frame(width: 52, alignment: .trailing)
             } minimal: {
-                LiftMark(size: 22)
-                    .padding(2)
+                LiftMark(size: 20)
+                    .padding(3)
                     .frame(width: 26, height: 26)
             }
+            // Give WidgetKit the margins for the whole expanded presentation.
+            // Reserve the curved corners explicitly instead of relying on the
+            // default mask geometry. Progress stays above the lower button row.
+            .contentMargins(.horizontal, 24, for: .expanded)
+            .contentMargins(.top, 16, for: .expanded)
+            .contentMargins(.bottom, 16, for: .expanded)
             .keylineTint(accent)
             .widgetURL(state.workoutURL)
         }

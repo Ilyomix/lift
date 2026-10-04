@@ -3,15 +3,6 @@ import AppIntents
 import Foundation
 import UserNotifications
 
-struct PendingWorkoutAction: Codable {
-    var id: String
-    var workoutId: String
-    var expectedRestEndAt: Double
-    var restEndAt: Double?
-    var restTotal: Double
-    var action: String
-}
-
 extension Notification.Name {
     static let workoutActionPerformed = Notification.Name("LiftWorkoutActionPerformed")
 }
@@ -69,12 +60,12 @@ enum WorkoutActivityActions {
                 return
             }
             if let pending = pendingActions.last {
-                // Only the acknowledged JS store can distinguish an obsolete rest from
-                // a snapshot captured before an in-flight native action completed.
-                if pending.workoutId == state.workoutId {
-                    state.restEndAt = pending.restEndAt
-                    state.restTotal = pending.restTotal
-                } else {
+                // Reconcile only snapshots belonging to this action's rest. Keep
+                // obsolete actions until JS acknowledges them after durable storage.
+                if let result = PendingWorkoutAction.latest(matching: state.restEndAt, workoutId: state.workoutId, in: pendingActions) {
+                    state.restEndAt = result.restEndAt
+                    state.restTotal = result.restTotal
+                } else if pending.workoutId != state.workoutId {
                     UserDefaults.standard.removeObject(forKey: pendingKey)
                 }
             }
@@ -100,12 +91,6 @@ enum WorkoutActivityActions {
     /// Defined in a shared source; UIKit is unavailable to extension code for app-state access.
     static var mayStartActivity = false
 
-    // App Intents may round a Double parameter during transport. Deadlines are
-    // milliseconds, so sub-millisecond differences still identify the same rest.
-    private static func sameDeadline(_ lhs: Double, _ rhs: Double) -> Bool {
-        abs(lhs - rhs) < 1
-    }
-
     private static func startIfForeground(state: WorkoutAttributes.ContentState, content: ActivityContent<WorkoutAttributes.ContentState>) throws {
         guard mayStartActivity else { return }
         _ = try Activity.request(attributes: WorkoutAttributes(workoutId: state.workoutId), content: content, pushType: nil)
@@ -121,10 +106,9 @@ enum WorkoutActivityActions {
             let previous = pendingActions
             // A repeated tap on a not-yet-redrawn button may still carry the first deadline.
             // A different session or rest cannot be changed by an obsolete notification.
-            let matchesPending = previous.last?.workoutId == workoutId
-                && previous.last?.restEndAt == currentEnd
-                && previous.contains { $0.workoutId == workoutId && sameDeadline($0.expectedRestEndAt, expectedRestEndAt) }
-            guard sameDeadline(currentEnd, expectedRestEndAt) || matchesPending else { return false }
+            let matching = PendingWorkoutAction.latest(matching: expectedRestEndAt, workoutId: workoutId, in: previous)
+            let matchesPending = matching != nil && PendingWorkoutAction.sameDeadline(matching?.restEndAt, currentEnd)
+            guard PendingWorkoutAction.sameDeadline(currentEnd, expectedRestEndAt) || matchesPending else { return false }
 
             if action == "add30" {
                 guard state.extendRest(by: 30) else { return false }

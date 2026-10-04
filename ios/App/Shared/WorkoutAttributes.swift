@@ -1,6 +1,40 @@
 import ActivityKit
 import Foundation
 
+struct PendingWorkoutAction: Codable {
+    var id: String
+    var workoutId: String
+    var expectedRestEndAt: Double
+    var restEndAt: Double?
+    var restTotal: Double
+    var action: String
+
+    // Intent parameters can lose sub-millisecond precision during transport.
+    static func sameDeadline(_ lhs: Double?, _ rhs: Double?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (left?, right?): return abs(left - right) < 1
+        default: return false
+        }
+    }
+
+    static func latest(matching expectedRestEndAt: Double?, workoutId: String, in actions: [Self]) -> Self? {
+        guard let latest = actions.last, latest.workoutId == workoutId else { return nil }
+        if sameDeadline(expectedRestEndAt, latest.restEndAt) { return latest }
+        var expected = latest.expectedRestEndAt
+        if sameDeadline(expectedRestEndAt, expected) { return latest }
+        // Only follow the latest rest's contiguous +30/skip chain. Older,
+        // unacknowledged actions for a previous set must not overwrite a new rest.
+        for previous in actions.dropLast().reversed() {
+            guard previous.workoutId == workoutId,
+                  sameDeadline(previous.restEndAt, expected) else { break }
+            expected = previous.expectedRestEndAt
+            if sameDeadline(expectedRestEndAt, expected) { return latest }
+        }
+        return nil
+    }
+}
+
 enum WorkoutActivityPresentation: Equatable {
     case countdown, restFinished, ready, sessionExpired
 
@@ -35,11 +69,12 @@ struct WorkoutAttributes: ActivityAttributes {
             return min(end, expirationDate)
         }
 
-        func presentation(isStale: Bool = false, at now: Date = Date()) -> WorkoutActivityPresentation {
+        func presentation(isStale _: Bool = false, at now: Date = Date()) -> WorkoutActivityPresentation {
             guard expirationDate > now else { return .sessionExpired }
-            guard let end = endDate else { return isStale ? .sessionExpired : .ready }
-            if end <= now || (isStale && end < expirationDate) { return .restFinished }
-            return isStale ? .sessionExpired : .countdown
+            // Freshness describes ActivityKit's content, not whether this rest ended.
+            // A new deadline (+30 s or the next set) wins over an old stale flag.
+            guard let end = endDate else { return .ready }
+            return end <= now ? .restFinished : .countdown
         }
 
         @discardableResult
