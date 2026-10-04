@@ -264,6 +264,10 @@ struct LiftActivity: Widget {
                                 .tracking(1.2)
                                 .foregroundStyle(muted)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                // The heading sits higher than the timer, where
+                                // the Island's rounded corner needs more inset.
+                                .padding(.trailing, 12)
                         }
                         RestClock(state: state, size: 23, isStale: context.isStale)
                     }
