@@ -280,9 +280,9 @@ function Tile({ label, value, foot, detail, chart, onClick, children }: { label:
 
 function NutriCell({ label, value, unit, target, ratio }: { label: string; value: number; unit: string; target: string; ratio: number }) {
   return (
-    <div className="min-w-0 bg-signal-soft p-3">
+    <div className="min-w-0 p-3">
       <p className="text-[12px] font-medium text-text-2">{label}</p>
-      <p className="mt-1.5 text-[20px] leading-none font-semibold tracking-[-0.02em] text-signal-text tnum">
+      <p className="mt-1.5 text-[20px] leading-none font-semibold tracking-[-0.02em] text-text tnum">
         {fmtNum(value, 0)}
         <span className="ml-0.5 text-[12px] font-medium text-muted">{unit}</span>
       </p>
