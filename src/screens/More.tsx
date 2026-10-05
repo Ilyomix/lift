@@ -456,7 +456,6 @@ export function DataScreen() {
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>
       {error && <p className="mt-3 text-[13px] text-bad">{error}</p>}
-      <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Compatible avec les sauvegardes de ton ancien Golgoth Tracker (même format).', 'Compatible with backups from your old Golgoth Tracker (same format).')}</p>
 
       <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Suppression des données', 'Delete data')}>
         <Button variant="danger" full onClick={() => setReset(true)}>{L('Effacer les données de Lift', 'Erase Lift data')}</Button>
