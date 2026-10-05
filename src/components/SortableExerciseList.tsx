@@ -47,7 +47,6 @@ export function SortableExerciseList({ exercises, inSession, onEdit, onMove }: P
     </div>}
   </DragOverlay>
   return <>
-    <p className="mb-3 text-[13px] leading-5 text-text-2">{L('Glisse la poignée pour changer l’ordre.', 'Drag the handle to change the order.')}</p>
     <DndContext
       id={contextId} sensors={sensors} collisionDetection={closestCenter} modifiers={[verticalOnly]}
       accessibility={{

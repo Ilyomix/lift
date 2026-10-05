@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { BookOpen, CalendarDays, ChartNoAxesColumn, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, SlidersHorizontal, Trash, TriangleAlert } from 'lucide-react'
+import { BookOpen, CalendarDays, ChartNoAxesColumn, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, RotateCcw, SlidersHorizontal, Trash, TriangleAlert } from 'lucide-react'
 import { dayName } from '../lib/date'
 import { fmtNum, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES } from '../lib/library'
-import { daysFactor, DEFAULT_SCHEDULE, doableAt, keepsPlan, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
+import { daysFactor, defaultExerciseOrder, DEFAULT_SCHEDULE, doableAt, keepsPlan, PLAN_DAYS, ROTATION, scaledSession, SESSION_MUSCLE_CAP, sessionMinutes, sessionSlots, sharePhrase, takesLest, templateSets, trainingDays, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { caveats, PRINCIPLES, sourceCounts, SOURCES, VERDICT_FREQUENCY } from '../lib/research'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -211,7 +211,7 @@ export function SourcesScreen() {
 export function TemplateEditor({ type }: { type: WorkoutType }) {
   const tpl = useStore((s) => s.state.templates[type])
   const setup = useStore((s) => s.state.settings.setup)
-  const { reorderTemplateExercise, removeTemplateExercise, addTemplateExercise } = useStore.getState()
+  const { reorderTemplateExercise, resetTemplateOrder, removeTemplateExercise, addTemplateExercise } = useStore.getState()
   // At home, only what the equipment allows; at the gym, everything.
   const addable = Object.values(LIBRARY).filter((x) => !setup || doableAt(x.id, setup))
   const [edit, setEdit] = useState<number | null>(null)
@@ -220,6 +220,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const factor = daysFactor()
   if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Workout not found')} action={<Button onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available workout.')}</Empty></Screen>
   const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
+  const canResetOrder = defaultExerciseOrder(type, tpl.exercises, setup).some((index, position) => index !== position)
   const meta = TYPE_META[type]
   return (
     <Screen>
@@ -238,7 +239,20 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         </p>
       )}
       {tpl.exercises.length ? (
-        <SortableExerciseList key={type} exercises={tpl.exercises} inSession={inSession} onEdit={setEdit} onMove={(from, to) => reorderTemplateExercise(type, from, to)} />
+        <>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <p className="text-[13px] leading-5 text-text-2">{L('Glisse la poignée pour changer l’ordre.', 'Drag the handle to change the order.')}</p>
+            <Button variant="ghost" size="sm" icon={<RotateCcw size={16} aria-hidden />} disabled={!canResetOrder}
+              aria-label={L('Rétablir l’ordre par défaut', 'Restore default order')}
+              onClick={() => {
+                resetTemplateOrder(type)
+                useStore.getState().notify(L('Ordre rétabli. Exercices et réglages conservés.', 'Order restored. Exercises and settings kept.'))
+              }}>
+              {L('Ordre par défaut', 'Default order')}
+            </Button>
+          </div>
+          <SortableExerciseList key={type} exercises={tpl.exercises} inSession={inSession} onEdit={setEdit} onMove={(from, to) => reorderTemplateExercise(type, from, to)} />
+        </>
       ) : <Empty art={workoutArt[type]} title={L('Compose ta séance', 'Build your workout')}>{L('Ajoute un exercice pour préparer cette fiche.', 'Add an exercise to prepare this workout.')}</Empty>}
       <Button variant="outline" size="lg" full className="mt-3" icon={<Plus size={18} aria-hidden />} onClick={() => setAdding(true)}>{L('Ajouter un exercice', 'Add exercise')}</Button>
 

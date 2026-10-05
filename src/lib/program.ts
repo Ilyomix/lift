@@ -888,6 +888,22 @@ export function sessionItems(type: WorkoutType, setup: TrainingSetup = { place: 
   })
 }
 
+/** Original indices in program order; keep extra exercises and repeated occurrences stable. */
+export function defaultExerciseOrder(type: WorkoutType, exercises: TemplateExercise[], setup?: TrainingSetup): number[] {
+  const ranks = new Map(sessionItems(type, setup).map((item, index) => [item.id, index]))
+  const groups: number[][] = []
+  for (let index = 0; index < exercises.length; index++) {
+    const group = [index]
+    while (exercises[index].supersetWithNext && index + 1 < exercises.length) group.push(++index)
+    // An alternative has no saved program slot. Preserve its current pairing
+    // whether it replaces the head or partner, rather than changing rest.
+    if (group.some(i => !ranks.has(exercises[i].exerciseId))) groups.push(group)
+    else groups.push(...group.map(i => [i]))
+  }
+  return groups.sort((a, b) =>
+    (ranks.get(exercises[a[0]].exerciseId) ?? ranks.size) - (ranks.get(exercises[b[0]].exerciseId) ?? ranks.size)).flat()
+}
+
 const SETUP_NOTE = /si[eè]ge|rep[eè]re|technogym|initial load|r[eé]glage|pieds|poign[ée]e|dossier/i
 
 function lastWorkingWeight(workouts: Workout[], id: string): number | null {

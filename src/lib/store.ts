@@ -8,7 +8,7 @@ import { roundTo, uid } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
-  buildResearchTemplates, configurePlan, contextAt, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
+  buildResearchTemplates, configurePlan, contextAt, defaultExerciseOrder, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
   reentryForGap, scheduledGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
@@ -127,6 +127,7 @@ interface Store {
   removeTemplateExercise: (type: WorkoutType, index: number) => void
   moveTemplateExercise: (type: WorkoutType, index: number, dir: -1 | 1) => void
   reorderTemplateExercise: (type: WorkoutType, from: number, to: number) => void
+  resetTemplateOrder: (type: WorkoutType) => void
   setExerciseVideo: (exerciseId: string, url: string) => void
   applyPlan: (u: PlanUpdate) => void
 
@@ -1012,6 +1013,19 @@ export const useStore = create<Store>((set, get) => ({
       exercises.splice(to, 0, exercises.splice(from, 1)[0])
       const templates = { ...s.templates, [type]: { ...tpl, exercises } }
       return { ...s, templates, sessionReplacements: normalizeSessionReplacements(s.sessionReplacements, templates) }
+    }),
+
+  resetTemplateOrder: (type) =>
+    get().update((s) => {
+      const tpl = s.templates[type]
+      if (!tpl) return s
+      const order = defaultExerciseOrder(type, tpl.exercises, s.settings.setup)
+      if (order.every((index, position) => index === position)) return s
+      const templates = { ...s.templates, [type]: { ...tpl, exercises: order.map(index => tpl.exercises[index]) } }
+      // A one-workout alternative follows its original occurrence, even for duplicate IDs.
+      const choices = s.sessionReplacements?.[type]
+      const replacements = choices ? { ...s.sessionReplacements, [type]: choices.map(choice => ({ ...choice, index: order.indexOf(choice.index) })) } : s.sessionReplacements
+      return { ...s, templates, sessionReplacements: normalizeSessionReplacements(replacements, templates) }
     }),
 
   setExerciseVideo: (exerciseId, url) =>
