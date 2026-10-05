@@ -1,4 +1,4 @@
-import type { ActiveWorkout } from '../types'
+import type { ActiveWorkout, Prefs } from '../types'
 
 /** Flat, versioned contract shared by ActivityKit and the Android service. Epochs are milliseconds. */
 export interface WorkoutActivityState {
@@ -16,9 +16,11 @@ export interface WorkoutActivityState {
   restLabel: string
   readyLabel: string
   progressLabel: string
+  theme: 'light' | 'dark'
+  accent: Prefs['accent']
 }
 
-export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en', now = Date.now()): WorkoutActivityState | null {
+export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en', now = Date.now(), appearance: Partial<Pick<Prefs, 'theme' | 'accent'>> & { systemDark?: boolean } = {}): WorkoutActivityState | null {
   if (!a || a.reopened) return null
   const exercises = a.exercises.filter(e => !e.skipped)
   // A rest may follow a set entered out of order: prefer the store's explicit next exercise.
@@ -48,5 +50,8 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
     restLabel: lang === 'fr' ? 'Repos' : 'Rest',
     readyLabel: lang === 'fr' ? 'Prêt' : 'Ready',
     progressLabel: lang === 'fr' ? (totalSets === 1 ? 'série' : 'séries') : (totalSets === 1 ? 'set' : 'sets'),
+    // WidgetKit's colorScheme can follow the wallpaper. Send the app's actual mode.
+    theme: appearance.theme === 'dark' || (appearance.theme !== 'light' && appearance.systemDark) ? 'dark' : 'light',
+    accent: appearance.accent ?? 'blue',
   }
 }

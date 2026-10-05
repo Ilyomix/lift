@@ -3,9 +3,37 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
-private let accent = Color(red: 0.35, green: 0.65, blue: 1)
-private let muted = Color(red: 0.65, green: 0.70, blue: 0.79)
-private let activityBackground = Color(red: 0.035, green: 0.05, blue: 0.085)
+private struct ActivityPalette {
+    let isDark: Bool
+    let background: Color
+    let text: Color
+    let muted: Color
+    let accent: Color
+    let progress: Color
+    let actionBackground: Color
+    let accentBackground: Color
+
+    init(isDark: Bool, accent: String?) {
+        self.isDark = isDark
+        let orange = accent == "orange"
+        // sRGB equivalents of the app's surface/text/muted tokens in index.css.
+        // Signal text uses the contrast-safe variant, not the brighter fill token.
+        background = Self.color(isDark ? (orange ? 0x121315 : 0x0D131D) : 0xFFFFFF)
+        text = Self.color(isDark ? (orange ? 0xF5F5F6 : 0xF3F5F9) : (orange ? 0x151619 : 0x0F1623))
+        muted = Self.color(isDark ? (orange ? 0x919295 : 0x8B939F) : (orange ? 0x68696B : 0x636975))
+        self.accent = Self.color(isDark ? (orange ? 0xFF9A3D : 0x7AA7FF) : (orange ? 0xB34F00 : 0x1D4ED8))
+        progress = Self.color(isDark ? (orange ? 0xFF8A1F : 0x5B93FF) : (orange ? 0xE06A00 : 0x2563EB))
+        actionBackground = Self.color(isDark ? (orange ? 0x1B1C1E : 0x151C28) : (orange ? 0xEFF0F2 : 0xECF0F8))
+        accentBackground = Self.color(orange ? 0xFF7B00 : (isDark ? 0x3068F5 : 0x2563EB))
+            .opacity(isDark ? 0.18 : 0.10)
+    }
+
+    private static func color(_ hex: UInt32) -> Color {
+        Color(.sRGB, red: Double((hex >> 16) & 0xFF) / 255,
+              green: Double((hex >> 8) & 0xFF) / 255,
+              blue: Double(hex & 0xFF) / 255, opacity: 1)
+    }
+}
 
 private extension WorkoutAttributes.ContentState {
     func restHeading(isStale: Bool) -> String {
@@ -57,6 +85,7 @@ private struct RestClock: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let state: WorkoutAttributes.ContentState
+    let palette: ActivityPalette
     var size: CGFloat
     var isStale = false
 
@@ -113,21 +142,22 @@ private struct RestClock: View {
         .lineLimit(1)
         .minimumScaleFactor(0.65)
         .multilineTextAlignment(.trailing)
-        .foregroundStyle(accent)
+        .foregroundStyle(palette.accent)
     }
 }
 
 private struct WorkoutProgress: View {
     let state: WorkoutAttributes.ContentState
+    let palette: ActivityPalette
 
     var body: some View {
         HStack(spacing: 10) {
             ProgressView(value: Double(state.completedSets), total: Double(max(1, state.totalSets)))
-                .tint(accent)
+                .tint(palette.progress)
             Text("\(state.completedSets)/\(state.totalSets) \(state.progressLabel)")
                 .font(.custom("Geologica-Medium", fixedSize: 10))
                 .monospacedDigit()
-                .foregroundStyle(muted)
+                .foregroundStyle(palette.muted)
                 .fixedSize()
         }
     }
@@ -135,6 +165,7 @@ private struct WorkoutProgress: View {
 
 private struct WorkoutActions: View {
     let state: WorkoutAttributes.ContentState
+    let palette: ActivityPalette
     let isStale: Bool
 
     var body: some View {
@@ -157,7 +188,7 @@ private struct WorkoutActions: View {
             }
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.white)
+        .foregroundStyle(palette.accent)
     }
 
     private func actionLabel(_ title: String, symbol: String) -> some View {
@@ -167,15 +198,20 @@ private struct WorkoutActions: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
-        .background(.white.opacity(0.08), in: Capsule())
+        .background(palette.actionBackground, in: Capsule())
     }
 }
 
 private struct LockScreenWorkout: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let state: WorkoutAttributes.ContentState
     let isStale: Bool
 
     var body: some View {
+        let palette = ActivityPalette(isDark: state.usesDarkAppearance(systemIsDark: colorScheme == .dark,
+                                                                      isLuminanceReduced: isLuminanceReduced),
+                                      accent: state.accent)
         let showRest = state.presentation(isStale: isStale).canAdjustRest
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
@@ -184,15 +220,15 @@ private struct LockScreenWorkout: View {
                     .font(.custom("Geologica-Bold", fixedSize: 14))
                 Text("· \(state.workoutType)")
                     .font(.custom("Geologica-Medium", fixedSize: 12))
-                    .foregroundStyle(muted)
+                    .foregroundStyle(palette.muted)
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Text(state.setLabel)
                     .font(.custom("Geologica-SemiBold", fixedSize: 11))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(palette.accent)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(accent.opacity(0.12), in: Capsule())
+                    .background(palette.accentBackground, in: Capsule())
                     .fixedSize()
             }
 
@@ -205,20 +241,20 @@ private struct LockScreenWorkout: View {
                     if !state.detail.isEmpty {
                         Text(state.detail)
                             .font(.custom("Geologica-Medium", fixedSize: 10))
-                            .foregroundStyle(muted)
+                            .foregroundStyle(palette.muted)
                             .lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                RestClock(state: state, size: 30, isStale: isStale)
+                RestClock(state: state, palette: palette, size: 30, isStale: isStale)
                     .frame(width: 128, alignment: .trailing)
                     .overlay(alignment: .topTrailing) {
                         if showRest {
                             Text(state.restHeading(isStale: isStale).uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.7)
-                                .foregroundStyle(muted)
+                                .foregroundStyle(palette.muted)
                                 .lineLimit(1)
                                 .offset(y: -12)
                         }
@@ -228,14 +264,15 @@ private struct LockScreenWorkout: View {
             // than the combined label/readout height, with the exercise details.
             .padding(.top, showRest ? 10 : 0)
 
-            WorkoutActions(state: state, isStale: isStale)
-            WorkoutProgress(state: state)
+            WorkoutActions(state: state, palette: palette, isStale: isStale)
+            WorkoutProgress(state: state, palette: palette)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .activityBackgroundTint(activityBackground)
-        .activitySystemActionForegroundColor(.white)
-        .foregroundStyle(.white)
+        .activityBackgroundTint(palette.background)
+        .activitySystemActionForegroundColor(palette.text)
+        .foregroundStyle(palette.text)
+        .environment(\.colorScheme, palette.isDark ? .dark : .light)
     }
 }
 
@@ -246,6 +283,9 @@ struct LiftActivity: Widget {
                 .widgetURL(context.state.workoutURL)
         } dynamicIsland: { context in
             let state = context.state
+            // Apple keeps every Island presentation on an opaque black surface,
+            // independently of the app's appearance or the Lock Screen palette.
+            let palette = ActivityPalette(isDark: true, accent: state.accent)
             let showRest = state.presentation(isStale: context.isStale).canAdjustRest
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -256,10 +296,11 @@ struct LiftActivity: Widget {
                                 .font(.custom("Geologica-Bold", fixedSize: 12))
                             Text(state.workoutType)
                                 .font(.custom("Geologica-Medium", fixedSize: 11))
-                                .foregroundStyle(muted)
+                                .foregroundStyle(palette.muted)
                                 .lineLimit(1)
                         }
                     }
+                    .foregroundStyle(palette.text)
                     .padding(.leading, 6)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -268,14 +309,14 @@ struct LiftActivity: Widget {
                             Text(state.restHeading(isStale: context.isStale).uppercased())
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)
-                                .foregroundStyle(muted)
+                                .foregroundStyle(palette.muted)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.85)
                                 // The heading sits higher than the timer, where
                                 // the Island's rounded corner needs more inset.
                                 .padding(.trailing, 12)
                         }
-                        RestClock(state: state, size: 23, isStale: context.isStale)
+                        RestClock(state: state, palette: palette, size: 23, isStale: context.isStale)
                     }
                     .frame(width: 112, alignment: .trailing)
                 }
@@ -288,12 +329,14 @@ struct LiftActivity: Widget {
                             .minimumScaleFactor(0.85)
                         Text([state.setLabel, state.detail].filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.custom("Geologica-Medium", fixedSize: 11))
-                            .foregroundStyle(muted)
+                            .foregroundStyle(palette.muted)
                             .lineLimit(1)
-                        WorkoutProgress(state: state)
-                        WorkoutActions(state: state, isStale: context.isStale)
+                        WorkoutProgress(state: state, palette: palette)
+                        WorkoutActions(state: state, palette: palette, isStale: context.isStale)
                             .padding(.horizontal, 8)
                     }
+                    .foregroundStyle(palette.text)
+                    .environment(\.colorScheme, .dark)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
                 }
@@ -302,7 +345,7 @@ struct LiftActivity: Widget {
                     .padding(3)
                     .frame(width: 26, height: 26)
             } compactTrailing: {
-                RestClock(state: state, size: 12, isStale: context.isStale)
+                RestClock(state: state, palette: palette, size: 12, isStale: context.isStale)
                     .frame(width: 52, alignment: .trailing)
             } minimal: {
                 LiftMark(size: 20)
@@ -315,7 +358,7 @@ struct LiftActivity: Widget {
             .contentMargins(.horizontal, 24, for: .expanded)
             .contentMargins(.top, 16, for: .expanded)
             .contentMargins(.bottom, 16, for: .expanded)
-            .keylineTint(accent)
+            .keylineTint(palette.accent)
             .widgetURL(state.workoutURL)
         }
     }

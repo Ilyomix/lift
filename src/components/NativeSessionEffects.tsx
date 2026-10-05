@@ -15,6 +15,12 @@ let alertKey = ''
 let reported = false
 let alertsConfigured: Promise<void> | undefined
 let reconciliation: Promise<void> | undefined
+function activityState(state: ReturnType<typeof useStore.getState>['state']) {
+  return workoutActivityState(state.activeWorkout, resolveLang(state.prefs.lang), Date.now(), {
+    theme: state.prefs.theme, accent: state.prefs.accent,
+    systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+  })
+}
 function reconcileNativeAction(): Promise<void> {
   if (!reconciliation) reconciliation = drainNativeActions().finally(() => { reconciliation = undefined })
   return reconciliation
@@ -40,7 +46,7 @@ const submit = latestSync(async (_state: ReturnType<typeof useStore.getState>['s
   await reconcileNativeAction()
   // Reconciliation may have changed the timer since this update was queued.
   const state = useStore.getState().state
-  const snapshot = workoutActivityState(state.activeWorkout, resolveLang(state.prefs.lang))
+  const snapshot = activityState(state)
   if (snapshot && state.prefs.liveActivity !== false && Capacitor.getPlatform() === 'android' && document.visibilityState === 'visible') {
     const permission = await LocalNotifications.checkPermissions()
     if (permission.display === 'prompt' || permission.display === 'prompt-with-rationale') {
@@ -60,7 +66,7 @@ const submit = latestSync(async (_state: ReturnType<typeof useStore.getState>['s
   }
   // Notification scheduling can yield while an action or a new set updates the store.
   const latest = useStore.getState().state
-  const activitySnapshot = workoutActivityState(latest.activeWorkout, resolveLang(latest.prefs.lang))
+  const activitySnapshot = activityState(latest)
   await WorkoutActivity.sync({
     state: Capacitor.getPlatform() === 'ios' || latest.prefs.liveActivity !== false ? activitySnapshot : null,
     enabled: latest.prefs.liveActivity !== false,
@@ -144,11 +150,15 @@ export function NativeSessionEffects() {
       sync()
     }
     document.addEventListener('visibilitychange', onVisible)
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+    const onSystemTheme = () => { if (useStore.getState().state.prefs.theme === 'auto') sync() }
+    systemTheme.addEventListener('change', onSystemTheme)
     sync()
     return () => {
       disposed = true
       unsubscribe()
       document.removeEventListener('visibilitychange', onVisible)
+      systemTheme.removeEventListener('change', onSystemTheme)
       subscriptions.forEach(h => void h.remove())
     }
   }, [])

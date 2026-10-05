@@ -14,6 +14,60 @@ final class WorkoutTimingTests: XCTestCase {
               restLabel: "Rest", readyLabel: "Ready", progressLabel: "sets")
     }
 
+    func testLegacySnapshotWithoutAppearanceStillDecodes() throws {
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state())) as? [String: Any])
+        json.removeValue(forKey: "theme")
+        json.removeValue(forKey: "accent")
+        let legacy = try JSONDecoder().decode(WorkoutAttributes.ContentState.self,
+                                              from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(legacy.theme)
+        XCTAssertNil(legacy.accent)
+        XCTAssertFalse(legacy.usesDarkAppearance(systemIsDark: false))
+        XCTAssertTrue(legacy.usesDarkAppearance(systemIsDark: true))
+        XCTAssertEqual(legacy.presentation(at: now), .countdown)
+    }
+
+    func testAppAppearanceOverridesSystemExceptAlwaysOn() {
+        for theme in [nil, "auto", "unknown", "light", "dark"] as [String?] {
+            var s = state()
+            s.theme = theme
+            for systemIsDark in [false, true] {
+                let expected = theme == "dark" || (theme != "light" && systemIsDark)
+                XCTAssertEqual(s.usesDarkAppearance(systemIsDark: systemIsDark), expected)
+                XCTAssertTrue(s.usesDarkAppearance(systemIsDark: systemIsDark, isLuminanceReduced: true))
+            }
+        }
+    }
+
+    func testAppearanceSurvivesRestActionsSnapshotsAndPersistence() throws {
+        for theme in ["light", "dark"] {
+            for accent in ["blue", "orange"] {
+                // Includes +30 after the countdown has already ended.
+                for rest in [-120.0, 60.0] {
+                    var s = state(rest: rest)
+                    s.theme = theme
+                    s.accent = accent
+                    XCTAssertTrue(s.extendRest(by: 30, at: now))
+                    s = s.activitySnapshot(at: now).state
+                    s = try JSONDecoder().decode(WorkoutAttributes.ContentState.self, from: JSONEncoder().encode(s))
+                    XCTAssertEqual(s.theme, theme)
+                    XCTAssertEqual(s.accent, accent)
+                    XCTAssertEqual(s.presentation(at: now), .countdown)
+
+                    // These are the same two mutations used by the skip intent.
+                    s.restEndAt = nil
+                    s.restTotal = 0
+                    s = s.activitySnapshot(at: now).state
+                    let skipped = try JSONDecoder().decode(WorkoutAttributes.ContentState.self,
+                                                            from: JSONEncoder().encode(s))
+                    XCTAssertEqual(skipped.theme, theme)
+                    XCTAssertEqual(skipped.accent, accent)
+                    XCTAssertEqual(skipped.presentation(at: now), .ready)
+                }
+            }
+        }
+    }
+
     func testFutureRestSchedulesItsDeadlineAndAllowsActions() {
         let s = state()
         XCTAssertEqual(s.activityStaleDate(at: now), now.addingTimeInterval(60))

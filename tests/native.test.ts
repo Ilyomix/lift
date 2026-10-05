@@ -45,6 +45,22 @@ test('bodyweight labels and completed workouts follow the selected language', ()
   assert.equal(workoutActivityState(a, 'en')!.exercise, 'Workout complete')
 })
 
+test('native activity follows explicit and automatic appearance without changing the workout', () => {
+  const a = fixture()
+  const baseline = workoutActivityState(a, 'fr', 1000)!
+  for (const accent of ['blue', 'orange'] as const) {
+    for (const systemDark of [false, true]) {
+      for (const theme of ['auto', 'light', 'dark'] as const) {
+        const { theme: resolved, accent: actual, ...workout } = workoutActivityState(a, 'fr', 1000, { theme, accent, systemDark })!
+        assert.equal(resolved, theme === 'auto' ? (systemDark ? 'dark' : 'light') : theme)
+        assert.equal(actual, accent)
+        const { theme: _, accent: __, ...original } = baseline
+        assert.deepEqual(workout, original)
+      }
+    }
+  }
+})
+
 test('skipped exercises do not inflate native progress, and corrections never start activities', () => {
   const a = fixture()
   a.exercises.push({ ...a.exercises[0], skipped: true })

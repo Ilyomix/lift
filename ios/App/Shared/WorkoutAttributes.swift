@@ -61,12 +61,26 @@ struct WorkoutAttributes: ActivityAttributes {
         var restLabel: String
         var readyLabel: String
         var progressLabel: String
+        // The app resolves its automatic theme before sending the snapshot.
+        // Optional fields keep activities created by previous builds decodable.
+        var theme: String? = nil
+        var accent: String? = nil
         // Native-only metadata. Optional so existing activities and JS snapshots
         // from earlier versions continue to decode.
         var staleReason: WorkoutActivityStaleReason? = nil
 
         var endDate: Date? { restEndAt.map { Date(timeIntervalSince1970: $0 / 1000) } }
         var expirationDate: Date { Date(timeIntervalSince1970: expiresAt / 1000) }
+
+        func usesDarkAppearance(systemIsDark: Bool, isLuminanceReduced: Bool = false) -> Bool {
+            // Always-On has a dark system surface even when the app chooses light.
+            if isLuminanceReduced { return true }
+            switch theme {
+            case "light": return false
+            case "dark": return true
+            default: return systemIsDark
+            }
+        }
 
         func activityStaleDate(at now: Date = Date()) -> Date {
             // The system selects the stale view at this deadline; it need not
