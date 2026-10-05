@@ -15,6 +15,24 @@ let alertKey = ''
 let reported = false
 let alertsConfigured: Promise<void> | undefined
 let reconciliation: Promise<void> | undefined
+let iconReported = false
+
+// Icon changes can display an iOS system alert. Keep their serialized queue
+// separate so neither that alert nor an icon error blocks rest/activity updates.
+const submitIcon = latestSync(async (_state: ReturnType<typeof useStore.getState>['state']) => {
+  if (Capacitor.getPlatform() !== 'ios' || document.visibilityState !== 'visible') return
+  const accent = useStore.getState().state.prefs.accent === 'blue' ? 'blue' : 'orange'
+  const result = await WorkoutActivity.setAppIcon({ accent })
+  if (result.applied) iconReported = false
+}, error => {
+  if (iconReported) return
+  iconReported = true
+  const unsupported = typeof error === 'object' && error !== null && 'code' in error && error.code === 'APP_ICON_UNSUPPORTED'
+  useStore.getState().notify(unsupported
+    ? L('Le changement d’icône n’est pas disponible sur cet appareil.', 'Changing the app icon is unavailable on this device.')
+    : L('L’icône de l’app n’a pas été mise à jour. Rouvre Lift pour réessayer.', 'The app icon wasn’t updated. Reopen Lift to try again.'), 'bad')
+})
+
 function activityState(state: ReturnType<typeof useStore.getState>['state']) {
   return workoutActivityState(state.activeWorkout, resolveLang(state.prefs.lang), Date.now(), {
     theme: state.prefs.theme, accent: state.prefs.accent,
@@ -90,7 +108,10 @@ export function NativeSessionEffects() {
     let handlingActions = false
     const sync = () => {
       const s = useStore.getState()
-      if (s.ready) submit(s.state)
+      if (s.ready) {
+        submitIcon(s.state)
+        submit(s.state)
+      }
     }
     const handleActions = async () => {
       if (handlingActions || !useStore.getState().ready || disposed) return
@@ -150,6 +171,9 @@ export function NativeSessionEffects() {
       sync()
     }
     document.addEventListener('visibilitychange', onVisible)
+    // A native inactive → active transition need not hide the WebView (e.g. a
+    // system dialog). Retry a deferred icon change when UIKit is active again.
+    void App.addListener('appStateChange', ({ isActive }) => { if (isActive) sync() }).then(retain)
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
     const onSystemTheme = () => { if (useStore.getState().state.prefs.theme === 'auto') sync() }
     systemTheme.addEventListener('change', onSystemTheme)

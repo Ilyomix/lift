@@ -206,7 +206,7 @@ function buildExercise(t: TemplateExercise, p: Prescription, state: AppState, gy
   }
 }
 
-const THEME_COLORS = { dark: '#060A13', light: '#F9FAFD' }
+const THEME_COLORS = { blue: { dark: '#060A13', light: '#F9FAFD' }, orange: { dark: '#0B0B0E', light: '#FAFAFA' } }
 
 /** Theme, accent and language of the saved preferences. */
 function applyPrefs(prefs: Prefs) {
@@ -220,7 +220,10 @@ function applyTheme(theme: Prefs['theme'], accent: Prefs['accent']) {
     root.setAttribute('data-theme', theme)
     root.setAttribute('data-accent', accent)
     const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? THEME_COLORS.dark : THEME_COLORS.light)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[accent][dark ? 'dark' : 'light'])
+    const suffix = accent === 'blue' ? '-blue' : ''
+    document.querySelector('link[rel="icon"]')?.setAttribute('href', `${import.meta.env.BASE_URL}icons/favicon-64${suffix}.png`)
+    document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', `${import.meta.env.BASE_URL}icons/apple-touch-icon${suffix}.png`)
     localStorage.setItem('golgoth-theme', theme)
     localStorage.setItem('golgoth-accent', accent)
   } catch {

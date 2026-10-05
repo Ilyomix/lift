@@ -58,7 +58,7 @@ class ExerciseRenderer {
   private themeChanged = () => {
     const root = document.documentElement
     const dark = root.dataset.theme === 'dark' || (root.dataset.theme !== 'light' && this.systemTheme.matches)
-    const accent = getComputedStyle(root).getPropertyValue(dark ? '--accent-bright' : '--accent').trim() || '#3068f5'
+    const accent = getComputedStyle(root).getPropertyValue(dark ? '--accent-bright' : '--accent').trim() || '#ff7b00'
     for (const slot of this.slots) slot.model?.style(accent, dark)
     this.refresh()
   }

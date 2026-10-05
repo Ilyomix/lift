@@ -15,7 +15,7 @@ private struct ActivityPalette {
 
     init(isDark: Bool, accent: String?) {
         self.isDark = isDark
-        let orange = accent == "orange"
+        let orange = accent != "blue"
         // sRGB equivalents of the app's surface/text/muted tokens in index.css.
         // Signal text uses the contrast-safe variant, not the brighter fill token.
         background = Self.color(isDark ? (orange ? 0x121315 : 0x0D131D) : 0xFFFFFF)
@@ -53,9 +53,13 @@ private extension WorkoutAttributes.ContentState {
 
 private struct LiftMark: View {
     var size: CGFloat
+    let accent: String?
 
-    private static let icon: UIImage = {
-        guard let path = Bundle.main.path(forResource: "AppIcon-512@2x", ofType: "png"),
+    private static let orangeIcon = loadIcon(named: "AppIcon-512@2x")
+    private static let blueIcon = loadIcon(named: "AppIconBlue")
+
+    private static func loadIcon(named name: String) -> UIImage {
+        guard let path = Bundle.main.path(forResource: name, ofType: "png"),
               let source = UIImage(contentsOfFile: path) else { return UIImage() }
         // This PNG is a shared bundle resource, not an asset-catalog image.
         // Decode it explicitly and keep WidgetKit's archived image small while
@@ -66,11 +70,11 @@ private struct LiftMark: View {
         return UIGraphicsImageRenderer(size: bounds.size, format: format).image { _ in
             source.draw(in: bounds)
         }
-    }()
+    }
 
     var body: some View {
         // Both targets copy the same official app-icon source, so they cannot drift.
-        Image(uiImage: Self.icon)
+        Image(uiImage: accent == "blue" ? Self.blueIcon : Self.orangeIcon)
             .resizable()
             .interpolation(.high)
             .scaledToFit()
@@ -215,7 +219,7 @@ private struct LockScreenWorkout: View {
         let showRest = state.presentation(isStale: isStale).canAdjustRest
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                LiftMark(size: 24)
+                LiftMark(size: 24, accent: state.accent)
                 Text("Lift")
                     .font(.custom("Geologica-Bold", fixedSize: 14))
                 Text("· \(state.workoutType)")
@@ -290,7 +294,7 @@ struct LiftActivity: Widget {
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 7) {
-                        LiftMark(size: 24)
+                        LiftMark(size: 24, accent: state.accent)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lift")
                                 .font(.custom("Geologica-Bold", fixedSize: 12))
@@ -341,14 +345,14 @@ struct LiftActivity: Widget {
                     .padding(.top, 2)
                 }
             } compactLeading: {
-                LiftMark(size: 20)
+                LiftMark(size: 20, accent: state.accent)
                     .padding(3)
                     .frame(width: 26, height: 26)
             } compactTrailing: {
                 RestClock(state: state, palette: palette, size: 12, isStale: context.isStale)
                     .frame(width: 52, alignment: .trailing)
             } minimal: {
-                LiftMark(size: 20)
+                LiftMark(size: 20, accent: state.accent)
                     .padding(3)
                     .frame(width: 26, height: 26)
             }

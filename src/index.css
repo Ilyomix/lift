@@ -35,28 +35,7 @@
    action of a screen. `data-accent` switches the accent; `data-theme` the mode. */
 
 :root {
-  /* Accent: blue (default). Contrast: white on #2563EB 5.2:1, on #3068F5 4.8:1. */
-  --th: 262;
-  --tc: 0.024;
-  --accent: #2563eb;
-  --accent-bright: #3068f5;
-  --accent-ink: #ffffff;
-  --accent-text-light: #1d4ed8;
-  --accent-text-dark: #7aa7ff;
-  --accent-chart-light: #2563eb;
-  --accent-chart-dark: #5b93ff;
-  /* Rest timer: an always-dark instrument face. */
-  --inst-bg: #060a13;
-  --inst-border: #1f2734;
-  --inst-btn: #151c28;
-  --inst-btn-hover: #1f2734;
-  --inst-label: #8a93a6;
-  --inst-text: #e6ebf5;
-  --inst-done: #7aa7ff;
-  --status-band: #060a13;
-}
-
-:root[data-accent='orange'] {
+  /* Accent: orange by default; dark ink keeps the bright fill readable. */
   --th: 270;
   --tc: 0.005;
   --accent: #ff7b00;
@@ -66,6 +45,7 @@
   --accent-text-dark: #ff9a3d;
   --accent-chart-light: #e06a00;
   --accent-chart-dark: #ff8a1f;
+  /* Rest timer: an always-dark instrument face. */
   --inst-bg: #0b0b0e;
   --inst-border: #2a2a30;
   --inst-btn: #1c1c21;
@@ -74,6 +54,27 @@
   --inst-text: #e8e8e6;
   --inst-done: #ff9a3d;
   --status-band: #0b0b0e;
+}
+
+:root[data-accent='blue'] {
+  /* Contrast: white on #2563EB 5.2:1, on #3068F5 4.8:1. */
+  --th: 262;
+  --tc: 0.024;
+  --accent: #2563eb;
+  --accent-bright: #3068f5;
+  --accent-ink: #ffffff;
+  --accent-text-light: #1d4ed8;
+  --accent-text-dark: #7aa7ff;
+  --accent-chart-light: #2563eb;
+  --accent-chart-dark: #5b93ff;
+  --inst-bg: #060a13;
+  --inst-border: #1f2734;
+  --inst-btn: #151c28;
+  --inst-btn-hover: #1f2734;
+  --inst-label: #8a93a6;
+  --inst-text: #e6ebf5;
+  --inst-done: #7aa7ff;
+  --status-band: #060a13;
 }
 
 :root {

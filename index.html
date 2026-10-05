@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr" data-theme="dark" data-accent="blue">
+<html lang="fr" data-theme="dark" data-accent="orange">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -26,7 +26,7 @@
     <meta name="twitter:description" content="Musculation en salle ou à la maison : programme personnalisé, exercices 3D, suivi des charges et minuteur de repos. Sans compte, utilisable hors ligne." />
     <meta name="twitter:image" content="https://ilyomix.github.io/lift/og.png?v=20261003-identity" />
     <meta name="twitter:image:alt" content="Lift : monogramme L sculpté, titre « Chaque séance compte » et minuteur de repos à 01:30 sur fond bleu." />
-    <meta name="theme-color" content="#060A13" />
+    <meta name="theme-color" content="#0B0B0E" />
     <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -45,7 +45,7 @@
         if (t === 'light' || t === 'dark' || t === 'auto') root.setAttribute('data-theme', t)
         if (a === 'orange' || a === 'blue') root.setAttribute('data-accent', a)
         var dark = t !== 'light' && (t !== 'auto' || matchMedia('(prefers-color-scheme: dark)').matches)
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#060A13' : '#F9FAFD')
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', a === 'blue' ? (dark ? '#060A13' : '#F9FAFD') : (dark ? '#0B0B0E' : '#FAFAFA'))
       } catch (e) {}
     </script>
   </head>

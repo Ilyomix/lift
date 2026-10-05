@@ -1,4 +1,4 @@
-"""Export every Lift launcher icon from the canonical opaque 1024px master.
+"""Export Lift launcher icons from the orange and blue opaque 1024px masters.
 
 Run from any directory with Python 3 and Pillow: python3 scripts/icons.py.
 The master and its generation provenance are intentionally kept in the repo.
@@ -11,6 +11,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 ICONS = ROOT / "public/icons"
 MASTER = ICONS / "app-icon-1024.png"
+BLUE_MASTER = ICONS / "app-icon-blue-1024.png"
 RES = ROOT / "android/app/src/main/res"
 LANCZOS = Image.Resampling.LANCZOS
 
@@ -25,7 +26,7 @@ def save(image, path, size=None):
 def padded(image, scale):
     """Inset the artwork and extend its edge colors, without an inset tile.
 
-    The original cobalt background reaches every edge. Repeating only those
+    The original accent background reaches every edge. Repeating only those
     outermost colors preserves a seamless opaque background around the inset.
     """
     size = image.width
@@ -38,7 +39,7 @@ def padded(image, scale):
     out.paste(tile.crop((0, inner - 1, inner, inner)).resize((inner, size - inner - inset)), (inset, inset + inner))
     out.paste(out.crop((inset, 0, inset + 1, size)).resize((inset, size)), (0, 0))
     out.paste(out.crop((inset + inner - 1, 0, inset + inner, size)).resize((size - inner - inset, size)), (inset + inner, 0))
-    # Soften only the blue join; the subject is well inside this 4% edge band.
+    # Soften only the backdrop join; the subject is well inside this 4% edge band.
     # This prevents straight seams from the source background's light variation.
     backdrop = out.filter(ImageFilter.GaussianBlur(size * 0.015))
     band = max(1, round(inner * 0.04))
@@ -81,15 +82,23 @@ def main():
             raise ValueError("The launcher master must be fully opaque")
         master = source.convert("RGB")
 
-    for name, size in (("pwa-512.png", 512), ("pwa-192.png", 192),
-                       ("apple-touch-icon.png", 180), ("favicon-64.png", 64)):
-        save(master, ICONS / name, size)
+    with Image.open(BLUE_MASTER) as source:
+        if source.size != (1024, 1024):
+            raise ValueError("app-icon-blue-1024.png must be a 1024 × 1024 square")
+        blue = source.convert("RGB")
+
+    for artwork, suffix in ((master, ""), (blue, "-blue")):
+        for name, size in (("pwa-512", 512), ("pwa-192", 192),
+                           ("apple-touch-icon", 180), ("favicon-64", 64)):
+            save(artwork, ICONS / f"{name}{suffix}.png", size)
+        save(padded(artwork, 0.76), ICONS / f"maskable-512{suffix}.png", 512)
 
     # Keep the complete monogram inside the circular 80% PWA safe zone.
     maskable = padded(master, 0.76)
-    save(maskable, ICONS / "maskable-512.png", 512)
-    save(notification_badge(master), ICONS / "badge-96.png", 96)
+    # The original blue master supplies the unchanged monochrome silhouette.
+    save(notification_badge(blue), ICONS / "badge-96.png", 96)
     save(master, ROOT / "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png")
+    save(blue, ROOT / "ios/App/App/Assets.xcassets/AppIconBlue.appiconset/AppIconBlue.png")
     save(master, ROOT / "marketing/app-store/public/brand/icon.png")
 
     # Adaptive icons use a 108dp canvas, with the essential mark in the central
@@ -104,7 +113,7 @@ def main():
         save(circular(maskable), target / "ic_launcher_round.png", legacy_size)
         save(adaptive, target / "ic_launcher_foreground.png", adaptive_size)
 
-    print("Lift icons exported from public/icons/app-icon-1024.png")
+    print("Lift icons exported: orange primary, blue alternate")
 
 
 if __name__ == "__main__":

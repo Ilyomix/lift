@@ -19,7 +19,8 @@ import { SportArt } from '../components/SportArt'
 
 /** The same official artwork used by the launcher and Live Activity. */
 export function AppIcon({ size = 64, className }: { size?: number; className?: string }) {
-  return <img src={`${import.meta.env.BASE_URL}icons/pwa-192.png`} alt="" aria-hidden width={size} height={size} className={className} style={{ width: size, height: size, borderRadius: '24%', flexShrink: 0 }} />
+  const accent = useStore(s => s.state.prefs.accent)
+  return <img src={`${import.meta.env.BASE_URL}icons/pwa-192${accent === 'blue' ? '-blue' : ''}.png`} alt="" aria-hidden width={size} height={size} className={className} style={{ width: size, height: size, borderRadius: '24%', flexShrink: 0 }} />
 }
 
 const STEPS = 5

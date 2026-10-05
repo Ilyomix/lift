@@ -43,7 +43,7 @@ export function defaultState(): AppState {
     profile: { heightCm: 0, age: 0, sex: 'm' },
     visualGoal: null,
     goals: { targetWeightMin: 0, targetWeightMax: 0, targetWaist: null, sessionsPerWeek: 5 },
-    prefs: { theme: 'dark', lang: 'auto', accent: 'blue', autoLoad: true, keepWeeklyVolume: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
+    prefs: { theme: 'dark', lang: 'auto', accent: 'orange', autoLoad: true, keepWeeklyVolume: true, push: false, sound: true, notifications: false, wakeLock: true, trainingTime: '18:00', weighInTime: '07:30' },
     schedule: { ...DEFAULT_SCHEDULE },
     exerciseVideos: {},
     meta: { createdAt: now, lastBackupAt: null, importedAt: null },
@@ -189,7 +189,7 @@ function normPrefs(raw: any, d: Prefs): Prefs {
   return {
     ...p,
     theme: p.theme === 'light' || p.theme === 'auto' ? p.theme : 'dark',
-    accent: p.accent === 'orange' ? 'orange' : 'blue',
+    accent: p.accent === 'blue' ? 'blue' : 'orange',
     lang: p.lang === 'fr' || p.lang === 'en' ? p.lang : 'auto',
     autoLoad: p.autoLoad !== false,
     keepWeeklyVolume: p.keepWeeklyVolume !== false,

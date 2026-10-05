@@ -48,6 +48,7 @@ test('bodyweight labels and completed workouts follow the selected language', ()
 test('native activity follows explicit and automatic appearance without changing the workout', () => {
   const a = fixture()
   const baseline = workoutActivityState(a, 'fr', 1000)!
+  assert.equal(baseline.accent, 'orange')
   for (const accent of ['blue', 'orange'] as const) {
     for (const systemDark of [false, true]) {
       for (const theme of ['auto', 'light', 'dark'] as const) {

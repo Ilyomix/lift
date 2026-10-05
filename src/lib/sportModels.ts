@@ -78,7 +78,7 @@ class SportRenderer {
     const root = document.documentElement
     const dark = root.dataset.theme === 'dark' || (root.dataset.theme !== 'light' && this.systemTheme.matches)
     const style = getComputedStyle(root)
-    const accent = style.getPropertyValue(dark ? '--accent-bright' : '--accent').trim() || '#3068f5'
+    const accent = style.getPropertyValue(dark ? '--accent-bright' : '--accent').trim() || '#ff7b00'
     const colors: Record<string, string> = {
       LiftGraphite: dark ? '#252a32' : '#1b1e23',
       LiftCobalt: accent,

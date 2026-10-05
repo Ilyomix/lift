@@ -52,6 +52,6 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
     progressLabel: lang === 'fr' ? (totalSets === 1 ? 'série' : 'séries') : (totalSets === 1 ? 'set' : 'sets'),
     // WidgetKit's colorScheme can follow the wallpaper. Send the app's actual mode.
     theme: appearance.theme === 'dark' || (appearance.theme !== 'light' && appearance.systemDark) ? 'dark' : 'light',
-    accent: appearance.accent ?? 'blue',
+    accent: appearance.accent ?? 'orange',
   }
 }

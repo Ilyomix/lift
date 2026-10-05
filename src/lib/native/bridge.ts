@@ -8,6 +8,7 @@ export const isNative = () => Capacitor.isNativePlatform()
 export interface ActivityStatus { supported: boolean; enabled: boolean; apiLevel?: number }
 export const WorkoutActivity = registerPlugin<{
   status(): Promise<ActivityStatus>
+  setAppIcon(options: { accent: 'blue' | 'orange' }): Promise<{ applied: boolean }>
   sync(options: { state: WorkoutActivityState | null; enabled?: boolean; notificationsEnabled?: boolean; sound?: boolean }): Promise<void>
   pendingAction(): Promise<{ action?: NativeRestAction }>
   acknowledgeAction(options: { id: string }): Promise<{ acknowledged: boolean }>

@@ -9,6 +9,7 @@ public class WorkoutActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "WorkoutActivity"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setAppIcon", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingAction", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "acknowledgeAction", returnType: CAPPluginReturnPromise),
@@ -41,6 +42,33 @@ public class WorkoutActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func status(_ call: CAPPluginCall) {
         call.resolve(["supported": true, "enabled": ActivityAuthorizationInfo().areActivitiesEnabled])
+    }
+
+    @objc func setAppIcon(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            guard let accent = call.getString("accent"), ["blue", "orange"].contains(accent) else {
+                call.reject("Unknown app icon accent", "APP_ICON_INVALID_ACCENT"); return
+            }
+            let app = UIApplication.shared
+            // Only the foreground WebView calls this method. Rest intents and
+            // background updates must never request a system icon-change alert.
+            guard app.applicationState == .active else {
+                call.resolve(["applied": false]); return
+            }
+            let iconName: String? = accent == "blue" ? "AppIconBlue" : nil
+            guard app.alternateIconName != iconName else {
+                call.resolve(["applied": true]); return
+            }
+            guard app.supportsAlternateIcons else {
+                call.reject("Alternate app icons are unavailable", "APP_ICON_UNSUPPORTED"); return
+            }
+            do {
+                try await app.setAlternateIconName(iconName)
+                call.resolve(["applied": true])
+            } catch {
+                call.reject("Unable to change app icon: \(error.localizedDescription)", "APP_ICON_CHANGE_FAILED", error)
+            }
+        }
     }
 
     @objc func pendingAction(_ call: CAPPluginCall) {

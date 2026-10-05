@@ -1,14 +1,15 @@
 # Lift app icon
 
-Canonical master: `public/icons/app-icon-1024.png` (1024 × 1024, RGB, opaque).
+Orange is the primary app identity. `public/icons/app-icon-1024.png` is the opaque 1024 × 1024 orange master; `public/icons/app-icon-blue-1024.png` preserves the original blue artwork for the selectable blue accent.
 
-Generated with the built-in OpenAI image generation tool on 2026-10-03. Original output: 1254 × 1254, RGB; resampled to 1024 × 1024. The final two-piece sculpted monogram was generated as a targeted edit of the first L direction; it replaces the rejected dumbbell identity. No seed was exposed by the tool. The committed master is the source for reproducible derived files.
+The orange variant was edited with the built-in OpenAI image-generation tool on 2026-10-05 from the existing blue master. Prompt: “Change only the cobalt-blue backdrop and visible diagonal seam to #FF7B00. Preserve the two-piece silver/white L, geometry, composition, size, position, bevels, brushed texture, neutral facets, highlights, grounded shadow and margins. Full opaque square; no rounded corners, border, inset tile, text or other object.” Generated source: `exec-9c75c416-7a24-46d9-a924-f08ad489c527.png`, 1254 × 1254, resized to 1024 × 1024. No seed was exposed.
 
-Master SHA-256: `23cfb58a9b9fb1df08af13515380716c8d3618fe6d30b932179a03689239c00b`.
+Orange master SHA-256: `50bbe52fa8dd27c5c4949609c892a2e98c268c38252512e05ae9b5e08a18123c`.
+Blue master SHA-256: `23cfb58a9b9fb1df08af13515380716c8d3618fe6d30b932179a03689239c00b`.
 
-Reproduce exports with `python3 scripts/icons.py` (Python 3 + Pillow). The script creates iOS and Live Activity artwork, web/PWA/apple-touch/favicon assets, Android launchers at five densities, the Web Push monochrome badge, and the App Store marketing brand asset. RGB launcher exports preserve opacity. Maskable/adaptive exports inset the mark with edge-color extension and a feathered blue-background join; notification-only alpha is derived from blue-background separation. Android notification `ic_workout.xml` stays a functional monochrome dumbbell representing an active workout.
+Run `python3 scripts/icons.py` to export both web icon variants, the primary iOS icon and `AppIconBlue` alternate, the orange Android launchers and marketing icon. The existing monochrome notification silhouette still comes from the blue master. The app UI and Live Activity select their corresponding artwork; iOS changes its launcher through the public alternate-icon API. Existing installed web shortcuts may cache their launcher icon independently of the current app appearance.
 
-Validated: all 24 PNG files decode; iOS and marketing images match master pixels; visible monogram maximum radius is 0.294 of canvas width in the PWA maskable export (safe radius 0.4), and 0.224 in the Android adaptive export (safe radius 33/108). The 64 px favicon and monochrome notification silhouette remain legible.
+The following describes the original blue identity generation.
 
 ## Initial generation prompt
 

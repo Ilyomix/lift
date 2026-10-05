@@ -228,7 +228,7 @@ function AppearanceSettings() {
         </Section>
         <Section icon={<Palette size={18} aria-hidden />} title={L('Couleur d’accent', 'Accent color')}>
         <div className="flex gap-2" role="group" aria-label={L('Couleur d’accent', 'Accent color')}>
-          {([['blue', L('Bleu', 'Blue'), '#3068f5'], ['orange', 'Orange', '#ff7b00']] as const).map(([v, label, color]) => (
+          {([['orange', 'Orange', '#ff7b00'], ['blue', L('Bleu', 'Blue'), '#3068f5']] as const).map(([v, label, color]) => (
             <button
               key={v}
               type="button"

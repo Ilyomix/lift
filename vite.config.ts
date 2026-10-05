@@ -59,8 +59,8 @@ export default defineConfig({
         scope: BASE,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#060A13',
-        theme_color: '#060A13',
+        background_color: '#0B0B0E',
+        theme_color: '#0B0B0E',
         categories: ['health', 'fitness', 'sports'],
         icons: [
           { src: 'icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
