@@ -203,7 +203,7 @@ export function Home() {
         </div>
       </Section>
 
-      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="ghost" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')}</Button>}>
+      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="ghost" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')} <ArrowRight size={16} aria-hidden /></Button>}>
         <Card className="grid grid-cols-3 divide-x divide-line overflow-hidden">
           <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />
