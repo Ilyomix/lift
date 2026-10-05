@@ -93,7 +93,7 @@ export function LineChart({
     }
   }, [all, band, refLine, iw, ih, xDomain, yPad, m.l, m.t])
 
-  if (!all.length) return <div ref={ref}><Empty art="chart" title={L('Le suivi commence avec tes données', 'Your records will bring this chart to life')}>{L('Les valeurs enregistrées apparaîtront ici.', 'Your logged values will appear here.')}</Empty></div>
+  if (!all.length) return <div ref={ref}><Empty art="chart" title={L('Aucune donnée à afficher', 'No data to display')}>{L('Ajoute une première valeur pour commencer ce graphique.', 'Log your first value to start this chart.')}</Empty></div>
 
   const primary = series.find((s) => s.kind === 'line') ?? series[0]
   const xs = Array.from(new Set(series.flatMap((s) => s.points.map((p) => p.x)))).sort((a, b) => a - b)

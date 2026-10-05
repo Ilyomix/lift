@@ -59,7 +59,7 @@ const schema = () => `{
   "summary": "${L('Une phrase de synthèse', 'One-sentence summary')}",
   "basedOnSession": 27,
   "changes": [
-    { "template": "PUSH", "exerciseId": "incline-db-press", "target": { "weight": 22, "sets": 3, "minReps": 6, "maxReps": 10, "restSeconds": 150, "rir": "1–2" }, "nextTarget": "${L('Consigne courte pour la prochaine séance', 'Short cue for the next session')}" },
+    { "template": "PUSH", "exerciseId": "incline-db-press", "target": { "weight": 22, "sets": 3, "minReps": 6, "maxReps": 10, "restSeconds": 150, "rir": "1–2" }, "nextTarget": "${L('Consigne courte pour la prochaine séance', 'Short cue for the next workout')}" },
     { "template": "PUSH", "exerciseId": "cable-fly", "action": "add", "name": "${L('Écarté poulie', 'Cable fly')}", "muscle": "${L('Pectoraux', 'Chest')}", "unit": "kg", "target": { "weight": 15, "sets": 3, "minReps": 10, "maxReps": 15, "restSeconds": 90, "rir": "0–1" } },
     { "template": "UPPER", "exerciseId": "dips", "action": "remove" }
   ],
@@ -75,18 +75,18 @@ const rules = (share: number) =>
       ? [daysFactor() > 1
           ? L(
               `- Je m’entraîne ${plural(WEEK_DAYS, 'jour', 'jours')} par semaine : la rotation des 5 séances continue et l’app ajoute des séries en séance (×${fmtNum(daysFactor(), 2)} sur l’ensemble, au plus ${SESSION_MUSCLE_CAP} séries par muscle et par séance) : la semaine tient ${sharePhrase(share)}. Dans ta réponse JSON, « sets » est le nombre de séries de la fiche, avant cet ajout.`,
-              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week: the 5-session rotation continues and the app adds sets in each session (×${fmtNum(daysFactor(), 2)} overall, ${SESSION_MUSCLE_CAP} sets per muscle per session at most): the week holds ${sharePhrase(share)}. In your JSON answer, "sets" is the sheet’s number of sets, before that addition.`,
+              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week: the 5-workout rotation continues and the app adds sets in each workout (×${fmtNum(daysFactor(), 2)} overall, ${SESSION_MUSCLE_CAP} sets per muscle per workout at most): the week holds ${sharePhrase(share)}. In your JSON answer, "sets" is the sheet’s number of sets, before that addition.`,
             )
           : L(
               `- Je m’entraîne ${plural(WEEK_DAYS, 'jour', 'jours')} par semaine avec les séances de base : la rotation des 5 séances s’étale, la semaine tient ${sharePhrase(share)}.`,
-              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week with the base sessions: the 5-session rotation spreads out, the week holds ${sharePhrase(share)}.`,
+              `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week with the base workouts: the 5-workout rotation spreads out, the week holds ${sharePhrase(share)}.`,
             )]
       : []),
     L('- Répétitions en réserve : 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc 3, S2 2, dernière semaine 0–1.', '- Reps in reserve: 1–2 on compounds, 0–1 on isolation; block week 1 3, week 2 2, last week 0–1.'),
     L('- Double progression : quand toutes les séries atteignent le haut de la fourchette avec les répétitions en réserve prévues, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range with the planned reps in reserve, about +2.5% (smallest increment).'),
-    L('- Performance en nette baisse 2 séances de suite sur un exercice (une rep par série ou plus à chaque fois ; moins, c’est la variation normale) : retirer 1 série à ce muscle ; baisse générale : avancer la décharge.', '- Performance clearly down 2 sessions in a row on an exercise (one rep per set or more each time; less is normal variation): remove 1 set for that muscle; general drop: bring the deload forward.'),
-    L('- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).', '- The app already adjusts loads after each session (double progression, lower when every set stays below the range): mostly suggest what it can’t see (technique, exercise choice, volume, recovery).'),
-    L('- Décharge : moitié des séries, charges −10 %, 3–4 reps en réserve.', '- Deload: half the sets, loads −10%, 3–4 reps in reserve.'),
+    L('- Performance en nette baisse 2 séances de suite sur un exercice (une rep par série ou plus à chaque fois ; moins, c’est la variation normale) : retirer 1 série à ce muscle ; baisse générale : avancer la semaine allégée.', '- Performance clearly down 2 workouts in a row on an exercise (one rep per set or more each time; less is normal variation): remove 1 set for that muscle; general drop: bring the deload forward.'),
+    L('- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).', '- The app already adjusts loads after each workout (double progression, lower when every set stays below the range): mostly suggest what it can’t see (technique, exercise choice, volume, recovery).'),
+    L('- Semaine allégée : moitié des séries, charges −10 %, 3–4 reps en réserve.', '- Deload: half the sets, loads −10%, 3–4 reps in reserve.'),
   ].join('\n')
 
 export function sessionPrompt(state: AppState, w: Workout): string {
@@ -94,14 +94,14 @@ export function sessionPrompt(state: AppState, w: Workout): string {
   const ws = weightStatus(state)
   const meta = TYPE_META[w.type]
   return [
-    L('Tu es mon coach d’hypertrophie. Analyse ma séance et fixe mes prochaines cibles.', 'You are my hypertrophy coach. Analyze my session and set my next targets.'),
+    L('Tu es mon coach d’hypertrophie. Analyse ma séance et fixe mes prochaines cibles.', 'You are my hypertrophy coach. Analyze my workout and set my next targets.'),
     '',
     L(
       `Séance n°${w.sessionNumber} · ${meta.label} (${meta.fr}) · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · salle : ${gymName(state, w.gymId)} (charges machine propres à chaque salle)` : ''}`,
-      `Session #${w.sessionNumber} · ${meta.fr === meta.label ? meta.label : `${meta.label} (${meta.fr})`} · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · gym: ${gymName(state, w.gymId)} (machine loads are specific to each gym)` : ''}`,
+      `Workout #${w.sessionNumber} · ${meta.fr === meta.label ? meta.label : `${meta.label} (${meta.fr})`} · ${fmtDate(w.date, { weekday: true, year: true })}${state.gyms.length > 1 ? ` · gym: ${gymName(state, w.gymId)} (machine loads are specific to each gym)` : ''}`,
     ),
     L(
-      `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · semaine de décharge' : ''}`,
+      `Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · semaine allégée' : ''}`,
       `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · ${ctx.effort}` : ''}${w.deload ? ' · deload week' : ''}`,
     ),
     ws.current
@@ -110,7 +110,7 @@ export function sessionPrompt(state: AppState, w: Workout): string {
           `Weight: ${fmtNum(ws.current)} kg${ws.isAverage ? ' (7-day average)' : ''}${ws.weeklyChangePct !== null ? `, trend ${fmtNum(ws.weeklyChangePct, 2)}%/week` : ''}`,
         )
       : '',
-    w.notes ? L(`Notes de séance : ${w.notes}`, `Session notes: ${w.notes}`) : '',
+    w.notes ? L(`Notes de séance : ${w.notes}`, `Workout notes: ${w.notes}`) : '',
     '',
     ...exerciseLines(state, w),
     '',
@@ -136,7 +136,7 @@ export function globalPrompt(state: AppState): string {
     '',
     MAINTENANCE
       ? L(
-          `Date : ${fmtDate(today, { weekday: true, year: true })} · mode entretien, sans date objectif (blocs + décharges en continu, calories à maintenance)`,
+          `Date : ${fmtDate(today, { weekday: true, year: true })} · mode entretien, sans date objectif (blocs + semaines allégées en continu, calories à maintenance)`,
           `Date: ${fmtDate(today, { weekday: true, year: true })} · maintenance mode, no goal date (blocks + deloads with no end, maintenance calories)`,
         )
       : L(
@@ -147,11 +147,11 @@ export function globalPrompt(state: AppState): string {
     plan.cycle
       ? L(
           `Séances : ${state.workouts.length} faites au total ; cycle en cours (${plan.cycle.label}) : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(plan.cycle.end, { year: true })}`,
-          `Sessions: ${state.workouts.length} done in total; current cycle (${plan.cycle.label}): ${plan.done} done, ${plan.planned} planned by ${fmtDate(plan.cycle.end, { year: true })}`,
+          `Workouts: ${state.workouts.length} done in total; current cycle (${plan.cycle.label}): ${plan.done} done, ${plan.planned} planned by ${fmtDate(plan.cycle.end, { year: true })}`,
         )
       : L(
           `Séances : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(GOAL_DATE, { year: true })}`,
-          `Sessions: ${plan.done} done, ${plan.planned} planned by ${fmtDate(GOAL_DATE, { year: true })}`,
+          `Workouts: ${plan.done} done, ${plan.planned} planned by ${fmtDate(GOAL_DATE, { year: true })}`,
         ),
     ws.current
       ? L(
@@ -172,7 +172,7 @@ export function globalPrompt(state: AppState): string {
       lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, ${L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}, ${fmtLoad(e.target.weight, e.unit)}`)
     }
   }
-  lines.push('', L('Dernières séances :', 'Recent sessions:'))
+  lines.push('', L('Dernières séances :', 'Recent workouts:'))
   for (const w of state.workouts.slice(-5)) {
     const done = w.exercises.filter((e) => !e.skipped).map((e) => `${e.name} ${setsSummary(e.sets, e.unit)}`)
     lines.push(L(`${fmtDate(w.date)} · ${w.type} : ${done.join(' ; ')}`, `${fmtDate(w.date)} · ${w.type}: ${done.join('; ')}`))
@@ -241,7 +241,7 @@ export function parsePlanUpdate(text: string): PlanUpdate {
       /* try next candidate */
     }
   }
-  throw new Error(L('Aucun bloc « golgoth-plan-update » valide trouvé dans le texte collé.', 'No valid “golgoth-plan-update” block found in the pasted text.'))
+  throw new Error(L('Aucune proposition compatible trouvée. Colle la réponse complète de ton assistant IA, avec son bloc de données.', 'No compatible suggestions found. Paste your AI assistant’s full response, including its data block.'))
 }
 
 export interface ChangePreview {

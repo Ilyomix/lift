@@ -56,7 +56,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
       ? state.templates[activeType].exercises.some((exercise, index) => index !== target.index && exercise.exerciseId === id) : false)
   const targetLabel = (item: ExerciseReplacementTarget) => {
     const type = item.kind === 'active' ? state.activeWorkout!.type : item.type
-    return `${item.kind === 'active' ? L('Séance en cours', 'Current session') : L('Programme', 'Program')} · ${TYPE_META[type].label} · ${String(item.index + 1).padStart(2, '0')}`
+    return `${item.kind === 'active' ? L('Séance en cours', 'Current workout') : L('Programme', 'Program')} · ${TYPE_META[type].label} · ${String(item.index + 1).padStart(2, '0')}`
   }
   const choose = (id: string) => {
     if (!target || locked) return
@@ -70,7 +70,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
           : actions.replaceExercise(target.index, id, chosenScope)
     if (!changed) return
     actions.notify(chosenScope === 'session'
-      ? L('Exercice remplacé pour cette séance.', 'Exercise replaced for this session.')
+      ? L('Exercice remplacé pour cette séance.', 'Exercise replaced for this workout.')
       : L('Exercice remplacé dans le programme.', 'Exercise replaced in the program.'), 'good')
     onReplaced?.()
   }
@@ -78,22 +78,22 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
 
   return <section aria-label={L('Alternatives à cet exercice', 'Exercise alternatives')}>
     {showHeading && <SectionHeading icon={<Replace size={18} aria-hidden />}>{L('Remplacer cet exercice', 'Replace this exercise')}</SectionHeading>}
-    <p className={cx('text-[13px] leading-[1.5] text-text-2', showHeading && 'mt-2')}>{L('Choisis une alternative, ou ouvre sa démo pour comparer le mouvement.', 'Choose an alternative, or open its demo to compare the movement.')}</p>
+    <p className={cx('text-[13px] leading-[1.5] text-text-2', showHeading && 'mt-2')}>{L('Choisis une alternative, ou ouvre sa démo pour comparer le mouvement.', 'Choose a replacement exercise, or open its demo to compare the movement.')}</p>
     {target && <div className="mt-3 space-y-3">
-      {targets.length > 1 ? <Field label={L('Séance à modifier', 'Session to change')}>
+      {targets.length > 1 ? <Field label={L('Séance à modifier', 'Workout to change')}>
         <select className={inputClass} value={targetKey(target)} onChange={event => { setSelected(event.target.value); setScope('session') }}>
           {targets.map(item => <option key={targetKey(item)} value={targetKey(item)}>{targetLabel(item)}</option>)}
         </select>
       </Field> : !replacement && <p className="text-[13px] font-medium text-text-2">{targetLabel(target)}</p>}
       {target.kind !== 'template' && canRemember && <Segmented layout="fit" label={L('Appliquer le remplacement', 'Apply replacement')} value={chosenScope} onChange={setScope} options={[
-        { value: 'session', label: L('Cette séance', 'This session') },
-        { value: 'program', label: hasLoggedSets ? L('Prochaines séances', 'Future sessions') : L('Garder au programme', 'Keep in program') },
+        { value: 'session', label: L('Cette séance', 'This workout') },
+        { value: 'program', label: hasLoggedSets ? L('Prochaines séances', 'Future workouts') : L('Garder au programme', 'Keep in program') },
       ]} />}
       <p className="text-[12px] leading-[1.5] text-muted">{chosenScope === 'session'
-        ? L('Uniquement cette séance. Ton programme reste le même.', 'Only this session. Your program stays the same.')
+        ? L('Uniquement cette séance. Ton programme reste le même.', 'Only this workout. Your program stays the same.')
         : target.kind === 'active' && !hasLoggedSets
-          ? L('Cette séance et les prochaines de ce type.', 'This session and future sessions of this type.')
-          : L('Pour les prochaines séances de ce type. Les séances déjà enregistrées restent intactes.', 'For future sessions of this type. Recorded workouts stay unchanged.')}
+          ? L('Cette séance et les prochaines de ce type.', 'This workout and future workouts of this type.')
+          : L('Pour les prochaines séances de ce type. Les séances déjà enregistrées restent intactes.', 'For future workouts of this type. Recorded workouts stay unchanged.')}
         {' '}{L('La charge est celle du nouvel exercice, si elle est connue.', 'The load comes from the new exercise, if known.')}</p>
       {locked && <p role="status" className="text-[13px] leading-[1.5] text-text-2">{L('Des séries sont déjà validées : elles restent liées à cet exercice.', 'Sets are already logged: they stay linked to this exercise.')}</p>}
     </div>}
@@ -110,11 +110,11 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
         const panelId = `${uid}-${choice.id}`
         return <div key={choice.id}>
           <div className="flex items-center gap-2 py-2">
-            <button type="button" aria-expanded={open} aria-controls={panelId} aria-label={L(`Voir la démo : ${choice.name}`, `View demo: ${choice.name}`)} onClick={() => setExpanded(open ? null : choice.id)} className="pressable flex min-h-16 min-w-0 flex-1 items-center gap-2 py-1 text-left">
+            <button type="button" aria-expanded={open} aria-controls={panelId} aria-label={open ? L(`Masquer la démonstration : ${choice.name}`, `Hide demo: ${choice.name}`) : L(`Voir la démonstration : ${choice.name}`, `View demo: ${choice.name}`)} onClick={() => setExpanded(open ? null : choice.id)} className="pressable flex min-h-16 min-w-0 flex-1 items-center gap-2 py-1 text-left">
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-medium">{choice.name}</span>
                 <span className="mt-0.5 block text-[12px] text-muted">{alternativeEquipment(choice.id)}</span>
-                {duplicate && <span className="mt-1 block text-[12px] text-muted">{chosenScope === 'session' ? L('Déjà dans cette séance', 'Already in this session') : L('Déjà dans cette fiche', 'Already in this plan')}</span>}
+                {duplicate && <span className="mt-1 block text-[12px] text-muted">{chosenScope === 'session' ? L('Déjà dans cette séance', 'Already in this workout') : L('Déjà dans cette séance du programme', 'Already in this workout plan')}</span>}
               </span>
               <ChevronDown size={16} className={cx('shrink-0 text-text-2', open && 'rotate-180')} aria-hidden />
             </button>

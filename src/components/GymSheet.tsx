@@ -38,14 +38,14 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-medium">{L('S’entraîner à la maison', 'Train at home')}</span>
         <span className="block text-[13px] leading-[1.4] text-text-2">
-          {L('Les séances sont recomposées pour ton matériel ; celles de salle reviennent telles quelles au retour.', 'Sessions are rebuilt for your equipment; your gym sessions come back as they were when you return.')}
+          {L('Les séances sont recomposées pour ton matériel ; celles de salle reviennent telles quelles au retour.', 'Workouts are rebuilt for your equipment; your gym workouts come back as they were when you return.')}
         </span>
       </span>
       <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
     </button>
   )
   return (
-    <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this session') : L('Lieu d’entraînement', 'Where you train')}>
+    <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this workout') : L('Lieu d’entraînement', 'Where you train')}>
       <div className="divide-y divide-line overflow-hidden rounded-[12px] border border-line">
         {gyms.map((g) => (
           <button key={g.id} type="button" onClick={() => pick(g.id)} aria-pressed={g.id === current} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">

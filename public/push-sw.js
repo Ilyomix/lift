@@ -7,9 +7,10 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' }
   }
   const scope = self.registration.scope
+  const french = (self.navigator.language || 'fr').toLowerCase().startsWith('fr')
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Repos terminé', {
-      body: data.body || 'Série suivante.',
+    self.registration.showNotification(data.title || (french ? 'Repos terminé' : 'Rest over'), {
+      body: data.body || (french ? 'Tu peux commencer la série suivante.' : 'You can start the next set.'),
       tag: data.tag || 'golgoth-rest',
       renotify: true,
       icon: new URL('icons/pwa-192.png', scope).href,

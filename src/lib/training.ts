@@ -410,14 +410,14 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
     if (oneStepUnder) {
       moved = null
     } else if (!cap) {
-      moved = { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the session: ${fmtLoad(last, ex.unit)} becomes the target`) }
+      moved = { weight: last, kind: last > W ? 'up' : 'down', text: L(`Charge ajustée pendant la séance : ${fmtLoad(last, ex.unit)} devient la cible`, `Load adjusted during the workout: ${fmtLoad(last, ex.unit)} becomes the target`) }
     } else if (cap.weight > W) {
       // Held only by going further than planned: the target is what the planned effort allows, if that is still heavier.
       const planned = effortTarget(ex)
       moved = {
         weight: cap.weight, kind: 'up',
         text: L(
-          `${fmtLoad(last, ex.unit)} avec ${cap.rir} reps en réserve pour ${planned} prévues : ${fmtLoad(cap.weight, ex.unit)} la prochaine fois`,
+          `${fmtLoad(last, ex.unit)} avec ${cap.rir} répétitions en réserve pour ${planned} prévues : ${fmtLoad(cap.weight, ex.unit)} la prochaine fois`,
           `${fmtLoad(last, ex.unit)} with ${cap.rir} reps in reserve instead of the planned ${planned}: ${fmtLoad(cap.weight, ex.unit)} next time`,
         ),
       }
@@ -429,7 +429,7 @@ export function loadDecision(ex: WorkoutExercise, known: number[] = []): LoadDec
   const atW = sets.filter((s) => load(s) >= W)
   if (atW.length >= Math.min(2, needed) && atW.every((s) => cleanOf(s) < lo)) {
     const next = steps.down(W)
-    if (next < W) return { weight: next, kind: 'down', text: L(`Toutes les séries sous ${lo} reps : ${fmtLoad(next, ex.unit)} la prochaine fois`, `Every set under ${lo} reps: ${fmtLoad(next, ex.unit)} next time`) }
+    if (next < W) return { weight: next, kind: 'down', text: L(`Toutes les séries sous ${lo} répétitions : ${fmtLoad(next, ex.unit)} la prochaine fois`, `Every set under ${lo} reps: ${fmtLoad(next, ex.unit)} next time`) }
   }
   return null
 }
@@ -478,14 +478,14 @@ export function intraSessionAdjust(ex: WorkoutExercise, setIndex: number, known:
     return {
       weight,
       text: L(
-        `${r} reps${typeof s.rir === 'number' ? ` avec ${s.rir} reps en réserve` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite`,
+        `${r} répétitions${typeof s.rir === 'number' ? ` avec ${s.rir} répétitions en réserve` : ''} : ${fmtLoad(weight, ex.unit)} pour la suite`,
         `${r} reps${typeof s.rir === 'number' ? ` with ${s.rir} reps in reserve` : ''}: ${fmtLoad(weight, ex.unit)} for the next sets`,
       ),
     }
   }
   if (r <= lo - 3) {
     const weight = steps.down(s.weight, r <= lo - 5 ? 2 : 1)
-    if (weight < s.weight) return { weight, text: L(`${r} reps, sous ${lo} : ${fmtLoad(weight, ex.unit)} pour rester dans la fourchette`, `${r} reps, under ${lo}: ${fmtLoad(weight, ex.unit)} to stay in the range`) }
+    if (weight < s.weight) return { weight, text: L(`${r} répétitions, sous ${lo} : ${fmtLoad(weight, ex.unit)} pour rester dans la fourchette`, `${r} reps, under ${lo}: ${fmtLoad(weight, ex.unit)} to stay in the range`) }
   }
   return null
 }
@@ -549,17 +549,17 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   const bestNow = Math.max(...sets.map((s) => setScore(s, ex.unit)))
   const bestBefore = history.length ? Math.max(...history.map((h) => h.best)) : 0
   base.isRecord = history.length > 0 && bestNow > bestBefore + 1e-9
-  if (!prev || !doneSets(prev).length) return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première performance enregistrée', 'First performance logged') }
+  if (!prev || !doneSets(prev).length) return { ...base, status: 'new-baseline', headline: L('NOUVELLE RÉFÉRENCE', 'NEW BASELINE'), detail: L('Première performance enregistrée', 'First performance logged') }
   const prevSets = doneSets(prev)
   base.previousTotalCleanReps = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   base.previousSetReps = prevSets.map(cleanOf)
   base.previousWeights = prevSets.map((s) => s.weight)
-  if (deload) return { ...base, status: 'deload', headline: L('DÉCHARGE', 'DELOAD'), detail: L('Semaine allégée : pas de comparaison.', 'Lighter week: no comparison.') }
+  if (deload) return { ...base, status: 'deload', headline: L('SEMAINE ALLÉGÉE', 'DELOAD WEEK'), detail: L('Semaine allégée : pas de comparaison.', 'Deload week: no comparison.') }
   const reason = contextReason ?? exerciseContextReason(ex, prev)
-  if (reason) return { ...base, status: reason === 'rep-range-changed' ? 'new-baseline' : 'different-context', headline: reason === 'rep-range-changed' ? L('NOUVELLE BASELINE', 'NEW BASELINE') : L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: contextReasonLabel(reason), contextReason: reason, marked: false, isRecord: false, chargeValidated: false, suggestion: null }
-  if (lightened(ex)) return { ...base, status: 'deload', headline: L('SÉANCE ALLÉGÉE', 'LIGHTER SESSION'), detail: L('Charges allégées par le programme : pas de comparaison.', 'Loads lightened by the program: no comparison.') }
-  if (prevDeload || lightened(prev)) return { ...base, status: 'deload', headline: L('APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER SESSION'), detail: L('Pas de comparaison avec une séance allégée.', 'No comparison with a lighter session.') }
-  if (breakDays >= BREAK_DAYS) return { ...base, status: 'deload', headline: L('APRÈS UNE PAUSE', 'AFTER A BREAK'), detail: L('Deux semaines ou plus sans séance depuis : pas de comparaison.', 'Two weeks or more without a session since: no comparison.') }
+  if (reason) return { ...base, status: reason === 'rep-range-changed' ? 'new-baseline' : 'different-context', headline: reason === 'rep-range-changed' ? L('NOUVELLE RÉFÉRENCE', 'NEW BASELINE') : L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: contextReasonLabel(reason), contextReason: reason, marked: false, isRecord: false, chargeValidated: false, suggestion: null }
+  if (lightened(ex)) return { ...base, status: 'deload', headline: L('SÉANCE ALLÉGÉE', 'LIGHTER WORKOUT'), detail: L('Charges allégées par le programme : pas de comparaison.', 'Loads lightened by the program: no comparison.') }
+  if (prevDeload || lightened(prev)) return { ...base, status: 'deload', headline: L('APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER WORKOUT'), detail: L('Pas de comparaison avec une séance allégée.', 'No comparison with a lighter workout.') }
+  if (breakDays >= BREAK_DAYS) return { ...base, status: 'deload', headline: L('APRÈS UNE PAUSE', 'AFTER A BREAK'), detail: L('Deux semaines ou plus sans séance depuis : pas de comparaison.', 'Two weeks or more without a workout since: no comparison.') }
 
   const k = Math.min(sets.length, prevSets.length, prescribedSets(ex), prescribedSets(prev))
   base.comparedSets = k
@@ -569,7 +569,7 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
     ? ''
     : L(
         ` Sur ${k === 1 ? 'la série commune' : `les ${k} séries communes`} (${sets.length} contre ${prevSets.length} la dernière fois).`,
-        ` On the ${k === 1 ? 'set' : `${k} sets`} both sessions have (${sets.length} vs ${prevSets.length} last time).`,
+        ` On the ${k === 1 ? 'set' : `${k} sets`} both workouts have (${sets.length} vs ${prevSets.length} last time).`,
       )
   // Reserve is compared like with like: logged against logged; otherwise what the plans asked for,
   // which only counts when the plan asks for more reserve today than it did last time (`eased`).
@@ -590,7 +590,7 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   if (!sameLoads) {
     // Another rep range at other loads (the exercise as another session has it, or a sheet just edited): no verdict between two prescriptions.
     if (!sameRange(ex.target, prev.target)) {
-      return { ...base, status: 'new-baseline', headline: L('NOUVELLE BASELINE', 'NEW BASELINE'), detail: L('Première séance dans cette fourchette de reps.', 'First session in this rep range.') }
+      return { ...base, status: 'new-baseline', headline: L('NOUVELLE RÉFÉRENCE', 'NEW BASELINE'), detail: L('Première séance dans cette fourchette de répétitions.', 'First workout in this rep range.') }
     }
     const level = (xs: WorkoutSet[], extra: (s: WorkoutSet, i: number) => number) => xs.reduce((a, s, i) => a + setScore({ ...s, cleanReps: cleanOf(s) + extra(s, i) }, ex.unit), 0) / k
     const was = level(before, () => 0)
@@ -617,21 +617,21 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   }
   const delta = now.reduce((a, s) => a + cleanOf(s), 0) - before.reduce((a, s) => a + cleanOf(s), 0)
   base.deltaCleanReps = delta
-  if (delta > 0) return { ...base, status: 'progress', headline: `+${delta} REP${delta > 1 ? 'S' : ''}`, detail: L('Progression à charge égale.', 'Progress at the same load.') + common }
+  if (delta > 0) return { ...base, status: 'progress', headline: L(`+${delta} RÉPÉTITION${delta > 1 ? 'S' : ''}`, `+${delta} REP${delta > 1 ? 'S' : ''}`), detail: L('Progression à charge égale.', 'Progress at the same load.') + common }
   if (delta === 0) return { ...base, status: 'stable', headline: L('PERFORMANCE ÉGALE', 'SAME PERFORMANCE'), detail: L('Niveau maintenu.', 'Level maintained.') + common }
   // Reps lost once the reserve kept is counted.
   const kept = now.reduce((a, s, i) => a + spared(s, i), 0)
   const lost = -(delta + kept)
   if (lost <= 0) {
-    return { ...base, status: 'stable', headline: L('MOINS DE REPS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'), detail: L('Plus de marge gardée que la dernière fois : pas une baisse.', 'More kept in reserve than last time: not a drop.') + common }
+    return { ...base, status: 'stable', headline: L('MOINS DE RÉPÉTITIONS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'), detail: L('Plus de marge gardée que la dernière fois : pas une baisse.', 'More kept in reserve than last time: not a drop.') + common }
   }
   const marked = lost >= dropMargin(k)
   const detail = marked
     ? L('Nette baisse : au-delà de la variation normale.', 'Clear drop: beyond normal variation.')
     : kept > 0
       ? L('Plus de marge gardée que la dernière fois : le reste est une variation normale.', 'More kept in reserve than last time: the rest is normal variation.')
-      : L('Variation normale d’une séance à l’autre.', 'Normal variation from one session to the next.')
-  return { ...base, status: 'down', marked, headline: L(`−${-delta} REP${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, `−${-delta} REP${-delta > 1 ? 'S' : ''} VS LAST TIME`), detail: detail + common }
+      : L('Variation normale d’une séance à l’autre.', 'Normal variation from one workout to the next.')
+  return { ...base, status: 'down', marked, headline: L(`−${-delta} RÉPÉTITION${-delta > 1 ? 'S' : ''} VS DERNIÈRE FOIS`, `−${-delta} REP${-delta > 1 ? 'S' : ''} VS LAST TIME`), detail: detail + common }
 }
 
 /**
@@ -666,8 +666,8 @@ export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: strin
   }
   const info = infoFor(exerciseId)
   return L(
-    `${info.name} : nette baisse 2 séances de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la décharge.`,
-    `${info.name}: clear drop 2 sessions in a row. Remove 1 set for this muscle. If the drop is general, bring the deload forward.`,
+    `${info.name} : nette baisse 2 séances de suite. Retire 1 série à ce muscle. Si la baisse est générale, avance la semaine allégée.`,
+    `${info.name}: clear drop 2 workouts in a row. Remove 1 set for this muscle. If the drop is general, bring the deload forward.`,
   )
 }
 
@@ -760,7 +760,7 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
     const prev = before?.exercise ?? null
     const history = exerciseHistory(others, ex.exerciseId, g)
     let comparison = compareExercise(completedOnly, prev, history, !!w.deload, !!before?.workout.deload, before ? longestBreak(others, before.workout.date, w.date) : 0, before ? workoutContextReason(w, ex, before.workout, before.exercise) : null)
-    if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First session on this machine at this gym.') }
+    if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First workout on this machine at this gym.') }
     const changedEquipment = comparison.contextReason === 'unit-changed' || comparison.contextReason === 'conditions-changed'
     const replaced = ex.replacement && ex.replacement.fromId !== ex.exerciseId
     const decision = !changedEquipment && !replaced && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g)) ?? baselineFor(completedOnly)) : null
@@ -789,7 +789,7 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
       changes.push({
         id: `${w.id}-${ex.exerciseId}-sets`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: HOME_GYM, date: w.date,
         kind: 'sets', from: t.target.sets, to: t.target.sets - 1,
-        text: L('Nette baisse 2 séances de suite : 1 série de moins jusqu’à la fin du bloc', 'Clear drop 2 sessions in a row: 1 set fewer until the end of the block'), lang: lang(),
+        text: L('Nette baisse 2 séances de suite : 1 série de moins jusqu’à la fin du bloc', 'Clear drop 2 workouts in a row: 1 set fewer until the end of the block'), lang: lang(),
       })
     }
   }

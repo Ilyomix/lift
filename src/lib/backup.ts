@@ -366,7 +366,7 @@ function upgradedProgram(state: AppState): AppState {
           state.programRevision >= 4
             ? L(
                 'Programme : les 10 séries d’abdos et de mollets sont réparties sur trois séances au lieu de deux (abdos ajoutés en Legs, mollets en Push), et les deltoïdes postérieurs passent à 4 séries en Pull et 3 en Push : plus aucun exercice à cinq séries.',
-                'Program: the 10 sets of abs and of calves are spread over three sessions instead of two (abs added on Legs, calves on Push), and rear delts go to 4 sets on Pull and 3 on Push: no exercise at five sets any more.',
+                'Program: the 10 sets of abs and of calves are spread over three workouts instead of two (abs added on Legs, calves on Push), and rear delts go to 4 sets on Pull and 3 on Push: no exercise at five sets any more.',
               )
             : L(
                 'Programme : abdos, mollets et deltoïdes postérieurs passent de 6 à 10 séries par semaine (abdos ajoutés en Legs, mollets et deltoïdes postérieurs en Push), pour suivre la règle des 10–20 séries par muscle.',
@@ -414,7 +414,7 @@ export function upgradeToResearchProgram(state: AppState): { state: AppState; ch
         updateId: `research-program-${todayISO()}`,
         basedOnSession: state.completedSessions || null,
         summary: L(
-          'Programme fondé sur la recherche : ULPPL rééquilibré (latéraux ×2, triceps au-dessus de la tête, leg curl assis, hip thrust, RDL, mollets 2×/sem), blocs de 5 semaines + décharge, sèche du 4 janvier au 13 juin.',
+          'Programme fondé sur la recherche : ULPPL rééquilibré (latéraux ×2, triceps au-dessus de la tête, leg curl assis, hip thrust, RDL, mollets 2×/sem), blocs de 5 semaines + semaine allégée, sèche du 4 janvier au 13 juin.',
           'Research-based program: rebalanced ULPPL (side delts ×2, overhead triceps, seated leg curl, hip thrust, RDL, calves 2×/wk), 5-week blocks + deload, cut from 4 January to 13 June.',
         ),
         appliedAt: new Date().toISOString(),
@@ -438,11 +438,11 @@ export function parseBackup(text: string): ParsedBackup {
   try {
     json = JSON.parse(text)
   } catch {
-    throw new Error(L('Ce fichier n’est pas un JSON valide.', 'This file is not valid JSON.'))
+    throw new Error(L('Ce fichier ne peut pas être lu. Choisis le fichier .json exporté depuis Lift.', 'This file cannot be read. Choose the .json file exported from Lift.'))
   }
   const rawState = json?.state ?? json
   if (!rawState || typeof rawState !== 'object' || !('workouts' in rawState || 'templates' in rawState)) {
-    throw new Error(L('Ce fichier ne ressemble pas à une sauvegarde Lift (ou Golgoth).', 'This file doesn’t look like a Lift (or Golgoth) backup.'))
+    throw new Error(L('Ce fichier ne contient pas de sauvegarde Lift. Choisis une sauvegarde exportée depuis l’app.', 'This file does not contain a Lift backup. Choose a backup exported from the app.'))
   }
   const state = normalizeState(rawState)
   const photos: Photo[] = (Array.isArray(json?.photos) ? json.photos : [])

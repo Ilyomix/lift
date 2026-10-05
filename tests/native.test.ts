@@ -30,7 +30,7 @@ test('native tracking translates every generated workout label in French and Eng
   assert.equal(fr.readyLabel, 'Prêt')
   assert.equal(en.readyLabel, 'Ready')
   assert.equal(en.detail, '42 kg · 10–15 reps · 2 in reserve')
-  assert.equal(fr.detail, '42 kg · 10–15 reps · réserve 2')
+  assert.equal(fr.detail, '42 kg · 10–15 rép. · réserve 2')
   assert.equal(en.restEndAt, 100000)
   assert.equal(en.expiresAt, 1000 + 8 * 3600000)
 })

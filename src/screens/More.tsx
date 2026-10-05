@@ -54,7 +54,7 @@ export function AboutScreen() {
           <ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
         </a>
       </Card>
-      <p className="mt-4 text-[14px] leading-[1.5] text-text-2">{L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Sessions and measurements stored on this device.')}</p>
+      <p className="mt-4 text-[14px] leading-[1.5] text-text-2">{L('Programme fondé sur la recherche (rapport du 26 sept. 2026). Séances et mesures enregistrées sur cet appareil.', 'Research-based program (report of 26 Sept 2026). Workouts and measurements stored on this device.')}</p>
       <Card className="mt-4 divide-y divide-line">
         <SettingsMenuRow to="plus/confidentialite" art="privacy" label={L('Politique de confidentialité', 'Privacy policy')} />
         <a href="https://github.com/Ilyomix/lift" target="_blank" rel="noopener noreferrer" className="pressable flex min-h-11 items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-medium hover:bg-surface-2">
@@ -118,7 +118,7 @@ export function NutritionScreen() {
             format={(v) => fmtNum(v, 0)}
           />
         </Card> : <Empty icon={<Utensils size={32} aria-hidden />}
-          title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutrition commence ici', 'Your nutrition log starts here')}
+          title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutritionnel commence ici', 'Your nutrition log starts here')}
           action={<Button variant="outline" onClick={() => { setDate(today); proteinInput.current?.focus() }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
         >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
       </Section>
@@ -149,7 +149,7 @@ export function NutritionTargetsScreen() {
               <p className="text-[15px] font-semibold">{advice.headline}</p>
               <p className="mt-1 text-[14px] leading-[1.45] text-text-2">{advice.detail}</p>
             </div>
-            {advice.status !== 'wait' && advice.status !== 'ask' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : advice.status === 'hold' ? L('Plancher', 'Floor') : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
+            {advice.status !== 'wait' && advice.status !== 'ask' && <Tag tone={advice.status === 'ok' ? 'good' : 'warn'}>{advice.status === 'ok' ? 'OK' : advice.status === 'hold' ? L('Seuil minimum', 'Minimum') : `${advice.delta > 0 ? '+' : '−'}${Math.abs(advice.delta)} kcal`}</Tag>}
             {step && <Tag tone="warn">{`−${Math.abs(step.delta)} kcal`}</Tag>}
           </div>
           {(advice.status === 'lower' || advice.status === 'raise') && (
@@ -257,16 +257,16 @@ function NutritionTargetForm() {
           checked={draft.adaptive} onChange={adaptive => setDraft(current => ({ ...current, adaptive }))} />
       </Card>
       {draft.adaptive ? (
-        <Disclosure title={L('Fourchette fixe de secours', 'Fallback fixed range')} className="mt-4" defaultOpen={!!errors.proteinMin || !!errors.proteinMax} key={errors.proteinMin || errors.proteinMax ? 'invalid-range' : 'range'}>
+        <Disclosure title={L('Fourchette avant la première pesée', 'Range before your first weigh-in')} className="mt-4" defaultOpen={!!errors.proteinMin || !!errors.proteinMax} key={errors.proteinMin || errors.proteinMax ? 'invalid-range' : 'range'}>
           <div className="grid grid-cols-2 gap-3">
-            {field('proteinMin', L('Protéines min (g)', 'Protein min (g)'))}
-            {field('proteinMax', L('Protéines max (g)', 'Protein max (g)'))}
+            {field('proteinMin', L('Protéines min (g)', 'Min protein (g)'))}
+            {field('proteinMax', L('Protéines max (g)', 'Max protein (g)'))}
           </div>
         </Disclosure>
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          {field('proteinMin', L('Protéines min (g)', 'Protein min (g)'))}
-          {field('proteinMax', L('Protéines max (g)', 'Protein max (g)'))}
+          {field('proteinMin', L('Protéines min (g)', 'Min protein (g)'))}
+          {field('proteinMax', L('Protéines max (g)', 'Max protein (g)'))}
         </div>
       )}
       <Button type="submit" variant="primary" full className="mt-4" disabled={!dirty}>{L('Enregistrer les cibles', 'Save targets')}</Button>
@@ -341,21 +341,27 @@ export function CoachScreen() {
     }
   }
   const preview = update ? previewPlanUpdate(state, update) : []
+  const nutritionLabels: Record<string, string> = {
+    calories: 'Calories (kcal)',
+    proteinMin: L('Protéines min (g)', 'Min protein (g)'),
+    proteinMax: L('Protéines max (g)', 'Max protein (g)'),
+    creatine: L('Créatine (g)', 'Creatine (g)'),
+  }
   return (
     <Screen>
       <Header art="coach" backTo="plus" title={L('Aide IA facultative', 'Optional AI assistance')} sub={L('Lift fonctionne sans IA. Partage un bilan avec ton assistant uniquement si tu le souhaites.', 'Lift works without AI. Share a summary with your assistant only if you choose.')} />
       <p className="text-[14px] leading-[1.5] text-text-2">{L('Le bilan est préparé sur cet appareil. Tu choisis où le partager, puis tu peux coller la réponse ici. Vérifie chaque suggestion avant de l’appliquer.', 'The summary is prepared on this device. You choose where to share it, then you can paste the reply here. Review each suggestion before applying it.')}</p>
       <div className="mt-4 grid gap-2">
-        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} disabled={!last} onClick={() => last && void shareText(sessionPrompt(state, last), L(`Séance ${last.sessionNumber}`, `Session ${last.sessionNumber}`))}>
-          {last ? L(`Bilan de la séance n°${last.sessionNumber}`, `Session #${last.sessionNumber} summary`) : L('Aucune séance', 'No sessions')}
+        <Button variant="ink" size="lg" full icon={<Sparkles size={18} aria-hidden />} disabled={!last} onClick={() => last && void shareText(sessionPrompt(state, last), L(`Séance ${last.sessionNumber}`, `Workout ${last.sessionNumber}`))}>
+          {last ? L(`Partager le bilan n°${last.sessionNumber}`, `Share workout #${last.sessionNumber} summary`) : L('Aucune séance enregistrée', 'No workouts recorded')}
         </Button>
-        <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), L('Bilan Lift', 'Lift summary'))}>{L('Bilan global du programme', 'Overall program summary')}</Button>
+        <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), L('Bilan Lift', 'Lift summary'))}>{L('Partager le bilan du programme', 'Share program summary')}</Button>
       </div>
 
       <Section icon={<MessageSquare size={18} aria-hidden />} title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
         <textarea aria-label={L('Réponse de l’IA', 'AI reply')} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
-        <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Analyser', 'Analyze')}</Button>
+        <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Prévisualiser les modifications', 'Preview changes')}</Button>
       </Section>
 
       {update && (
@@ -371,10 +377,10 @@ export function CoachScreen() {
                 <p className="mt-1 text-[13px] text-text-2 tnum"><span className="text-muted">{p.before}</span> → <span className="font-semibold text-text">{p.after}</span></p>
               </div>
             ))}
-            {Object.keys(nutritionFigures(update.nutritionTargets)).length > 0 && <div className="px-4 py-3 text-[13px] text-text-2">{L('Nutrition : ', 'Nutrition: ')}{Object.entries(nutritionFigures(update.nutritionTargets)).map(([k, v]) => `${k} ${v}`).join(' · ')}</div>}
+            {Object.keys(nutritionFigures(update.nutritionTargets)).length > 0 && <div className="px-4 py-3 text-[13px] text-text-2">{L('Nutrition : ', 'Nutrition: ')}{Object.entries(nutritionFigures(update.nutritionTargets)).map(([k, v]) => `${nutritionLabels[k]} : ${fmtNum(Number(v))}`).join(' · ')}</div>}
           </Card>
-          <Button variant="primary" size="lg" full className="mt-3" onClick={() => { applyPlan(update); setUpdate(null); setText(''); useStore.getState().notify(L('Cibles mises à jour.', 'Targets updated.'), 'good') }}>
-            {L('Appliquer', 'Apply')} {plural(update.changes.length, L('changement', 'change'), L('changements', 'changes'))}
+          <Button variant="primary" size="lg" full className="mt-3" onClick={() => { applyPlan(update); setUpdate(null); setText(''); useStore.getState().notify(L('Modifications appliquées.', 'Changes applied.'), 'good') }}>
+            {L('Appliquer cette mise à jour', 'Apply update')}
           </Button>
         </Section>
       )}
@@ -384,7 +390,7 @@ export function CoachScreen() {
           <Card className="divide-y divide-line">
             {[...state.appliedPlanUpdates].reverse().slice(0, 12).map((u) => (
               <div key={u.updateId + u.appliedAt} className="px-4 py-3">
-                <p className="text-[12px] text-muted">{fmtDate(u.appliedAt.slice(0, 10), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'coach' ? L('coach IA', 'AI coach') : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
+                <p className="text-[12px] text-muted">{fmtDate(u.appliedAt.slice(0, 10), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'coach' ? L('aide IA', 'AI assistance') : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
                 <p className="mt-0.5 text-[14px] leading-[1.45]">{u.summary}</p>
               </div>
             ))}
@@ -437,9 +443,9 @@ export function DataScreen() {
   }
   return (
     <Screen>
-      <Header art="backup" backTo="plus/reglages/donnees" title={L('Sauvegarde', 'Backup')} sub={L('Tes données restent sur cet appareil. Exporte une sauvegarde pour conserver tes séances, mesures, données nutritionnelles et photos.', 'Your data stays on this device. Export a backup to keep your sessions, measurements, nutrition data and photos.')} />
+      <Header art="backup" backTo="plus/reglages/donnees" title={L('Sauvegarde', 'Backup')} sub={L('Tes données restent sur cet appareil. Exporte une sauvegarde pour conserver tes séances, mesures, données nutritionnelles et photos.', 'Your data stays on this device. Export a backup to keep your workouts, measurements, nutrition data and photos.')} />
       <Card className="divide-y divide-line">
-        <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{state.workouts.length}</span>} />
+        <Row label={L('Séances', 'Workouts')} value={<span className="tnum">{state.workouts.length}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{state.bodyEntries.length}</span>} />
         <Row label="Photos" value={<span className="tnum">{photos.length}</span>} />
         <Row label={L('Dernier export', 'Last export')} value={state.meta.lastBackupAt ? fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10)) : L('jamais', 'never')} />
@@ -452,13 +458,13 @@ export function DataScreen() {
       {error && <p className="mt-3 text-[13px] text-bad">{error}</p>}
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">{L('Compatible avec les sauvegardes de ton ancien Golgoth Tracker (même format).', 'Compatible with backups from your old Golgoth Tracker (same format).')}</p>
 
-      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Zone sensible', 'Danger zone')}>
-        <Button variant="danger" full onClick={() => setReset(true)}>{L('Tout effacer sur cet appareil', 'Erase everything on this device')}</Button>
+      <Section icon={<TriangleAlert size={18} aria-hidden />} title={L('Suppression des données', 'Delete data')}>
+        <Button variant="danger" full onClick={() => setReset(true)}>{L('Effacer les données de Lift', 'Erase Lift data')}</Button>
       </Section>
 
       <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={async () => { await importBackup(parsed!, { upgrade }); setParsed(null); navigate('') }} />
-      <Sheet icon={<Trash size={18} aria-hidden />} open={reset} onClose={() => setReset(false)} title={L('Tout effacer ?', 'Erase everything?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { await resetAll(); navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
-        <p className="text-[15px] leading-[1.5] text-text-2">{L('Séances, mesures, photos et réglages seront supprimés de cet appareil. Exporte une sauvegarde avant si tu veux les garder.', 'Sessions, measurements, photos and settings will be deleted from this device. Export a backup first if you want to keep them.')}</p>
+      <Sheet icon={<Trash size={18} aria-hidden />} open={reset} onClose={() => setReset(false)} title={L('Effacer les données de Lift ?', 'Erase Lift data?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { await resetAll(); navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
+        <p className="text-[15px] leading-[1.5] text-text-2">{L('Séances, mesures, données nutritionnelles, photos et réglages seront supprimés de cet appareil. Exporte une sauvegarde avant si tu veux les garder.', 'Workouts, measurements, nutrition data, photos and settings will be deleted from this device. Export a backup first if you want to keep them.')}</p>
       </Sheet>
     </Screen>
   )
@@ -470,9 +476,9 @@ export function ImportSheet({ parsed, upgrade, setUpgrade, onClose, onConfirm }:
   return (
     <Sheet icon={<Upload size={18} aria-hidden />} open onClose={onClose} title={L('Importer cette sauvegarde', 'Import this backup')} footer={<Button variant="primary" size="lg" full onClick={onConfirm}>{L('Importer', 'Import')}</Button>}>
       <Card className="divide-y divide-line">
-        <Row label={L('Séances', 'Sessions')} value={<span className="tnum">{s.workouts}</span>} />
+        <Row label={L('Séances', 'Workouts')} value={<span className="tnum">{s.workouts}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{s.bodyEntries}</span>} />
-        <Row label={L('Jours de nutrition', 'Nutrition days')} value={<span className="tnum">{s.nutritionDays}</span>} />
+        <Row label={L('Jours de nutrition saisis', 'Days of nutrition logged')} value={<span className="tnum">{s.nutritionDays}</span>} />
         <Row label="Photos" value={<span className="tnum">{s.photos}</span>} />
         {s.exportedAt && <Row label={L('Exportée', 'Exported')} value={fmtDate(s.exportedAt.slice(0, 10), { year: true })} />}
       </Card>

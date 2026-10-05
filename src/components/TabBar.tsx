@@ -33,7 +33,7 @@ export function TabBar({ current }: { current: string }) {
               >
                 <span className="relative">
                   <Icon size={22} strokeWidth={selected ? 2.2 : 1.8} aria-hidden className={selected ? 'text-signal-text' : undefined} />
-                  {path === 'seance' && active && <span className="absolute -top-0.5 -right-1.5 h-2 w-2 rounded-full bg-signal ring-2 ring-bg" aria-label={L('Séance en cours', 'Session in progress')} />}
+                  {path === 'seance' && active && <span className="absolute -top-0.5 -right-1.5 h-2 w-2 rounded-full bg-signal ring-2 ring-bg" aria-label={L('Séance en cours', 'Workout in progress')} />}
                 </span>
                 {label}
               </button>

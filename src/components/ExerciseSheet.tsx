@@ -52,7 +52,7 @@ export function ExerciseSheet({
 
       {prescription && (
         <dl aria-label={L('Repères pour la séance', 'Training targets')} className="mt-3 flex flex-wrap gap-2">
-          <Metric icon={<Layers size={18} aria-hidden />} label={L('Séries × reps', 'Sets × reps')} value={`${prescription.sets} × ${prescription.minReps}–${prescription.maxReps}`} />
+          <Metric icon={<Layers size={18} aria-hidden />} label={L('Séries × répétitions', 'Sets × reps')} value={`${prescription.sets} × ${prescription.minReps}–${prescription.maxReps}`} />
           <Metric icon={<Gauge size={18} aria-hidden />} label={L('Répétitions en réserve', 'Reps in reserve')} value={reserveLabel(prescription.rir)} />
           <Metric icon={<Timer size={18} aria-hidden />} label={L('Repos', 'Rest')} value={fmtRest(prescription.restSeconds)} />
         </dl>
@@ -85,13 +85,13 @@ export function ExerciseSheet({
             <button type="button" onClick={() => setPlay(true)} className="pressable relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-[12px] bg-black">
               <img src={`https://i.ytimg.com/vi/${vid}/hqdefault.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
               <span className="relative inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-[14px] font-semibold text-white">
-                <CirclePlay size={18} aria-hidden /> {L('Lire ta vidéo', 'Play your video')}
+                <CirclePlay size={18} aria-hidden /> {L('Lire ma vidéo', 'Play my video')}
               </span>
             </button>
           )
         ) : (
           <LinkButton full size="lg" href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" icon={<CirclePlay size={18} aria-hidden />}>
-            <span className="min-w-0">{vid ? L('Voir ma vidéo sur YouTube', 'Watch my video on YouTube') : L('Technique sur YouTube', 'Technique on YouTube')}</span>
+            <span className="min-w-0">{vid ? L('Voir ma vidéo sur YouTube', 'Watch my video on YouTube') : L('Chercher sur YouTube', 'Search YouTube')}</span>
             <ExternalLink size={14} className="text-muted" aria-hidden />
           </LinkButton>
         )}
@@ -108,7 +108,7 @@ export function ExerciseSheet({
             <Field label={L('Lien YouTube', 'YouTube link')}>
               <input className={inputClass} value={draft} onChange={event => { setDraft(event.target.value); setVideoError(false) }} placeholder="https://youtu.be/…" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={videoError} aria-describedby={videoError ? errorId : undefined} />
             </Field>
-            {videoError && <p id={errorId} role="alert" className="text-[13px] leading-5 text-bad">{L('Ajoute le lien d’une vidéo YouTube pour l’enregistrer.', 'Enter a YouTube video link to save it.')}</p>}
+            {videoError && <p id={errorId} role="alert" className="text-[13px] leading-5 text-bad">{L('Lien non reconnu. Copie le lien d’une vidéo YouTube, puis réessaie.', 'Link not recognized. Copy a YouTube video link, then try again.')}</p>}
             <Button type="submit" full variant="ink" disabled={!draft.trim()}>{L('Enregistrer la vidéo', 'Save video')}</Button>
             {video && <Button full variant="ghost" onClick={() => {
               setVideo(exerciseId, ''); setDraft(''); setVideoError(false); setPlay(false)

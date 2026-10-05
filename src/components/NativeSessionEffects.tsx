@@ -55,7 +55,7 @@ const submit = latestSync(async (_state: ReturnType<typeof useStore.getState>['s
       await syncRestAlert(snapshot, state.prefs.notifications, state.prefs.sound)
       alertKey = nextKey
     } catch {
-      useStore.getState().notify(L('Alerte de repos indisponible. Vérifie les autorisations des notifications.', 'Rest alert unavailable. Check notification permissions.'), 'bad')
+      useStore.getState().notify(L('Alerte de repos indisponible. Garde le minuteur ouvert ou vérifie les notifications de Lift dans les réglages de l’appareil.', 'Rest alert unavailable. Keep the timer open or check Lift notifications in your device settings.'), 'bad')
     }
   }
   // Notification scheduling can yield while an action or a new set updates the store.
@@ -70,7 +70,7 @@ const submit = latestSync(async (_state: ReturnType<typeof useStore.getState>['s
 }, () => {
   if (reported) return
   reported = true
-  useStore.getState().notify(L('Suivi écran verrouillé indisponible. Vérifie les autorisations dans Réglages.', 'Lock screen tracking unavailable. Check permissions in Settings.'), 'bad')
+  useStore.getState().notify(L('Suivi sur l’écran verrouillé indisponible. Consulte le minuteur dans la séance.', 'Lock screen tracking unavailable. Use the timer in your workout.'), 'bad')
 })
 
 export function NativeSessionEffects() {
@@ -115,7 +115,7 @@ export function NativeSessionEffects() {
         }
         sync()
       } catch {
-        useStore.getState().notify(L('Action indisponible. Reprends la séance dans l’app.', 'Action unavailable. Resume your workout in the app.'), 'bad')
+        useStore.getState().notify(L('Action non terminée. Ouvre la séance dans Lift pour vérifier le repos.', 'Action not completed. Open your workout in Lift to check the rest timer.'), 'bad')
       } finally {
         handlingActions = false
         // A deep link can arrive while a notification action is awaiting native work.

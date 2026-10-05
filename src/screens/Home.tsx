@@ -86,7 +86,7 @@ export function Home() {
           <p className="flex min-w-0 items-baseline gap-x-2 whitespace-nowrap tnum">
             <span className="text-[48px] leading-none font-semibold tracking-[-0.04em] min-[360px]:text-[64px]"><Num value={plan.done} digits={0} className="[--number-flow-mask-height:0.08em]" /></span>
             <span className="text-[18px] leading-none font-medium text-text-2 min-[360px]:text-[22px]">/ {plan.total}</span>
-            <span className="text-[12px] leading-5 text-text-2 min-[360px]:text-[13px]">{L(plan.done === 1 ? 'séance terminée' : 'séances terminées', plan.done === 1 ? 'session completed' : 'sessions completed')}</span>
+            <span className="text-[12px] leading-5 text-text-2 min-[360px]:text-[13px]">{L(plan.done === 1 ? 'séance terminée' : 'séances terminées', plan.done === 1 ? 'workout completed' : 'workouts completed')}</span>
           </p>
           <p className="ml-auto shrink-0 text-[22px] leading-none font-semibold tnum">{L(`${pct} %`, `${pct}%`)}</p>
         </div>
@@ -117,19 +117,19 @@ export function Home() {
               {state.programPause.plannedEnd ? L(` · reprise ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`, ` · back ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`) : ''}
             </p>
           </div>
-          <Button size="sm" variant="ink" onClick={() => navigate('plus/pause')}>{L('Gérer', 'Manage')}</Button>
+          <Button size="sm" variant="ink" onClick={() => navigate('plus/pause')}>{L('Voir la pause', 'View pause')}</Button>
         </Card>
       )}
 
       {state.reentry && (
         <Card className="mt-3 p-4">
           <p className="text-[15px] font-semibold">{state.reentry.label}</p>
-          <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{state.reentry.advice} {L(`Encore ${plural(state.reentry.sessionsLeft, 'séance', 'séances')}.`, `${plural(state.reentry.sessionsLeft, 'more session', 'more sessions')}.`)}</p>
+          <p className="mt-1 text-[13px] leading-[1.45] text-text-2">{state.reentry.advice} {L(`Encore ${plural(state.reentry.sessionsLeft, 'séance', 'séances')}.`, `${plural(state.reentry.sessionsLeft, 'more workout', 'more workouts')}.`)}</p>
         </Card>
       )}
 
       {/* Next action — the one primary command of the screen */}
-      <Section art={workoutArt[nextType]} title={active ? L('Séance en cours', 'Session in progress') : L('Prochaine séance', 'Next session')}>
+      <Section art={workoutArt[nextType]} title={active ? L('Séance en cours', 'Workout in progress') : L('Prochaine séance', 'Next workout')}>
         <Card className="overflow-hidden">
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -155,7 +155,7 @@ export function Home() {
               {active ? L('Reprendre', 'Resume') : L('Commencer', 'Start')}
             </Button>
             {!active && (
-              <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label={L('Voir le détail de la séance', 'View session details')}>
+              <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
                 {L('Détail', 'Details')}
               </Button>
             )}
@@ -163,7 +163,7 @@ export function Home() {
         </Card>
       </Section>
 
-      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'sessions')}</span>}>
+      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'workouts')}</span>}>
         <WeekStrip days={week} />
       </Section>
 
@@ -188,15 +188,15 @@ export function Home() {
             label={L('Régularité', 'Consistency')}
             value={<><Num value={pace} digits={1} /><span className="ml-1 text-[15px] font-medium text-text-2">{L('/ sem.', '/ wk')}</span></>}
             foot={L('4 dernières semaines', 'Last 4 weeks')}
-            detail={L(`Plan : ${perWeek} par semaine`, `Plan: ${perWeek} per week`)}
+            detail={L(`Objectif : ${plural(perWeek, 'séance', 'séances')}`, `Target: ${plural(perWeek, 'workout', 'workouts')}`)}
             onClick={() => navigate('progres/seances')}
           >
-            <ProgressBar value={pace / Math.max(1, perWeek)} className="mt-2" label={L('Séances par semaine par rapport au plan', 'Sessions per week compared with the plan')} tone={pace >= perWeek - 0.25 ? 'good' : 'text'} />
+            <ProgressBar value={pace / Math.max(1, perWeek)} className="mt-2" label={L('Séances par semaine par rapport au plan', 'Workouts per week compared with the plan')} tone={pace >= perWeek - 0.25 ? 'good' : 'text'} />
           </Tile>
           <Tile
             label={L('Force', 'Strength')}
             value={strength.avg !== null ? <Num value={strength.avg * 100} digits={0} suffix={L(' %', '%')} signed /> : '—'}
-            foot={strength.avg !== null ? L(`1RM estimé · ${plural(strength.lifts, 'exercice', 'exercices')}`, `Estimated 1RM · ${plural(strength.lifts, 'exercise', 'exercises')}`) : L('Après 2 séances par exercice', 'After 2 sessions per exercise')}
+            foot={strength.avg !== null ? L(`Force estimée · ${plural(strength.lifts, 'exercice', 'exercices')}`, `Estimated strength · ${plural(strength.lifts, 'exercise', 'exercises')}`) : L('Après 2 séances par exercice', 'After 2 workouts per exercise')}
             detail={strength.records ? L(`${plural(strength.records, 'record', 'records')} en 30 jours`, `${plural(strength.records, 'record', 'records')} in 30 days`) : undefined}
             onClick={() => navigate('progres')}
           />
@@ -217,18 +217,18 @@ export function Home() {
           ...(earlyDeload
             ? [{
                 icon: <CirclePause size={18} aria-hidden />,
-                text: L(`Décharge avancée : du ${fmtDate(earlyDeload.start, { long: true })} au ${fmtDate(earlyDeload.end, { long: true })}.`, `Deload brought forward: ${fmtDate(earlyDeload.start, { long: true })} to ${fmtDate(earlyDeload.end, { long: true })}.`),
+                text: L(`Semaine allégée avancée : du ${fmtDate(earlyDeload.start, { long: true })} au ${fmtDate(earlyDeload.end, { long: true })}.`, `Deload brought forward: ${fmtDate(earlyDeload.start, { long: true })} to ${fmtDate(earlyDeload.end, { long: true })}.`),
                 action: L('Annuler', 'Cancel'),
-                run: () => { useStore.getState().cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) },
+                run: () => { useStore.getState().cancelEarlyDeload(); useStore.getState().notify(L('Semaine allégée avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) },
               }]
             : []),
           ...drops.map((d) => ({ icon: <TriangleAlert size={18} className="text-warn" aria-hidden />, text: d, action: L('Programme', 'Program'), to: 'calendrier/programme' })),
           ...(cal.status === 'lower' || cal.status === 'raise'
-            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
+            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : ${cal.target} kcal conseillées (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`, `${cal.headline}: ${cal.target} kcal recommended (${cal.delta > 0 ? '+' : '−'}${Math.abs(cal.delta)}).`), action: L('Voir les cibles', 'View targets'), to: 'plus/reglages/nutrition' }]
             : []),
           // The sized step of the cut waits for an answer, on the nutrition screen.
           ...(cal.status === 'ask'
-            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : une question avant de régler tes calories.`, `${cal.headline}: one question before setting your calories.`), action: L('Voir', 'View'), to: 'plus/nutrition' }]
+            ? [{ icon: <Apple size={18} aria-hidden />, text: L(`${cal.headline} : une question avant de régler tes calories.`, `${cal.headline}: one question before setting your calories.`), action: L('Voir les cibles', 'View targets'), to: 'plus/reglages/nutrition' }]
             : []),
           ...(drift
             ? [{
@@ -250,7 +250,7 @@ export function Home() {
             ? [{ icon: <Camera size={18} aria-hidden />, text: L('Photos de progression : une série toutes les 4 semaines, même lumière.', 'Progress photos: one set every 4 weeks, same lighting.'), action: 'Photos', to: 'progres/corps' }]
             : []),
           ...(daysSinceBackup === null || daysSinceBackup > 7
-            ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données vivent sur ce téléphone. Exporte une sauvegarde.', 'Your data lives on this phone. Export a backup.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
+            ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données sont sur cet appareil. Exporte une sauvegarde pour les conserver.', 'Your data is on this device. Export a backup to keep a copy.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
             : []),
           ...(isIOS() && !isStandalone()
             ? [{ icon: <Smartphone size={18} aria-hidden />, text: L('Installe Lift : Partager, puis « Sur l’écran d’accueil ».', 'Install Lift: Share, then “Add to Home Screen”.'), action: L('Aide', 'Help'), to: 'plus/a-propos' }]

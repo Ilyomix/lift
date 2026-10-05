@@ -126,7 +126,7 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
           aria-describedby={instructions} onPointerDown={startDrag} onPointerMove={drag} onPointerUp={endDrag}
           onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={rotateWithKeys} />
         <span id={instructions} className="sr-only">{L('Sur écran tactile : deux doigts pour tourner, un doigt pour défiler. À la souris : glisse pour tourner. Au clavier : flèches pour tourner et incliner, Début pour recentrer.', 'Touchscreen: use two fingers to rotate, one finger to scroll. Mouse: drag to rotate. Keyboard: arrow keys to rotate and tilt, Home to reset the view.')}</span>
-        {!ready && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-[13px] text-text-2">{failed ? L('Vue 3D indisponible. Les muscles et vidéos restent accessibles ci-dessous.', '3D view unavailable. Muscle information and videos are available below.') : L('Chargement du modèle…', 'Loading model…')}</div>}
+        {!ready && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-[13px] text-text-2">{failed ? L('Vue 3D indisponible. Quitte puis rouvre cet exercice pour réessayer.', '3D view unavailable. Leave and reopen this exercise to try again.') : L('Chargement de la vue 3D…', 'Loading 3D view…')}</div>}
         {ready && rotated && <IconButton className="absolute right-3 top-3 bg-surface" onClick={() => resetView()} label={L('Recentrer le modèle', 'Reset model view')}><RotateCcw size={16} aria-hidden /></IconButton>}
         {ready && animated && view === 'technique' && !reduced && <Button variant="ink" size="sm" className="absolute bottom-3 right-3" onClick={() => setPlaying(value => !value)} aria-pressed={!playing} icon={playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}>
           {playing ? L('Pause', 'Pause') : L('Lire', 'Play')}
@@ -153,10 +153,10 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
         </p>
       </div>
       <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
-        {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span className="min-w-0"><strong className="font-semibold">{L('Principal : ', 'Primary: ')}</strong>{direct.join(', ')}</span></p>}
-        {secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span className="min-w-0"><strong className="font-semibold">{L('Secondaire : ', 'Secondary: ')}</strong>{secondary.join(', ')}</span></p>}
+        {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span className="min-w-0"><strong className="font-semibold">{L(direct.length === 1 ? 'Muscle principal : ' : 'Muscles principaux : ', direct.length === 1 ? 'Primary muscle: ' : 'Primary muscles: ')}</strong>{direct.join(', ')}</span></p>}
+        {secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span className="min-w-0"><strong className="font-semibold">{L(secondary.length === 1 ? 'Muscle secondaire : ' : 'Muscles secondaires : ', secondary.length === 1 ? 'Secondary muscle: ' : 'Secondary muscles: ')}</strong>{secondary.join(', ')}</span></p>}
         {!direct.length && !secondary.length && <p>{L('Consulte la vidéo de référence pour les muscles sollicités.', 'See the reference video for the muscles involved.')}</p>}
-        {!animated && <p className="pt-1 text-muted">{L('Repère anatomique. La vidéo de référence ci-dessous montre le mouvement.', 'Anatomy reference. The video below shows the movement.')}</p>}
+        {!animated && <p className="pt-1 text-muted">{L('Vue anatomique uniquement. Consulte les consignes et une vidéo de référence pour le mouvement.', 'Anatomy view only. Check the exercise instructions and a reference video for the movement.')}</p>}
       </figcaption>
     </figure>
   )

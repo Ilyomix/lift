@@ -46,10 +46,10 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       <div className="mt-4">
       {tab === 'programme' ? <ProgramContent /> : <>
       <div className="mb-5 text-text-2">
-        <p className="text-[13px] leading-[1.4]">{cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`Plan jusqu’au ${fmtDate(GOAL_DATE, { long: true })}`, `Program through ${fmtDate(GOAL_DATE, { long: true })}`)}</p>
+        <p className="text-[13px] leading-[1.4]">{cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`Programme jusqu’au ${fmtDate(GOAL_DATE, { long: true })}`, `Program through ${fmtDate(GOAL_DATE, { long: true })}`)}</p>
         <p className="mt-2 text-[15px] leading-[1.45]">{cycle
-          ? L(`${cycle.label} : ${plan.done} faites + ${plan.planned} prévues jusqu’au ${fmtDate(cycle.end, { long: true })}. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${cycle.label}: ${plan.done} done + ${plan.planned} planned until ${fmtDate(cycle.end, { long: true })}. A missed session shifts the rotation; it’s never skipped.`)
-          : L(`${plan.done} faites + ${plan.planned} prévues = ${plan.total} séances. Une séance manquée décale la rotation, elle n’est jamais sautée.`, `${plan.done} done + ${plan.planned} planned = ${plan.total} sessions. A missed session shifts the rotation; it’s never skipped.`)}</p>
+          ? L(`${cycle.label} : ${plural(plan.done, 'séance terminée', 'séances terminées')}, ${plural(plan.planned, 'séance prévue', 'séances prévues')} jusqu’au ${fmtDate(cycle.end, { long: true })}. Les séances manquées sont reportées.`, `${cycle.label}: ${plural(plan.done, 'completed workout', 'completed workouts')}, ${plural(plan.planned, 'planned workout', 'planned workouts')} until ${fmtDate(cycle.end, { long: true })}. Missed workouts are rescheduled.`)
+          : L(`${plural(plan.done, 'séance terminée', 'séances terminées')}, ${plural(plan.planned, 'séance prévue', 'séances prévues')}. Les séances manquées sont reportées.`, `${plural(plan.done, 'completed workout', 'completed workouts')}, ${plural(plan.planned, 'planned workout', 'planned workouts')}. Missed workouts are rescheduled.`)}</p>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -108,7 +108,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       </div>
 
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-text-2">
-        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] bg-text" />} label={L('Faite', 'Done')} />
+        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] bg-text" />} label={L('Terminée', 'Completed')} />
         <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-line-strong" />} label={L('Prévue', 'Planned')} />
         <Legend swatch={<span className="hatch h-3.5 w-5 rounded-[3px] border border-line" />} label={L('Pause', 'Paused')} />
         <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-signal" />} label={L('Aujourd’hui', 'Today')} />
@@ -198,7 +198,7 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
           )}
         </div>
       ) : (
-        <Empty art="calendar" title={date < today ? L('Aucune séance ce jour-là', 'No session that day') : L('Une journée pour récupérer', 'A day to recover')} action={<Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
+        <Empty art="calendar" title={date < today ? L('Aucune séance ce jour-là', 'No workout that day') : L('Une journée pour récupérer', 'A day to recover')} action={<Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
           {date < today ? L('Aucune séance n’a été enregistrée à cette date.', 'No workout was recorded on this date.') : L('Aucune séance n’est prévue à cette date.', 'No workout is planned for this date.')}
         </Empty>
       )}
@@ -263,7 +263,7 @@ export function PauseScreen() {
               ))}
             </div>
           </Section>
-          <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Dernier jour de pause (optionnel)', 'Last day of the pause (optional)')}>
+          <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Dernier jour de pause (facultatif)', 'Last day of the pause (optional)')}>
             <DateInput label={L('Dernier jour de pause', 'Last day of the pause')} value={end} min={today} max={GOAL_DATE} onChange={setEnd} placeholder={L('Sans date de reprise', 'No return date')} clearable />
             <div className="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4">
               {[3, 7, 14, 21].map((n) => {
@@ -288,9 +288,9 @@ export function PauseScreen() {
       <Disclosure icon={<ClipboardList size={18} aria-hidden />} title={L('Règles de reprise', 'Return rules')} className="mt-6">
         <Card className="divide-y divide-line text-[14px]">
           {[
-            [L('1 séance manquée', '1 missed session'), L('La rotation se décale, rien n’est sauté.', 'The rotation shifts; nothing is skipped.')],
-            [L('1 semaine', '1 week'), L('Bloc en cours, charges −5 à −10 %, 2–3 reps en réserve pendant 2 séances.', 'Current block, loads −5 to −10%, 2–3 reps in reserve for 2 sessions.')],
-            [L('2–3 semaines', '2–3 weeks'), L('Une semaine comme une S1 : 3 reps en réserve, −30 % de séries.', 'One week run like a W1: 3 reps in reserve, sets −30%.')],
+            [L('1 séance manquée', '1 missed workout'), L('La rotation se décale, rien n’est sauté.', 'The rotation shifts; nothing is skipped.')],
+            [L('1 semaine', '1 week'), L('Bloc en cours, charges −5 à −10 %, 2–3 reps en réserve pendant 2 séances.', 'Current block, loads −5 to −10%, 2–3 reps in reserve for 2 workouts.')],
+            [L('2–3 semaines', '2–3 weeks'), L('Une semaine de reprise : 3 répétitions en réserve, −30 % de séries.', 'One return week: 3 reps in reserve, sets −30%.')],
             [L('Plus de 3 semaines', 'Over 3 weeks'), L('2 semaines de remise en route, puis retour au bloc.', '2 restart weeks, then back to the block.')],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-3 px-4 py-3">
@@ -299,7 +299,7 @@ export function PauseScreen() {
             </div>
           ))}
         </Card>
-        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('1 à 3 semaines d’arrêt coûtent peu : des cycles 6 semaines on / 3 off ont donné la même hypertrophie que l’entraînement continu (Ogasawara 2013). Les seuils sont une opinion d’experts.', '1 to 3 weeks off cost little: cycles of 6 weeks on / 3 off produced the same hypertrophy as continuous training (Ogasawara 2013). The thresholds are expert opinion.')}</p>
+        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('1 à 3 semaines d’arrêt coûtent peu : des cycles 6 semaines d’entraînement / 3 d’arrêt ont donné la même hypertrophie que l’entraînement continu (Ogasawara 2013). Les seuils sont une opinion d’experts.', '1 to 3 weeks off cost little: cycles of 6 weeks of training / 3 weeks off produced the same hypertrophy as continuous training (Ogasawara 2013). The thresholds are expert opinion.')}</p>
       </Disclosure>
     </Screen>
   )
@@ -318,17 +318,17 @@ export function RemindersScreen() {
     <Screen>
       <Header art="reminders" backTo="plus/reglages/seances" title={L('Rappels calendrier', 'Calendar reminders')} sub={L('Choisis les événements à exporter dans ton calendrier.', 'Choose which events to export to your calendar.')} />
       <Card className="divide-y divide-line">
-        <Toggle label={L('Séances', 'Sessions')} hint={L(`Chaque jour d’entraînement, alerte 30 min avant`, `Every training day, alert 30 min before`)} checked={o.training} onChange={set('training')} />
+        <Toggle label={L('Séances', 'Workouts')} hint={L(`Chaque jour d’entraînement, alerte 30 min avant`, `Every training day, alert 30 min before`)} checked={o.training} onChange={set('training')} />
         <Toggle label={L('Pesée à jeun', 'Fasted weigh-in')} hint={L('Chaque matin : la moyenne sur 7 jours guide les calories', 'Every morning: the 7-day average guides calories')} checked={o.weighIn} onChange={set('weighIn')} />
         <Toggle label={L('Tour de taille', 'Waist')} hint={L('Un dimanche sur deux', 'Every other Sunday')} checked={o.waist} onChange={set('waist')} />
         <Toggle label="Photos" hint={L('Toutes les 4 semaines', 'Every 4 weeks')} checked={o.photos} onChange={set('photos')} />
-        <Toggle label={L('Semaines de décharge', 'Deload weeks')} hint={L('Alerte la veille', 'Alert the day before')} checked={o.deloads} onChange={set('deloads')} />
+        <Toggle label={L('Semaines allégées', 'Deload weeks')} hint={L('Alerte la veille', 'Alert the day before')} checked={o.deloads} onChange={set('deloads')} />
         <Toggle label={MAINTENANCE ? L('Phases', 'Phases') : L('Phases et objectif', 'Phases and goal')} hint={MAINTENANCE ? L('Début du programme, fêtes', 'Program start, holidays') : L(`Début du programme, sèche, fêtes, stabilisation, ${fmtDate(GOAL_DATE, { long: true })}`, `Program start, cut, holidays, stabilization, ${fmtDate(GOAL_DATE, { long: true })}`)} checked={o.phases} onChange={set('phases')} />
       </Card>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="min-w-0">
-          <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Heure des séances', 'Session time')}</p>
-          <TimeInput label={L('Heure des séances', 'Session time')} value={state.prefs.trainingTime} onChange={(v) => setPrefs({ trainingTime: v })} />
+          <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Heure des séances', 'Workout time')}</p>
+          <TimeInput label={L('Heure des séances', 'Workout time')} value={state.prefs.trainingTime} onChange={(v) => setPrefs({ trainingTime: v })} />
         </div>
         <div className="min-w-0">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Heure de la pesée', 'Weigh-in time')}</p>
@@ -336,18 +336,18 @@ export function RemindersScreen() {
         </div>
       </div>
       <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile(L('lift-rappels.ics', 'lift-reminders.ics'), ics, 'text/calendar')}>
-        {L('Ajouter', 'Add')} {plural(n, L('rappel', 'reminder'), L('rappels', 'reminders'))}
+        {L('Exporter', 'Export')} {plural(n, L('rappel', 'reminder'), L('rappels', 'reminders'))}
       </Button>
       <Disclosure icon={<HelpCircle size={18} aria-hidden />} title={L('Comment ajouter les rappels', 'How to add reminders')} className="mt-4">
         <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
           {/* “Save to Files” is an entry of the iOS share sheet; other devices download the file or hand it to their calendar app. */}
-          <li><span className="font-semibold text-text">1.</span> {isIOS() ? L('Touche « Ajouter » puis « Enregistrer dans Fichiers ».', 'Tap “Add”, then “Save to Files”.') : L('Touche « Ajouter » : le fichier calendrier s’enregistre sur ton appareil.', 'Tap “Add”: the calendar file is saved to your device.')}</li>
+          <li><span className="font-semibold text-text">1.</span> {isIOS() ? L('Choisis « Exporter » puis « Enregistrer dans Fichiers ».', 'Choose “Export”, then “Save to Files”.') : L('Choisis « Exporter » : le fichier calendrier s’enregistre sur ton appareil.', 'Choose “Export”: the calendar file is saved to your device.')}</li>
           <li><span className="font-semibold text-text">2.</span> {isIOS() ? L('Ouvre le fichier depuis Fichiers, puis « Tout ajouter » dans Calendrier.', 'Open the file from Files, then tap “Add All” in Calendar.') : L('Ouvre-le : ton application de calendrier propose d’ajouter les rappels.', 'Open it: your calendar app offers to add the reminders.')}</li>
-          <li><span className="font-semibold text-text">3.</span> {L('Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.', 'Sessions follow your training days; the exact rotation is in the app.')}</li>
+          <li><span className="font-semibold text-text">3.</span> {L('Les séances suivent tes jours d’entraînement ; la rotation exacte est dans l’app.', 'Workouts follow your training days; the exact rotation is in the app.')}</li>
         </ol>
         <p className="mt-3 text-[12px] leading-[1.45] text-muted">{isNative() ? L('Active les alertes locales dans Plus → Réglages → Repos et alertes.', 'Enable local alerts in More → Settings → Rest and alerts.') : L('La fin de repos écran verrouillé passe par les notifications du serveur Lift : Plus → Réglages → Repos et alertes.', 'End-of-rest alerts on the lock screen go through Lift server notifications: More → Settings → Rest and alerts.')}</p>
       </Disclosure>
-      <Disclosure icon={<BookOpen size={18} aria-hidden />} title={L('Dates des décharges', 'Deload dates')} className="mt-3">
+      <Disclosure icon={<BookOpen size={18} aria-hidden />} title={L('Dates des semaines allégées', 'Deload dates')} className="mt-3">
         <p className="text-[13px] text-text-2">{PERIODS.filter((p) => p.kind === 'deload' && (!MAINTENANCE || p.end >= todayISO())).slice(0, MAINTENANCE ? 8 : undefined).map((p) => fmtDate(p.start)).join(' · ')}</p>
       </Disclosure>
     </Screen>

@@ -87,7 +87,7 @@ test('failed saves remain retryable and preserve the latest edits on foreground 
   assert.equal(writes, 2, 'persistent failures must not start an unbounded retry loop')
   assert.equal(persisted, undefined)
   assert.equal(useStore.getState().storage, 'memory')
-  assert.equal(useStore.getState().toast?.message, 'Storage unavailable: your data is only kept for this session.')
+  assert.equal(useStore.getState().toast?.message, 'Saving is unavailable. Export a backup before closing Lift.')
 
   const latest = { ...useStore.getState().state, completedSessions: 7 }
   useStore.setState({ state: latest })

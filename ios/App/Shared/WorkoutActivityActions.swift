@@ -173,12 +173,12 @@ enum WorkoutActivityActions {
 
 @available(iOS 17.0, *)
 struct ChangeWorkoutRestIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Adjust workout rest"
+    static var title = LocalizedStringResource("workout.rest.adjust", defaultValue: "Adjust rest")
     static var isDiscoverable = false
 
-    @Parameter(title: "Workout") var workoutId: String
-    @Parameter(title: "Rest deadline") var expectedRestEndAt: Double
-    @Parameter(title: "Action") var action: String
+    @Parameter(title: LocalizedStringResource("workout.parameter", defaultValue: "Workout")) var workoutId: String
+    @Parameter(title: LocalizedStringResource("workout.rest.deadline", defaultValue: "Rest end time")) var expectedRestEndAt: Double
+    @Parameter(title: LocalizedStringResource("workout.rest.action", defaultValue: "Rest action")) var action: String
 
     init() {}
 

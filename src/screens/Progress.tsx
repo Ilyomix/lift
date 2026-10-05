@@ -26,7 +26,7 @@ type Tab = 'force' | 'corps' | 'volume' | 'seances'
 
 function SessionLink() {
   const active = useStore((s) => s.state.activeWorkout)
-  return <Button variant="primary" onClick={() => navigate('seance')}>{active ? L('Revenir à ma séance', 'Return to my session') : L('Voir ma séance', 'View my session')}</Button>
+  return <Button variant="primary" onClick={() => navigate('seance')}>{active ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>
 }
 
 export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
@@ -34,14 +34,14 @@ export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
     <Screen>
       <Header art="chart" title={L('Progrès', 'Progress')} />
       <Segmented
-        label={L('Vue', 'View')}
+        label={L('Suivi des progrès', 'Progress view')}
         value={tab}
         onChange={(t) => navigate(t === 'force' ? 'progres' : `progres/${t}`, { replace: true })}
         options={[
           { value: 'force', label: L('Force', 'Strength') },
           { value: 'corps', label: L('Corps', 'Body') },
           { value: 'volume', label: 'Volume' },
-          { value: 'seances', label: L('Séances', 'Sessions') },
+          { value: 'seances', label: L('Séances', 'Workouts') },
         ]}
       />
       <div className="mt-4">
@@ -75,13 +75,13 @@ function ForceTab() {
   const active = rows.filter((r) => r.inProgram)
   const archived = rows.filter((r) => !r.inProgram && r.h.length)
   if (!rows.some((row) => row.h.length)) return (
-    <Empty art="logbook" title={L('Tes progrès commencent ici', 'Your progress starts here')} action={<SessionLink />}>
-      {L('Termine une séance en notant tes séries. Tu retrouveras ici tes charges, tes répétitions et leur évolution.', 'Finish a session and log your sets. Your loads, reps and how they change will appear here.')}
+    <Empty art="logbook" title={L('Aucune performance enregistrée', 'No performance recorded yet')} action={<SessionLink />}>
+      {L('Termine une séance en notant tes séries. Tu retrouveras ici tes charges, tes répétitions et leur évolution.', 'Finish a workout and log your sets. Your loads, reps and how they change will appear here.')}
     </Empty>
   )
   return (
     <>
-      <p className="text-[13px] leading-[1.45] text-text-2">{L('1RM estimé (Epley) sur les répétitions propres de la meilleure série de chaque séance. Au poids du corps : meilleure série en répétitions.', 'Estimated 1RM (Epley) from the clean reps of the best set in each session. Bodyweight exercises: best set in reps.')}</p>
+      <p className="text-[13px] leading-[1.45] text-text-2">{L('Le 1RM estime la charge maximale pour une répétition, à partir de ta meilleure série (formule d’Epley). Au poids du corps, le suivi compare le nombre de répétitions.', '1RM estimates the heaviest load you could lift for one rep, based on your best set (Epley formula). For bodyweight exercises, progress is measured in reps.')}</p>
       {active.length > 0 && <ExerciseList title={L('Programme actuel', 'Current program')} rows={active} />}
       {archived.length > 0 && <ExerciseList title={L('Anciens exercices', 'Past exercises')} rows={archived} />}
     </>
@@ -132,7 +132,7 @@ export function ExerciseDetail({ id }: { id: string }) {
   const last = h[h.length - 1]
   return (
     <Screen>
-      <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, L('séance', 'session'), L('séances', 'sessions'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
+      <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, L('séance', 'workout'), L('séances', 'workouts'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
       {gymsUsed.length > 1 && (
         <Segmented className="mb-4" label={L('Salle', 'Gym')} value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
       )}
@@ -145,10 +145,10 @@ export function ExerciseDetail({ id }: { id: string }) {
             </div>
           </Card>
           <Card className="mt-3 p-4">
-            <p className="text-[13px] font-medium text-text-2">{L('Répétitions propres par séance', 'Clean reps per session')}</p>
+            <p className="text-[13px] font-medium text-text-2">{L('Répétitions propres par séance', 'Clean reps per workout')}</p>
             <div className="mt-3">
               <Columns
-                ariaLabel={L('Répétitions propres par séance', 'Clean reps per session')}
+                ariaLabel={L('Répétitions propres par séance', 'Clean reps per workout')}
                 bars={h.map((x) => ({ key: x.workoutId, label: fmtDate(x.date).replace('.', ''), value: x.totalClean, tooltip: <span className="tnum">{fmtDate(x.date)} · {setsSummary(x.sets, x.unit)}</span> }))}
                 height={140}
                 format={(v) => fmtNum(v, 0)}
@@ -174,14 +174,14 @@ export function ExerciseDetail({ id }: { id: string }) {
         </>
       ) : (
         <Empty art="dumbbell"
-          title={all.length ? L('Pas de séance dans cette salle', 'No sessions at this gym') : L('Ton premier repère reste à poser', 'Your first benchmark is ahead')}
+          title={all.length ? L('Pas de séance dans cette salle', 'No workouts at this gym') : L('Aucune série enregistrée', 'No sets logged yet')}
           action={all.length
             ? <Button variant="outline" onClick={() => setGym(all[all.length - 1].gymId)}>{L('Voir la dernière salle utilisée', 'View the last gym used')}</Button>
             : <Button variant="outline" onClick={() => setSheet(true)}>{L('Voir le mouvement', 'View the movement')}</Button>}
         >
           {all.length
             ? L('Cet exercice a été enregistré dans une autre salle. Ses résultats sont conservés séparément.', 'This exercise was recorded at another gym. Its results are kept separately.')
-            : L('Après une séance comprenant cet exercice, tes séries et tes performances apparaîtront ici. Tu peux déjà consulter sa technique.', 'After a session that includes this exercise, your sets and performance will appear here. You can explore its technique now.')}
+            : L('Après une séance comprenant cet exercice, tes séries et tes performances apparaîtront ici. Tu peux déjà consulter sa technique.', 'After a workout that includes this exercise, your sets and performance will appear here. You can explore its technique now.')}
         </Empty>
       )}
       <Button variant="outline" full className="mt-6" icon={<BookOpen size={18} aria-hidden />} onClick={() => setSheet(true)}>
@@ -222,7 +222,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
       <div className="grid grid-cols-3 gap-3">
         <Figure label={ws.isAverage && !ws.stale ? L('Moyenne 7 j', '7-day avg') : L('Dernière pesée', 'Last weigh-in')} value={ws.current !== null ? `${fmtNum(ws.current)} kg` : '—'} />
         <Figure label={L('Tendance', 'Trend')} value={ws.weeklyChangePct !== null ? L(`${fmtSigned(ws.weeklyChangePct, 2)} %`, `${fmtSigned(ws.weeklyChangePct, 2)}%`) : '—'} hint={L('par semaine', 'per week')} />
-        <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)}` : '—'} hint={goal?.computed ? 'plan · kg' : 'kg'} />
+        <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)}` : '—'} hint={goal?.computed ? L('estimé · kg', 'estimated · kg') : 'kg'} />
       </div>
       <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
         {currentRate ? <>{L('Rythme visé maintenant : ', 'Target pace now: ')}<span className="font-semibold text-text">{currentRate}</span>.</>
@@ -244,8 +244,8 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
         </div>
       </Card>
       </> : <Empty art="logbook"
-        title={state.bodyEntries.length ? L('Ajoute ton premier poids', 'Add your first weigh-in') : L('Un premier repère pour ton suivi', 'A starting point for your progress')}
-        action={<Button variant="primary" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{state.bodyEntries.length ? L('Ajouter un poids', 'Add a weigh-in') : L('Ajouter une mesure', 'Add a measurement')}</Button>}
+        title={state.bodyEntries.length ? L('Ajoute ta première pesée', 'Add your first weigh-in') : L('Aucune mesure enregistrée', 'No measurements yet')}
+        action={<Button variant="primary" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{state.bodyEntries.length ? L('Ajouter une pesée', 'Add a weigh-in') : L('Ajouter une mesure', 'Add a measurement')}</Button>}
       >
         {state.bodyEntries.length
           ? L('Tes autres mesures sont conservées ci-dessous. Une pesée permettra de commencer le suivi du poids.', 'Your other measurements are saved below. A weigh-in will start your weight history.')
@@ -266,7 +266,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
         </Card>
       )}
 
-      {weights.length > 0 && <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Nouvelle mesure', 'New measurement')}</Button>}
+      {weights.length > 0 && <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Ajouter des mesures', 'Add measurements')}</Button>}
 
       {state.bodyEntries.length > 0 && <Section icon={<Ruler size={18} aria-hidden />} title={L('Mesures', 'Measurements')}>
         <MeasureList entries={state.bodyEntries} />
@@ -297,7 +297,7 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
         <div key={b.id} className="flex items-center gap-3 px-4 py-2.5">
           <span className="w-20 shrink-0 text-[13px] text-text-2">{fmtDate(b.date)}</span>
           <span className="min-w-0 flex-1 text-[14px] tnum">
-            {[b.weight !== null && `${fmtNum(b.weight)} kg`, b.waist !== null && L(`taille ${fmtNum(b.waist)}`, `waist ${fmtNum(b.waist)}`), b.arm !== null && L(`bras ${fmtNum(b.arm)}`, `arm ${fmtNum(b.arm)}`), b.chest !== null && L(`poitrine ${fmtNum(b.chest)}`, `chest ${fmtNum(b.chest)}`), b.shoulders !== null && L(`épaules ${fmtNum(b.shoulders)}`, `shoulders ${fmtNum(b.shoulders)}`)].filter(Boolean).join(' · ')}
+            {[b.weight !== null && `${fmtNum(b.weight)} kg`, b.waist !== null && L(`tour de taille ${fmtNum(b.waist)} cm`, `waist ${fmtNum(b.waist)} cm`), b.arm !== null && L(`bras ${fmtNum(b.arm)} cm`, `arm ${fmtNum(b.arm)} cm`), b.chest !== null && L(`poitrine ${fmtNum(b.chest)} cm`, `chest ${fmtNum(b.chest)} cm`), b.shoulders !== null && L(`épaules ${fmtNum(b.shoulders)} cm`, `shoulders ${fmtNum(b.shoulders)} cm`)].filter(Boolean).join(' · ')}
           </span>
           <IconButton label={L(`Supprimer la mesure du ${fmtDate(b.date)}`, `Delete the measurement from ${fmtDate(b.date)}`)} onClick={() => setPending(b)}><Trash size={16} aria-hidden /></IconButton>
         </div>
@@ -324,11 +324,11 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
     if (!valid) return
     saveBody({ date, weight: parseNumber(v.weight), waist: parseNumber(v.waist), arm: parseNumber(v.arm), chest: parseNumber(v.chest), shoulders: parseNumber(v.shoulders) })
     setV({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
-    useStore.getState().notify(L('Mesure enregistrée.', 'Measurement saved.'), 'good')
+    useStore.getState().notify(L('Mesures enregistrées.', 'Measurements saved.'), 'good')
     onClose()
   }
   return (
-    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Nouvelle mesure', 'New measurement')} footer={<Button variant="primary" size="lg" full disabled={!valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
+    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Ajouter des mesures', 'Add measurements')} footer={<Button variant="primary" size="lg" full disabled={!valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
@@ -360,10 +360,9 @@ function Photos() {
       const dataUrl = await imageToDataUrl(f)
       await addPhoto({ id: uid('photo'), date: todayISO(), dataUrl, name: f.name })
     }
-    useStore.getState().notify(L('Photo ajoutée. Elle reste sur ce téléphone.', 'Photo added. It stays on this phone.'), 'good')
   }
   return (
-    <Section icon={<Camera size={18} aria-hidden />} title="Photos" action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
+    <Section icon={<Camera size={18} aria-hidden />} title={L('Photos de progression', 'Progress photos')} action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
       {photos.length > 0 ? <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
@@ -383,7 +382,7 @@ function Photos() {
         </span>
       </button>}
       <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onFile(e.target.files); e.target.value = '' }} />
-      <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos ne quittent pas ce téléphone (sauf dans tes sauvegardes).', 'Every 4 weeks, same lighting, same pose. Photos never leave this phone (except in your backups).')}</p>
+      <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos restent sur cet appareil et sont incluses dans tes sauvegardes.', 'Every 4 weeks, same lighting, same pose. Photos stay on this device and are included in your backups.')}</p>
       <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { setPendingDelete(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
         {current && <img src={current.dataUrl} alt="" className="w-full rounded-[12px]" />}
       </Sheet>
@@ -409,9 +408,9 @@ function CompareSheet({ onClose }: { onClose: () => void }) {
   const pa = photos.find((p) => p.id === a)
   const pb = photos.find((p) => p.id === b)
   return (
-    <Sheet icon={<Columns2 size={18} aria-hidden />} open onClose={onClose} title={L('Avant / après', 'Before / after')} tall>
+    <Sheet icon={<Columns2 size={18} aria-hidden />} open onClose={onClose} title={L('Comparer les photos', 'Compare photos')} tall>
       <div className="grid grid-cols-2 gap-2">
-        {[[L('Avant', 'Before'), a, setA], [L('Après', 'After'), b, setB]].map(([label, val, set]) => (
+        {[[L('Photo de gauche', 'Left photo'), a, setA], [L('Photo de droite', 'Right photo'), b, setB]].map(([label, val, set]) => (
           <Field key={label as string} label={label as string}>
             <select className={inputClass} value={val as string} onChange={(e) => (set as (v: string) => void)(e.target.value)}>
               {photos.map((p) => <option key={p.id} value={p.id}>{p.id === GOAL_PHOTO_ID ? L('Objectif', 'Goal') : fmtDate(p.date, { year: true })}</option>)}
@@ -421,8 +420,8 @@ function CompareSheet({ onClose }: { onClose: () => void }) {
       </div>
       {pa && pb && (
         <div className="relative mt-4 aspect-[3/4] w-full overflow-hidden rounded-[12px] bg-surface-2">
-          <img src={pb.dataUrl} alt={L(`Après, ${fmtDate(pb.date)}`, `After, ${fmtDate(pb.date)}`)} className="absolute inset-0 h-full w-full object-cover" />
-          <img src={pa.dataUrl} alt={L(`Avant, ${fmtDate(pa.date)}`, `Before, ${fmtDate(pa.date)}`)} className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} />
+          <img src={pb.dataUrl} alt={L(`Photo de droite, ${fmtDate(pb.date)}`, `Right photo, ${fmtDate(pb.date)}`)} className="absolute inset-0 h-full w-full object-cover" />
+          <img src={pa.dataUrl} alt={L(`Photo de gauche, ${fmtDate(pa.date)}`, `Left photo, ${fmtDate(pa.date)}`)} className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} />
           <div className="pointer-events-none absolute inset-y-0 w-[2px] bg-white shadow-[0_0_0_1px_rgb(0_0_0/0.2)]" style={{ left: `${pos}%` }} />
           <input type="range" min={0} max={100} value={pos} onChange={(e) => setPos(Number(e.target.value))} aria-label={L('Position du comparateur', 'Comparison slider position')} className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" />
           <span className="absolute top-2 left-2 bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">{fmtDate(pa.date)}</span>
@@ -451,8 +450,8 @@ function VolumeTab() {
   const latestOffset = latestDate ? Math.max(0, Math.floor(diffDays(mondayOf(latestDate), monday) / 7)) : 0
   const hasWeekVolume = Object.values(vol).some((sets) => sets > 0)
   if (!logged.length) return (
-    <Empty art="plate" title={L('Chaque série compte', 'Every set counts')} action={<SessionLink />}>
-      {L('Tes séries enregistrées dans les séances terminées permettront de suivre le travail de chaque muscle et ton rythme d’entraînement.', 'Sets logged in completed sessions will show the work for each muscle and your training rhythm.')}
+    <Empty art="plate" title={L('Aucune série à comptabiliser', 'No sets to count yet')} action={<SessionLink />}>
+      {L('Tes séries enregistrées dans les séances terminées permettront de suivre le travail de chaque muscle et ton rythme d’entraînement.', 'Sets logged in completed workouts will show the work for each muscle and your training rhythm.')}
     </Empty>
   )
   return (
@@ -481,13 +480,13 @@ function VolumeTab() {
           action={offset !== latestOffset
             ? <Button variant="outline" onClick={() => setOffset(latestOffset)}>{L('Voir la dernière semaine active', 'View the last active week')}</Button>
             : <Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
-        >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other sessions remain in your history.')}</Empty>}
+        >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other workouts remain in your history.')}</Empty>}
       </Section>
-      {counts.some((count) => count.count > 0) && <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Séances par semaine', 'Sessions per week')}>
+      {counts.some((count) => count.count > 0) && <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Séances par semaine', 'Workouts per week')}>
         <Card className="p-4">
           <Columns
-            ariaLabel={L('Séances par semaine sur 12 semaines', 'Sessions per week over 12 weeks')}
-            bars={counts.map((c) => ({ key: c.monday, label: fmtDate(c.monday).replace('.', ''), value: c.count, tooltip: <span>{L('Semaine du', 'Week of')} {fmtDate(c.monday)}{L(' : ', ': ')}{plural(c.count, L('séance', 'session'), L('séances', 'sessions'))}</span> }))}
+            ariaLabel={L('Séances par semaine sur 12 semaines', 'Workouts per week over 12 weeks')}
+            bars={counts.map((c) => ({ key: c.monday, label: fmtDate(c.monday).replace('.', ''), value: c.count, tooltip: <span>{L('Semaine du', 'Week of')} {fmtDate(c.monday)}{L(' : ', ': ')}{plural(c.count, L('séance', 'workout'), L('séances', 'workouts'))}</span> }))}
             target={{ value: trainingDays(state).length, label: `Plan ${trainingDays(state).length}` }}
             format={(v) => fmtNum(v, 0)}
           />
@@ -506,7 +505,7 @@ function VolumeTab() {
         ) : (
           <div className="flex items-start gap-3 py-2">
             <SportArt kind="plate" size="title" />
-            <p className="min-w-0 text-[13px] leading-[1.5] text-text-2">{L('Renseigne les répétitions en réserve de tes séries pendant la séance, en suivant la consigne du jour.', 'Log each set’s reps in reserve during the session, following today’s instruction.')}</p>
+            <p className="min-w-0 text-[13px] leading-[1.5] text-text-2">{L('Renseigne les répétitions en réserve de tes séries pendant la séance, en suivant la consigne du jour.', 'Log each set’s reps in reserve during the workout, following today’s instruction.')}</p>
           </div>
         )}
       </Section>
@@ -519,10 +518,10 @@ function VolumeTab() {
 function HistoryTab() {
   const state = useStore((s) => s.state)
   const groups = useMemo(() => groupByMonth(state), [state])
-  if (!state.workouts.length) return <Empty art="logbook" title={L('Ton histoire reste à écrire', 'Your training story starts here')} action={<SessionLink />}>
+  if (!state.workouts.length) return <Empty art="logbook" title={L('Aucune séance terminée', 'No completed workouts yet')} action={<SessionLink />}>
     {state.activeWorkout
-      ? L('Ta séance est en cours. Une fois terminée, tu retrouveras ici son détail et tes séries.', 'Your session is in progress. Once you finish it, its details and sets will appear here.')
-      : L('Tes séances terminées seront réunies ici, avec leurs exercices, tes séries et tes notes.', 'Your completed sessions will appear here with their exercises, sets and notes.')}
+      ? L('Ta séance est en cours. Une fois terminée, tu retrouveras ici son détail et tes séries.', 'Your workout is in progress. Once you finish it, its details and sets will appear here.')
+      : L('Tes séances terminées seront réunies ici, avec leurs exercices, tes séries et tes notes.', 'Your completed workouts will appear here with their exercises, sets and notes.')}
   </Empty>
   return (
     <>

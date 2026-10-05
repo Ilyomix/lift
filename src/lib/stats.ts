@@ -402,8 +402,8 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
     return {
       ...base, status: 'wait', delta: 0, headline: L('Pesées trop anciennes', 'Weigh-ins too old'),
       detail: L(
-        `Dernière pesée il y a ${ws.daysSinceLast} jours : la tendance ne dit plus rien d’aujourd’hui. Pèse-toi quelques matins de suite pour relancer le conseil.`,
-        `Last weigh-in ${ws.daysSinceLast} days ago: the trend no longer describes today. Weigh in a few mornings in a row to get advice again.`,
+        `Dernière pesée il y a ${ws.daysSinceLast} jours : la tendance ne reflète plus ta situation actuelle. Pèse-toi quelques matins de suite pour relancer le conseil.`,
+        `Last weigh-in ${ws.daysSinceLast} days ago: the trend no longer reflects your current weight. Weigh in a few mornings in a row to get advice again.`,
       ),
     }
   }
@@ -418,8 +418,8 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
     return {
       ...base, status: 'wait', delta: 0, headline: L('Ajustement récent', 'Recent adjustment'),
       detail: L(
-        `Calories changées ${days === 0 ? 'aujourd’hui' : `il y a ${days} jours`} : on laisse 2 semaines au poids pour réagir.`,
-        `Calories changed ${days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`}: give your weight 2 weeks to respond.`,
+        `Cible de calories modifiée ${days === 0 ? 'aujourd’hui' : `il y a ${days} jours`} : on laisse 2 semaines au poids pour réagir.`,
+        `Calorie target changed ${days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`}: give your weight 2 weeks to respond.`,
       ),
     }
   }
@@ -473,8 +473,8 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
     const pending = (days: number, before: string, beforeEn: string): CalorieAdvice => ({
       ...base, status: 'wait', delta: 0, headline: L('Rythme à confirmer', 'Pace to be confirmed'),
       detail: L(
-        `${pct(rate)} (${aim}), mais la tendance sur 3 semaines compte encore des jours d’avant ${before} : verdict dans ${days} jour${days > 1 ? 's' : ''}.`,
-        `${pct(rate)} (${aim}), but the 3-week trend still counts days from before ${beforeEn}: verdict in ${days} day${days > 1 ? 's' : ''}.`,
+        `${pct(rate)} (${aim}), mais la tendance sur 3 semaines compte encore des jours d’avant ${before} : nouveau point dans ${days} jour${days > 1 ? 's' : ''}.`,
+        `${pct(rate)} (${aim}), but the 3-week trend still counts days from before ${beforeEn}: next check-in in ${days} day${days > 1 ? 's' : ''}.`,
       ),
     })
     // The sized step of this cut, once taken.
@@ -512,21 +512,21 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
           return {
             ...base, status: 'ask', delta: 0, headline, detail: `${why}.`,
             first: {
-              question: L('Tes 3 dernières semaines ont-elles été normales ?', 'Were your last 3 weeks normal ones?'),
+              question: L('Tes 3 dernières semaines ont-elles été normales ?', 'Were your last 3 weeks typical for you?'),
               hint: L('Normales : tu as mangé et bougé comme aujourd’hui. Ni fêtes, ni vacances, ni régime déjà commencé.', 'Normal: you ate and moved the way you do today. No holidays, no time off, no diet already started.'),
               delta: -step,
               target: target - step,
               detail: L(
-                `Le pas complet vise un déficit d’environ ${planned} kcal par jour${shown ? ` ; ta tendance en montre déjà environ ${shown}` : ''}. Soit −${step} kcal en une fois (glucides ou lipides, jamais les protéines), puis 2 semaines pour que le poids réagisse.${stop}`,
-                `The full step aims at a deficit of about ${planned} kcal a day${shown ? `; your trend already shows about ${shown}` : ''}. That is −${step} kcal at once (carbs or fat, never protein), then 2 weeks for your weight to respond.${stop}`,
+                `L’ajustement complet vise un déficit d’environ ${planned} kcal par jour${shown ? ` ; ta tendance en montre déjà environ ${shown}` : ''}. Soit −${step} kcal en une fois (glucides ou lipides, jamais les protéines), puis 2 semaines pour que le poids réagisse.${stop}`,
+                `The full adjustment aims at a deficit of about ${planned} kcal a day${shown ? `; your trend already shows about ${shown}` : ''}. That is −${step} kcal at once (carbs or fat, never protein), then 2 weeks for your weight to respond.${stop}`,
               ),
             },
             otherwise: {
               delta: regular.delta,
               target: regular.target,
               detail: L(
-                `Ta tendance ne décrit donc pas ta situation d’aujourd’hui. Pour l’instant, un pas ordinaire : ${less(-regular.delta)} Le pas complet viendra après 3 semaines normales.`,
-                `So your trend does not describe where you are today. For now, a regular step: ${less(-regular.delta)} The full step will come after 3 normal weeks.`,
+                `Ta tendance ne décrit donc pas ta situation d’aujourd’hui. Pour l’instant, un ajustement habituel : ${less(-regular.delta)} L’ajustement complet viendra après 3 semaines normales.`,
+                `So your trend does not describe where you are today. For now, a regular adjustment: ${less(-regular.delta)} The full adjustment will come after 3 normal weeks.`,
               ),
             },
           }
@@ -545,7 +545,7 @@ export function calorieAdvice(state: AppState, today: ISODate = todayISO()): Cal
     // of the step go back (elsewhere a pace between the top of the range and 1 %/week is left alone).
     if (taken && target >= taken.to && target < taken.from && !mixed && diffDays(taken.at, today) <= SIZED_CHECK_DAYS && loss > brisk) {
       const back = Math.min(KCAL_STEP, taken.from - target)
-      return make(back, L('Pas complet trop fort', 'Full step too strong'), L(`${pct(rate)} (${aim}) : au-dessus de la fourchette depuis ton pas complet. +${back} kcal.`, `${pct(rate)} (${aim}): above the range since your full step. +${back} kcal.`))
+      return make(back, L('Ajustement trop important', 'Adjustment too large'), L(`${pct(rate)} (${aim}) : au-dessus de la fourchette depuis ton ajustement complet. +${back} kcal.`, `${pct(rate)} (${aim}): above the range since your full adjustment. +${back} kcal.`))
     }
     if (loss > brisk) return make(0, L('Rythme soutenu', 'Brisk pace'), L(`${pct(rate)} (${aim}) : tolérable jusqu’à −1 %/sem, ne baisse pas davantage les calories.`, `${pct(rate)} (${aim}): tolerable up to −1%/wk, do not lower calories any further.`))
     return make(0, L('Rythme dans la cible', 'Pace on target'), L(`${pct(rate)} (${aim}) : ne change rien.`, `${pct(rate)} (${aim}): change nothing.`))
@@ -574,7 +574,7 @@ export function cutAdvice(state: AppState, today: ISODate = todayISO()): string 
   if (!ctx.phase || (ctx.phase.id !== 'cut' && ctx.phase.id !== 'cut-end')) return null
   const a = calorieAdvice(state, today)
   // The sized step of the cut is settled on the nutrition screen, after its question.
-  if (a.status === 'ask') return L(`${a.headline} : règle tes calories dans Plus → Nutrition.`, `${a.headline}: set your calories in More → Nutrition.`)
+  if (a.status === 'ask') return L(`${a.headline} : ajuste tes calories dans Plus → Réglages → Cibles nutritionnelles.`, `${a.headline}: adjust your calories in More → Settings → Nutrition targets.`)
   return `${a.headline}. ${a.detail}`
 }
 

@@ -72,7 +72,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       icon={<Flag size={18} aria-hidden />}
-      title={L('Objectif', 'Goal')}
+      title={L('Objectif du programme', 'Program goal')}
       footer={<Button variant="primary" size="lg" full disabled={!changed || (mode === 'goal' && !valid)} onClick={save}>{L('Enregistrer', 'Save')}</Button>}
     >
       <PlanModePicker value={mode} onChange={setMode} />
@@ -107,8 +107,8 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
                 <PlanRow label="Recomposition" value={preview.shape.recompWeeks ? plural(preview.shape.recompWeeks, L('semaine', 'week'), L('semaines', 'weeks')) : '—'} />
                 <PlanRow label={L('Sèche', 'Cut')} value={plural(preview.shape.cutWeeks, L('semaine', 'week'), L('semaines', 'weeks'))} hint={L(`dès le ${fmtDate(preview.shape.cutStart, { long: true, year: true })}`, `from ${fmtDate(preview.shape.cutStart, { long: true, year: true })}`)} />
                 <PlanRow label={L('Stabilisation', 'Stabilization')} value={plural(Math.max(1, preview.stabWeeks), L('semaine', 'week'), L('semaines', 'weeks'))} hint={L(`dès le ${fmtDate(preview.shape.stabStart, { long: true })}`, `from ${fmtDate(preview.shape.stabStart, { long: true })}`)} />
-                <PlanRow label={L('Séances d’ici là', 'Sessions until then')} value={`${state.workouts.length + preview.planned}`} hint={L(`${state.workouts.length} faites + ${preview.planned} prévues`, `${state.workouts.length} done + ${preview.planned} planned`)} />
-                {preview.end !== null && <PlanRow label={L('Poids visé au plus prudent', 'Target weight, most cautious case')} value={`${fmtNum(preview.end, 1)} kg`} hint={L('Rythmes les moins agressifs de chaque phase', 'Least aggressive pace of each phase')} />}
+                <PlanRow label={L('Total de séances', 'Total workouts')} value={`${state.workouts.length + preview.planned}`} hint={L(`${state.workouts.length} faites + ${preview.planned} prévues`, `${state.workouts.length} done + ${preview.planned} planned`)} />
+                {preview.end !== null && <PlanRow label={L('Poids estimé, rythme prudent', 'Estimated weight, cautious pace')} value={`${fmtNum(preview.end, 1)} kg`} hint={L('Rythmes les moins agressifs de chaque phase', 'Least aggressive pace of each phase')} />}
               </Card>
             )}
             {preview?.shape.shortCut && (
@@ -120,16 +120,16 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
                 )}
               </p>
             )}
-            {!valid && <p className="mt-3 text-[13px] text-bad">{L(`Choisis une date après le ${fmtDate(min, { long: true, year: true })}.`, `Pick a date after ${fmtDate(min, { long: true, year: true })}.`)}</p>}
+            {!valid && <p className="mt-3 text-[13px] text-bad">{L(`Choisis une date à partir du ${fmtDate(min, { long: true, year: true })}.`, `Choose a date on or after ${fmtDate(min, { long: true, year: true })}.`)}</p>}
             <p className="mt-3 text-[12px] leading-[1.45] text-muted">
               {current === 'maintenance'
                 ? L(
-                    'Tu quittes le mode entretien : les séances faites restent, le calendrier à venir repasse en recomposition, puis sèche et stabilisation avant la date. Choisis ensuite ton objectif visuel pour caler la sèche sur ton look.',
-                    'You leave maintenance mode: sessions already done stay, and the upcoming calendar switches to recomposition, then a cut and a stabilization before the date. Then choose your visual goal to size the cut to your look.',
+                    'Tu quittes le mode entretien : les séances faites restent, le calendrier à venir repasse en recomposition, puis sèche et stabilisation avant la date. Choisis ensuite ton objectif visuel pour caler la sèche sur ton physique.',
+                    'You leave maintenance mode: workouts already done stay, and the upcoming calendar switches to recomposition, then a cut and a stabilization before the date. Then choose your visual goal to size the cut to your physique.',
                   )
                 : L(
-                    `${capitalize(fmtDate(GOAL_DATE, { weekday: true, long: true, year: true }))} actuellement. Les séances faites restent, le calendrier à venir (blocs, décharges, sèche) est recalculé.`,
-                    `Currently ${fmtDate(GOAL_DATE, { weekday: true, long: true, year: true })}. Sessions already done stay; the upcoming calendar (blocks, deloads, cut) is recalculated.`,
+                    `${capitalize(fmtDate(GOAL_DATE, { weekday: true, long: true, year: true }))} actuellement. Les séances faites restent, le calendrier à venir (blocs, semaines allégées, sèche) est recalculé.`,
+                    `Currently ${fmtDate(GOAL_DATE, { weekday: true, long: true, year: true })}. Workouts already done stay; the upcoming calendar (blocks, deload weeks, cut) is recalculated.`,
                   )}
             </p>
           </>
@@ -153,12 +153,12 @@ function MaintenancePreview({ active }: { active: boolean }) {
   return (
     <>
       <Card className="divide-y divide-line">
-        <PlanRow label={L('Rythme', 'Rhythm')} value={L('5 sem. + décharge', '5 wk + deload')} hint={L('Les blocs se suivent sans fin, fêtes à volume réduit. Pas de sèche.', 'Blocks follow one another with no end, holidays at reduced volume. No cut.')} />
+        <PlanRow label={L('Rythme', 'Rhythm')} value={L('5 sem. + 1 allégée', '5 wk + deload week')} hint={L('Les blocs se suivent sans fin, fêtes à volume réduit. Pas de sèche.', 'Blocks follow one another with no end, holidays at reduced volume. No cut.')} />
         <PlanRow
           label={L('Cette semaine', 'This week')}
           value={info.now.kind === 'block' ? L(`${info.now.label} · S${info.week}`, `${info.now.label} · W${info.week}`) : info.now.label}
         />
-        {info.deload && <PlanRow label={L('Prochaine décharge', 'Next deload')} value={fmtDate(info.deload.start, { long: true })} />}
+        {info.deload && <PlanRow label={L('Prochaine semaine allégée', 'Next deload week')} value={fmtDate(info.deload.start, { long: true })} />}
         <PlanRow
           label="Calories"
           value={info.calories ? `${fmtNum(info.calories, 0)} kcal` : `${fmtNum(state.nutritionTargets.calories, 0)} kcal`}
@@ -167,10 +167,10 @@ function MaintenancePreview({ active }: { active: boolean }) {
       </Card>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">
         {active
-          ? L('Mode entretien actif. Choisis « Date objectif » pour viser un look à une date : le plan repassera en recomposition, sèche puis stabilisation.', 'Maintenance mode is on. Choose “Goal date” to aim for a look by a date: the plan switches back to recomposition, cut, then stabilization.')
+          ? L('Mode entretien actif. Choisis « Date objectif » pour viser un physique à une date : le plan repassera en recomposition, sèche puis stabilisation.', 'Maintenance mode is on. Choose “Goal date” to aim for a physique by a date: the plan switches back to recomposition, cut, then stabilization.')
           : L(
               `Ta date du ${fmtDate(GOAL_DATE, { long: true, year: true })} est gardée pour plus tard. Les séances faites restent.${hadLook ? ' L’objectif visuel est mis de côté (poids cible, sèche) ; ses zones prioritaires restent.' : ''}`,
-              `Your ${fmtDate(GOAL_DATE, { long: true, year: true })} date is kept for later. Sessions already done stay.${hadLook ? ' The visual goal is set aside (target weight, cut); its priority areas stay.' : ''}`,
+              `Your ${fmtDate(GOAL_DATE, { long: true, year: true })} date is kept for later. Workouts already done stay.${hadLook ? ' The visual goal is set aside (target weight, cut); its priority areas stay.' : ''}`,
             )}
       </p>
     </>

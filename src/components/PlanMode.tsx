@@ -11,13 +11,13 @@ export function PlanModePicker({ value, onChange }: { value: PlanMode; onChange:
       id: 'goal' as const,
       icon: Flag,
       title: L('Date objectif', 'Goal date'),
-      text: L('Un look pour une date : recomposition, sèche, stabilisation.', 'A look by a date: recomposition, cut, stabilization.'),
+      text: L('Un physique visé à une date : recomposition, sèche, stabilisation.', 'A target physique by a date: recomposition, cut, stabilization.'),
     },
     {
       id: 'maintenance' as const,
       icon: InfinityIcon,
       title: L('Entretien', 'Maintenance'),
-      text: L('Sans date : blocs et décharges en continu, calories à maintenance.', 'No end date: blocks and deloads that keep going, maintenance calories.'),
+      text: L('Sans date : blocs et semaines allégées en continu, calories pour un poids stable.', 'No end date: training blocks and deload weeks, with maintenance calories.'),
     },
   ]
   return (

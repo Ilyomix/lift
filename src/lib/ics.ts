@@ -104,10 +104,10 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
         first,
         state.prefs.trainingTime,
         sessionMinutes(type, sets, sessionPace(state.workouts, type)),
-        L(`Séance ${meta.label} · Lift`, `${meta.label} session · Lift`),
+        L(`Séance ${meta.label} · Lift`, `${meta.label} workout · Lift`),
         L(
           `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
-          `${meta.fr !== meta.label ? `${meta.fr}. ` : ''}The rotation shifts if a session is missed: open Lift for today’s session.`,
+          `${meta.fr !== meta.label ? `${meta.fr}. ` : ''}The rotation shifts if a workout is missed: open Lift for today’s workout.`,
         ),
         `FREQ=WEEKLY;BYDAY=${BYDAY[dow]};UNTIL=${until}`,
         30,
@@ -162,7 +162,7 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
       lines.push(...allDay(`golgoth-phase-${p.id}@golgoth`, p.start, p.start, `${title} · Lift`, p.note, true))
     }
   }
-  if (o.phases && !MAINTENANCE) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, L('Objectif Summer body · Lift', 'Summer body goal · Lift'), L('Fin du programme.', 'End of the program.'), true))
+  if (o.phases && !MAINTENANCE) lines.push(...allDay('golgoth-goal@golgoth', GOAL_DATE, GOAL_DATE, L('Date objectif · Lift', 'Goal date · Lift'), L('Fin du programme.', 'End of the program.'), true))
   lines.push('END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }

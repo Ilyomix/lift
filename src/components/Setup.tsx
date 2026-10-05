@@ -25,7 +25,7 @@ export function setupLabel(s: TrainingSetup | undefined): string {
 /** Gym or home, and the home equipment, with the Upper session it gives as an example. */
 export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChange: (s: TrainingSetup) => void }) {
   const places = [
-    { id: 'gym' as const, icon: Dumbbell, title: L('Salle de sport', 'Gym'), text: L('Des séances avec machines, poulies et haltères.', 'Sessions using machines, cables and dumbbells.') },
+    { id: 'gym' as const, icon: Dumbbell, title: L('Salle de sport', 'Gym'), text: L('Des séances avec machines, poulies et haltères.', 'Workouts using machines, cables and dumbbells.') },
     { id: 'home' as const, icon: House, title: L('À la maison', 'At home'), text: L('Des exercices adaptés au matériel que tu possèdes.', 'Exercises matched to the equipment you own.') },
   ]
   const toggle = (e: Equipment) =>
@@ -82,14 +82,14 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
           </div>
           <p className="mt-2 text-[12px] leading-[1.45] text-muted">
             {L(
-              'Le poids du corps est toujours là. Plus tu as de matériel, plus les séances se rapprochent du programme en salle.',
-              'Bodyweight is always there. The more equipment you have, the closer the sessions get to the gym program.',
+              'Les exercices au poids du corps restent disponibles. Plus tu as de matériel, plus les séances se rapprochent du programme en salle.',
+              'Bodyweight exercises are always available. The more equipment you have, the closer the workouts get to the gym program.',
             )}
           </p>
         </div>
       )}
       <Disclosure icon={<ListChecks size={18} aria-hidden />} title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
-        <p>{L('Première séance : haut du corps.', 'First session: upper body.')}</p>
+        <p>{L('Exemple : séance Upper (haut du corps).', 'Example: Upper workout.')}</p>
         <ul className="mt-2 space-y-1">{example.map((name, i) => <li key={name}>{i + 1}. {name}</li>)}</ul>
       </Disclosure>
     </div>
@@ -103,7 +103,7 @@ export function SetupSheet({ onClose }: { onClose: () => void }) {
   const changed = draft.place !== current.place || draft.equipment.slice().sort().join() !== current.equipment.slice().sort().join()
   const save = () => {
     useStore.getState().setSetup(draft)
-    useStore.getState().notify(L(`Séances recomposées : ${setupLabel(draft)}.`, `Sessions rebuilt: ${setupLabel(draft)}.`), 'good')
+    useStore.getState().notify(L(`Séances adaptées : ${setupLabel(draft)}.`, `Workouts updated: ${setupLabel(draft)}.`), 'good')
     onClose()
   }
   return (
@@ -119,7 +119,7 @@ export function SetupSheet({ onClose }: { onClose: () => void }) {
       <p className="mt-4 text-[12px] leading-[1.45] text-muted">
         {L(
           'Les séances sont recomposées pour ce lieu. Les charges déjà connues sont gardées, et tes séances de salle reviennent telles quelles si tu y retournes.',
-          'Sessions are rebuilt for this place. Loads you already know are kept, and your gym sessions come back as they were if you switch back.',
+          'Workouts are rebuilt for this place. Loads you already know are kept, and your gym workouts come back as they were if you switch back.',
         )}
       </p>
     </Sheet>

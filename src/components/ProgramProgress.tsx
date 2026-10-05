@@ -13,7 +13,7 @@ export function ProgramProgress({ today = todayISO(), paused = false }: { today?
   const first = upcoming[0]
   const shown = [...(current ? [current] : []), ...upcoming.slice(0, 4)]
   return <section aria-label={L('Progression du programme', 'Program progress')} className="mb-6">
-    <SectionHeading className="mb-3" icon={<CalendarDays />} action={paused ? <Tag tone="outline">{L('En pause', 'Paused')}</Tag> : undefined}>{L('Calendrier des blocs', 'Block calendar')}</SectionHeading>
+    <SectionHeading className="mb-3" icon={<CalendarDays />} action={paused ? <Tag tone="outline">{L('En pause', 'Paused')}</Tag> : undefined}>{L('Étapes du programme', 'Program stages')}</SectionHeading>
     <PhaseTrack today={today} />
     {current && <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <p className="text-[15px] leading-5 font-semibold">{context.title}</p>
@@ -22,12 +22,12 @@ export function ProgramProgress({ today = todayISO(), paused = false }: { today?
     {current ? <>
       {context.deload && current.kind !== 'deload' && <p className="mt-2 text-[12px] leading-[18px] text-muted tnum">{current.label} : {fmtDate(current.start, { year: true })} – {fmtDate(current.end, { year: true })}</p>}
       <p className="mt-2 text-[13px] leading-[1.5] text-text-2">{context.effortDetail || current.note}</p>
-    </> : first ? <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L(`Début le ${fmtDate(first.start, { weekday: true, long: true })}.`, `Starts ${fmtDate(first.start, { weekday: true, long: true })}.`)}</p> : !MAINTENANCE && <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L(`Le plan daté s’est terminé le ${fmtDate(GOAL_DATE, { long: true, year: true })}. Tes séances enregistrées restent disponibles.`, `The dated plan ended on ${fmtDate(GOAL_DATE, { long: true, year: true })}. Your recorded workouts remain available.`)}</p>}
+    </> : first ? <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L(`Début le ${fmtDate(first.start, { weekday: true, long: true })}.`, `Starts ${fmtDate(first.start, { weekday: true, long: true })}.`)}</p> : !MAINTENANCE && <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L(`Le programme s’est terminé le ${fmtDate(GOAL_DATE, { long: true, year: true })}. Tes séances enregistrées restent disponibles.`, `The program ended on ${fmtDate(GOAL_DATE, { long: true, year: true })}. Your recorded workouts remain available.`)}</p>}
     {paused && <p className="mt-2 text-[13px] leading-5 text-text-2">{L('Le calendrier continue pendant la pause ; la reprise sera adaptée à la durée de l’arrêt.', 'The calendar continues during the pause; your return will adapt to the time off.')}</p>}
     {shown.length > 0 && <div className="mt-4"><PeriodList periods={shown} currentId={current?.id} /></div>}
     {MAINTENANCE && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Mode entretien : les blocs continuent sans date de fin.', 'Maintenance mode: blocks continue with no end date.')}</p>}
     {upcoming.length > 4 && <Disclosure icon={<Layers3 size={18} />} bordered={false} className="mt-1" title={L(`Voir les ${upcoming.length - 4} autres étapes prévues`, `View ${upcoming.length - 4} more planned stages`)}><PeriodList periods={upcoming.slice(4)} /></Disclosure>}
-    {past.length > 0 && <Disclosure icon={<History size={18} />} bordered={false} className="mt-2" title={L(`Blocs passés (${past.length})`, `Past blocks (${past.length})`)}><PeriodList periods={past} /></Disclosure>}
+    {past.length > 0 && <Disclosure icon={<History size={18} />} bordered={false} className="mt-2" title={L(`Étapes passées (${past.length})`, `Past stages (${past.length})`)}><PeriodList periods={past} /></Disclosure>}
     {!current && !first && !MAINTENANCE && <Button variant="outline" full className="mt-4" onClick={() => navigate('plus/objectif')}>{L('Ajuster mon objectif', 'Adjust my goal')}</Button>}
   </section>
 }

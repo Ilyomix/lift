@@ -87,7 +87,7 @@ export function VisualGoalScreen() {
       <Header art="trophy"
         backTo="plus/reglages/objectifs"
         title={L('Objectif visuel', 'Visual goal')}
-        sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual landmark: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
+        sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual reference: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
       />
 
       {MAINTENANCE && (
@@ -96,10 +96,10 @@ export function VisualGoalScreen() {
           <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-text-2">
             <span className="block text-[15px] font-semibold text-text">{L('Tu es en mode entretien', 'You’re in maintenance mode')}</span>
             {plan?.cutWeeks === 0
-              ? L(`Tu as déjà le look « ${lookInfo(look).label} » : pas besoin de sèche, l’entretien suffit.`, `You already have the “${lookInfo(look).label}” look: no cut needed, maintenance is enough.`)
+              ? L(`Tes mesures estimées correspondent à l’objectif « ${lookInfo(look).label} ». Lift te propose le mode entretien.`, `Your estimated measurements match the “${lookInfo(look).label}” goal. Lift suggests maintenance mode.`)
               : plan
-                ? L(`Le look « ${lookInfo(look).label} » demande une sèche de ${plural(plan.cutWeeks, 'semaine', 'semaines')} : l’appliquer crée un plan qui finit au plus tôt le ${nb(fmtDate(goalDate, { long: true, year: true }))}. Date modifiable ensuite.`, `The “${lookInfo(look).label}” look needs a ${plan.cutWeeks}-week cut: applying it creates a plan ending ${nb(fmtDate(goalDate, { long: true, year: true }))} at the earliest. You can move the date later.`)
-                : L('Choisis un look : l’app calcule la sèche qu’il demande et la date de fin du plan.', 'Choose a look: the app works out the cut it needs and when the plan ends.')}
+                ? L(`Le physique « ${lookInfo(look).label} » demande une sèche de ${plural(plan.cutWeeks, 'semaine', 'semaines')} : l’appliquer crée un plan qui finit au plus tôt le ${nb(fmtDate(goalDate, { long: true, year: true }))}. Date modifiable ensuite.`, `The “${lookInfo(look).label}” physique needs a ${plan.cutWeeks}-week cut: applying it creates a plan ending ${nb(fmtDate(goalDate, { long: true, year: true }))} at the earliest. You can move the date later.`)
+                : L('Choisis un physique : l’app calcule la sèche qu’il demande et la date de fin du plan.', 'Choose a physique: the app works out the cut it needs and when the plan ends.')}
           </p>
         </Card>
       )}
@@ -124,8 +124,8 @@ export function VisualGoalScreen() {
         </Card>
       )}
 
-      <Section icon={<Eye size={18} aria-hidden />} title={L('Le look', 'The look')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
-        <div className="grid gap-2" role="group" aria-label={L('Look visé', 'Target look')}>
+      <Section icon={<Eye size={18} aria-hidden />} title={L('Physique visé', 'Target physique')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
+        <div className="grid gap-2" role="group" aria-label={L('Physique visé', 'Target physique')}>
           {LOOKS.map((l) => {
             const on = l.id === look
             const r = l.range[sex]
@@ -152,34 +152,34 @@ export function VisualGoalScreen() {
             )
           })}
         </div>
-        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la musculature et la répartition du gras varient. Aucun résultat visuel n’est garanti.', 'Visual landmarks for guidance only: at the same body fat, musculature and fat distribution vary. No visual outcome is guaranteed.')}</p>
+        <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la musculature et la répartition du gras varient. Aucun résultat visuel n’est garanti.', 'Visual references for guidance only: at the same body fat, musculature and fat distribution vary. No visual outcome is guaranteed.')}</p>
       </Section>
 
       <Section icon={<Target size={18} aria-hidden />} title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
         <ZonePicker value={zones} onChange={setZones} />
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">
-          {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every session that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
+          {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every workout that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
           {zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)} (le V du programme).`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)} (the program’s V shape).`)}
         </p>
-        <Disclosure title={L('Effet sur les séances', 'Effect on sessions')} className="mt-3">
+        <Disclosure title={L('Effet sur les séances', 'Effect on workouts')} className="mt-3">
         <Card className="divide-y divide-line">
           {effects.map((g) => (
             <div key={g.zone ?? 'programme'} className="px-4 py-3">
-              <p className="text-[14px] font-semibold">{g.label} <span className="font-normal text-text-2">· {g.sets.length ? L(`+1 série sur ${plural(g.sets.length, 'exercice', 'exercices')}`, `+1 set on ${plural(g.sets.length, 'exercise', 'exercises')}`) : L('aucun exercice dans tes séances', 'no exercise in your sessions')}</span></p>
+              <p className="text-[14px] font-semibold">{g.label} <span className="font-normal text-text-2">· {g.sets.length ? L(`+1 série sur ${plural(g.sets.length, 'exercice', 'exercices')}`, `+1 set on ${plural(g.sets.length, 'exercise', 'exercises')}`) : L('aucun exercice dans tes séances', 'no exercise in your workouts')}</span></p>
               {g.sets.map((x, i) => (
                 <p key={i} className="mt-0.5 text-[13px] leading-[1.45] text-text-2">{TYPE_META[x.type].label}{L(' : ', ': ')}{x.name}</p>
               ))}
             </div>
           ))}
           <p className="px-4 py-3 text-[13px] leading-[1.45] text-text-2">
-            <span className="block text-[14px] font-semibold text-text">{L('À partir de quand', 'From when')}</span>
+            <span className="block text-[14px] font-semibold text-text">{L('Début des séries supplémentaires', 'When extra sets start')}</span>
             {!start
               ? L('Plus aucune semaine du plan n’ajoute ces séries.', 'No remaining week of the plan adds these sets.')
               : start.running
                 ? L(`En cours depuis le ${nb(fmtDate(start.date, { long: true }))} (${start.label})${start.ifRising ? ', sur les exercices dont les performances ont monté en début de bloc' : ''}.`, `Running since ${nb(fmtDate(start.date, { long: true }))} (${start.label})${start.ifRising ? ', on the exercises whose performance went up early in the block' : ''}.`)
                 : L(`Le ${nb(fmtDate(start.date, { long: true, year: true }))} (${start.label}, semaine ${start.week})${start.ifRising ? ', sur les exercices dont les performances montent les deux premières semaines du bloc' : ''}.`, `On ${nb(fmtDate(start.date, { long: true, year: true }))} (${start.label}, week ${start.week})${start.ifRising ? ', on the exercises whose performance goes up in the first two weeks of the block' : ''}.`)}
             {start?.sure && L(` Sans condition à partir du ${nb(fmtDate(start.sure.date, { long: true, year: true }))} (${start.sure.label}, sèche).`, ` With no condition from ${nb(fmtDate(start.sure.date, { long: true, year: true }))} (${start.sure.label}, cut).`)}
-            {start && !start.running && L(' D’ici là, tes séances ne changent pas.', ' Until then, your sessions don’t change.')}
+            {start && !start.running && L(' D’ici là, tes séances ne changent pas.', ' Until then, your workouts don’t change.')}
           </p>
         </Card>
         </Disclosure>
@@ -198,7 +198,7 @@ export function VisualGoalScreen() {
               ))}
             </div>
           </div>
-          <Field label={L('Taux de gras mesuré (%)', 'Measured body fat (%)')} hint={L('Impédancemètre, DEXA… sinon estimé', 'Bioimpedance scale, DEXA… otherwise estimated')} className="col-span-2">
+          <Field label={L('Taux de gras mesuré (%), facultatif', 'Measured body fat (%), optional')} hint={L('Impédancemètre, DEXA… Laisse vide pour utiliser l’estimation.', 'Bioimpedance scale, DEXA… Leave blank to use the estimate.')} className="col-span-2">
             <input className={inputClass} inputMode="decimal" value={measured} onChange={(e) => setMeasured(e.target.value)} placeholder={bf && bf.source === 'tour de taille' ? `≈ ${fmtNum(bf.pct, 0)}` : '—'} />
           </Field>
         </div>
@@ -214,7 +214,7 @@ export function VisualGoalScreen() {
               <p className="text-[14px] font-semibold">{L('Quelques mesures pour commencer', 'A few measurements to get started')}</p>
               <p className="mt-1 text-[13px] leading-[1.5] text-text-2">
                 {!heightCm ? L('Renseigne ta taille. ', 'Enter your height. ') : ''}
-                {waistMissing ? L('Il faut un tour de taille (au nombril, à jeun) ou un taux mesuré.', 'You need a waist measurement (at the navel, fasted) or a measured body fat.') : ''}
+                {waistMissing ? L('Il faut un tour de taille (au nombril, à jeun) ou un taux mesuré.', 'You need a waist measurement (at the navel, fasted) or a measured body-fat percentage.') : ''}
               </p>
             </div>
           </Card>
@@ -251,8 +251,8 @@ export function VisualGoalScreen() {
             <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
               <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               {plan.suggestedGoal
-                ? L(`Le scénario prudent dépasse le ${fmtDate(goalDate, { long: true })} : date estimée ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un look moins sec.`, `The conservative scenario extends past ${fmtDate(goalDate, { long: true })}: estimated date ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean look.`)
-                : L('Trop loin pour un seul plan : choisis un look moins sec pour commencer.', 'Too far for a single plan: choose a less lean look to start with.')}
+                ? L(`Le scénario prudent dépasse le ${fmtDate(goalDate, { long: true })} : date estimée ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, ou garder la date avec un physique moins sec.`, `The conservative scenario extends past ${fmtDate(goalDate, { long: true })}: estimated date ${nb(fmtDate(plan.suggestedGoal, { long: true, year: true }))}, or keep the date with a less lean physique.`)
+                : L('Trop loin pour un seul plan : choisis un physique moins sec pour commencer.', 'Too far for a single plan: choose a less lean physique to start with.')}
             </p>
           )}
           <div className="mt-4 grid gap-2">
@@ -267,7 +267,7 @@ export function VisualGoalScreen() {
             {applied && <Button variant="ghost" full onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')) }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
           </div>
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-            {L('Appliquer fixe ton poids cible, la durée de la sèche (le calendrier est recalculé) et les zones prioritaires dans tes séances. Ton poids ne change jamais tes charges.', 'Applying sets your target weight, the length of the cut (the calendar is recalculated) and the priority areas in your sessions. Your weight never changes your loads.')}
+            {L('Appliquer fixe ton poids cible, la durée de la sèche (le calendrier est recalculé) et les zones prioritaires dans tes séances. Ton poids ne change jamais tes charges.', 'Applying sets your target weight, the length of the cut (the calendar is recalculated) and the priority areas in your workouts. Your weight never changes your loads.')}
           </p>
         </Section>
       )}
@@ -278,8 +278,8 @@ export function VisualGoalScreen() {
             <img src={photo.dataUrl} alt={L('Photo de référence de l’objectif', 'Goal reference photo')} className="aspect-[3/4] w-full rounded-[10px] object-cover" />
             <div className="grid gap-2">
               <p className="text-[13px] leading-[1.45] text-text-2">{L('Compare-la à tes photos dans Progrès → Corps → Comparer.', 'Compare it with your photos in Progress → Body → Compare.')}</p>
-              <Button size="sm" variant="soft" icon={<Camera size={15} aria-hidden />} onClick={() => file.current?.click()}>{L('Changer', 'Change')}</Button>
-              <Button size="sm" variant="ghost" icon={<ImageOff size={15} aria-hidden />} onClick={() => void setGoalPhoto(null)}>{L('Retirer', 'Remove')}</Button>
+              <Button size="sm" variant="soft" icon={<Camera size={15} aria-hidden />} aria-label={L('Changer la photo', 'Change photo')} onClick={() => file.current?.click()}>{L('Changer', 'Change')}</Button>
+              <Button size="sm" variant="ghost" icon={<ImageOff size={15} aria-hidden />} aria-label={L('Retirer la photo', 'Remove photo')} onClick={() => void setGoalPhoto(null)}>{L('Retirer', 'Remove')}</Button>
             </div>
           </div>
         ) : (
@@ -287,7 +287,7 @@ export function VisualGoalScreen() {
             <Camera size={20} className="shrink-0 text-text-2" aria-hidden />
             <span>
               <span className="block text-[15px] font-medium">{L('Ajouter une photo du physique visé', 'Add a photo of the physique you’re aiming for')}</span>
-              <span className="block text-[13px] text-muted">{L('Pour la motivation et la comparaison. Elle reste sur ce téléphone.', 'For motivation and comparison. It stays on this phone.')}</span>
+              <span className="block text-[13px] text-muted">{L('Pour la motivation et la comparaison. Elle reste sur cet appareil.', 'For motivation and comparison. It stays on this device.')}</span>
             </span>
           </button>
         )}

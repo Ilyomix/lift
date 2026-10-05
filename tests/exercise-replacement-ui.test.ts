@@ -75,7 +75,7 @@ test('planned exercise exposes replacements before opening any demo, with explic
     assert.ok(replace.length >= 5)
     assert.ok(replace.every(button => !disabled(button[1])))
     assert.doesNotMatch(html, /<canvas\b/, 'choosing does not require opening a 3D demo')
-    const session = scopeButton(html, locale === 'fr' ? 'Cette séance' : 'This session')
+    const session = scopeButton(html, locale === 'fr' ? 'Cette séance' : 'This workout')
     const program = scopeButton(html, locale === 'fr' ? 'Garder au programme' : 'Keep in program')
     assert.ok(session && program)
     assert.match(session[1], /aria-pressed="true"/)
@@ -98,11 +98,11 @@ test('session preview renders the persisted one-session choice without changing 
 test('program edit names its permanent scope and disables an alternative already in another slot', () => {
   state.templates.UPPER.exercises = [exercise('chest-press'), exercise('db-bench-press')]
   const html = render({ kind: 'template', type: 'UPPER', index: 0 })
-  assert.match(html, /For future sessions of this type\. Recorded workouts stay unchanged\./)
-  assert.equal(scopeButton(html, 'This session'), undefined)
+  assert.match(html, /For future workouts of this type\. Recorded workouts stay unchanged\./)
+  assert.equal(scopeButton(html, 'This workout'), undefined)
   const duplicate = replacementButtons(html).find(button => button[1].includes(`Replace with ${LIBRARY['db-bench-press'].name}`))
   assert.ok(duplicate && disabled(duplicate[1]))
-  assert.match(html, /Already in this plan/)
+  assert.match(html, /Already in this workout plan/)
   assert.ok(replacementButtons(html).some(button => !disabled(button[1])))
 })
 
@@ -112,7 +112,7 @@ test('a one-session duplicate is detected against effective drafts rather than o
   const html = render({ kind: 'planned', type: 'UPPER', index: 0 })
   const duplicate = replacementButtons(html).find(button => button[1].includes(`Replace with ${LIBRARY['db-bench-press'].name}`))
   assert.ok(duplicate && disabled(duplicate[1]))
-  assert.match(html, /Already in this session/)
+  assert.match(html, /Already in this workout/)
 })
 
 test('program replacement disables an alternative reserved by another slot’s one-session draft', () => {
@@ -127,7 +127,7 @@ test('details without a slot distinguish repeated occurrences by workout type an
   state.templates.UPPER.exercises = [exercise('chest-press'), exercise('lat-pulldown'), exercise('chest-press')]
   state.templates.PUSH.exercises = [exercise('chest-press')]
   const html = render()
-  assert.match(html, /Session to change/)
+  assert.match(html, /Workout to change/)
   const options = [...html.matchAll(/<option\b([^>]*)>([^<]*)<\/option>/g)]
   assert.deepEqual(options.map(option => option[2]), ['Program · Upper · 01', 'Program · Upper · 03', 'Program · Push · 01'])
   assert.equal(new Set(options.map(option => option[1].match(/value="([^"]+)"/)?.[1])).size, 3)
@@ -140,7 +140,7 @@ test('a historical exercise with no current occurrence remains browseable withou
     const html = render()
     assert.equal(replacementButtons(html).length, 0)
     assert.doesNotMatch(html, /<select\b/)
-    assert.ok(buttons(html).some(button => /aria-label="(?:View demo: |Voir la démo : )/.test(button[1])))
+    assert.ok(buttons(html).some(button => /aria-label="(?:View demo: |Voir la démonstration : )/.test(button[1])))
     assert.match(html, locale === 'fr' ? /n’est plus dans ton programme actuel/ : /no longer in your current program/)
   }
 })
@@ -151,9 +151,9 @@ test('logged sets lock the current exercise while exposing future-program scope;
   assert.match(html, /role="status"[^>]*>Sets are already logged/)
   assert.ok(replacementButtons(html).length > 0)
   assert.ok(replacementButtons(html).every(button => disabled(button[1])))
-  assert.ok(scopeButton(html, 'Future sessions'))
+  assert.ok(scopeButton(html, 'Future workouts'))
   state.activeWorkout!.reopened = { completedAt: '2026-10-02T10:00:00Z' }
   const reopened = render({ kind: 'active', index: 0 })
-  assert.equal(scopeButton(reopened, 'Future sessions'), undefined)
+  assert.equal(scopeButton(reopened, 'Future workouts'), undefined)
   assert.ok(replacementButtons(reopened).every(button => disabled(button[1])))
 })

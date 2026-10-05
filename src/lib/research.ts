@@ -7,10 +7,10 @@ import { L } from './i18n'
 export type EvidenceLevel = 'fort' | 'modere' | 'faible' | 'opinion'
 
 export const LEVEL_LABEL: Record<EvidenceLevel, string> = {
-  get fort() { return L('Preuve forte', 'Strong evidence') },
-  get modere() { return L('Preuve modérée', 'Moderate evidence') },
-  get faible() { return L('Preuve faible', 'Weak evidence') },
-  get opinion() { return L("Opinion d'experts", 'Expert opinion') },
+  get fort() { return L('Niveau de preuve élevé', 'Strong evidence') },
+  get modere() { return L('Niveau de preuve modéré', 'Moderate evidence') },
+  get faible() { return L('Niveau de preuve faible', 'Weak evidence') },
+  get opinion() { return L('Avis d’experts', 'Expert opinion') },
 }
 
 export interface Source {
@@ -206,7 +206,7 @@ export const SOURCES: Record<string, Source> = {
     year: '2023',
     title: 'Integrating Deloading into Strength and Physique Sports Training Programmes: An International Delphi Consensus Approach',
     journal: 'Sports Medicine – Open 9:87',
-    get kind() { return L('Consensus Delphi (experts)', 'Delphi consensus (experts)') },
+    get kind() { return L('Consensus d’experts (méthode Delphi)', 'Expert consensus (Delphi method)') },
     url: doi('10.1186/s40798-023-00633-0'),
     id: 'DOI 10.1186/s40798-023-00633-0',
   },
@@ -407,7 +407,7 @@ export interface Principle {
 }
 
 export const VERDICT_FREQUENCY = {
-  get title() { return L('5 séances par semaine, est-ce optimal ?', 'Is 5 sessions a week optimal?') },
+  get title() { return L('5 séances par semaine, est-ce optimal ?', 'Are 5 workouts a week optimal?') },
   get answer() {
     return L(
       "Pas en soi. À volume égal, s'entraîner 1, 2 ou 3 fois par semaine donne une hypertrophie similaire. Ce qui compte : 10 à 20 séries difficiles par muscle et par semaine, près de l'échec.",
@@ -417,7 +417,7 @@ export const VERDICT_FREQUENCY = {
   get keep() {
     return L(
       "On garde 5 séances parce qu'elles permettent 2 passages par muscle et des séances de 60–65 min au lieu de séances interminables. Avec 4 ou 3 jours, la rotation reste la même et chaque séance peut prendre plus de séries pour garder le volume de la semaine (réglage « Séances allongées ») : c'est équivalent.",
-      'We keep 5 sessions because they hit each muscle twice with 60–65 min sessions instead of endless ones. With 4 or 3 days, the rotation stays the same and each session can take more sets to keep the weekly volume (the “Longer sessions” setting): it’s equivalent.',
+      'We keep 5 workouts because they hit each muscle twice with 60–65 min workouts instead of endless ones. With 4 or 3 days, the rotation stays the same and each workout can take more sets to keep the weekly volume (the “Longer workouts” setting): it’s equivalent.',
     )
   },
   refs: ['pelland2025', 'schoenfeld2019', 'schoenfeld2016', 'ramosCampo2024'],
@@ -442,20 +442,20 @@ export const PRINCIPLES: Principle[] = [
   },
   {
     id: 'split',
-    title: 'Split',
+    get title() { return L('Répartition des séances', 'Training split') },
     get rule() { return L('Haut / Bas / Poussée / Tirage / Jambes', 'Upper / Lower / Push / Pull / Legs') },
-    get detail() { return L('Split et full body sont équivalents à volume égal. Aucun essai ne teste cet hybride : son intérêt est logistique.', 'Split and full body are equivalent with equal volume. No trial tests this hybrid: its benefit is logistical.') },
+    get detail() { return L('Séances par groupe musculaire et séances pour tout le corps sont équivalentes à volume égal. Aucun essai ne teste cet hybride : son intérêt est logistique.', 'Split and full body are equivalent with equal volume. No trial tests this hybrid: its benefit is logistical.') },
     level: 'fort',
     refs: ['ramosCampo2024'],
   },
   {
     id: 'days',
     get title() { return L('Moins de 5 jours', 'Fewer than 5 days') },
-    get rule() { return L('Même volume par semaine, plus de séries par séance', 'Same weekly volume, more sets per session') },
+    get rule() { return L('Même volume par semaine, plus de séries par séance', 'Same weekly volume, more sets per workout') },
     get detail() {
       return L(
         "Les gains suivent le nombre de séries par muscle et par semaine, pas le nombre de séances : la rotation ne change pas, les séances prennent plus de séries (×1,25 à 4 jours, ×1,67 à 3 jours). Avec une limite : passé environ 11 séries pour un muscle dans une séance, le gain n'est plus mesurable, d'après une prépublication pas encore relue par les pairs. Les séries ajoutées s'arrêtent là : à 3 jours la semaine tient environ 97 % du volume, à 2 jours environ 64 %, et 4 séries par muscle et par semaine sont le minimum conseillé. La charge monte sur les séries de la fiche, pas sur celles ajoutées. Pour raccourcir une séance : les supersets d'exercices opposés prennent environ un tiers de temps en moins pour une croissance comparable (d'après trois études de long terme seulement), avec un effort ressenti plus élevé et une récupération qui peut être plus longue.",
-        'Gains follow the number of sets per muscle per week, not the number of sessions: the rotation does not change, sessions take more sets (×1.25 at 4 days, ×1.67 at 3 days). With a limit: past about 11 sets for a muscle in one session, the gain can no longer be measured, according to a preprint not yet peer-reviewed. Added sets stop there: at 3 days the week holds about 97% of the volume, at 2 days about 64%, and 4 sets per muscle per week are the recommended minimum. Loads go up on the sheet’s sets, not on the added ones. To shorten a session: supersets of opposing exercises take about a third less time for similar growth (from only three long-term studies), with a higher perceived effort and a recovery that may take longer.',
+        'Gains follow the number of sets per muscle per week, not the number of workouts: the rotation does not change, workouts take more sets (×1.25 at 4 days, ×1.67 at 3 days). With a limit: past about 11 sets for a muscle in one workout, the gain can no longer be measured, according to a preprint not yet peer-reviewed. Added sets stop there: at 3 days the week holds about 97% of the volume, at 2 days about 64%, and 4 sets per muscle per week are the recommended minimum. Loads go up on the sheet’s sets, not on the added ones. To shorten a workout: supersets of opposing exercises take about a third less time for similar growth (from only three long-term studies), with a higher perceived effort and a recovery that may take longer.',
       )
     },
     level: 'modere',
@@ -464,7 +464,7 @@ export const PRINCIPLES: Principle[] = [
   {
     id: 'effort',
     title: 'Effort',
-    get rule() { return L('1–2 reps en réserve en polyarticulaire, 0–1 en isolation', '1–2 reps in reserve on compounds, 0–1 on isolation') },
+    get rule() { return L('1–2 répétitions en réserve en polyarticulaire, 0–1 en isolation', '1–2 reps in reserve on compounds, 0–1 on isolation') },
     get detail() { return L("L'hypertrophie augmente quand les séries finissent près de l'échec. L'échec total n'apporte qu'un bénéfice trivial.", 'Hypertrophy increases when sets end close to failure. Going all the way to failure adds only a trivial benefit.') },
     level: 'fort',
     refs: ['robinson2024', 'refalo2023'],
@@ -472,7 +472,7 @@ export const PRINCIPLES: Principle[] = [
   {
     id: 'load',
     get title() { return L('Charges', 'Loads') },
-    get rule() { return L('6–12 reps en polyarticulaire, 10–20 en isolation', '6–12 reps on compounds, 10–20 on isolation') },
+    get rule() { return L('6–12 répétitions en polyarticulaire, 10–20 en isolation', '6–12 reps on compounds, 10–20 on isolation') },
     get detail() { return L("Charges légères ou lourdes : hypertrophie similaire quand on s'approche de l'échec. Le lourd sert surtout la force.", 'Light or heavy loads: similar hypertrophy when you get close to failure. Heavy loads mainly build strength.') },
     level: 'fort',
     refs: ['schoenfeld2017load'],
@@ -515,7 +515,7 @@ export const PRINCIPLES: Principle[] = [
     get rule() { return L('Deux nettes baisses de suite : 1 série de moins', 'Two clear drops in a row: 1 set fewer') },
     get detail() {
       return L(
-        "À charge égale, les reps d'une série à l'échec varient de 0,7 à 1,1 d'une semaine à l'autre sans que le niveau ait changé (24 pratiquants entraînés, développé couché). Chez une personne, un changement n'est probablement réel qu'au-delà de 1,5 à 2 fois cette variation. L'app en tire son seuil : une baisse compte à partir d'une rep par série en moyenne, et de 2 reps au total ; en dessous, c'est la variation normale. C'est une application de ces deux chiffres, pas un résultat d'étude : elle suppose que les séries varient en partie chacune de leur côté. Retirer une série après deux baisses de suite, et avancer la décharge quand la baisse est générale, reste une règle d'experts.",
+        "À charge égale, les répétitions d'une série à l'échec varient de 0,7 à 1,1 d'une semaine à l'autre sans que le niveau ait changé (24 pratiquants entraînés, développé couché). Chez une personne, un changement n'est probablement réel qu'au-delà de 1,5 à 2 fois cette variation. L'app en tire son seuil : une baisse compte à partir d'une répétition par série en moyenne, et de 2 répétitions au total ; en dessous, c'est la variation normale. C'est une application de ces deux chiffres, pas un résultat d'étude : elle suppose que les séries varient en partie chacune de leur côté. Retirer une série après deux baisses de suite, et avancer la semaine allégée quand la baisse est générale, reste une règle d'experts.",
         'At the same load, the reps of a set taken to failure vary by 0.7 to 1.1 from one week to the next with no change of level (24 trained lifters, bench press). In one person, a change is likely real only beyond 1.5 to 2 times that variation. The app derives its threshold from them: a drop counts from one rep per set on average, and from 2 reps in all; below that, it is normal variation. This applies the two figures, it is not a study result: it assumes that sets vary partly on their own. Removing a set after two drops in a row, and bringing the deload forward when the drop is general, remains an expert rule.',
       )
     },
@@ -524,9 +524,9 @@ export const PRINCIPLES: Principle[] = [
   },
   {
     id: 'deload',
-    get title() { return L('Décharges', 'Deloads') },
+    get title() { return L('Semaines allégées', 'Deloads') },
     get rule() { return L('1 semaine allégée toutes les 6 semaines', '1 lighter week every 6 weeks') },
-    get detail() { return L("Moitié des séries, charges −10 %, 3–4 reps en réserve. C'est un outil de gestion de la fatigue : une semaine allégée ne coûte pas d'hypertrophie.", 'Half the sets, loads −10%, 3–4 reps in reserve. It’s a fatigue-management tool: a lighter week costs no hypertrophy.') },
+    get detail() { return L("Moitié des séries, charges −10 %, 3–4 répétitions en réserve. C'est un outil de gestion de la fatigue.", 'Half the sets, loads −10%, 3–4 reps in reserve. It’s a fatigue-management tool.') },
     level: 'opinion',
     refs: ['bell2023', 'coleman2024'],
   },
@@ -534,7 +534,7 @@ export const PRINCIPLES: Principle[] = [
     id: 'pause',
     get title() { return L('Pauses', 'Breaks') },
     get rule() { return L("1 à 3 semaines d'arrêt ne sont pas un drame", '1 to 3 weeks off is no big deal') },
-    get detail() { return L('Des cycles 6 semaines on / 3 semaines off ont donné la même hypertrophie que l’entraînement continu (petit échantillon).', 'Cycles of 6 weeks on / 3 weeks off gave the same hypertrophy as continuous training (small sample).') },
+    get detail() { return L('Des cycles 6 semaines d’entraînement / 3 semaines de pause ont donné la même hypertrophie que l’entraînement continu (petit échantillon).', 'Cycles of 6 weeks on / 3 weeks off gave the same hypertrophy as continuous training (small sample).') },
     level: 'modere',
     refs: ['ogasawara2013'],
   },
@@ -544,8 +544,8 @@ export const PRINCIPLES: Principle[] = [
     get rule() { return L('−0,5 à −0,7 % du poids par semaine, déficit ≤ 500 kcal/j', '−0.5 to −0.7% of body weight per week, deficit ≤ 500 kcal/day') },
     get detail() {
       return L(
-        'La méta-régression associe environ 500 kcal/j de déficit à l’absence de gain moyen de masse maigre ; ce n’est pas un seuil individuel. Le conseil de calories suit ta moyenne de poids. Un pas par sèche n’est pas de 150 kcal mais le déficit du plan en une fois : celui du milieu de la fourchette (−0,6 %/sem, −0,5 en fin de sèche), 500 kcal/j au plus, moins ce que ta tendance montre déjà. Il demande une tendance fiable (une pesée tous les 3 jours, un rythme déjà lent deux semaines plus tôt, pas de changement de calories depuis 3 semaines) et 3 semaines normales, ce que l’app te demande ; s’il a visé trop fort, 150 kcal sont rendues. Il est calculé à 7 700 kcal par kg perdu, une approximation : sous 30 kg de masse grasse environ, le même déficit fait perdre plus de poids. Le calendrier est dimensionné au rythme prudent, limité par le même budget énergétique, sans gain musculaire anticipé et en tenant compte des pauses. Les pas ordinaires de 150 kcal sont aussi limités au déficit estimé restant ; 7 700 kcal/kg reste une approximation, pas une garantie. Garde-fou, qui ne vient pas d’une étude : il ne descend jamais sous ta dépense au repos estimée, ni sous 1 500 kcal (1 200 pour une femme), le minimum conseillé sans suivi médical.',
-        'The meta-regression associates a deficit near 500 kcal/day with no average lean-mass gain; this is not an individual threshold. The calorie advice follows your weight average. One step per cut is not 150 kcal but the plan’s deficit at once: the one of the middle of the range (−0.6%/wk, −0.5 at the end of the cut), 500 kcal/day at most, less what your trend already shows. It takes a trend that can be relied on (a weigh-in every 3 days, a pace already slow two weeks earlier, no calorie change for 3 weeks) and 3 normal weeks, which the app asks about; if it aimed too high, 150 kcal are given back. It is worked out at 7,700 kcal per kg lost, an approximation: under about 30 kg of body fat, the same deficit takes off more weight. The calendar uses the conservative pace capped by the same energy budget, without assumed muscle gain and accounting for breaks. Ordinary 150 kcal steps are also clipped to the remaining estimated deficit; 7,700 kcal/kg remains an approximation, not a guarantee. A guard that does not come from a study: it never goes under your estimated energy at rest, nor under 1,500 kcal (1,200 for a woman), the minimum advised without medical supervision.',
+        'La méta-régression associe environ 500 kcal/j de déficit à l’absence de gain moyen de masse maigre ; ce n’est pas un seuil individuel. Le conseil de calories suit ta moyenne de poids. Un ajustement par sèche n’est pas de 150 kcal mais le déficit du plan en une fois : celui du milieu de la fourchette (−0,6 %/sem, −0,5 en fin de sèche), 500 kcal/j au plus, moins ce que ta tendance montre déjà. Il demande une tendance fiable (une pesée tous les 3 jours, un rythme déjà lent deux semaines plus tôt, pas de changement de calories depuis 3 semaines) et 3 semaines normales, ce que l’app te demande ; s’il a visé trop fort, 150 kcal sont rendues. Il est calculé à 7 700 kcal par kg perdu, une approximation : sous 30 kg de masse grasse environ, le même déficit fait perdre plus de poids. Le calendrier est dimensionné au rythme prudent, limité par le même budget énergétique, sans gain musculaire anticipé et en tenant compte des pauses. Les ajustements habituels de 150 kcal sont aussi limités au déficit estimé restant ; 7 700 kcal/kg reste une approximation, pas une garantie. Garde-fou, qui ne vient pas d’une étude : il ne descend jamais sous ta dépense au repos estimée, ni sous 1 500 kcal (1 200 pour une femme), le minimum conseillé sans suivi médical.',
+        'The meta-regression associates a deficit near 500 kcal/day with no average lean-mass gain; this is not an individual threshold. The calorie advice follows your weight average. One adjustment per cut is not 150 kcal but the plan’s deficit at once: the one of the middle of the range (−0.6%/wk, −0.5 at the end of the cut), 500 kcal/day at most, less what your trend already shows. It takes a trend that can be relied on (a weigh-in every 3 days, a pace already slow two weeks earlier, no calorie change for 3 weeks) and 3 normal weeks, which the app asks about; if it aimed too high, 150 kcal are given back. It is worked out at 7,700 kcal per kg lost, an approximation: under about 30 kg of body fat, the same deficit takes off more weight. The calendar uses the conservative pace capped by the same energy budget, without assumed muscle gain and accounting for breaks. Regular 150 kcal adjustments are also clipped to the remaining estimated deficit; 7,700 kcal/kg remains an approximation, not a guarantee. A guard that does not come from a study: it never goes under your estimated energy at rest, nor under 1,500 kcal (1,200 for a woman), the minimum advised without medical supervision.',
       )
     },
     level: 'modere',
@@ -554,8 +554,8 @@ export const PRINCIPLES: Principle[] = [
   {
     id: 'protein',
     get title() { return L('Protéines', 'Protein') },
-    get rule() { return L('≥ 1,6 g/kg/j — 180–190 g pour toi, 185–200 g en sèche', '≥ 1.6 g/kg/day — 180–190 g for you, 185–200 g on a cut') },
-    get detail() { return L('Plateau des gains vers 1,62 g/kg/j (IC 1,03–2,20). En déficit, 2,3–3,1 g/kg de masse maigre.', 'Gains plateau around 1.62 g/kg/day (CI 1.03–2.20). In a deficit, 2.3–3.1 g/kg of lean mass.') },
+    get rule() { return L('≥ 1,6 g/kg/j', '≥ 1.6 g/kg/day') },
+    get detail() { return L('Plateau des gains vers 1,62 g/kg/j (intervalle de confiance 1,03–2,20). En déficit, 2,3–3,1 g/kg de masse maigre.', 'Gains plateau around 1.62 g/kg/day (confidence interval 1.03–2.20). In a deficit, 2.3–3.1 g/kg of lean mass.') },
     level: 'fort',
     refs: ['morton2018', 'helms2014'],
   },
@@ -575,7 +575,7 @@ export function caveats(): string[] {
     L('Les essais sur la longueur musculaire portent surtout sur des débutants, sur 8 à 12 semaines.', 'Muscle-length trials mostly involve beginners, over 8 to 12 weeks.'),
     L('Les méta-analyses incluent surtout des hommes jeunes (âge moyen ~25 ans).', 'The meta-analyses mostly include young men (average age ~25).'),
     L('Taux de gras, poids cible et calories de maintenance sont des estimations : seul ton suivi réel permet d’ajuster.', 'Body fat, target weight and maintenance calories are estimates: only your actual tracking lets you adjust them.'),
-    L('Fréquence des décharges, pause diététique et seuils de reprise après pause relèvent de l’opinion d’experts.', 'Deload frequency, diet breaks and return thresholds after a break are expert opinion.'),
+    L('Fréquence des semaines allégées, pause diététique et seuils de reprise après pause relèvent de l’opinion d’experts.', 'Deload frequency, diet breaks and return thresholds after a break are expert opinion.'),
     L("Ce programme n'est pas un avis médical. Douleur articulaire : remplace l'exercice par son alternative machine.", 'This program is not medical advice. Joint pain: replace the exercise with its machine alternative.'),
   ]
 }

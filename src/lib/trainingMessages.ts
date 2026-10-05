@@ -10,7 +10,7 @@ type Translation = readonly [fr: string, en: string]
 export const CONTEXT_MESSAGES = {
   'unit-changed': ['Unité différente : nouvelle référence.', 'Different unit: new baseline.'],
   'conditions-changed': ['Machine ou conditions signalées différentes : confirme une nouvelle référence.', 'A machine or condition change was flagged: confirm a new baseline.'],
-  'rep-range-changed': ['Première séance dans cette fourchette de reps.', 'First session in this rep range.'],
+  'rep-range-changed': ['Première séance dans cette fourchette de répétitions.', 'First workout in this rep range.'],
   'rest-changed': ['Repos prescrit différent : performances non directement comparables.', 'Prescribed rest changed: performances are not directly comparable.'],
   'program-changed': ['Passage à un nouveau programme : établis une référence avec ses consignes.', 'Transition to a new program: establish a baseline under its instructions.'],
   'preceding-work-changed': ['Le travail précédent sur ces muscles a changé : ne pas conclure à une baisse de niveau.', 'Earlier work on these muscles changed: do not infer a loss of ability.'],
@@ -28,6 +28,7 @@ const STORED_MESSAGES: readonly Translation[] = [
   ['NON RÉALISÉ', 'NOT DONE'],
   ['NOUVELLE BASELINE', 'NEW BASELINE'],
   ['DÉCHARGE', 'DELOAD'],
+  ['SEMAINE ALLÉGÉE', 'LIGHTER WEEK'],
   ['SÉANCE ALLÉGÉE', 'LIGHTER SESSION'],
   ['APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER SESSION'],
   ['APRÈS UNE PAUSE', 'AFTER A BREAK'],
@@ -63,12 +64,32 @@ const STORED_MESSAGES: readonly Translation[] = [
   ['Charge augmentée ; à confirmer à séries et conditions identiques.', 'Load increased; confirm with identical sets and conditions.'],
 ]
 
+// Keep old serialized wording readable after copy changes. Match whole known messages
+// only; never replace words inside a user's notes or an unknown imported message.
+const DISPLAY_OVERRIDES: Readonly<Record<string, Translation>> = {
+  'NOUVELLE BASELINE': ['NOUVELLE RÉFÉRENCE', 'NEW BASELINE'],
+  'DÉCHARGE': ['SEMAINE ALLÉGÉE', 'DELOAD WEEK'],
+  'SEMAINE ALLÉGÉE': ['SEMAINE ALLÉGÉE', 'DELOAD WEEK'],
+  'Semaine allégée : pas de comparaison.': ['Semaine allégée : pas de comparaison.', 'Deload week: no comparison.'],
+  'MOINS DE REPS, PLUS DE MARGE': ['MOINS DE RÉPÉTITIONS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'],
+  'Première séance dans cette fourchette de reps.': CONTEXT_MESSAGES['rep-range-changed'],
+}
+const KNOWN_MESSAGES = STORED_MESSAGES.map(previous => ({
+  previous,
+  current: DISPLAY_OVERRIDES[previous[0]] ?? [previous[0], previous[1]
+    .replace(/\bsessions\b/g, 'workouts').replace(/\bsession\b/g, 'workout')
+    .replace(/\bSESSIONS\b/g, 'WORKOUTS').replace(/\bSESSION\b/g, 'WORKOUT')] as Translation,
+}))
+const knownMessage = (text: string) => KNOWN_MESSAGES.find(({ previous, current }) => previous.includes(text) || current.includes(text))
+
 /** Translate an exact known phrase, preserving unknown/user-authored content. */
 export function storedTrainingText(text: string): string {
-  const pair = STORED_MESSAGES.find(([fr, en]) => text === fr || text === en)
-  if (pair) return L(...pair)
-  const down = text.match(/^(−\d+ REPS?) VS (?:DERNIÈRE FOIS|LAST TIME)$/u)
-  if (down) return L(`${down[1]} VS DERNIÈRE FOIS`, `${down[1]} VS LAST TIME`)
+  const match = knownMessage(text)
+  if (match) return L(...match.current)
+  const gain = text.match(/^([+]\d+) (?:REPS?|RÉPÉTITIONS?)$/u)
+  if (gain) return L(`${gain[1]} RÉPÉTITION${Number(gain[1]) === 1 ? '' : 'S'}`, `${gain[1]} REP${Number(gain[1]) === 1 ? '' : 'S'}`)
+  const down = text.match(/^(−\d+) (?:REPS?|RÉPÉTITIONS?) VS (?:DERNIÈRE FOIS|LAST TIME)$/u)
+  if (down) return L(`${down[1]} RÉPÉTITION${down[1] === '−1' ? '' : 'S'} VS DERNIÈRE FOIS`, `${down[1]} REP${down[1] === '−1' ? '' : 'S'} VS LAST TIME`)
   const level = text.match(/^(?:NIVEAU ESTIMÉ|ESTIMATED LEVEL) (−\d+) ?%$/u)
   return level ? L(`NIVEAU ESTIMÉ ${level[1]} %`, `ESTIMATED LEVEL ${level[1]}%`) : text
 }
@@ -77,9 +98,9 @@ export function storedTrainingText(text: string): string {
 export function comparisonDetailLabel(c: Comparison): string {
   if (c.contextReason && Object.hasOwn(CONTEXT_MESSAGES, c.contextReason)) return contextReasonLabel(c.contextReason)
   const text = c.detail
-  const common = text.match(/ (?:Sur (?:la série commune|les \d+ séries communes) \((\d+) contre (\d+) la dernière fois\)|On the (?:set|\d+ sets) both sessions have \((\d+) vs (\d+) last time\))\.$/u)
+  const common = text.match(/ (?:Sur (?:la série commune|les \d+ séries communes) \((\d+) contre (\d+) la dernière fois\)|On the (?:set|\d+ sets) both (?:sessions|workouts) have \((\d+) vs (\d+) last time\))\.$/u)
   const body = common ? text.slice(0, common.index) : text
-  let known = STORED_MESSAGES.some(([fr, en]) => body === fr || body === en)
+  let known = !!knownMessage(body)
   let translated = storedTrainingText(body)
   if (/^(?:Volume propre : .+ contre .+|Clean volume: .+ vs .+) kg·reps\.(?: Comparaison de performance non directe\.| Performance is not directly comparable\.)?$/u.test(body)
       && c.previousSetReps && c.previousWeights && c.previousSetReps.length === c.previousWeights.length) {
@@ -97,7 +118,7 @@ export function comparisonDetailLabel(c: Comparison): string {
   const shared = c.comparedSets ?? Math.min(now, before)
   return translated + L(
     ` Sur ${shared === 1 ? 'la série commune' : `les ${shared} séries communes`} (${now} contre ${before} la dernière fois).`,
-    ` On the ${shared === 1 ? 'set' : `${shared} sets`} both sessions have (${now} vs ${before} last time).`,
+    ` On the ${shared === 1 ? 'set' : `${shared} sets`} both workouts have (${now} vs ${before} last time).`,
   )
 }
 
@@ -115,17 +136,17 @@ export function localizeComparison(c: Comparison, userText?: string): Comparison
 export function localizeLoadHint(ex: WorkoutExercise): WorkoutExercise['hint'] {
   const hint = ex.hint
   if (!hint) return hint
-  const easy = hint.text.match(/^(\d+) reps(?:(?: à| at) RIR ([\d.,]+)|(?: avec| with) ([\d.,]+) reps (?:en réserve|in reserve))?(?: : |: ).+(?: pour la suite| for the next sets)$/u)
-  const hard = hint.text.match(/^(\d+) reps, (?:sous|under) (\d+)(?: : |: ).+(?: pour rester dans la fourchette| to stay in the range)$/u)
+  const easy = hint.text.match(/^(\d+) (?:reps?|répétitions?)(?:(?: à| at) RIR ([\d.,]+)|(?: avec| with) ([\d.,]+) (?:reps?|répétitions?) (?:en réserve|in reserve))?(?: : |: ).+(?: pour la suite| for the next sets)$/u)
+  const hard = hint.text.match(/^(\d+) (?:reps?|répétitions?), (?:sous|under) (\d+)(?: : |: ).+(?: pour rester dans la fourchette| to stay in the range)$/u)
   const load = fmtLoad(hint.to, ex.unit)
   const reserve = easy?.[2] ?? easy?.[3]
   const rir = reserve ? fmtNum(Number(reserve.replace(',', '.'))) : null
-  if (easy) return { ...hint, text: L(`${easy[1]} reps${rir !== null ? ` avec ${rir} reps en réserve` : ''} : ${load} pour la suite`, `${easy[1]} reps${rir !== null ? ` with ${rir} reps in reserve` : ''}: ${load} for the next sets`) }
-  if (hard) return { ...hint, text: L(`${hard[1]} reps, sous ${hard[2]} : ${load} pour rester dans la fourchette`, `${hard[1]} reps, under ${hard[2]}: ${load} to stay in the range`) }
+  if (easy) return { ...hint, text: L(`${easy[1]} ${easy[1] === '1' ? 'répétition' : 'répétitions'}${rir !== null ? ` avec ${rir} ${Number(reserve?.replace(',', '.')) === 1 ? 'répétition' : 'répétitions'} en réserve` : ''} : ${load} pour la suite`, `${easy[1]} ${easy[1] === '1' ? 'rep' : 'reps'}${rir !== null ? ` with ${rir} ${Number(reserve?.replace(',', '.')) === 1 ? 'rep' : 'reps'} in reserve` : ''}: ${load} for the next sets`) }
+  if (hard) return { ...hint, text: L(`${hard[1]} ${hard[1] === '1' ? 'répétition' : 'répétitions'}, sous ${hard[2]} : ${load} pour rester dans la fourchette`, `${hard[1]} ${hard[1] === '1' ? 'rep' : 'reps'}, under ${hard[2]}: ${load} to stay in the range`) }
   return hint
 }
 
 /** Recognize only targets generated by nextTargetText, not free-form imported coach notes. */
 export function isGeneratedTarget(text: string): boolean {
-  return /^(?:Séance d’essai : trouve une charge pour \d+–\d+ reps (?:à RIR 3|avec 3 reps en réserve)\.|Trial session: find a load for \d+–\d+ reps (?:at RIR 3|with 3 reps in reserve)\.|.+ · viser \d+ × \d+–\d+ propres, puis augmenter\.|.+ · aim for \d+ × \d+–\d+ clean reps, then go heavier\.)$/u.test(text)
+  return /^(?:Séance d’essai : trouve une charge pour \d+–\d+ (?:reps|répétitions) (?:à RIR 3|avec 3 (?:reps|répétitions) en réserve)\.|Trial (?:session|workout): find a load for \d+–\d+ reps (?:at RIR 3|with 3 reps in reserve)\.|.+ · viser \d+ × \d+–\d+ (?:répétitions )?propres, puis augmenter\.|.+ · aim for \d+ × \d+–\d+ clean reps, then go heavier\.)$/u.test(text)
 }

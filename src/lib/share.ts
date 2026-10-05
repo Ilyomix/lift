@@ -47,7 +47,7 @@ export async function copyText(text: string): Promise<void> {
       document.execCommand('copy')
       useStore.getState().notify(copied(), 'good')
     } catch {
-      useStore.getState().notify(L('Copie impossible sur cet appareil.', 'Copying isn’t possible on this device.'), 'bad')
+      useStore.getState().notify(L('Copie impossible. Réessaie depuis cette page.', 'Could not copy. Try again from this page.'), 'bad')
     }
     ta.remove()
   }

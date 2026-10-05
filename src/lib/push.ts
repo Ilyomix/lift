@@ -141,7 +141,7 @@ export function testPush(delaySeconds = 8): boolean {
     endAt: Date.now() + delaySeconds * 1000,
     token,
     title: L('Test Lift', 'Lift test'),
-    body: L('Les fins de repos arriveront comme ça, écran verrouillé.', 'End-of-rest alerts will arrive like this, with the screen locked.'),
+    body: L('Notification de test : voici l’alerte de fin de repos, visible aussi sur l’écran verrouillé.', 'Test notification: this is the rest alert, also shown on the lock screen.'),
   })
   return true
 }

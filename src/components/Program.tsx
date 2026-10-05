@@ -49,7 +49,7 @@ export function PhaseTrack({ today = todayISO(), showLabels = true }: { today?: 
   const c = span(cut)
   const label = MAINTENANCE
     ? L(
-        `Calendrier en mode entretien, sans date de fin : blocs de 5 semaines et décharges du ${fmtDate(from, { long: true })} au ${fmtDate(to, { long: true, year: true })}.`,
+        `Calendrier en mode entretien, sans date de fin : blocs de 5 semaines et semaines allégées du ${fmtDate(from, { long: true })} au ${fmtDate(to, { long: true, year: true })}.`,
         `Maintenance-mode calendar, with no end date: 5-week blocks and deloads from ${fmtDate(from, { long: true })} to ${fmtDate(to, { long: true, year: true })}.`,
       )
     : L(
@@ -100,7 +100,7 @@ const GROUP_LABEL: Record<Group, string[]> = {
   get cut() { return [L('Sèche', 'Cut')] },
   get stab() { return [L('Stabilisation', 'Stabilization'), 'Stab.'] },
   get upkeep() { return [L('Entretien', 'Maintenance')] },
-  get deload() { return [L('Décharge', 'Deload'), 'D.'] },
+  get deload() { return [L('Semaine allégée', 'Deload'), 'D.'] },
 }
 
 function groupOf(kind: Period['kind'], phase: PhaseId): Group {
@@ -176,7 +176,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   }
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned sessions done by ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`)}>
+      <svg viewBox={`0 0 ${width} ${H + 6}`} preserveAspectRatio="none" className="block h-[32px] w-full" role="img" aria-label={L(`${plan.done} séances faites sur ${plan.total} prévues d’ici le ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`, `${plan.done} of ${plan.total} planned workouts done by ${fmtDate(plan.cycle?.end ?? GOAL_DATE, { long: true, year: true })}`)}>
         {ticks.map((t, i) => (
           <rect
             key={i}
@@ -204,7 +204,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
           )
         })}
       </div>
-      <span className="sr-only">{L(`${count} séances au total`, `${count} sessions in total`)}</span>
+      <span className="sr-only">{L(`${count} séances au total`, `${count} workouts in total`)}</span>
     </div>
   )
 }

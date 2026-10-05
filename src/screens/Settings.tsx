@@ -36,14 +36,14 @@ export function SettingsScreen({ section }: { section?: string }) {
 function SettingsIndex() {
   const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
     { to: 'objectifs', art: 'trophy', label: L('Objectifs', 'Goals'), hint: L('Date, silhouette et mesures cibles', 'Date, physique and target measurements') },
-    { to: 'seances', art: 'dumbbell', label: L('Séances et matériel', 'Training and equipment'), hint: L('Jours, exercices, salles et charges', 'Days, exercises, gyms and loads') },
+    { to: 'seances', art: 'dumbbell', label: L('Séances et matériel', 'Workouts and equipment'), hint: L('Jours, exercices, salles et charges', 'Days, exercises, gyms and loads') },
     { to: 'repos', art: 'stopwatch', label: L('Repos et alertes', 'Rest and alerts'), hint: L('Son, écran et notifications', 'Sound, screen and notifications') },
     { to: 'nutrition', art: 'nutrition', label: L('Cibles nutritionnelles', 'Nutrition targets'), hint: L('Calories, protéines et créatine', 'Calories, protein and creatine') },
     { to: 'apparence', art: 'appearance', label: L('Apparence', 'Appearance'), hint: L('Langue, thème et couleur', 'Language, theme and color') },
     { to: 'donnees', art: 'backup', label: L('Données et confidentialité', 'Data and privacy'), hint: L('Sauvegarde, import et suppression', 'Backup, import and deletion') },
   ]
   return <Screen>
-    <Header art="settings" backTo="plus" title={L('Réglages', 'Settings')} sub={L('Personnalise Lift, sujet par sujet.', 'Make Lift yours, one topic at a time.')} />
+    <Header art="settings" backTo="plus" title={L('Réglages', 'Settings')} sub={L('Choisis les réglages à modifier.', 'Choose which settings to change.')} />
     <Card className="divide-y divide-line">
       {items.map(item => <SettingsMenuRow key={item.to} {...item} to={`plus/reglages/${item.to}`} />)}
     </Card>
@@ -53,20 +53,20 @@ function SettingsIndex() {
 function TrainingSettings() {
   const state = useStore(s => s.state)
   return <Screen>
-    <Header art="dumbbell" backTo="plus/reglages" title={L('Séances et matériel', 'Training and equipment')} />
+    <Header art="dumbbell" backTo="plus/reglages" title={L('Séances et matériel', 'Workouts and equipment')} />
     <Card className="divide-y divide-line">
-      <SettingsMenuRow to="plus/reglages/jours" art="calendar" label={L('Jours et rythme', 'Days and pace')} hint={L(`${trainingDays(state).length} séances par semaine`, `${trainingDays(state).length} sessions per week`)} />
-      <SettingsMenuRow to="calendrier/programme" art="program" label={L('Séances du programme', 'Program sessions')} hint={L('Exercices, séries et ordre', 'Exercises, sets and order')} />
+      <SettingsMenuRow to="plus/reglages/jours" art="calendar" label={L('Jours et fréquence', 'Days and frequency')} hint={L(`${trainingDays(state).length} séances par semaine`, `${trainingDays(state).length} workouts per week`)} />
+      <SettingsMenuRow to="calendrier/programme" art="program" label={L('Séances du programme', 'Program workouts')} hint={L('Exercices, séries et ordre', 'Exercises, sets and order')} />
       <SettingsMenuRow to="plus/reglages/materiel" art="kit" label={L('Matériel et salles', 'Equipment and gyms')} hint={setupLabel(state.settings.setup)} />
       <SettingsMenuRow to="plus/pause" art="pause" label={L('Pause du programme', 'Program pause')} hint={state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie ou blessure', 'Vacation, illness or injury')} />
-      <SettingsMenuRow to="plus/rappels" art="reminders" label={L('Rappels calendrier', 'Calendar reminders')} hint={L('Exporter les séances et les pesées', 'Export sessions and weigh-ins')} />
+      <SettingsMenuRow to="plus/rappels" art="reminders" label={L('Rappels calendrier', 'Calendar reminders')} hint={L('Exporter les rappels de séance et de pesée', 'Export workout and weigh-in reminders')} />
     </Card>
     <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Progression des charges', 'Load progression')}>
       <Card>
-        <Toggle label={L('Charges automatiques', 'Automatic loads')} hint={L('Ajustées selon tes séries. Tu peux toujours annuler.', 'Adjusted from your sets. You can always undo.')} checked={state.prefs.autoLoad} onChange={autoLoad => useStore.getState().setPrefs({ autoLoad })} />
+        <Toggle label={L('Charges automatiques', 'Automatic loads')} hint={L('Ajustées selon tes séries, avec les changements détaillés dans le bilan.', 'Adjusted from your sets, with changes shown in your workout summary.')} checked={state.prefs.autoLoad} onChange={autoLoad => useStore.getState().setPrefs({ autoLoad })} />
       </Card>
       <Disclosure className="mt-3" bordered={false} title={L('Comment les charges évoluent', 'How loads change')} contentClassName="text-[13px] leading-relaxed text-text-2">
-        {L('La charge augmente quand toutes les séries atteignent le haut de la fourchette à l’effort prévu, et baisse si elles restent sous le bas. Pendant la séance, les séries suivantes peuvent aussi s’ajuster. Chaque changement reste annulable.', 'The load increases when every set reaches the top of the range at the planned effort, and decreases if sets stay below the bottom. Later sets can also adjust during a session. Each change can be undone.')}
+        {L('La charge augmente quand toutes les séries atteignent le haut de la fourchette à l’effort prévu, et baisse si elles restent sous le bas. Pendant la séance, les séries suivantes peuvent aussi s’ajuster. Tu peux annuler un changement depuis le bilan tant qu’il est encore applicable.', 'The load increases when every set reaches the top of the range at the planned effort, and decreases if sets stay below the bottom. Later sets can also adjust during a workout. You can undo a change from the summary while it still applies.')}
       </Disclosure>
     </Section>
   </Screen>
@@ -97,7 +97,7 @@ function GoalSettings() {
           />
           {MAINTENANCE ? (
             <Row
-              label={L('Objectif sans date', 'Goal without a date')}
+              label={L('Mode entretien', 'Maintenance mode')}
               hint={L('Entretien · poids stable', 'Maintenance · stable weight')}
               right={<Pencil size={14} className="text-muted" aria-hidden />}
               onClick={() => setGoalOpen(true)}
@@ -130,7 +130,7 @@ function ScheduleSettings() {
   const weekSets = span(week.sets[0], week.sets[1])
   const weekMinutes = span(week.minutes[0], week.minutes[1])
   return <Screen>
-    <Header art="calendar" backTo="plus/reglages/seances" title={L('Jours et rythme', 'Days and pace')} />
+    <Header art="calendar" backTo="plus/reglages/seances" title={L('Jours et fréquence', 'Days and frequency')} />
     <Card className="divide-y divide-line">
           <div className="px-4 py-3.5">
             <p className="text-[15px]">{L('Jours d’entraînement', 'Training days')}</p>
@@ -152,22 +152,22 @@ function ScheduleSettings() {
               })}
             </div>
             <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-              {plural(perWeek, L('séance', 'session'), L('séances', 'sessions'))} {L('par semaine.', 'per week.')} {perWeek === PLAN_DAYS
+              {plural(perWeek, L('séance', 'workout'), L('séances', 'workouts'))} {L('par semaine.', 'per week.')} {perWeek === PLAN_DAYS
                 ? L('Le rythme du programme : chaque muscle 2 fois par semaine.', 'The program’s pace: each muscle twice a week.')
                 : perWeek > PLAN_DAYS
                   ? L(`Environ ${weekPct} % du volume prévu : surveille la récupération (sommeil, performances).`, `About ${weekPct}% of the planned volume: keep an eye on recovery (sleep, performance).`)
                   : week.factor === 1
-                    ? L(`Séances du programme (${weekSets} séries, environ ${weekMinutes} min) : environ ${weekPct} % du volume hebdomadaire prévu.`, `The program’s sessions (${weekSets} sets, about ${weekMinutes} min): about ${weekPct}% of the planned weekly volume.`)
+                    ? L(`Séances du programme (${weekSets} séries, environ ${weekMinutes} min) : environ ${weekPct} % du volume hebdomadaire prévu.`, `The program’s workouts (${weekSets} sets, about ${weekMinutes} min): about ${weekPct}% of the planned weekly volume.`)
                     : perWeek >= 3
-                      ? L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min) : la semaine garde ${sharePhrase(week.share)}, en moyenne sur la rotation.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min): the week keeps ${sharePhrase(week.share)}, on average over the rotation.`)
-                      : L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier.`, `Sessions take more sets (${weekSets}, about ${weekMinutes} min), without going past what one session can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it.`)}
+                      ? L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min) : la semaine garde ${sharePhrase(week.share)}, en moyenne sur la rotation.`, `Workouts take more sets (${weekSets}, about ${weekMinutes} min): the week keeps ${sharePhrase(week.share)}, on average over the rotation.`)
+                      : L(`Les séances prennent plus de séries (${weekSets}, environ ${weekMinutes} min), sans dépasser ce qui est utile en une séance : la semaine tient ${sharePhrase(week.share)}. À partir de 3 jours, elle le tient presque en entier.`, `Workouts take more sets (${weekSets}, about ${weekMinutes} min), without going past what one workout can use: the week holds ${sharePhrase(week.share)}. From 3 days, it holds almost all of it.`)}
               {week.factor > 1 && week.minutes[1] >= 85 && L(' Pour raccourcir : enchaîne deux exercices opposés (superset). Croissance comparable, effort ressenti plus élevé.', ' To save time: alternate two opposing exercises (superset). Similar growth, higher perceived effort.')}
             </p>
           </div>
           {perWeek < PLAN_DAYS && (
             <Toggle
-              label={L('Séances allongées', 'Longer sessions')}
-              hint={L('Plus de séries par séance : ce sont les séries par muscle et par semaine qui font progresser, pas le nombre de séances. Désactivé : séances d’une heure, volume réduit.', 'More sets per session: progress comes from the sets per muscle per week, not from the number of sessions. Off: one-hour sessions, reduced volume.')}
+              label={L('Séances allongées', 'Longer workouts')}
+              hint={L('Plus de séries par séance : ce sont les séries par muscle et par semaine qui font progresser, pas le nombre de séances. Désactivé : séances d’une heure, volume réduit.', 'More sets per workout: progress comes from the sets per muscle per week, not from the number of workouts. Off: one-hour workouts, reduced volume.')}
               checked={keepVolume}
               onChange={(v) => setPrefs({ keepWeeklyVolume: v })}
             />
@@ -202,11 +202,11 @@ function RestSettings() {
     <Header art="stopwatch" backTo="plus/reglages" title={L('Repos et alertes', 'Rest and alerts')} />
         <Card className="divide-y divide-line">
           <Toggle label={L('Son de fin de repos', 'End-of-rest sound')} hint={isNative() ? L('Son de la notification système. Sans notification, son uniquement dans l’app ouverte.', 'System notification sound. With alerts off, sound plays only while the app is open.') : L('Trois tons courts, par-dessus ta musique', 'Three short tones, over your music')} checked={state.prefs.sound} onChange={(v) => setPrefs({ sound: v })} />
-          <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the session, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
+          <Toggle label={L('Garder l’écran allumé', 'Keep the screen on')} hint={L('Pendant la séance, pour voir le minuteur', 'During the workout, to see the timer')} checked={state.prefs.wakeLock} onChange={(v) => setPrefs({ wakeLock: v })} />
           {isNative() ? <NativeActivitySettings /> : <PushRow />}
           {!isNative() && !state.prefs.push && (
             <Row
-              label={L('Alerte dans l’app', 'In-app alert')}
+              label={L('Notification avec l’app ouverte', 'Notification while the app is open')}
               hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages de l’appareil', 'Denied in your device settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
               right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>{L('Activer', 'Turn on')}</Button> : undefined}
             />
@@ -221,7 +221,7 @@ function AppearanceSettings() {
   return <Screen>
     <Header art="appearance" backTo="plus/reglages" title={L('Apparence', 'Appearance')} />
         <Section icon={<Languages size={18} aria-hidden />} title={L('Langue', 'Language')} className="mt-0">
-        <Segmented layout="fit" label={L('Langue', 'Language')} value={state.prefs.lang ?? 'auto'} onChange={(v) => setPrefs({ lang: v })} options={[{ value: 'auto', label: L('Auto (téléphone)', 'Auto (phone)') }, { value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }]} />
+        <Segmented layout="fit" label={L('Langue', 'Language')} value={state.prefs.lang ?? 'auto'} onChange={(v) => setPrefs({ lang: v })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }]} />
         </Section>
         <Section icon={<Palette size={18} aria-hidden />} title={L('Thème', 'Theme')}>
         <Segmented layout="fit" label={L('Thème', 'Theme')} value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'dark', label: L('Sombre', 'Dark') }, { value: 'light', label: L('Clair', 'Light') }]} />
@@ -276,14 +276,14 @@ function PushRow() {
       const r = await enablePush()
       if (r === 'on') {
         setPrefs({ push: true })
-        notify(L('Activées. Touche « Tester » puis verrouille le téléphone.', 'On. Tap “Test”, then lock your phone.'), 'good')
+        notify(L('Notifications activées. Touche « Tester » puis verrouille le téléphone.', 'Notifications on. Tap “Test”, then lock your phone.'), 'good')
       } else if (r === 'denied') {
         notify(L('Notifications refusées : autorise-les pour Lift dans les réglages de ton appareil.', 'Notifications denied: allow them for Lift in your device settings.'), 'bad')
       } else {
         notify(L('Notifications non disponibles ici.', 'Notifications not available here.'), 'bad')
       }
     } catch (e) {
-      notify((e as Error).message || L('Activation impossible.', 'Couldn’t turn them on.'), 'bad')
+      notify((e as Error).message || L('Impossible d’activer les notifications. Réessaie.', 'Couldn’t enable notifications. Try again.'), 'bad')
     } finally {
       setBusy(false)
     }
@@ -323,17 +323,17 @@ function GymManager() {
             {edit === g.id ? (
               <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
                 <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
-                <Button type="submit" variant="ink">OK</Button>
+                <Button type="submit" variant="ink">{L('Renommer', 'Rename')}</Button>
               </form>
             ) : (
               <>
                 <button type="button" onClick={() => selectGym(g.id)} className="pressable min-h-11 min-w-0 flex-1 rounded-[10px] text-left hover:text-text">
                   <span className="block truncate text-[15px]">{g.name}</span>
-                  <span className="block text-[12px] text-muted">{g.id === current ? L('Prochaine séance ici', 'Next session here') : g.id === HOME_GYM ? L('Salle principale', 'Main gym') : L('Toucher pour la choisir', 'Tap to choose it')}</span>
+                  <span className="block text-[12px] text-muted">{g.id === current ? L('Prochaine séance ici', 'Next workout here') : g.id === HOME_GYM ? L('Salle principale', 'Main gym') : L('Choisir cette salle', 'Choose this gym')}</span>
                 </button>
                 <IconButton onClick={() => { setEdit(g.id); setName(g.name) }} label={L(`Renommer ${g.name}`, `Rename ${g.name}`)}><Pencil size={16} aria-hidden /></IconButton>
                 {g.id !== HOME_GYM && (
-                  <IconButton onClick={() => removeGym(g.id)} label={L(`Supprimer ${g.name}`, `Delete ${g.name}`)} className="hover:text-bad"><Trash size={16} aria-hidden /></IconButton>
+                  <IconButton onClick={() => removeGym(g.id)} label={L(`Supprimer la salle ${g.name}`, `Delete gym ${g.name}`)} className="hover:text-bad"><Trash size={16} aria-hidden /></IconButton>
                 )}
               </>
             )}
@@ -341,7 +341,7 @@ function GymManager() {
         ))}
       </Card>
       <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
-        <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ajouter une salle', 'Add a gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
+        <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ex. : salle du centre', 'E.g. Downtown gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
         <Button type="submit" variant="ink" size="lg" disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
       </form>
       <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres, poids du corps : communs.', 'Machines, cables and Smith machine: loads and history are specific to each gym. Dumbbells, barbells, bodyweight: shared.')}</p>
@@ -362,8 +362,8 @@ function TargetMeasurements() {
   const invalid = (key: keyof typeof draft) => !!draft[key].trim() && (values[key] === null || values[key]! <= 0)
   const reversed = values.min !== null && values.max !== null && values.min > values.max
   const partialRange = !!draft.min.trim() !== !!draft.max.trim()
-  const rangeError = L('Renseigne les deux bornes, ou laisse les deux vides.', 'Enter both limits, or leave both blank.')
-  const error = L('Entre une valeur supérieure à zéro, ou laisse vide.', 'Enter a value above zero, or leave blank.')
+  const rangeError = L('Renseigne les poids minimum et maximum, ou laisse les deux champs vides.', 'Enter both minimum and maximum weights, or leave both fields blank.')
+  const error = L('Saisis une valeur supérieure à zéro, ou laisse ce champ vide.', 'Enter a value above zero, or leave blank.')
   const changed = Object.keys(draft).some(key => draft[key as keyof typeof draft] !== saved[key as keyof typeof draft])
   const valid = !invalid('min') && !invalid('max') && !invalid('waist') && !reversed && !partialRange
   const set = (key: keyof typeof draft, value: string) => setDraft(current => ({ ...current, [key]: value }))
@@ -376,7 +376,7 @@ function TargetMeasurements() {
       useStore.getState().notify(L('Cibles enregistrées.', 'Targets saved.'), 'good')
     }}>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={L('Poids min (kg)', 'Min weight (kg)')} error={invalid('min') ? error : reversed ? L('Le minimum dépasse le maximum.', 'Minimum exceeds maximum.') : partialRange ? rangeError : undefined}>
+        <Field label={L('Poids min (kg)', 'Min weight (kg)')} error={invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : partialRange ? rangeError : undefined}>
           <input className={inputClass} inputMode="decimal" value={draft.min} placeholder={goal ? fmtNum(goal.min, 0) : '—'} onChange={event => set('min', event.target.value)} />
         </Field>
         <Field label={L('Poids max (kg)', 'Max weight (kg)')} error={invalid('max') ? error : undefined}>
@@ -386,7 +386,7 @@ function TargetMeasurements() {
           <input className={inputClass} inputMode="decimal" value={draft.waist} placeholder="—" onChange={event => set('waist', event.target.value)} />
         </Field>
       </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Laisse vide pour utiliser les estimations du programme.', 'Leave blank to use the program’s estimates.')}</p>
+      <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Laisse les deux poids vides pour utiliser l’estimation du programme. Un tour de taille vide signifie aucune cible.', 'Leave both weights blank to use the program estimate. Leave waist blank for no target.')}</p>
       <Button type="submit" variant="primary" full className="mt-3" disabled={!changed || !valid}>{L('Enregistrer les cibles', 'Save targets')}</Button>
     </form>
     <Disclosure title={L('Comprendre mes cibles', 'Understanding my targets')} bordered={false} className="mt-3" contentClassName="text-[13px] leading-relaxed text-text-2">

@@ -43,9 +43,9 @@ test('an early deload keeps the real block and uses the existing adjusted contex
   const view = programTimelineAt('2026-10-14')
   assert.equal(view.current?.kind, 'block')
   assert.equal(view.context.deload, true)
-  assert.equal(view.context.title, 'Décharge anticipée')
+  assert.equal(view.context.title, 'Semaine allégée anticipée')
   const html = renderToStaticMarkup(createElement(ProgramProgress, { today: '2026-10-14' }))
-  assert.match(html, /Décharge anticipée/)
+  assert.match(html, /Semaine allégée anticipée/)
   assert.match(html, /Bloc 1 : /)
 })
 
@@ -71,7 +71,7 @@ test('past blocks are closed by default while current week and future stages rem
     assert.ok(view.past.length && view.upcoming.length)
     const html = renderToStaticMarkup(createElement(ProgramProgress, { today: date }))
     const disclosures = [...html.matchAll(/<details\b([^>]*)>([\s\S]*?)<\/details>/g)]
-    const past = disclosures.find((m) => m[2].includes(language === 'fr' ? 'Blocs passés' : 'Past blocks'))
+    const past = disclosures.find((m) => m[2].includes(language === 'fr' ? 'Étapes passées' : 'Past stages'))
     assert.ok(past)
     assert.doesNotMatch(past[1], /\sopen(?:=|\s|$)/)
     const visible = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '')

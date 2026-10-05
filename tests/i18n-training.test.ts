@@ -71,7 +71,7 @@ test('known persisted comparison explanations and suggestions switch both ways',
   assert.equal(en.detail, 'Clear drop: beyond normal variation.')
   assert.equal(en.suggestion, 'NEXT TARGET: INCREASE THE LOAD')
   setLang('fr')
-  assert.deepEqual(localizeComparison(en), raw)
+  assert.deepEqual(localizeComparison(en), { ...raw, headline: '−2 RÉPÉTITIONS VS DERNIÈRE FOIS' })
   assert.equal(JSON.stringify(raw), unchanged)
 })
 
@@ -81,7 +81,7 @@ test('common-set suffixes preserve singular, plural and numeric context across l
     const raw = comparison({ detail: `Progression à charge égale. Sur ${common === 1 ? 'la série commune' : `les ${common} séries communes`} (${now} contre ${prev} la dernière fois).` })
     setLang('en')
     const en = comparisonDetailLabel(raw)
-    assert.equal(en, `Progress at the same load. On the ${common === 1 ? 'set' : `${common} sets`} both sessions have (${now} vs ${prev} last time).`)
+    assert.equal(en, `Progress at the same load. On the ${common === 1 ? 'set' : `${common} sets`} both workouts have (${now} vs ${prev} last time).`)
     setLang('fr')
     assert.equal(comparisonDetailLabel({ ...raw, detail: en }), raw.detail)
   }
@@ -139,7 +139,7 @@ test('persisted active-session load hints switch languages and retain their data
   assert.equal(en.text, `18 reps with 4 reps in reserve: ${fmtLoad(22.5, ex.unit)} for the next sets`)
   assert.deepEqual(en.sets, [1, 2])
   setLang('fr')
-  assert.equal(localizeLoadHint({ ...ex, hint: en })?.text, `18 reps avec 4 reps en réserve : ${fmtLoad(22.5, ex.unit)} pour la suite`)
+  assert.equal(localizeLoadHint({ ...ex, hint: en })?.text, `18 répétitions avec 4 répétitions en réserve : ${fmtLoad(22.5, ex.unit)} pour la suite`)
   assert.equal(JSON.stringify(ex), original)
   const custom = { ...ex, hint: { ...ex.hint!, text: 'Message externe : garder RIR 3, à vérifier' } }
   setLang('en')
@@ -176,4 +176,55 @@ test('visible status labels render in the selected language, including older imp
   setLang('fr')
   assert.match(renderToStaticMarkup(createElement(StatusTag, { c: raw })), /Comparaison à vérifier/u)
   assert.match(renderToStaticMarkup(createElement(RecordTag)), /Record/u)
+})
+
+
+test('wording aliases preserve legacy comparisons and round-trip updated labels', () => {
+  const messages = [
+    ['NOUVELLE BASELINE', 'NEW BASELINE', 'NOUVELLE RÉFÉRENCE', 'NEW BASELINE'],
+    ['DÉCHARGE', 'DELOAD', 'SEMAINE ALLÉGÉE', 'DELOAD WEEK'],
+    ['SEMAINE ALLÉGÉE', 'LIGHTER WEEK', 'SEMAINE ALLÉGÉE', 'DELOAD WEEK'],
+    ['Semaine allégée : pas de comparaison.', 'Lighter week: no comparison.', 'Semaine allégée : pas de comparaison.', 'Deload week: no comparison.'],
+    ['SÉANCE ALLÉGÉE', 'LIGHTER SESSION', 'SÉANCE ALLÉGÉE', 'LIGHTER WORKOUT'],
+    ['APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER SESSION', 'APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER WORKOUT'],
+    ['Première séance dans cette fourchette de reps.', 'First session in this rep range.', 'Première séance dans cette fourchette de répétitions.', 'First workout in this rep range.'],
+    ['+1 REP', '+1 REP', '+1 RÉPÉTITION', '+1 REP'],
+    ['−2 REPS VS DERNIÈRE FOIS', '−2 REPS VS LAST TIME', '−2 RÉPÉTITIONS VS DERNIÈRE FOIS', '−2 REPS VS LAST TIME'],
+  ]
+  for (const [oldFr, oldEn, fr, en] of messages) {
+    for (const saved of [oldFr, oldEn, fr, en]) {
+      setLang('en'); assert.equal(storedTrainingText(saved), en)
+      setLang('fr'); assert.equal(storedTrainingText(saved), fr)
+    }
+    // A matching sentence explicitly supplied as a personal note stays untouched.
+    setLang('en')
+    assert.equal(localizeComparison(comparison({ detail: oldFr }), oldFr).detail, oldFr)
+  }
+  const legacy = comparison({ detail: 'No comparison with a lighter session. On the 2 sets both sessions have (3 vs 2 last time).' })
+  setLang('fr')
+  const fr = comparisonDetailLabel(legacy)
+  assert.equal(fr, 'Pas de comparaison avec une séance allégée. Sur les 2 séries communes (3 contre 2 la dernière fois).')
+  setLang('en')
+  assert.equal(comparisonDetailLabel({ ...legacy, detail: fr }), 'No comparison with a lighter workout. On the 2 sets both workouts have (3 vs 2 last time).')
+})
+
+test('new and legacy target and load-hint wording preserve measurements and unknown notes', () => {
+  for (const target of [
+    'Séance d’essai : trouve une charge pour 8–12 répétitions avec 3 répétitions en réserve.',
+    'Trial workout: find a load for 8–12 reps with 3 reps in reserve.',
+    '20 kg · viser 3 × 8–12 répétitions propres, puis augmenter.',
+    '20 kg · viser 3 × 8–12 propres, puis augmenter.',
+  ]) assert.equal(isGeneratedTarget(target), true)
+  assert.equal(isGeneratedTarget('Mon coach : 20 kg · viser 3 × 8–12 avec contrôle.'), false)
+  for (const text of ['1 reps avec 1 reps en réserve : 22,5 kg pour la suite', '1 répétition avec 1 répétition en réserve : 22,5 kg pour la suite']) {
+    const ex = exercise({ hint: { text, from: 20, to: 22.5, sets: [1, 2] } })
+    const serialized = JSON.stringify(ex)
+    setLang('en')
+    const en = localizeLoadHint(ex)!
+    assert.equal(en.text, `1 rep with 1 rep in reserve: ${fmtLoad(22.5, ex.unit)} for the next sets`)
+    assert.deepEqual({ ...en, text }, ex.hint)
+    setLang('fr')
+    assert.equal(localizeLoadHint({ ...ex, hint: en })?.text, `1 répétition avec 1 répétition en réserve : ${fmtLoad(22.5, ex.unit)} pour la suite`)
+    assert.equal(JSON.stringify(ex), serialized)
+  }
 })

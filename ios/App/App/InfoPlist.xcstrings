@@ -1,0 +1,24 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "comment": "Purpose of camera access for progress photos.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take progress photos to compare your training results over time."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prends des photos de progression pour comparer tes résultats au fil du temps."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

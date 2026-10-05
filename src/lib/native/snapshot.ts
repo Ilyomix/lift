@@ -33,7 +33,7 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
   const totalSets = exercises.reduce((n, e) => n + e.sets.length, 0)
   const detail = exercise && prescription ? [
     exercise.unit === 'PDC' ? (weight ? `${lang === 'fr' ? 'PDC' : 'BW'} + ${displayWeight} kg` : (lang === 'fr' ? 'PDC' : 'BW')) : weight == null ? '' : `${displayWeight} ${exercise.unit === 'kg/main' ? (lang === 'fr' ? 'kg/main' : 'kg/hand') : exercise.unit}`,
-    `${prescription.minReps}–${prescription.maxReps} reps`,
+    `${prescription.minReps}–${prescription.maxReps} ${lang === 'fr' ? 'rép.' : 'reps'}`,
     prescription.rir ? (lang === 'fr' ? `réserve ${prescription.rir}` : `${prescription.rir} in reserve`) : '',
   ].filter(Boolean).join(' · ') : ''
   const restEndAt = a.timer && Number.isFinite(a.timer.endAt) ? a.timer.endAt : null
@@ -47,6 +47,6 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
     expiresAt: now + 8 * 60 * 60 * 1000,
     restLabel: lang === 'fr' ? 'Repos' : 'Rest',
     readyLabel: lang === 'fr' ? 'Prêt' : 'Ready',
-    progressLabel: lang === 'fr' ? 'séries' : 'sets',
+    progressLabel: lang === 'fr' ? (totalSets === 1 ? 'série' : 'séries') : (totalSets === 1 ? 'set' : 'sets'),
   }
 }

@@ -137,8 +137,8 @@ interface Store {
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saveInFlight: Promise<void> | null = null
 const storageUnavailableMessages = [
-  'Stockage indisponible : les données ne sont gardées que pendant cette session.',
-  'Storage unavailable: your data is only kept for this session.',
+  'Enregistrement indisponible. Exporte une sauvegarde avant de fermer Lift.',
+  'Saving is unavailable. Export a backup before closing Lift.',
 ] as const
 let toastSeq = 0
 
@@ -182,10 +182,10 @@ function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadF
 }
 
 const replacementError = (reason: ReplacementResult['reason']): string | undefined => {
-  if (reason === 'completed') return L('Des séries sont déjà enregistrées : cet exercice ne peut plus être remplacé dans cette séance.', 'Sets are already recorded: this exercise can no longer be replaced in this session.')
-  if (reason === 'duplicate') return L('Cet exercice figure déjà dans cette séance. Choisis une autre alternative.', 'This exercise is already in this session. Choose another alternative.')
-  if (reason === 'conflict') return L('Le programme a changé depuis le début de cette séance. Modifie sa fiche séparément.', 'The program changed since this session started. Edit its sheet separately.')
-  if (reason === 'reopened') return L('Une séance rouverte ne peut pas modifier le programme. Modifie sa fiche séparément.', 'A reopened session cannot change the program. Edit its sheet separately.')
+  if (reason === 'completed') return L('Des séries sont déjà enregistrées : cet exercice ne peut plus être remplacé dans cette séance.', 'Sets are already recorded: this exercise can no longer be replaced in this workout.')
+  if (reason === 'duplicate') return L('Cet exercice figure déjà dans cette séance. Choisis une autre alternative.', 'This exercise is already in this workout. Choose another alternative.')
+  if (reason === 'conflict') return L('Le programme a changé depuis le début de cette séance. Modifie-le depuis Calendrier → Programme.', 'The program changed since this workout started. Edit it in Calendar → Program.')
+  if (reason === 'reopened') return L('Une séance rouverte ne peut pas modifier le programme. Modifie-le depuis Calendrier → Programme.', 'A reopened workout cannot change the program. Edit it in Calendar → Program.')
   if (reason === 'invalid') return L('Cet exercice ou cet emplacement n’est plus disponible.', 'This exercise or slot is no longer available.')
 }
 
@@ -851,7 +851,7 @@ export const useStore = create<Store>((set, get) => ({
           ...s.appliedPlanUpdates,
           planRecord(
             L(
-              `Mode entretien : plus de date objectif, blocs de 5 semaines + décharge en continu${calories ? `, calories à ${calories} kcal (maintenance estimée)` : ''}.`,
+              `Mode entretien : plus de date objectif, blocs de 5 semaines + semaine allégée en continu${calories ? `, calories à ${calories} kcal (maintenance estimée)` : ''}.`,
               `Maintenance mode: no goal date, 5-week blocks + deload with no end${calories ? `, calories at ${calories} kcal (estimated maintenance)` : ''}.`,
             ),
             s,
@@ -1029,7 +1029,7 @@ export const useStore = create<Store>((set, get) => ({
     try {
       await idbSet(p.id, p, photoDb)
     } catch {
-      get().notify(L('Photo gardée pour cette session seulement : stockage indisponible.', 'Photo kept for this session only: storage unavailable.'), 'bad')
+      get().notify(L('La photo n’a pas pu être sauvegardée. Garde l’original et réessaie.', 'The photo could not be saved. Keep the original and try again.'), 'bad')
     }
   },
 

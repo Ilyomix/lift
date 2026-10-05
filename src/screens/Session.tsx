@@ -69,13 +69,13 @@ function SessionPreview() {
   return (
     <Screen>
       <Header
-        eyebrow={isNext ? `${L('Prochaine séance', 'Next session')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Other session')}
+        eyebrow={isNext ? `${L('Prochaine séance', 'Next workout')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Another workout')}
         art={workoutArt[type]}
         title={TYPE_META[type].label}
-        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${L(`${totalSets} séries`, plural(totalSets, 'set', 'sets'))} · ~${minutes} min`}
+        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
-      <Segmented label={L('Type de séance', 'Session type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
+      <Segmented label={L('Type de séance', 'Workout type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Tag tone="outline">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
@@ -85,12 +85,12 @@ function SessionPreview() {
       {daysFactor() > 1 && totalSets > sheetSets && (
         <p className="mt-2 text-[13px] leading-[1.45] text-text-2">
           {L(
-            `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance prend plus de séries que la fiche${keepsWeek ? ', pour garder le volume de la semaine' : ''}.`,
-            `${plural(WEEK_DAYS, 'session', 'sessions')} a week: the session takes more sets than the sheet${keepsWeek ? ', to keep the weekly volume' : ''}.`,
+            `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance contient plus de séries que le programme de base${keepsWeek ? ', pour garder le volume de la semaine' : ''}.`,
+            `${plural(WEEK_DAYS, 'workout', 'workouts')} a week: this workout has more sets than the base program${keepsWeek ? ', to keep the weekly volume' : ''}.`,
           )}
         </p>
       )}
-      {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this session: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
+      {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this workout: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
 
       <ol className="mt-5 divide-y divide-line rounded-[12px] border border-line bg-surface">
         {exercises.map((e, i) => (
@@ -102,8 +102,8 @@ function SessionPreview() {
                 <span className="mt-0.5 block text-[13px] text-text-2 tnum">
                   {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · {reserveLabel(rx[i].rir)} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
                 </span>
-                {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('Superset avec l’exercice suivant', 'Superset with the next exercise')}</span>}
-                {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this session')}</span>}
+                {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('À enchaîner avec l’exercice suivant', 'Follow immediately with the next exercise')}</span>}
+                {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this workout')}</span>}
               </span>
               <Info size={18} className="shrink-0 text-muted" aria-hidden />
             </button>
@@ -126,7 +126,7 @@ function SessionPreview() {
 function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
   const name = useStore((s) => placeName(s.state, id))
   return (
-    <button type="button" onClick={onClick} className="pressable inline-flex min-h-11 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Lieu : ${name}, changer`, `Place: ${name}, change`)}>
+    <button type="button" onClick={onClick} className="pressable inline-flex min-h-11 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Changer le lieu de la séance. Lieu actuel : ${name}`, `Change workout location. Current location: ${name}`)}>
       <MapPin size={14} className="shrink-0" aria-hidden />
       <span className="truncate">{name}</span>
       <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
@@ -195,7 +195,7 @@ function ActiveSession() {
         right={
           <div className="flex items-center gap-1">
             <GymChip id={a.gymId} onClick={() => setGymOpen(true)} />
-            <IconButton label={L('Options de la séance', 'Session options')} onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
+            <IconButton label={L('Options de la séance', 'Workout options')} onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
           </div>
         }
       />
@@ -208,7 +208,7 @@ function ActiveSession() {
             <span className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
               {elapsed !== null && (
-                <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={L('Durée de la séance', 'Session duration')}>
+                <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={L('Durée de la séance', 'Workout duration')}>
                   <Timer size={14} className="text-muted" aria-hidden />
                   <span className="seg seg-ghost text-[15px] leading-none text-text tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-hidden>{fmtClock(elapsed)}</span>
                 </span>
@@ -226,13 +226,13 @@ function ActiveSession() {
       {a.reopened && (
         <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
           <Pencil size={14} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
-          {L('Correction d’une séance terminée : ouvre un exercice, corrige ses séries, puis termine. Les comparaisons et les charges sont recalculées.', 'Correcting a finished session: open an exercise, fix its sets, then finish. Comparisons and loads are worked out again.')}
+          {L('Correction d’une séance terminée : ouvre un exercice, corrige ses séries, puis termine. Les comparaisons et les charges sont recalculées.', 'Editing a completed workout: open an exercise, edit its sets, then finish the workout. Comparisons and loads are recalculated.')}
         </p>
       )}
 
       {(a.deload || a.reentry) && (
         <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
-          {a.deload ? L('Semaine de décharge : moitié des séries, charges −10 %, 3–4 répétitions en réserve.', 'Deload week: half the sets, loads −10%, 3–4 reps in reserve.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
+          {a.deload ? L('Semaine allégée : moitié des séries, charges −10 %, 3–4 répétitions en réserve.', 'Deload week: half the sets, loads −10%, 3–4 reps in reserve.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
         </p>
       )}
 
@@ -244,10 +244,10 @@ function ActiveSession() {
         ))}
       </div>
 
-      <Section icon={<StickyNote />} title={L('Notes de séance', 'Session notes')}>
+      <Section icon={<StickyNote />} title={L('Notes de séance', 'Workout notes')}>
         <textarea
           className={cx(inputClass, 'h-24 resize-none py-2.5')}
-          aria-label={L('Notes de séance', 'Session notes')}
+          aria-label={L('Notes de séance', 'Workout notes')}
           placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')}
           value={a.notes}
           onChange={(e) => setSessionField({ notes: e.target.value })}
@@ -255,18 +255,18 @@ function ActiveSession() {
       </Section>
 
       <Button variant="primary" size="lg" full className="mt-6" icon={<CircleCheck size={18} aria-hidden />} onClick={() => (pending > 0 ? setConfirmFinish(true) : finish())}>
-        {L('Terminer la séance', 'Finish session')}
+        {L('Terminer la séance', 'Finish workout')}
       </Button>
       <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, L('série restante', 'set left'), L('séries restantes', 'sets left'))}` : L('Toutes les séries sont validées.', 'All sets are logged.')}</p>
 
-      <Sheet icon={<Dumbbell />} open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Session')}>
-        <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Date de la séance', 'Session date')}</p>
-        <DateInput label={L('Date de la séance', 'Session date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
+      <Sheet icon={<Dumbbell />} open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Workout')}>
+        <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Date de la séance', 'Workout date')}</p>
+        <DateInput label={L('Date de la séance', 'Workout date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
         <div className="mt-5">
           <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
-            {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard session')}
+            {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard workout')}
           </Button>
-          <p className="mt-2 text-[12px] text-muted">{a.reopened ? L('La séance reste telle qu’elle était enregistrée.', 'The session stays as it was logged.') : L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
+          <p className="mt-2 text-[12px] text-muted">{a.reopened ? L('La séance reste telle qu’elle était enregistrée.', 'The saved workout stays unchanged.') : L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
         </div>
       </Sheet>
       {gymOpen && <GymSheet session onClose={() => setGymOpen(false)} />}
@@ -366,7 +366,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-medium">{ex.name}</span>
-          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : noLoadLeft ? L(' · haut de la fourchette : variante plus dure', ' · top of the range: harder variation') : ''}</span>
+          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : noLoadLeft ? L(' · maximum de répétitions atteint : variante plus difficile', ' · rep target reached: harder variation') : ''}</span>
         </span>
         <ChevronDown size={16} className="shrink-0 text-muted" aria-hidden />
       </button>
@@ -406,10 +406,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         {prevSets.length > 0 ? (
           <p className="text-text-2">
             <span className="text-muted">{L('Dernière fois', 'Last time')}{prevDate ? ` · ${fmtDate(prevDate)}` : ''}{L(' :', ':')}</span> <span className="font-medium text-text tnum">{setsSummary(prevSets, prev!.unit)}</span>
-            {sameLoad && <span className="text-muted"> {L('→ à battre :', '→ to beat:')} <span className="font-semibold text-text">{L(`${prevClean + 1} reps propres`, `${prevClean + 1} clean reps`)}</span></span>}
+            {sameLoad && <span className="text-muted"> {L('→ prochaine cible :', '→ next target:')} <span className="font-semibold text-text">{L(`${prevClean + 1} répétitions propres`, `${prevClean + 1} clean reps`)}</span></span>}
           </p>
         ) : !ex.gymTrial ? (
-          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L('Séance d’essai : ajuste la charge en gardant la marge indiquée.', 'Trial session: adjust the load while keeping the indicated reserve.') : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
+          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L('Séance d’essai : ajuste la charge en gardant la marge indiquée.', 'Trial workout: adjust the load while keeping the indicated reps in reserve.') : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
         {hurtLastTime && (
           <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, compare les alternatives dans les options de l’exercice (···).', 'Pain flagged last time: if it comes back, compare alternatives in the exercise options (···).')}</p>
@@ -424,7 +424,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <div className={cx(setColumns, 'px-2 pb-1.5 text-center text-[11px] leading-[1.25] font-medium text-text-2')}>
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>
-          <span>Reps</span>
+          <span>{L('Répét.', 'Reps')}</span>
           <span>{L('En réserve', 'In reserve')}</span>
           <span className="sr-only">{L('Valider', 'Log')}</span>
         </div>
@@ -443,14 +443,14 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
           </div>
         )}
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
-          <button type="button" onClick={() => {
-            if (ex.sets.length >= prescribedSets(ex) && !window.confirm(L('Ajouter une série hors prescription ? Elle sera comptée dans le volume. Une série de plus n’est pas nécessaire pour valider la charge.', 'Add a set outside the prescription? It will count towards volume. An extra set is not needed to validate the load.'))) return
+          <button type="button" aria-label={L('Ajouter une série', 'Add a set')} onClick={() => {
+            if (ex.sets.length >= prescribedSets(ex) && !window.confirm(L('Ajouter une série non prévue ? Elle comptera dans le volume, mais elle n’est pas nécessaire pour valider la charge.', 'Add an unplanned set? It will count towards volume, but it is not needed to validate the load.'))) return
             addSet(index)
           }} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
-            <Plus size={16} aria-hidden /> {L('Série', 'Set')}
+            <Plus size={16} aria-hidden /> {L('Ajouter', 'Add set')}
           </button>
           {ex.sets.length > 1 && !ex.sets[ex.sets.length - 1].completed && (
-            <button type="button" onClick={() => removeSet(index, ex.sets.length - 1)} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-medium text-muted hover:bg-surface-2 hover:text-text">
+            <button type="button" aria-label={L('Retirer la dernière série non validée', 'Remove the last unlogged set')} onClick={() => removeSet(index, ex.sets.length - 1)} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-medium text-muted hover:bg-surface-2 hover:text-text">
               <X size={15} aria-hidden /> {L('Retirer', 'Remove')}
             </button>
           )}
@@ -458,13 +458,13 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         {validated && (
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
             <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
-            <span><span className="font-semibold">{L('Charge validée.', 'Load mastered.')}</span> {validated.text}{autoLoad ? L(' (appliqué à la fin de la séance)', ' (applied at the end of the session)') : ''}.</span>
+            <span><span className="font-semibold">{L('Charge validée.', 'Load mastered.')}</span> {validated.text}{autoLoad ? L(' (appliqué à la fin de la séance)', ' (applied when you finish the workout)') : ''}.</span>
           </div>
         )}
         {noLoadLeft && (
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
             <CircleCheck size={16} className="shrink-0 text-good" aria-hidden />
-            <span><span className="font-semibold">{L('Haut de la fourchette atteint.', 'Top of the range reached.')}</span> {L('Passe à une variante plus dure ou à un élastique plus fort.', 'Move to a harder variation or a stronger band.')}</span>
+            <span><span className="font-semibold">{L('Maximum de répétitions atteint.', 'Top of the rep range reached.')}</span> {L('Passe à une variante plus difficile ou à un élastique plus résistant.', 'Move to a harder variation or a stronger band.')}</span>
           </div>
         )}
       </div>
@@ -472,7 +472,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       {ex.supersetWithNext && nextName && (
         <div className="flex items-center gap-2 border-t border-dashed border-line-strong bg-signal-soft px-4 py-2.5 text-[13px] font-medium">
           <LinkIcon size={14} className="text-signal-text" aria-hidden />
-          {L(`Superset : enchaîne avec ${nextName}, repos après.`, `Superset: go straight into ${nextName}, then rest.`)}
+          {L(`Enchaîne avec ${nextName} sans repos, puis repose-toi.`, `Go straight into ${nextName} without resting, then rest.`)}
         </div>
       )}
 
@@ -481,9 +481,9 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         <div className="space-y-5">
           <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={{ kind: 'active', index }} onReplaced={() => setMenu(false)} />
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Conditions différentes (tempo, prise…)', 'Different conditions (tempo, grip…)')}</span>
-            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder={L('Ex. : tempo lent, prise différente', 'E.g. slow tempo, different grip')} onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
-            <span className="mt-1 block text-[12px] text-muted">{L('Évite une fausse comparaison avec la dernière séance. Pour une autre salle, change plutôt la salle en haut de la séance.', 'Avoids a misleading comparison with the last session. For another gym, change the gym at the top of the session instead.')}</span>
+            <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Conditions différentes (rythme, prise…)', 'Different conditions (tempo, grip…)')}</span>
+            <input className={inputClass} value={ex.comparisonContext ?? ''} placeholder={L('Ex. : mouvement plus lent, prise différente', 'E.g. slow tempo, different grip')} onChange={(e) => setExerciseField(index, { comparisonContext: e.target.value })} />
+            <span className="mt-1 block text-[12px] text-muted">{L('Évite une fausse comparaison avec la dernière séance. Pour une autre salle, change plutôt la salle en haut de la séance.', 'Prevents a misleading comparison with your last workout. For another gym, change the location at the top of the workout instead.')}</span>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Note sur l’exercice', 'Exercise note')}</span>
@@ -533,8 +533,8 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { 
 
 // Labels are getters: they follow the interface language.
 const FLAGS: { id: SetFlag; label: string }[] = [
-  { id: 'failure', get label() { return L('Échec', 'Failure') } },
-  { id: 'bad-technique', get label() { return L('Technique', 'Technique') } },
+  { id: 'failure', get label() { return L('Échec musculaire', 'Muscle failure') } },
+  { id: 'bad-technique', get label() { return L('Technique dégradée', 'Form breakdown') } },
   { id: 'pain', get label() { return L('Douleur', 'Pain') } },
 ]
 
@@ -554,7 +554,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           aria-label={L(`Détails de la série ${setIndex + 1}`, `Set ${setIndex + 1} details`)}
           className={cx('pressable flex h-11 flex-col items-center justify-center rounded-[9px] text-[14px] font-semibold tnum hover:bg-surface-3', isCurrent ? 'text-signal-text' : 'text-text-2')}
         >
-          {setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('Bonus', 'Extra')}</span>}
+          {setIndex + 1}{setIndex >= prescribedSets(ex) && <span className="text-[9px] text-warn">{L('En plus', 'Extra')}</span>}
           <ChevronDown size={11} className={cx('text-muted transition-transform', (open || hasDetail) && 'text-signal-text', open && 'rotate-180')} aria-hidden />
         </button>
         <div className="min-w-0">
@@ -612,14 +612,14 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
             })}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[13px] text-text-2">{L('Reps propres', 'Clean reps')}</span>
+            <span className="text-[13px] text-text-2">{L('Répét. propres', 'Clean reps')}</span>
             <div className="flex items-center gap-1">
-              <IconButton label={L('Une rep propre de moins', 'One fewer clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })}><span className="text-[18px]">−</span></IconButton>
+              <IconButton label={L('Une répétition propre de moins', 'One fewer clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.max(0, (s.cleanReps ?? s.reps ?? 0) - 1) })}><span className="text-[18px]">−</span></IconButton>
               <span className="w-8 text-center text-[16px] font-semibold tnum">{s.cleanReps ?? s.reps ?? '—'}</span>
-              <IconButton label={L('Une rep propre de plus', 'One more clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })}><span className="text-[18px]">+</span></IconButton>
+              <IconButton label={L('Une répétition propre de plus', 'One more clean rep')} onClick={() => updateSet(exIndex, setIndex, { cleanReps: Math.min(s.reps ?? 99, (s.cleanReps ?? s.reps ?? 0) + 1) })}><span className="text-[18px]">+</span></IconButton>
             </div>
           </div>
-          <input className={cx(inputClass, 'h-11')} placeholder={L('Note (ex. : dernière rep aidée)', 'Note (e.g. last rep assisted)')} value={s.note} onChange={(e) => updateSet(exIndex, setIndex, { note: e.target.value })} />
+          <input className={cx(inputClass, 'h-11')} aria-label={L(`Note de la série ${setIndex + 1}`, `Set ${setIndex + 1} note`)} placeholder={L('Note (ex. : dernière répétition aidée)', 'Note (e.g. last rep assisted)')} value={s.note} onChange={(e) => updateSet(exIndex, setIndex, { note: e.target.value })} />
         </div>
       )}
     </div>
@@ -637,9 +637,9 @@ export function SessionSummary() {
     return (
       <Screen>
         <Header art="trophy" title={L('Bilan', 'Summary')} backTo="" />
-        <Empty art="trophy" title={L('Ton premier bilan t’attend', 'Your first summary is ahead')}
-          action={<Button variant="primary" onClick={() => navigate('seance')}>{state.activeWorkout ? L('Revenir à ma séance', 'Return to my session') : L('Voir ma séance', 'View my session')}</Button>}
-        >{L('Termine une séance pour retrouver tes séries, tes performances et les ajustements proposés.', 'Finish a session to see your sets, performance and suggested adjustments.')}</Empty>
+        <Empty art="trophy" title={L('Ton premier bilan t’attend', 'No workout summary yet')}
+          action={<Button variant="primary" onClick={() => navigate('seance')}>{state.activeWorkout ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>}
+        >{L('Termine une séance pour retrouver tes séries, tes performances et les ajustements proposés.', 'Finish a workout to see your sets, performance and suggested adjustments.')}</Empty>
       </Screen>
     )
   }
@@ -664,21 +664,21 @@ export function SessionSummary() {
     ...(state.prefs.autoLoad ? [] : (lastFinish?.alerts ?? [])),
     ...(notes.pain.length
       ? [L(
-          `Douleur signalée : ${notes.pain.join(', ')}. La charge n’y monte pas tant qu’elle est là.${notes.painAgain.length ? ` Deuxième séance de suite sur ${notes.painAgain.join(', ')} : remplace l’exercice (··· → Remplacer par), et fais-toi examiner si elle persiste.` : ' Si elle revient à la prochaine séance, remplace l’exercice (··· → Remplacer par).'}`,
-          `Pain flagged: ${notes.pain.join(', ')}. The load does not go up there while it hurts.${notes.painAgain.length ? ` Second session in a row on ${notes.painAgain.join(', ')}: replace the exercise (··· → Replace with), and have it checked if it lasts.` : ' If it comes back next session, replace the exercise (··· → Replace with).'}`,
+          `Douleur signalée : ${notes.pain.join(', ')}. La charge n’y monte pas tant qu’elle est là.${notes.painAgain.length ? ` Deuxième séance de suite sur ${notes.painAgain.join(', ')} : ouvre les options (···) pour remplacer l’exercice, et fais-toi examiner si elle persiste.` : ' Si elle revient à la prochaine séance, ouvre les options (···) pour remplacer l’exercice.'}`,
+          `Pain flagged: ${notes.pain.join(', ')}. The load does not go up there while it hurts.${notes.painAgain.length ? ` Second workout in a row on ${notes.painAgain.join(', ')}: open the options (···) to replace the exercise, and have it checked if it lasts.` : ' If it comes back next workout, open the options (···) to replace the exercise.'}`,
         )]
       : []),
     ...(notes.plateau.length
       ? [L(
           `Pas de progrès depuis ${PLATEAU_SESSIONS} séances : ${notes.plateau.join(', ')}. Bon moment pour faire le point : sommeil, calories, technique, ou une variante de l’exercice.`,
-          `No progress for ${PLATEAU_SESSIONS} sessions: ${notes.plateau.join(', ')}. A good time to take stock: sleep, calories, technique, or a variation of the exercise.`,
+          `No progress for ${PLATEAU_SESSIONS} workouts: ${notes.plateau.join(', ')}. A good time to take stock: sleep, calories, technique, or a variation of the exercise.`,
         )]
       : []),
   ]
 
   return (
     <Screen>
-      <Header art="trophy" eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Session #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true }))} · ${gymName(state, w.gymId)}`} title={L('Séance terminée', 'Workout complete')} backTo="" />
+      <Header art="trophy" eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Workout #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true }))} · ${gymName(state, w.gymId)}`} title={L('Séance terminée', 'Workout complete')} backTo="" />
       <div className="grid grid-cols-3 gap-2.5">
         <Figure label={L('Durée', 'Duration')} value={minutes === null ? '—' : minutes < 1 ? '< 1 min' : `${minutes} min`} />
         <Figure label={L('Séries', 'Sets')} value={String(sessionSetCount(w))} />
@@ -698,11 +698,11 @@ export function SessionSummary() {
       {changes.length > 0 && (
         <Section
           icon={<SlidersHorizontal />}
-          title={state.prefs.autoLoad ? L('Plan ajusté', 'Plan adjusted') : L('Ajustements proposés', 'Suggested adjustments')}
+          title={state.prefs.autoLoad ? L('Programme ajusté', 'Program adjusted') : L('Ajustements proposés', 'Suggested adjustments')}
           action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>{L('Tout appliquer', 'Apply all')}</Button> : undefined}
         >
           <p className="mb-3 text-[13px] leading-[1.45] text-text-2">
-            {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next sessions start from these loads. Undo a change if this session wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
+            {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next workouts start with these loads. Undo a change if this workout wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
           </p>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
@@ -717,13 +717,13 @@ export function SessionSummary() {
               <TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span>
                 {pushedOften && L(
-                  `${effort.pushed} séries sur ${sessionSetCount(w)} poussées plus loin que l’effort prévu${effort.planned ? ` (${effort.planned} reps en réserve)` : ''}. `,
+                  `${effort.pushed} séries sur ${sessionSetCount(w)} poussées plus loin que l’effort prévu${effort.planned ? ` (${effort.planned} répétitions en réserve)` : ''}. `,
                   `${effort.pushed} of ${sessionSetCount(w)} sets pushed past the planned effort${effort.planned ? ` (${effort.planned} reps in reserve)` : ''}. `,
                 )}
                 {w.deload
-                  ? L('En décharge, garde cette marge : c’est elle qui fait récupérer.', 'On a deload, keep that margin: it is what lets you recover.')
-                  : L('Une charge ne monte que si la fourchette est tenue à l’effort prévu.', 'A load only goes up when the range is held at the planned effort.')}
-                {held.length > 0 && L(` Maintenue cette fois : ${held.map((e) => e.name).join(', ')}.`, ` Held this time: ${held.map((e) => e.name).join(', ')}.`)}
+                  ? L('Pendant la semaine allégée, garde cette marge pour récupérer.', 'During the deload week, keep those reps in reserve to recover.')
+                  : L('La charge n’augmente que si les répétitions prévues sont réalisées avec la réserve demandée.', 'The load only increases when you complete the target rep range with the planned reps in reserve.')}
+                {held.length > 0 && L(` Charge maintenue cette fois : ${held.map((e) => e.name).join(', ')}.`, ` Load unchanged this time: ${held.map((e) => e.name).join(', ')}.`)}
               </span>
             </p>
           </Card>
@@ -733,8 +733,8 @@ export function SessionSummary() {
       {early && (
         <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
           <Card className="p-4">
-            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices sont en nette baisse deux séances de suite : c’est le signal pour avancer la décharge.', 'Several exercises clearly dropped two sessions in a row: that’s the signal to bring the deload forward.')}</p>
-            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Décharge avancée : 7 jours dès demain.', 'Deload brought forward: 7 days starting tomorrow.'), 'good') }}>{L('Décharge dès demain (7 jours)', 'Deload from tomorrow (7 days)')}</Button>
+            <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices sont en nette baisse deux séances de suite : c’est le signal pour avancer la semaine allégée.', 'Several exercises clearly dropped over two consecutive workouts: bring the deload week forward.')}</p>
+            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Semaine allégée avancée : 7 jours dès demain.', 'Deload week moved forward: 7 days starting tomorrow.'), 'good') }}>{L('Semaine allégée dès demain (7 jours)', 'Start a deload week tomorrow (7 days)')}</Button>
           </Card>
         </Section>
       )}
@@ -742,8 +742,8 @@ export function SessionSummary() {
       {advanced && (
         <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
           <Card className="flex items-center gap-3 p-4">
-            <p className="min-w-0 flex-1 text-[14px] leading-[1.45]">{L(`Décharge avancée : du ${fmtDate(advanced.start, { long: true })} au ${fmtDate(advanced.end, { long: true })}.`, `Deload brought forward: ${fmtDate(advanced.start, { long: true })} to ${fmtDate(advanced.end, { long: true })}.`)}</p>
-            <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={() => { cancelEarlyDeload(); useStore.getState().notify(L('Décharge avancée annulée : le plan reprend son calendrier.', 'Early deload cancelled: the plan is back on its calendar.')) }}>{L('Annuler', 'Cancel')}</Button>
+            <p className="min-w-0 flex-1 text-[14px] leading-[1.45]">{L(`Semaine allégée avancée : du ${fmtDate(advanced.start, { long: true })} au ${fmtDate(advanced.end, { long: true })}.`, `Deload week moved forward: ${fmtDate(advanced.start, { long: true })} to ${fmtDate(advanced.end, { long: true })}.`)}</p>
+            <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={() => { cancelEarlyDeload(); useStore.getState().notify(L('Semaine allégée avancée annulée : le programme reprend son calendrier.', 'Early deload week cancelled: the program returns to its original schedule.')) }}>{L('Annuler', 'Cancel')}</Button>
           </Card>
         </Section>
       )}
@@ -781,7 +781,7 @@ function ChangeRow({ c, unit, state, onApply, onRevert }: { c: AutoChange; unit:
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-medium">{c.name}</p>
         <p className={cx('text-[13px] text-text-2', state !== 'applied' && 'text-muted')}>{text}</p>
-        {state === 'gone' && <p className="text-[12px] text-muted">{L('Plus d’actualité : fiche modifiée ou exercice refait depuis.', 'No longer current: sheet edited or exercise done again since.')}</p>}
+        {state === 'gone' && <p className="text-[12px] text-muted">{L('Plus d’actualité : fiche modifiée ou exercice refait depuis.', 'No longer current: the program was edited or this exercise was completed again.')}</p>}
       </div>
       {state === 'applied' ? (
         <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>{L('Annuler', 'Undo')}</Button>
@@ -840,10 +840,10 @@ export function WorkoutDetail({ id }: { id: string }) {
   if (!w) {
     return (
       <Screen>
-        <Header art="plate" title={L('Séance', 'Session')} backTo="progres/seances" />
-        <Empty art="calendar" title={L('Séance introuvable', 'Session not found')}
+        <Header art="plate" title={L('Séance', 'Workout')} backTo="progres/seances" />
+        <Empty art="calendar" title={L('Séance introuvable', 'Workout not found')}
           action={<Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Revenir à l’historique', 'Back to history')}</Button>}
-        >{L('Cette séance n’est plus disponible sur cet appareil. Retrouve les séances conservées dans ton historique.', 'This session is no longer available on this device. Your saved sessions are in your history.')}</Empty>
+        >{L('Cette séance n’est plus disponible sur cet appareil. Retrouve les séances conservées dans ton historique.', 'This workout is no longer available on this device. Find your saved workouts in your history.')}</Empty>
       </Screen>
     )
   }
@@ -860,11 +860,11 @@ export function WorkoutDetail({ id }: { id: string }) {
   const correcting = !!state.activeWorkout?.reopened && state.activeWorkout.id === w.id
   return (
     <Screen>
-      <Header art="trophy" eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Session #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true, year: true }))}`} title={TYPE_META[w.type].label} backTo="progres/seances" sub={`${TYPE_META[w.type].fr} · ${L(`${sessionSetCount(w)} séries`, plural(sessionSetCount(w), 'set', 'sets'))}${minutes ? ` · ${minutes} min` : ''}${ctx.period ? ` · ${ctx.title}` : ''}`} />
+      <Header art="trophy" eyebrow={`${L(`Séance n°${w.sessionNumber}`, `Workout #${w.sessionNumber}`)} · ${capitalize(fmtDate(w.date, { weekday: true, year: true }))}`} title={TYPE_META[w.type].label} backTo="progres/seances" sub={`${TYPE_META[w.type].fr} · ${plural(sessionSetCount(w), L('série', 'set'), L('séries', 'sets'))}${minutes ? ` · ${minutes} min` : ''}${ctx.period ? ` · ${ctx.title}` : ''}`} />
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
       {changes.length > 0 && (
-        <Section icon={<SlidersHorizontal />} title={L('Plan ajusté après cette séance', 'Plan adjusted after this session')}>
+        <Section icon={<SlidersHorizontal />} title={L('Programme ajusté après cette séance', 'Program adjusted after this workout')}>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
           </Card>
@@ -874,20 +874,20 @@ export function WorkoutDetail({ id }: { id: string }) {
         {isLast && (correcting ? (
           <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} onClick={() => navigate('seance')}>{L('Reprendre la correction', 'Resume the correction')}</Button>
         ) : (
-          <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} disabled={!!state.activeWorkout} onClick={() => setFix(true)}>{L('Corriger la séance', 'Correct this session')}</Button>
+          <Button variant="outline" size="lg" full icon={<Pencil size={16} aria-hidden />} disabled={!!state.activeWorkout} onClick={() => setFix(true)}>{L('Corriger la séance', 'Edit this workout')}</Button>
         ))}
-        <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>{L('Supprimer la séance', 'Delete session')}</Button>
+        <Button variant="danger" size="lg" full icon={<Trash size={16} aria-hidden />} onClick={() => setConfirm(true)}>{L('Supprimer la séance', 'Delete workout')}</Button>
       </div>
-      {isLast && state.activeWorkout && !correcting && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Une séance est en cours : termine-la avant de corriger celle-ci.', 'A session is in progress: finish it before correcting this one.')}</p>}
+      {isLast && state.activeWorkout && !correcting && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Une séance est en cours : termine-la avant de corriger celle-ci.', 'A workout is in progress: finish it before editing this one.')}</p>}
       <Sheet
         open={fix}
         onClose={() => setFix(false)}
         icon={<Pencil />}
-        title={L('Corriger cette séance ?', 'Correct this session?')}
+        title={L('Corriger cette séance ?', 'Edit this workout?')}
         footer={
           <div className="flex gap-2">
             <Button variant="outline" size="lg" className="flex-1" onClick={() => setFix(false)}>{L('Annuler', 'Cancel')}</Button>
-            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setFix(false); if (reopenWorkout(w.id)) { notify(L('Séance rouverte : corrige, puis termine-la.', 'Session reopened: correct it, then finish it.')); navigate('seance', { replace: true }) } }}>{L('Corriger', 'Correct')}</Button>
+            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setFix(false); if (reopenWorkout(w.id)) { notify(L('Séance rouverte : corrige, puis termine-la.', 'Workout reopened: edit it, then finish it.')); navigate('seance', { replace: true }) } }}>{L('Corriger', 'Correct')}</Button>
           </div>
         }
       >
@@ -900,7 +900,7 @@ export function WorkoutDetail({ id }: { id: string }) {
         open={confirm}
         onClose={() => setConfirm(false)}
         icon={<Trash />}
-        title={L('Supprimer cette séance ?', 'Delete this session?')}
+        title={L('Supprimer cette séance ?', 'Delete this workout?')}
         footer={
           <div className="flex gap-2">
             <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirm(false)}>{L('Annuler', 'Cancel')}</Button>

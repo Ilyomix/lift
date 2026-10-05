@@ -127,7 +127,7 @@ function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
   // Past an hour the readout takes three pairs of figures: smaller ones, so it stays inside the dial.
   const hours = value.length > 5
   return (
-    <><span role="timer" aria-live={done ? 'assertive' : 'off'} className="sr-only">{done ? L('Repos terminé', 'Rest over') : L(`Repos : ${value} restantes`, `Rest: ${value} left`)}</span><span className={cx('flex items-baseline', done && 'text-signal-text rest-expired-pulse')} aria-hidden>
+    <><span role="timer" aria-live={done ? 'assertive' : 'off'} className="sr-only">{done ? L('Repos terminé', 'Rest over') : L(`Repos restant : ${value}`, `Rest: ${value} left`)}</span><span className={cx('flex items-baseline', done && 'text-signal-text rest-expired-pulse')} aria-hidden>
       <SegDigits value={value} className={cx('leading-none', hours ? 'text-[40px]' : 'text-[60px]')} />
       <span className={cx('seg seg-ghost tnum ml-1 leading-none', hours ? 'text-[22px]' : 'text-[30px]')} data-ghost=".8">.{tenths % 10}</span>
     </span></>
@@ -154,19 +154,19 @@ export function RestDock() {
       <div
         role="timer"
         aria-live={done ? 'assertive' : 'off'}
-        aria-label={done ? L('Repos terminé', 'Rest over') : L(`Repos : ${clock} restantes`, `Rest: ${clock} left`)}
+        aria-label={done ? L('Repos terminé', 'Rest over') : L(`Repos restant : ${clock}`, `Rest: ${clock} left`)}
         className={cx('relative mx-auto max-w-[620px] overflow-hidden rounded-[14px] border bg-inst-bg px-3 pt-2.5 pb-3 text-inst-text shadow-[0_18px_50px_rgb(0_0_0/0.35)]', done ? 'border-signal' : 'border-inst-border')}
       >
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
             <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done rest-expired-pulse' : 'text-white')} />
             <span className="min-w-0">
-              <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? 'Go' : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
+              <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
             </span>
           </button>
           {!done && <DockButton label={L('Ajouter 15 secondes', 'Add 15 seconds')} onClick={() => adjustRest(15)}><Plus size={16} /></DockButton>}
-          <DockButton label={done ? L('Fermer', 'Close') : L('Passer le repos', 'Skip rest')} onClick={stopRest} accent={done}>
+          <DockButton label={done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')} onClick={stopRest} accent={done}>
             {done ? <X size={16} /> : <SkipForward size={16} />}
           </DockButton>
         </div>
@@ -254,7 +254,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text outline-none safe-top safe-bottom">
       <div className="flex items-center justify-between px-5 pt-2">
         <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
-        <button type="button" onClick={onClose} aria-label={L('Réduire', 'Minimize')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
+        <button type="button" onClick={onClose} aria-label={L('Réduire le minuteur', 'Minimize timer')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />
         </button>
       </div>
@@ -295,15 +295,15 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
       </div>
       <div className="mx-auto w-full max-w-[440px] shrink-0 px-5 pb-5">
         <div className="flex items-center gap-2">
-          <IconButton label={L(`Retirer ${selectedStep.name}`, `Take off ${selectedStep.name}`)} onClick={() => adjustRest(-Number(step))} disabled={done} className="border border-line-strong">
+          <IconButton label={L(`Retirer ${selectedStep.name}`, `Subtract ${selectedStep.name}`)} onClick={() => adjustRest(-Number(step))} disabled={done} className="border border-line-strong">
             <Minus size={18} strokeWidth={2.25} aria-hidden />
           </IconButton>
-          <Segmented value={step} onChange={setStep} options={steps} layout="fit" label={L('Pas d’ajustement du repos', 'Rest adjustment step')} className="min-w-0 flex-1 tnum" />
+          <Segmented value={step} onChange={setStep} options={steps} layout="fit" label={L('Durée à ajouter ou retirer', 'Time to add or subtract')} className="min-w-0 flex-1 tnum" />
           <IconButton label={L(`Ajouter ${selectedStep.name}`, `Add ${selectedStep.name}`)} onClick={() => adjustRest(Number(step))} className="border border-line-strong">
             <Plus size={18} strokeWidth={2.25} aria-hidden />
           </IconButton>
         </div>
-        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? 'Go' : L('Passer le repos', 'Skip rest')}</button>
+        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
       </div>
     </div>
   )

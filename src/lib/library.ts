@@ -12,7 +12,7 @@ export const MUSCLES: { id: MuscleGroup; label: string; priority?: boolean }[] =
   { id: 'triceps', get label() { return L('Triceps', 'Triceps') }, priority: true },
   { id: 'biceps', get label() { return L('Biceps', 'Biceps') }, priority: true },
   { id: 'quads', get label() { return L('Quadriceps', 'Quads') } },
-  { id: 'hams', get label() { return L('Ischios', 'Hamstrings') } },
+  { id: 'hams', get label() { return L('Ischio-jambiers', 'Hamstrings') } },
   { id: 'glutes', get label() { return L('Fessiers', 'Glutes') } },
   { id: 'calves', get label() { return L('Mollets', 'Calves') } },
   { id: 'abs', get label() { return L('Abdominaux', 'Abs') } },
@@ -81,7 +81,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       id: 'incline-db-press', name: ['Développé incliné haltères', 'Incline dumbbell press'], muscle: ['Haut des pectoraux', 'Upper chest'], unit: 'kg/main', role: 'compound',
       groups: { chest: 1, triceps: 0.5 }, requires: ['dumbbells', 'bench'],
       cues: [
-        ['Banc à 30°, omoplates rétractées.', 'Bench at 30°, shoulder blades retracted.'],
+        ['Banc à 30°, omoplates serrées.', 'Bench at 30°, shoulder blades retracted.'],
         ['Coudes à ~45° du buste.', 'Elbows at ~45° from your torso.'],
         ['Descendre jusqu’à sentir l’étirement des pectoraux.', 'Lower until you feel your chest stretch.'],
       ],
@@ -337,7 +337,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       groups: { biceps: 1 }, requires: ['dumbbells'],
       cues: [
         ['Dos contre le dossier.', 'Back against the backrest.'],
-        ['Amplitude complète, supination en haut.', 'Full range of motion, turn your palms up at the top.'],
+        ['Amplitude complète, paumes vers le haut en fin de mouvement.', 'Full range of motion, turn your palms up at the top.'],
         ['Mouvement contrôlé.', 'Controlled movement.'],
       ],
       evidence: {
@@ -579,7 +579,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       ],
       evidence: {
         level: 'opinion', refs: [],
-        text: ['Accessoire optionnel.', 'Optional accessory.'],
+        text: ['Exercice complémentaire facultatif.', 'Optional accessory exercise.'],
       },
       demo: true, query: 'hip adduction machine technique', alternatives: [], increment: 2.5,
     }),
@@ -592,7 +592,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       ],
       evidence: {
         level: 'opinion', refs: [],
-        text: ['Accessoire optionnel.', 'Optional accessory.'],
+        text: ['Exercice complémentaire facultatif.', 'Optional accessory exercise.'],
       },
       demo: true, query: 'hip abduction machine technique', alternatives: [], increment: 2.5,
     }),
@@ -633,7 +633,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Corps gainé et droit, mains un peu plus larges que les épaules.', 'Body braced and straight, hands slightly wider than your shoulders.'],
         ['Descendre la poitrine près du sol, coudes à ~45°.', 'Lower your chest close to the floor, elbows at ~45°.'],
-        ['Plus de 25 reps : mains sur des livres (plus d’amplitude), pieds surélevés ou sac à dos lesté.', 'Over 25 reps: hands on books (more range), feet raised, or a loaded backpack.'],
+        ['Plus de 25 répétitions : mains sur des livres (plus d’amplitude), pieds surélevés ou sac à dos lesté.', 'Over 25 reps: hands on books (more range), feet raised, or a loaded backpack.'],
       ],
       evidence: {
         level: 'modere', refs: ['kikuchi2017', 'schoenfeld2017load'],
@@ -698,7 +698,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Mains sous les épaules, coudes le long du corps.', 'Hands under your shoulders, elbows close to your sides.'],
         ['Corps gainé, descendre la poitrine vers les mains.', 'Body braced, lower your chest toward your hands.'],
-        ['Plus de 25 reps : pieds surélevés ou sac à dos lesté.', 'Over 25 reps: feet raised or a loaded backpack.'],
+        ['Plus de 25 répétitions : pieds surélevés ou sac à dos lesté.', 'Over 25 reps: feet raised or a loaded backpack.'],
       ],
       evidence: {
         level: 'faible', refs: ['kikuchi2017'],
@@ -712,7 +712,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Mains en pronation, un peu plus larges que les épaules ; partir bras tendus.', 'Overhand grip, slightly wider than your shoulders; start from straight arms.'],
         ['Tirer les coudes vers les hanches, poitrine vers la barre.', 'Drive your elbows toward your hips, chest toward the bar.'],
-        ['Moins de 5 reps : aide d’un élastique ou négatives lentes (3–5 s).', 'Under 5 reps: use band assistance or slow negatives (3–5 s).'],
+        ['Moins de 5 répétitions : aide d’un élastique ou négatives lentes (3–5 s).', 'Under 5 reps: use band assistance or slow negatives (3–5 s).'],
       ],
       evidence: {
         level: 'modere', refs: ['pelland2025'],
@@ -788,7 +788,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Une main sur le montant d’un cadre de porte solide, pieds proches du mur, corps penché en arrière.', 'One hand on the edge of a sturdy doorframe, feet close to the wall, body leaning back.'],
         ['Tirer le coude vers la hanche, épaule basse, sans tourner le buste.', 'Drive the elbow to the hip, shoulder down, without twisting.'],
-        ['Plus dur : pieds plus près du cadre, corps plus incliné. Reps par bras.', 'Harder: feet closer to the frame, body more inclined. Reps per arm.'],
+        ['Plus dur : pieds plus près du cadre, corps plus incliné. Répétitions par bras.', 'Harder: feet closer to the frame, body more inclined. Reps per arm.'],
       ],
       evidence: {
         level: 'faible', refs: ['schoenfeld2017load'],
@@ -998,7 +998,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       groups: { biceps: 1 }, requires: ['dumbbells'],
       cues: [
         ['Debout, coudes le long du corps et immobiles.', 'Standing, elbows at your sides and still.'],
-        ['Amplitude complète, supination en haut.', 'Full range of motion, turn your palms up at the top.'],
+        ['Amplitude complète, paumes vers le haut en fin de mouvement.', 'Full range of motion, turn your palms up at the top.'],
         ['Aucun élan du buste, descente contrôlée.', 'No torso swing, controlled lowering.'],
       ],
       evidence: {
@@ -1028,9 +1028,9 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       id: 'bulgarian-split-squat', name: ['Fente bulgare', 'Bulgarian split squat'], muscle: ['Quadriceps & fessiers', 'Quads & glutes'], unit: 'PDC', role: 'compound',
       groups: { quads: 1, glutes: 0.5 }, requires: [], reps: [8, 20],
       cues: [
-        ['Pied arrière sur une chaise ou un canapé ; reps comptées par jambe.', 'Rear foot on a chair or sofa; reps count per leg.'],
+        ['Pied arrière sur une chaise ou un canapé ; répétitions comptées par jambe.', 'Rear foot on a chair or sofa; reps count per leg.'],
         ['Descendre jusqu’à ce que le genou arrière frôle le sol, buste légèrement penché.', 'Lower until your back knee nearly touches the floor, torso leaning slightly forward.'],
-        ['Plus de 20 reps : tenir des haltères.', 'Over 20 reps: hold dumbbells.'],
+        ['Plus de 20 répétitions : tenir des haltères.', 'Over 20 reps: hold dumbbells.'],
       ],
       evidence: {
         level: 'modere', refs: ['schoenfeld2017load', 'haugen2023'],
@@ -1082,7 +1082,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       ],
       evidence: {
         level: 'opinion', refs: [],
-        text: ['Choix d’exercice fondé sur l’opinion d’experts ; très exigeant, d’où la fourchette de reps basse.', 'Exercise choice based on expert opinion; very demanding, hence the low rep range.'],
+        text: ['Choix d’exercice fondé sur l’opinion d’experts ; très exigeant, d’où la fourchette de répétitions basse.', 'Exercise choice based on expert opinion; very demanding, hence the low rep range.'],
       },
       demo: true, query: 'nordic hamstring curl beginner', alternatives: ['sliding-leg-curl'], increment: 0,
     }),
@@ -1106,7 +1106,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Sur une jambe, genou légèrement fléchi ; une main au mur si besoin.', 'On one leg, knee slightly bent; one hand on a wall if needed.'],
         ['Pencher le buste en envoyant la jambe libre vers l’arrière, dos neutre.', 'Hinge forward as your free leg reaches back, neutral spine.'],
-        ['Descendre jusqu’à l’étirement des ischios ; reps comptées par jambe.', 'Lower until your hamstring stretches; reps count per leg.'],
+        ['Descendre jusqu’à l’étirement des ischios ; répétitions comptées par jambe.', 'Lower until your hamstring stretches; reps count per leg.'],
       ],
       evidence: {
         level: 'faible', refs: ['wolf2023'],
@@ -1134,7 +1134,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Haut du dos sur un canapé ou un banc, un pied au sol, l’autre jambe levée.', 'Upper back on a sofa or bench, one foot on the floor, the other leg raised.'],
         ['Pousser par le talon jusqu’à l’extension de hanche, bassin de niveau.', 'Drive through your heel to full hip extension, hips level.'],
-        ['Pause d’une seconde en haut ; reps comptées par jambe.', 'One-second pause at the top; reps count per leg.'],
+        ['Pause d’une seconde en haut ; répétitions comptées par jambe.', 'One-second pause at the top; reps count per leg.'],
       ],
       evidence: {
         level: 'faible', refs: ['schoenfeld2017load'],
@@ -1151,7 +1151,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       cues: [
         ['Avant-pied sur une marche, une main au mur.', 'Ball of your foot on a step, one hand on the wall.'],
         ['Genou tendu, talon sous le niveau de la marche : pause de 1–2 s en étirement.', 'Knee straight, heel below the step: pause 1–2 s in the stretch.'],
-        ['Monter haut sur les orteils ; reps comptées par jambe.', 'Rise high onto your toes; reps count per leg.'],
+        ['Monter haut sur les orteils ; répétitions comptées par jambe.', 'Rise high onto your toes; reps count per leg.'],
       ],
       evidence: {
         level: 'modere', refs: ['kassiano2023', 'kinoshita2023'],

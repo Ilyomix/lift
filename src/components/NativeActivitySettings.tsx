@@ -32,9 +32,9 @@ export function NativeActivitySettings() {
       const granted = await nativeNotificationPermission(true)
       setPermission(granted)
       setPrefs({ notifications: granted })
-      if (!granted) notify(L('Autorise les notifications de Lift dans les réglages du téléphone.', 'Allow Lift notifications in your phone settings.'), 'bad')
+      if (!granted) notify(L('Autorise les notifications de Lift dans les réglages de l’appareil.', 'Allow Lift notifications in your device settings.'), 'bad')
     } catch {
-      notify(L('Activation impossible. Vérifie les autorisations du téléphone.', 'Could not enable alerts. Check your phone permissions.'), 'bad')
+      notify(L('Notifications non activées. Réessaie ou vérifie les autorisations de Lift dans les réglages de l’appareil.', 'Notifications not enabled. Try again or check Lift permissions in your device settings.'), 'bad')
     }
   }
   const ios = Capacitor.getPlatform() === 'ios'
@@ -47,11 +47,11 @@ export function NativeActivitySettings() {
     {!activityEnabled && <Row label={L('Autorisation nécessaire', 'Permission needed')} hint={ios ? L('Réglages iPhone → Lift → Activités en direct.', 'iPhone Settings → Lift → Live Activities.') : L('Autorise les notifications de Lift pour afficher le suivi.', 'Allow Lift notifications to show workout tracking.')} />}
     <Toggle label={L('Notification de fin de repos', 'End-of-rest notification')}
       hint={permission
-        ? L('Une seule alerte système, même écran verrouillé. Actions +30 s et reprise de séance.', 'One system alert, including on the lock screen. Actions for +30 s and resuming your workout.')
+        ? L('Une alerte en fin de repos, avec les actions +30 s et Reprendre la séance.', 'An alert when your rest ends, with +30 s and Resume workout actions.')
         : L('Active pour autoriser les alertes de Lift sur cet appareil.', 'Turn on to allow Lift alerts on this device.')}
       checked={prefs.notifications && permission} onChange={v => { if (v) void enableAlerts(); else setPrefs({ notifications: false }) }} />
     {!ios && <Row label={L('Précision du minuteur', 'Timer accuracy')}
       hint={L('Autorise les alarmes et rappels pour recevoir l’alerte au bon moment en arrière-plan.', 'Allow alarms and reminders for timely background alerts.')}
-      right={<Button size="sm" variant="soft" onClick={() => void LocalNotifications.changeExactNotificationSetting().catch(() => notify(L('Ouvre les autorisations de Lift dans les réglages du téléphone.', 'Open Lift permissions in your phone settings.')))}>{L('Réglages', 'Settings')}</Button>} />}
+      right={<Button size="sm" variant="soft" onClick={() => void LocalNotifications.changeExactNotificationSetting().catch(() => notify(L('Ouvre les autorisations de Lift dans les réglages de l’appareil.', 'Open Lift permissions in your device settings.')))}>{L('Réglages', 'Settings')}</Button>} />}
   </>
 }

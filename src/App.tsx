@@ -121,7 +121,7 @@ export default function App() {
   const effects = <><SessionEffects /><NativeSessionEffects /></>
   if (!ready) {
     return (
-      <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
+      <div className="flex min-h-dvh items-center justify-center" role="status" aria-label={L('Chargement de Lift', 'Loading Lift')} aria-busy="true">
         <AppIcon size={48} />
       </div>
     )

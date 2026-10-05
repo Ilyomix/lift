@@ -1,0 +1,78 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "workout.rest.adjust": {
+      "comment": "Title of the non-discoverable Live Activity intent used by rest buttons.",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuster le repos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjust rest"
+          }
+        }
+      }
+    },
+    "workout.parameter": {
+      "comment": "Workout identifier parameter of the rest action intent.",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Séance"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        }
+      }
+    },
+    "workout.rest.deadline": {
+      "comment": "Expected end time parameter of the rest action intent.",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heure de fin du repos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest end time"
+          }
+        }
+      }
+    },
+    "workout.rest.action": {
+      "comment": "Rest action parameter: add time or skip rest.",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action sur le repos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest action"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

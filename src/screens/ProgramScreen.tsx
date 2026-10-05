@@ -29,22 +29,22 @@ export function ProgramContent() {
   const week = weekShape(templateSets(state.templates), weekly, keepVolume)
   const weekPct = Math.round(week.share * 100)
   const rhythm = weekly === PLAN_DAYS
-    ? L('2 passages par muscle', 'each muscle trained twice')
+    ? L('chaque muscle travaillé 2 fois', 'each muscle trained twice')
     : week.factor > 1 && keepsPlan(week.share)
-      ? L('le même volume par semaine qu’à 5 séances', 'the same weekly volume as with 5 sessions')
+      ? L('le même volume par semaine qu’à 5 séances', 'the same weekly volume as with 5 workouts')
       : L(`environ ${weekPct} % du volume prévu`, `about ${weekPct}% of the planned volume`)
   return (
     <>
       <p className="mb-5 text-[15px] leading-[1.45] text-text-2">
         {L(
           `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'séance', 'séances')} par semaine, ${rhythm}.`,
-          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'session', 'sessions')} a week, ${rhythm}.`,
+          `Upper · Lower · Push · Pull · Legs — ${plural(weekly, 'workout', 'workouts')} a week, ${rhythm}.`,
         )}
       </p>
 
       <ProgramProgress paused={state.programPause.active} />
 
-      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Sessions')}>
+      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Workouts')}>
         <Card className="divide-y divide-line">
           {ROTATION.map((t) => {
             const tpl = state.templates[t]
@@ -64,8 +64,8 @@ export function ProgramContent() {
         {week.factor > 1 && (
           <p className="mt-2 text-[12px] leading-[1.45] text-muted">
             {L(
-              `${plural(weekly, 'séance', 'séances')} par semaine : chaque séance prend plus de séries (×${fmtNum(week.factor, 2)} sur l’ensemble, au plus ${SESSION_MUSCLE_CAP} par muscle) et la semaine tient ${sharePhrase(week.share)}. Les fiches gardent la base du programme à 5 séances. Réglable dans Plus → Réglages.`,
-              `${plural(weekly, 'session', 'sessions')} a week: each session takes more sets (×${fmtNum(week.factor, 2)} overall, ${SESSION_MUSCLE_CAP} per muscle at most) and the week holds ${sharePhrase(week.share)}. The session sheets keep the program’s base at 5 sessions. Change it in More → Settings.`,
+              `${plural(weekly, 'séance', 'séances')} par semaine : chaque séance prend plus de séries (×${fmtNum(week.factor, 2)} sur l’ensemble, au plus ${SESSION_MUSCLE_CAP} par muscle) et la semaine tient ${sharePhrase(week.share)}. Les fiches gardent la base du programme à 5 séances. Réglable dans Plus → Réglages → Séances et matériel.`,
+              `${plural(weekly, 'workout', 'workouts')} a week: each workout takes more sets (×${fmtNum(week.factor, 2)} overall, ${SESSION_MUSCLE_CAP} per muscle at most) and the week holds ${sharePhrase(week.share)}. The workout templates keep the program’s base at 5 workouts. Change it in More → Settings → Workouts and equipment.`,
             )}
           </p>
         )}
@@ -78,7 +78,7 @@ export function ProgramContent() {
               <div key={d} className="grid items-center gap-2 px-4 py-3 min-[380px]:grid-cols-[6rem_minmax(0,1fr)]">
                 <span className="min-w-0 text-[15px] capitalize">{dayName(d)}</span>
                 <select
-                  aria-label={L(`Séance du ${dayName(d)}`, `${dayName(d)} session`)}
+                  aria-label={L(`Séance du ${dayName(d)}`, `${dayName(d)} workout`)}
                   value={state.schedule[d] ?? ''}
                   onChange={(e) => setSchedule(d, (e.target.value || null) as WorkoutType | null)}
                   className={inputClass}
@@ -93,13 +93,13 @@ export function ProgramContent() {
             {[0, 1, 2, 3, 4, 5, 6].every((d) => (state.schedule[d] ?? null) === DEFAULT_SCHEDULE[d])
               ? L('Jambes mardi et samedi (3–4 jours d’écart), haut du corps lundi, jeudi, vendredi. La rotation se décale si tu manques un jour.', 'Legs on Tuesday and Saturday (3–4 days apart), upper body on Monday, Thursday and Friday. The rotation shifts if you miss a day.')
               : weekly < PLAN_DAYS
-                ? L('Ce tableau fixe tes jours. Avec moins de 5 séances par semaine, la rotation continue d’une semaine à l’autre : la séance du jour est celle qu’affiche l’accueil.', 'This table sets your days. With fewer than 5 sessions a week, the rotation carries on from one week to the next: the session of the day is the one shown on the home screen.')
+                ? L('Ce tableau fixe tes jours. Avec moins de 5 séances par semaine, la rotation continue d’une semaine à l’autre : la séance du jour est celle qu’affiche l’accueil.', 'This table sets your days. With fewer than 5 workouts a week, the rotation carries on from one week to the next: the workout of the day is the one shown on the home screen.')
                 : L('La rotation se décale si tu manques un jour.', 'The rotation shifts if you miss a day.')}
           </p>
         </Disclosure>
 
         <Disclosure bordered={false} icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
-          <p className="mb-4 text-[13px] leading-[1.45] text-text-2">{L(`Volume prévu par le programme pour ${plural(weekly, 'séance', 'séances')} par semaine, en moyenne sur la rotation (comptage fractionnaire). Zone visée : 10–20.`, `Volume planned by the program for ${plural(weekly, 'session', 'sessions')} a week, on average over the rotation (fractional counting). Target zone: 10–20.`)}</p>
+          <p className="mb-4 text-[13px] leading-[1.45] text-text-2">{L(`Volume prévu par le programme pour ${plural(weekly, 'séance', 'séances')} par semaine, en moyenne sur la rotation (comptage fractionnaire). Zone visée : 10–20.`, `Volume planned by the program for ${plural(weekly, 'workout', 'workouts')} a week, on average over the rotation (fractional counting). Target zone: 10–20.`)}</p>
           <Card className="p-4">
             <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: planned[m.id] }))} />
           </Card>
@@ -107,14 +107,14 @@ export function ProgramContent() {
 
         <Disclosure bordered={false} icon={<SlidersHorizontal size={18} aria-hidden />} title={L('Progression et ajustements', 'Progression and adjustments')}>
           <Card className="divide-y divide-line text-[14px] leading-[1.45]">
-            <RuleRow title="Double progression" text={L('Toutes les séries au haut de la fourchette, avec les répétitions en réserve prévues, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, with the planned reps in reserve, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 sessions a week, the sheet’s sets are the ones that count: those added in the session come after, with fewer reps.') : '')} />
-            <RuleRow title={L('Effort dans le bloc', 'Effort within the block')} text={L('Répétitions en réserve : S1 3 · S2 2 · S3–S4 1–2 (polyarticulaire) et 0–1 (isolation) · S5 0–1, dernière série d’isolation à l’échec technique.', 'Reps in reserve: W1 3 · W2 2 · W3–W4 1–2 (compound) and 0–1 (isolation) · W5 0–1, last isolation set to technical failure.')} />
-            <RuleRow title="Volume" text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
-            <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que l’effort prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each session, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned effort counts for fewer reps. During the session, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
-            <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Une baisse compte à partir d’une rep par série en moyenne : en dessous, c’est la variation normale d’une séance à l’autre. Deux baisses de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la décharge. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'A drop counts from one rep per set on average: below that, it is the normal variation from one session to the next. Two drops in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 sessions without progress: flagged at the end of the session.')} />
-            <RuleRow title={L('Exercice dans deux séances', 'Exercise in two sessions')} text={L('Même fourchette de reps : une seule charge, qui suit dans les deux séances. Fourchettes différentes (lourd dans l’une, plus léger dans l’autre) : chaque version garde sa charge et se compare à elle-même.', 'Same rep range: one load, which follows in both sessions. Different ranges (heavy in one, lighter in the other): each version keeps its own load and is compared with itself.')} />
-            <RuleRow title={L('Décharge', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, 3–4 reps en réserve.', 'Same exercises, half the sets, loads −10%, 3–4 reps in reserve.')} />
-            <RuleRow title={L('Corrections', 'Corrections')} text={L('Un ajustement s’annule ou s’applique depuis la séance qui l’a fait (Progrès → Séances), tant que la fiche n’a pas changé et que l’exercice n’a pas été refait. La dernière séance terminée peut être rouverte pour corriger une série : tout est recalculé. Une décharge avancée s’annule depuis l’accueil.', 'An adjustment can be undone or applied from the session that made it (Progress → Sessions), as long as the sheet has not changed and the exercise has not been done again. The last finished session can be reopened to fix a set: everything is worked out again. An early deload can be cancelled from the home screen.')} />
+            <RuleRow title={L('Augmenter les répétitions puis la charge', 'Increase reps, then load')} text={L('Toutes les séries au haut de la fourchette, avec les répétitions en réserve prévues, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, with the planned reps in reserve, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 workouts a week, the template’s sets are the ones that count: those added in the workout come after, with fewer reps.') : '')} />
+            <RuleRow title={L('Effort au fil des semaines', 'Effort across the weeks')} text={L('Répétitions en réserve : S1 3 · S2 2 · S3–S4 1–2 (polyarticulaire) et 0–1 (isolation) · S5 0–1, dernière série d’isolation à l’échec technique.', 'Reps in reserve: W1 3 · W2 2 · W3–W4 1–2 (compound) and 0–1 (isolation) · W5 0–1, last isolation set to technical failure.')} />
+            <RuleRow title={L('Nombre de séries', 'Number of sets')} text={L('À partir du bloc 2 : +1 série sur les muscles prioritaires en S3 si les performances montent. Plafond indicatif : 20 séries par muscle.', 'From block 2: +1 set on priority muscles in W3 if performance is going up. Rough ceiling: 20 sets per muscle.')} />
+            <RuleRow title={L('Charges automatiques', 'Automatic loads')} text={L('Après chaque séance, la charge monte quand toutes les séries touchent le haut de la fourchette et baisse quand elles restent sous le bas. Une série poussée plus loin que l’effort prévu compte pour moins de reps. Pendant la séance, les séries suivantes s’ajustent si tu es très au-dessus ou au-dessous. Machines : par salle, avec les charges que la tienne a vraiment. Poids du corps (dips, tractions) : +2,5 kg de lest en haut de la fourchette.', 'After each workout, the load goes up when every set hits the top of the range and goes down when they stay below the bottom. A set pushed past the planned effort counts for fewer reps. During the workout, the next sets adjust if you are well above or below. Machines: per gym, with the loads yours really has. Bodyweight (dips, pull-ups): +2.5 kg of added load at the top of the range.')} />
+            <RuleRow title={L('Signal d’alerte', 'Warning sign')} text={L('Une baisse compte à partir d’une rep par série en moyenne : en dessous, c’est la variation normale d’une séance à l’autre. Deux baisses de suite sur un exercice : 1 série de moins jusqu’à la fin du bloc. Baisse générale : l’app propose d’avancer la semaine allégée. La comparaison tient quand une charge ou le nombre de séries change. Douleur qui revient ou 4 séances sans progrès : signalé en fin de séance.', 'A drop counts from one rep per set on average: below that, it is the normal variation from one workout to the next. Two drops in a row on an exercise: 1 set fewer until the end of the block. General drop: the app suggests bringing the deload forward. The comparison holds when a load or the number of sets changes. Pain that comes back or 4 workouts without progress: flagged at the end of the workout.')} />
+            <RuleRow title={L('Exercice dans deux séances', 'Exercise in two workouts')} text={L('Même fourchette de reps : une seule charge, qui suit dans les deux séances. Fourchettes différentes (lourd dans l’une, plus léger dans l’autre) : chaque version garde sa charge et se compare à elle-même.', 'Same rep range: one load, which follows in both workouts. Different ranges (heavy in one, lighter in the other): each version keeps its own load and is compared with itself.')} />
+            <RuleRow title={L('Semaine allégée', 'Deload')} text={L('Mêmes exercices, moitié des séries, charges −10 %, 3–4 reps en réserve.', 'Same exercises, half the sets, loads −10%, 3–4 reps in reserve.')} />
+            <RuleRow title={L('Corriger une séance ou un ajustement', 'Correct a workout or adjustment')} text={L('Un ajustement s’annule ou s’applique depuis la séance qui l’a fait (Progrès → Séances), tant que la fiche n’a pas changé et que l’exercice n’a pas été refait. La dernière séance terminée peut être rouverte pour corriger une série : tout est recalculé. Une semaine allégée avancée s’annule depuis l’accueil.', 'An adjustment can be undone or applied from the workout that made it (Progress → Workouts), as long as the template has not changed and the exercise has not been done again. The last finished workout can be reopened to fix a set: everything is worked out again. An early deload can be cancelled from the home screen.')} />
           </Card>
         </Disclosure>
       </div>
@@ -218,7 +218,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const [adding, setAdding] = useState(false)
   // The plan's live values: set from the training days on every change of the state.
   const factor = daysFactor()
-  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Session not found')} action={<Button onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available session.')}</Empty></Screen>
+  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Workout not found')} action={<Button onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available workout.')}</Empty></Screen>
   const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
   const meta = TYPE_META[type]
   return (
@@ -227,19 +227,19 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         backTo="calendrier/programme"
         eyebrow={meta.fr !== meta.label ? meta.fr : undefined}
         title={meta.label}
-        sub={L('Touchez un exercice pour ajuster ses cibles. Les règles du bloc (effort, décharges, reprises) s’appliquent automatiquement par-dessus.', 'Tap an exercise to adjust its targets. The block rules (effort, deloads, returns) are applied automatically on top.')}
+        sub={L('Choisis un exercice pour modifier ses objectifs. Lift adapte ensuite l’effort et les séries à la période du programme.', 'Choose an exercise to edit its targets. Lift then adapts effort and sets to the program stage.')}
       />
       {factor > 1 && (
         <p className="-mt-2 mb-4 text-[13px] leading-[1.45] text-text-2">
           {L(
             `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance prend plus de séries que la fiche (×${fmtNum(factor, 2)} sur l’ensemble), indiquées entre parenthèses.`,
-            `${plural(WEEK_DAYS, 'session', 'sessions')} a week: the session takes more sets than the sheet (×${fmtNum(factor, 2)} overall), shown in brackets.`,
+            `${plural(WEEK_DAYS, 'workout', 'workouts')} a week: the workout takes more sets than the template (×${fmtNum(factor, 2)} overall), shown in brackets.`,
           )}
         </p>
       )}
       {tpl.exercises.length ? (
         <SortableExerciseList key={type} exercises={tpl.exercises} inSession={inSession} onEdit={setEdit} onMove={(from, to) => reorderTemplateExercise(type, from, to)} />
-      ) : <Empty art={workoutArt[type]} title={L('Compose ta séance', 'Build your session')}>{L('Ajoute un exercice pour préparer cette fiche.', 'Add an exercise to prepare this session.')}</Empty>}
+      ) : <Empty art={workoutArt[type]} title={L('Compose ta séance', 'Build your workout')}>{L('Ajoute un exercice pour préparer cette fiche.', 'Add an exercise to prepare this workout.')}</Empty>}
       <Button variant="outline" size="lg" full className="mt-3" icon={<Plus size={18} aria-hidden />} onClick={() => setAdding(true)}>{L('Ajouter un exercice', 'Add exercise')}</Button>
 
       {edit !== null && tpl.exercises[edit] && (
@@ -312,12 +312,12 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
         <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} onReplaced={onClose} />
       </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
-        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À trouver', 'To find')} /></Field>}
+        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À définir', 'Not set')} /></Field>}
         {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('Aucun', 'None')} /></Field>}
         <Field label={L('Séries', 'Sets')} error={errors.sets}><input className={inputClass} inputMode="numeric" value={v.sets} onChange={set('sets')} /></Field>
-        <Field label={L('Répétitions en réserve visées', 'Target reps in reserve')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
-        <Field label={L('Reps min', 'Min reps')} error={errors.minReps}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>
-        <Field label={L('Reps max', 'Max reps')} error={errors.maxReps}><input className={inputClass} inputMode="numeric" value={v.maxReps} onChange={set('maxReps')} /></Field>
+        <Field label={L('Répétitions en réserve visées', 'Target reps in reserve')} hint={L('Répétitions encore possibles à la fin de la série.', 'Reps you could still do at the end of the set.')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
+        <Field label={L('Répétitions min.', 'Min reps')} error={errors.minReps}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>
+        <Field label={L('Répétitions max.', 'Max reps')} error={errors.maxReps}><input className={inputClass} inputMode="numeric" value={v.maxReps} onChange={set('maxReps')} /></Field>
         <Field label={L('Repos (s)', 'Rest (s)')} className="col-span-2"><input className={inputClass} inputMode="numeric" value={v.rest} onChange={set('rest')} /></Field>
         <Field label={L('Réglage machine / note', 'Machine setting / note')} className="col-span-2"><textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={v.technique} onChange={set('technique')} placeholder={L('Ex. : siège 4, pieds repère 4–5', 'E.g. seat 4, feet on mark 4–5')} /></Field>
       </div>
