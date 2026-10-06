@@ -286,7 +286,7 @@ private struct LockScreenWorkout: View {
                                                                       isLuminanceReduced: isLuminanceReduced),
                                       accent: state.accent)
         let showRest = state.presentation(isStale: isStale).canAdjustRest
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 LiftMark(size: 24, accent: state.accent)
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -346,7 +346,9 @@ private struct LockScreenWorkout: View {
             WorkoutProgress(state: state, palette: palette)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        // A little more outer breathing room; keep the two-line title layout
+        // below the Live Activity height budget by tightening the row gaps.
+        .padding(.vertical, 10)
         .activityBackgroundTint(palette.background)
         .activitySystemActionForegroundColor(palette.text)
         .foregroundStyle(palette.text)
