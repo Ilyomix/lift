@@ -145,6 +145,7 @@ class SportRenderer {
       if (this.disposed || !this.slots.has(slot)) return
       slot.model = model
       this.styleMaterials(model)
+      if (slot.visible) this.activeSince.delete(model)
       this.schedule()
     }).catch(() => { /* Keep the static, theme-colored fallback. */ })
     return {
@@ -152,6 +153,9 @@ class SportRenderer {
         if (slot.visible === visible) return
         slot.visible = visible
         slot.dirty = true
+        // A newly visible instance must not inherit another instance's long
+        // idle phase merely because both use the same cached GLB/atlas tile.
+        if (visible && slot.model) this.activeSince.delete(slot.model)
         this.refresh()
       },
       dispose: () => {

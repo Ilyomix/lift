@@ -23,7 +23,10 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
     'workout-upper': [28, 1.1], 'workout-lower': [30, 2.1], 'workout-push': [28.5, .5],
     'workout-pull': [29, 1.6], 'workout-legs': [31, 2.6],
   }
-  const [period, delay] = timing[kind]
+  const [period, entryOrder] = timing[kind]
+  // Show the first gesture while the section is being read, rather than
+  // waiting up to five seconds. The long repeat intervals stay unchanged.
+  const delay = .15 + entryOrder * .2
   const phaseAt = (seconds: number) => (Math.max(0, seconds) + period - delay) % period
   const boundsTimes = [0, ...[0, .4, .7, .9, 1.1, 1.4, 1.8, 2.2, 2.7].map(time => time + delay)]
   if (kind.startsWith('workout-')) {
@@ -59,7 +62,7 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
     if (pose.node.scale.distanceToSquared(vector) > 1e-12) { pose.node.scale.copy(vector); changed = true }
   }
   return {
-    animated: kind !== 'coach',
+    animated: true,
     boundsTimes,
     update: seconds => {
       changed = false
@@ -85,8 +88,8 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
           break
         case 'dumbbell': {
           const load = gesture(phase, .35, .55, .10, .50)
-          move('LeftLoadSlide', X, -.12 * load)
-          move('RightLoadSlide', X, .12 * load)
+          move('LeftLoadSlide', X, -.18 * load)
+          move('RightLoadSlide', X, .18 * load)
           break
         }
         case 'plate': {
@@ -107,14 +110,14 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
           move('AppearanceThumbSlide', X, .9 * gesture(phase, .2, .60, .18, .70))
           break
         case 'camera':
-          move('CameraFocusSlide', Z, .075 * gesture(phase, .2, .55, .22, .65))
+          move('CameraFocusSlide', Z, .16 * gesture(phase, .2, .55, .22, .65))
           move('CameraShutterPress', Y, -.035 * gesture(phase, .80, .18, .08, .25))
           break
         case 'measuring-tape':
           move('TapePullSlide', X, .26 * gesture(phase, .2, .60, .18, .75))
           break
         case 'body-target': {
-          const focus = .055 * gesture(phase, .2, .60, .18, .75)
+          const focus = .09 * gesture(phase, .2, .60, .18, .75)
           move('BodyFocusLeft', X, focus)
           move('BodyFocusRight', X, -focus)
           break
@@ -125,8 +128,15 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
         case 'trophy':
           turn('CupPivot', Y, .20 * gesture(phase, .55, .5, .15, .7))
           break
+        case 'coach': {
+          // A brief double whistle tremor; the rigid mouthpiece and chamber
+          // move together, with no generic spin or continuous bobbing.
+          const signal = gesture(phase, .2, .16, 0, .24) - .65 * gesture(phase, .65, .16, 0, .28)
+          move('ModelGeometry', Y, .14 * signal)
+          break
+        }
         case 'program':
-          turn('ProgramClipPivot', X, -.24 * gesture(phase, .2, .35, .15, .55))
+          turn('ProgramClipPivot', X, -.48 * gesture(phase, .2, .35, .15, .55))
           break
         case 'evidence':
           turn('EvidenceBookmarkPivot', X, .30 * gesture(phase, .2, .55, .10, .80))

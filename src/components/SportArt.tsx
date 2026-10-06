@@ -52,7 +52,9 @@ export function SportArt({ kind, size = 'illustration' }: { kind: SportArtKind; 
     let started = false
     let model: ReturnType<typeof import('../lib/sportModels').mountSportModel> | undefined
     const observer = new IntersectionObserver(([entry]) => {
-      inView = entry.isIntersecting
+      // An initial observer entry can intersect by just one pixel, below its
+      // configured threshold. Do not spend the gesture while still clipped.
+      inView = entry.isIntersecting && entry.intersectionRatio >= 0.1
       model?.setVisible(inView)
       if (!inView || started) return
       started = true
