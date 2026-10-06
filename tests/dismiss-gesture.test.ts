@@ -129,33 +129,39 @@ test('a browser-owned move and unmount cannot complete dismissal', () => {
   assert.deepEqual(f.releases, [false], 'teardown does not animate or call into an unmounted dialog')
 })
 
-// A minimal DOM style/geometry fixture: motion and callbacks are the shipped
-// controller, with virtual time instead of frame sleeps or a mirrored solver.
+// Drive the browser animation's completion explicitly: elapsed wall time alone
+// must never unmount a panel that has not completed its rendered exit.
 function motionFixture(reduced = false) {
-  const node = () => ({
-    style: { animation: '', transform: '', transition: '', opacity: '', willChange: '' },
-    getBoundingClientRect: () => ({ height: 400 }),
-  })
+  const node = () => {
+    const animations: { frames: Keyframe[]; options: KeyframeAnimationOptions; onfinish: (() => void) | null; cancelled: boolean; cancel: () => void }[] = []
+    const style = { animation: '', transform: '', transition: '', opacity: '', willChange: '' }
+    return {
+      style, animations,
+      ownerDocument: { defaultView: { getComputedStyle: () => ({ transform: style.transform || 'none', opacity: style.opacity || '1' }) } },
+      getBoundingClientRect: () => ({ height: 400 }),
+      animate(frames: Keyframe[], options: KeyframeAnimationOptions) {
+        const animation = { frames, options, onfinish: null as (() => void) | null, cancelled: false, cancel() { this.cancelled = true } }
+        animations.push(animation)
+        return animation
+      },
+    }
+  }
   const panel = node(), backdrop = node()
   let closes = 0
   const motion = createDismissMotion(panel as unknown as HTMLElement, backdrop as unknown as HTMLElement, reduced, () => { closes++ })
-  return { panel, backdrop, motion, closes: () => closes }
+  const finish = () => panel.animations.at(-1)!.onfinish?.()
+  return { panel, backdrop, motion, finish, closes: () => closes }
 }
 
-test('pull follows the finger and fades the backdrop; cancellation settles then permits another pull', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test('pull follows the finger; cancellation returns before another pull is allowed', () => {
   const f = motionFixture()
   f.motion.drag(80)
   assert.equal(f.panel.style.transform, 'translate3d(0, 80px, 0)')
   assert.equal(f.backdrop.style.opacity, '0.8')
-  assert.equal(f.backdrop.style.animation, 'none', 'entry fill must not override interactive opacity')
-  assert.equal(f.panel.style.transition, 'none')
   f.motion.release(false)
-  assert.equal(f.panel.style.transform, 'translate3d(0, 0px, 0)')
-  assert.notEqual(f.panel.style.transition, 'none')
-  assert.equal(f.backdrop.style.opacity, '1')
+  assert.deepEqual(f.panel.animations[0].frames, [{ transform: 'translate3d(0, 80px, 0)' }, { transform: 'translate3d(0, 0px, 0)' }])
   assert.equal(f.motion.settling, true)
-  t.mock.timers.tick(220)
+  f.finish()
   assert.equal(f.closes(), 0)
   assert.equal(f.motion.settling, false)
   f.motion.drag(60)
@@ -163,59 +169,72 @@ test('pull follows the finger and fades the backdrop; cancellation settles then 
   f.motion.dispose()
 })
 
-test('confirmed dismissal moves the full panel out before closing, without flashing back', (t) => {
+test('dismissal waits for the rendered exit, not a wall-clock timeout', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const f = motionFixture()
   f.motion.drag(130)
   f.motion.release(true)
-  assert.equal(f.panel.style.transform, 'translate3d(0, 400px, 0)')
+  assert.deepEqual(f.panel.animations[0].frames, [{ transform: 'translate3d(0, 130px, 0)' }, { transform: 'translate3d(0, 400px, 0)' }])
   assert.equal(f.backdrop.style.opacity, '0')
-  assert.equal(f.closes(), 0)
-  t.mock.timers.tick(179)
-  assert.equal(f.closes(), 0)
-  t.mock.timers.tick(1)
+  t.mock.timers.tick(1000)
+  assert.equal(f.closes(), 0, 'a busy frame must not turn the exit into an abrupt unmount')
+  f.finish()
   assert.equal(f.closes(), 1)
-  assert.equal(f.panel.style.transform, 'translate3d(0, 400px, 0)', 'keep exit position until React unmounts')
+  assert.equal(f.panel.style.transform, 'translate3d(0, 400px, 0)', 'exit endpoint persists until React unmounts')
   f.motion.dispose()
   assert.equal(f.panel.style.transform, '')
-  assert.equal(f.backdrop.style.opacity, '')
 })
 
-test('reduced motion has no spatial drag or exit, retaining fade feedback and closure', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test('a button closes from the current position and duplicate requests do not restart the exit', () => {
+  const f = motionFixture()
+  f.motion.release(true)
+  f.motion.release(true)
+  assert.equal(f.panel.animations.length, 1)
+  assert.deepEqual(f.panel.animations[0].frames, [{ transform: 'none' }, { transform: 'translate3d(0, 400px, 0)' }])
+  assert.equal(f.closes(), 0)
+  f.finish()
+  assert.equal(f.closes(), 1)
+  f.motion.dispose()
+})
+
+test('Reduce Motion fades without spatial movement and closes on completion', () => {
   const f = motionFixture(true)
   f.motion.drag(120)
   assert.equal(f.panel.style.transform, 'none')
-  assert.ok(Number(f.panel.style.opacity) < 1)
+  const opacity = f.panel.style.opacity
   f.motion.release(true)
+  assert.deepEqual(f.panel.animations[0].frames, [{ opacity }, { opacity: '0' }])
   assert.equal(f.panel.style.transform, 'none')
-  assert.equal(f.panel.style.opacity, '0')
-  t.mock.timers.tick(100)
+  assert.equal(f.closes(), 0)
+  f.finish()
   assert.equal(f.closes(), 1)
   f.motion.dispose()
 })
 
-test('a short pull restores the panel and backdrop with reduced motion, without closing', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test('a short pull returns with Reduce Motion and does not close', () => {
   const f = motionFixture(true)
   f.motion.drag(60)
   f.motion.release(false)
-  assert.equal(f.panel.style.transform, 'none')
+  f.finish()
   assert.equal(f.panel.style.opacity, '1')
   assert.equal(f.backdrop.style.opacity, '1')
-  t.mock.timers.tick(100)
   assert.equal(f.motion.settling, false)
   assert.equal(f.closes(), 0)
   f.motion.dispose()
 })
 
-test('closing another way during an exit cancels its delayed callback and restores inline styles', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test('a close button can interrupt a returning panel, while disposal cancels all callbacks', () => {
   const f = motionFixture()
-  f.motion.drag(150)
+  f.motion.drag(60)
+  f.motion.release(false)
+  const returning = f.panel.animations[0]
   f.motion.release(true)
+  assert.equal(returning.cancelled, true)
+  assert.equal(returning.onfinish, null)
+  assert.equal(f.panel.animations.length, 2)
   f.motion.dispose()
-  t.mock.timers.tick(1000)
+  f.finish()
   assert.equal(f.closes(), 0)
+  assert.ok(f.panel.animations.every(a => a.cancelled))
   assert.deepEqual(f.panel.style, { animation: '', transform: '', transition: '', opacity: '', willChange: '' })
 })

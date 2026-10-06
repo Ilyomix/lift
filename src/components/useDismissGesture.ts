@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { bindDismissGesture, createDismissMotion } from '../lib/dismissGesture'
 
 const CONTROLS = 'button, a, input, textarea, select, summary, label, canvas, video, iframe, [contenteditable], [role="button"], [role="slider"], [role="tab"], [draggable="true"], [data-swipe-ignore]'
@@ -6,12 +6,14 @@ const CONTROLS = 'button, a, input, textarea, select, summary, label, canvas, vi
 /** Shared by bottom sheets and the rest panel. Closing never stops the rest. */
 export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: boolean, onClose: () => void, backdrop?: RefObject<HTMLDivElement | null>) {
   const close = useRef(onClose)
+  const motionRef = useRef<ReturnType<typeof createDismissMotion> | null>(null)
   useEffect(() => { close.current = onClose })
   useEffect(() => {
     const panel = ref.current
     if (!open || !panel) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const motion = createDismissMotion(panel, backdrop?.current ?? null, reduced, () => close.current())
+    motionRef.current = motion
     const unbind = bindDismissGesture(panel, {
       height: () => panel.getBoundingClientRect().height,
       canStart: target => {
@@ -32,6 +34,9 @@ export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: b
     return () => {
       unbind()
       motion.dispose()
+      motionRef.current = null
     }
   }, [open, ref, backdrop])
+  // Buttons, backdrop and Escape share the same completion as a confirmed pull.
+  return useCallback(() => motionRef.current?.release(true), [])
 }

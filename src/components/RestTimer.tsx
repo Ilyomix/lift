@@ -190,16 +190,18 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const [step, setStep] = useState('15')
   const dialog = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
-  useDismissGesture(dialog, true, onClose, backdrop)
-  const close = useRef(onClose)
-  useEffect(() => { close.current = onClose })
+  const stopAfterExit = useRef(false)
+  const dismiss = useDismissGesture(dialog, true, () => {
+    if (stopAfterExit.current) stopRest()
+    onClose()
+  }, backdrop)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     const overflow = document.body.style.overflow
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        close.current()
+        dismiss()
       }
       if (e.key !== 'Tab' || !dialog.current) return
       const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
@@ -223,7 +225,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
       document.body.style.overflow = overflow
       if (previous?.isConnected) previous.focus({ preventScroll: true })
     }
-  }, [])
+  }, [dismiss])
   if (!timer) return null
   const done = remaining <= 0
   const next = splitNext(timer.next)
@@ -243,7 +245,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter absolute inset-0 flex flex-col overflow-y-auto overscroll-contain bg-bg text-text outline-none safe-top safe-bottom">
       <div data-sheet-handle className="flex shrink-0 touch-none select-none items-center justify-between px-5 pt-2">
         <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
-        <button type="button" onClick={onClose} aria-label={L('Réduire le minuteur', 'Minimize timer')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
+        <button type="button" onClick={dismiss} aria-label={L('Réduire le minuteur', 'Minimize timer')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />
         </button>
       </div>
@@ -292,7 +294,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
             <Plus size={18} strokeWidth={2.25} aria-hidden />
           </IconButton>
         </div>
-        <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
+        <button type="button" onClick={() => { stopAfterExit.current = true; dismiss() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
       </div>
     </div>
     </div>

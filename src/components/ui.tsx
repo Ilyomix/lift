@@ -428,20 +428,15 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
-  useDismissGesture(ref, open, onClose, backdrop)
+  const dismiss = useDismissGesture(ref, open, onClose, backdrop)
   const titleId = useId()
-  // The latest onClose, without re-running the focus effect: parents re-render
-  // (a clock ticking, a timer) and pass a new function each time; re-running the
-  // effect used to pull focus out of the field being edited and close pickers.
-  const close = useRef(onClose)
-  useEffect(() => {
-    close.current = onClose
-  })
+  // dismiss stays stable while the hook keeps the latest parent callback;
+  // ticking parents must not reset focus or interrupt an open picker.
   useEffect(() => {
     if (!open) return
     const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close.current()
+      if (e.key === 'Escape') { e.preventDefault(); dismiss() }
       if (e.key === 'Tab' && ref.current) {
         const f = [...ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
           .filter(element => !element.matches(':disabled, [tabindex="-1"]') && element.getClientRects().length > 0)
@@ -465,11 +460,11 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
       document.body.style.overflow = ''
       prev?.focus?.()
     }
-  }, [open])
+  }, [open, dismiss])
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={dismiss} aria-hidden />
       <div
         ref={ref}
         role="dialog"
@@ -488,7 +483,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
             {icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
             <span className="min-w-0">{title}</span>
           </h2>
-          <IconButton label={L('Fermer', 'Close')} onClick={onClose} className="-mr-2">
+          <IconButton label={L('Fermer', 'Close')} onClick={dismiss} className="-mr-2">
             <X size={20} aria-hidden />
           </IconButton>
           </div>

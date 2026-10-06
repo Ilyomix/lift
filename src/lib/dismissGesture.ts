@@ -77,9 +77,14 @@ export function createDismissMotion(panel: HTMLElement, backdrop: HTMLElement | 
     opacity: backdrop.style.opacity, willChange: backdrop.style.willChange,
   }
   let settling = false
+  let closing = false
   let distance = 0
   let height = 0
-  let timeout: ReturnType<typeof setTimeout> | undefined
+  let animations: Animation[] = []
+  const cancelAnimations = () => {
+    for (const animation of animations) { animation.onfinish = null; animation.cancel() }
+    animations = []
+  }
   const prepare = () => {
     // Entry animations use fill:both. Hand control to the gesture so they no
     // longer own transform/opacity, including the backdrop's completed fade.
@@ -107,28 +112,43 @@ export function createDismissMotion(panel: HTMLElement, backdrop: HTMLElement | 
       }
     },
     release(dismiss: boolean) {
-      if (settling) return
+      if (closing || (settling && !dismiss)) return
+      // Explicit keyframes preserve the last rendered position even when a
+      // release and the final touchmove happen in the same browser frame.
+      const view = panel.ownerDocument.defaultView!
+      const start = view.getComputedStyle(panel)
+      const from = reduced ? { opacity: start.opacity } : { transform: start.transform }
+      const backdropFrom = backdrop ? view.getComputedStyle(backdrop).opacity : '1'
+      cancelAnimations()
       prepare()
       settling = true
-      const duration = reduced ? 100 : dismiss ? 180 : 220
-      const easing = 'cubic-bezier(0.16, 1, 0.3, 1)'
-      panel.style.transition = `${reduced ? 'opacity' : 'transform'} ${duration}ms ${easing}`
+      closing = dismiss
+      const duration = reduced ? 100 : dismiss ? 240 : 220
+      const easing = dismiss ? 'cubic-bezier(0.4, 0, 1, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)'
+      panel.style.transition = 'none'
       panel.style.transform = reduced ? 'none' : `translate3d(0, ${dismiss ? Math.max(height, distance) : 0}px, 0)`
       panel.style.opacity = reduced && dismiss ? '0' : '1'
+      const to = reduced ? { opacity: panel.style.opacity } : { transform: panel.style.transform }
+      const exit = panel.animate([from, to], { duration, easing })
+      animations.push(exit)
       if (backdrop) {
-        backdrop.style.transition = `opacity ${duration}ms ${easing}`
+        backdrop.style.transition = 'none'
         backdrop.style.opacity = dismiss ? '0' : '1'
+        animations.push(backdrop.animate([{ opacity: backdropFrom }, { opacity: backdrop.style.opacity }], { duration, easing }))
       }
-      timeout = setTimeout(() => {
+      // A wall-clock timeout can unmount a busy WebView before it paints the
+      // exit. The animation itself owns completion, including Reduce Motion.
+      exit.onfinish = () => {
         if (dismiss) { onClose(); return }
         settling = false
+        distance = 0
         height = 0
         panel.style.willChange = previous.willChange
         if (backdrop) backdrop.style.willChange = backdropPrevious!.willChange
-      }, duration)
+      }
     },
     dispose() {
-      clearTimeout(timeout)
+      cancelAnimations()
       Object.assign(panel.style, previous)
       if (backdrop) Object.assign(backdrop.style, backdropPrevious)
     },
