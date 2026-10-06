@@ -194,6 +194,8 @@ export interface ActiveWorkout {
   timerEndAt: string | null
   timer: RestTimer | null
   exercises: WorkoutExercise[]
+  /** Current exercise occurrence, retained when rest is stopped or the app is reopened. */
+  activeExerciseIndex?: number
   periodId?: string
   week?: number
   deload?: boolean

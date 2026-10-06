@@ -90,9 +90,16 @@ export function ExerciseSheet({
             </button>
           )
         ) : (
-          <LinkButton full size="lg" href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer" icon={<CirclePlay size={18} aria-hidden />}>
-            <span className="min-w-0">{vid ? L('Voir ma vidéo sur YouTube', 'Watch my video on YouTube') : L('Chercher sur YouTube', 'Search YouTube')}</span>
-            <ExternalLink size={14} className="text-muted" aria-hidden />
+          <LinkButton variant="outline" full href={vid ? `https://www.youtube.com/watch?v=${vid}` : youtubeSearchUrl(info.query)} target="_blank" rel="noopener noreferrer"
+            aria-label={vid
+              ? L(`Voir ma vidéo : ${info.name}. Ouvre YouTube.`, `Watch my video: ${info.name}. Opens YouTube.`)
+              : L(`Techniques sur YouTube : ${info.name}. Ouvre les résultats de recherche.`, `Technique on YouTube: ${info.name}. Opens search results.`)}
+            icon={<CirclePlay size={18} aria-hidden />}>
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block">{vid ? L('Voir ma vidéo', 'Watch my video') : L('Techniques sur YouTube', 'Technique on YouTube')}</span>
+              <span className="mt-0.5 block text-[12px] font-normal text-muted">{vid ? 'YouTube' : L('Résultats de recherche', 'Search results')}</span>
+            </span>
+            <ExternalLink size={16} className="text-muted" aria-hidden />
           </LinkButton>
         )}
       </div>

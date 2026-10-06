@@ -1,4 +1,5 @@
 import type { ActiveWorkout } from '../types'
+import { currentExerciseIndex } from '../activeExercise'
 
 /** Absolute result of an iOS action. Applying it twice must never add time twice. */
 export interface NativeRestAction {
@@ -17,7 +18,10 @@ export function applyNativeRestAction(workout: ActiveWorkout | null, action: Nat
   if (workout.timer.endAt === action.restEndAt) return workout
   // An old lock-screen action must not modify a newly started rest.
   if (workout.timer.endAt !== action.expectedRestEndAt) return workout
-  if (action.action === 'skip' && action.restEndAt === null) return { ...workout, timer: null, timerEndAt: null }
+  if (action.action === 'skip' && action.restEndAt === null) {
+    const focus = currentExerciseIndex(workout)
+    return { ...workout, timer: null, timerEndAt: null, ...(focus >= 0 ? { activeExerciseIndex: focus } : {}) }
+  }
   if (action.action !== 'add30' || action.restEndAt === null) return workout
   return { ...workout, timer: { ...workout.timer, endAt: action.restEndAt, total: action.restTotal }, timerEndAt: new Date(action.restEndAt).toISOString() }
 }

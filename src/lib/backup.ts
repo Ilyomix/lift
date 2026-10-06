@@ -275,6 +275,11 @@ export function normalizeState(raw: any): AppState {
         notes: str(raw.activeWorkout.notes),
         timerEndAt: timer ? new Date(timer.endAt).toISOString() : null,
         timer,
+        activeExerciseIndex: Number.isInteger(raw.activeWorkout.activeExerciseIndex)
+          && raw.activeWorkout.activeExerciseIndex >= 0
+          && Array.isArray(raw.activeWorkout.exercises)
+          && raw.activeWorkout.activeExerciseIndex < raw.activeWorkout.exercises.length
+          ? raw.activeWorkout.activeExerciseIndex : undefined,
         gymId: typeof raw.activeWorkout.gymId === 'string' && raw.activeWorkout.gymId ? raw.activeWorkout.gymId : undefined,
         exercises: Array.isArray(raw.activeWorkout.exercises) ? raw.activeWorkout.exercises.map(normExercise) : [],
         reopened: raw.activeWorkout.reopened && typeof raw.activeWorkout.reopened === 'object'

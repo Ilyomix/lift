@@ -1,6 +1,7 @@
-import { EffortExplanation, EffortGuidance, EffortReport, reserveLabel } from '../components/EffortGuidance'
+import { EffortGuidance, EffortReport, reserveLabel } from '../components/EffortGuidance'
 import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
 import { exerciseContextReason } from '../lib/comparability'
+import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, SlidersHorizontal, StickyNote, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
@@ -146,11 +147,6 @@ function useElapsed(startedAt: string): number | null {
   return s >= 0 && s < 5 * 3600 ? s : null
 }
 
-/** The exercise to work on: the first one, in order, with a set left to do. */
-function currentIndexOf(exercises: WorkoutExercise[]): number {
-  return exercises.findIndex((e) => !e.skipped && e.sets.some((s) => !s.completed))
-}
-
 function ActiveSession() {
   const a = useStore((s) => s.state.activeWorkout)!
   const { finishSession, discardSession, setSessionField } = useStore.getState()
@@ -164,21 +160,20 @@ function ActiveSession() {
   const total = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + e.sets.length, 0)
   const done = a.exercises.reduce((n, e) => n + doneSets(e).length, 0)
   const pending = total - done
-  const current = currentIndexOf(a.exercises)
+  const current = currentExerciseIndex(a)
   const cur = current >= 0 ? a.exercises[current] : null
-  const effortExercise = cur ?? a.exercises.find(ex => !ex.skipped)
   const curSet = cur ? cur.sets.findIndex((s) => !s.completed) : -1
 
   // When an exercise is finished, bring the next one into view.
   const prev = useRef(current)
   useEffect(() => {
-    if (current > prev.current && current >= 0) {
+    if (current !== prev.current && current >= 0 && prev.current >= 0 && !hasPendingSets(a.exercises[prev.current])) {
       const el = document.getElementById(`exercise-${current}`)
       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
       el?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
     }
     prev.current = current
-  }, [current])
+  }, [current, a.exercises])
 
   const finish = () => {
     const id = finishSession()
@@ -235,8 +230,6 @@ function ActiveSession() {
           {a.deload ? L('Semaine allégée : moitié des séries, charges −10 %, 3–4 répétitions en réserve.', 'Deload week: half the sets, loads −10%, 3–4 reps in reserve.') : L(`${a.reentry!.label} : ${a.reentry!.advice}`, `${a.reentry!.label}: ${a.reentry!.advice}`)}
         </p>
       )}
-
-      <EffortExplanation target={effortExercise ? effortTarget(effortExercise) : undefined} />
 
       <div className="mt-4 space-y-3">
         {a.exercises.map((ex, i) => (
@@ -309,7 +302,7 @@ const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('P
 function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
   const autoLoad = useStore((s) => s.state.prefs.autoLoad)
-  const { addSet, removeSet, skipExercise, setExerciseField, undoHint } = useStore.getState()
+  const { addSet, removeSet, skipExercise, setExerciseField, undoHint, focusExercise } = useStore.getState()
   const [info, setInfo] = useState(false)
   const [menu, setMenu] = useState(false)
   const [open, setOpen] = useState(false)
@@ -377,6 +370,8 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
     <Card
       as="article"
       id={`exercise-${index}`}
+      onFocusCapture={() => focusExercise(index)}
+      onClickCapture={() => focusExercise(index)}
       className={cx('scroll-mt-[calc(var(--top-bar)+96px)] overflow-hidden transition-[border-color,box-shadow]', current ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : allDone ? 'border-line-strong' : '')}
     >
       <div className="flex items-start gap-3 px-4 pt-4">
@@ -392,11 +387,9 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
 
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
-        <Tag tone="signal">{reserveLabel(effortTarget(ex))}</Tag>
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
         {(ex.unit !== 'PDC' || !!target) && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
-      <EffortGuidance exercise={ex} />
       <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
@@ -409,7 +402,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
             {sameLoad && <span className="text-muted"> {L('→ prochaine cible :', '→ next target:')} <span className="font-semibold text-text">{L(`${prevClean + 1} répétitions propres`, `${prevClean + 1} clean reps`)}</span></span>}
           </p>
         ) : !ex.gymTrial ? (
-          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L('Séance d’essai : ajuste la charge en gardant la marge indiquée.', 'Trial workout: adjust the load while keeping the indicated reps in reserve.') : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
+          <p className="text-muted">{target === null && ex.unit !== 'PDC' ? L('Choisis ta charge de départ.', 'Choose your starting load.') : L('Première fois : établis ta référence.', 'First time: set your baseline.')}</p>
         ) : null}
         {hurtLastTime && (
           <p className="flex gap-1.5 text-text-2"><TriangleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden />{L('Douleur signalée la dernière fois : si elle revient, compare les alternatives dans les options de l’exercice (···).', 'Pain flagged last time: if it comes back, compare alternatives in the exercise options (···).')}</p>
@@ -421,6 +414,7 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
       </div>
 
       <div className="mt-3 px-3 pb-3">
+        <EffortGuidance exercise={ex} />
         <div className={cx(setColumns, 'px-2 pb-1.5 text-center text-[11px] leading-[1.25] font-medium text-text-2')}>
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>

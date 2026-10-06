@@ -1,4 +1,5 @@
 import { upgradeTrainingDiagnostics } from './trainingMigration'
+import { currentExerciseIndex, hasPendingSets, nextPendingExerciseIndex } from './activeExercise'
 import { create } from 'zustand'
 import { clear, createStore, del, entries, get as idbGet, set as idbSet } from 'idb-keyval'
 import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
@@ -64,6 +65,7 @@ interface Store {
   resetAll: () => Promise<void>
 
   startSession: (type?: WorkoutType) => void
+  focusExercise: (ex: number) => void
   updateSet: (ex: number, set: number, patch: Partial<WorkoutSet>) => void
   completeSet: (ex: number, set: number, fallback: { weight: number | null; reps: number | null }) => void
   undoHint: (ex: number) => void
@@ -478,6 +480,17 @@ export const useStore = create<Store>((set, get) => ({
     })
   },
 
+  focusExercise: (ex) => {
+    const active = get().state.activeWorkout
+    if (!active || !Number.isInteger(ex) || !hasPendingSets(active.exercises[ex]) || active.activeExerciseIndex === ex) return
+    get().update(s => withActive(s, a => {
+      const exercise = a.exercises[ex]
+      const step = exercise.sets.findIndex(set => !set.completed) + 1
+      const next = L(`Série ${step}/${exercise.sets.length} · ${exercise.name}`, `Set ${step}/${exercise.sets.length} · ${exercise.name}`)
+      return { ...a, activeExerciseIndex: ex, timer: a.timer ? { ...a.timer, next } : null }
+    }))
+  },
+
   updateSet: (ex, i, patch) =>
     get().update((s) =>
       withActive(s, (a) =>
@@ -504,6 +517,7 @@ export const useStore = create<Store>((set, get) => ({
     if (!st) return
     if (st.completed) {
       get().updateSet(ex, i, { completed: false })
+      get().focusExercise(ex)
       return
     }
     const reps = st.reps ?? fallback.reps
@@ -534,23 +548,31 @@ export const useStore = create<Store>((set, get) => ({
             }
           }
         }
-        return next
+        // A superset flows into its pending partner, then returns to the first
+        // exercise for the next round. Otherwise stay here until every set is done.
+        const current = next.exercises[ex]
+        let focus = hasPendingSets(current) ? ex : nextPendingExerciseIndex(next.exercises, ex)
+        if (current.supersetWithNext && hasPendingSets(next.exercises[ex + 1])) focus = ex + 1
+        else if (ex > 0 && next.exercises[ex - 1].supersetWithNext && hasPendingSets(next.exercises[ex - 1])) focus = ex - 1
+        return { ...next, activeExerciseIndex: focus >= 0 ? focus : ex }
       }),
     )
     const after = get().state.activeWorkout!
     // Correcting a finished session: nothing is being lifted, no rest to time.
     if (after.reopened) return
     const cur = after.exercises[ex]
-    const lastSetOfExercise = i >= cur.sets.length - 1
-    if (cur.supersetWithNext && after.exercises[ex + 1]) {
+    const lastSetOfExercise = !hasPendingSets(cur)
+    if (cur.supersetWithNext && hasPendingSets(after.exercises[ex + 1])) {
       get().notify(L(`Enchaîne : ${after.exercises[ex + 1].name}`, `Straight into: ${after.exercises[ex + 1].name}`))
       return
     }
     const rest = cur.prescription?.restSeconds ?? cur.target.restSeconds ?? 120
-    const nextEx = lastSetOfExercise ? after.exercises.slice(ex + 1).find((e) => !e.skipped) : cur
+    const nextIndex = currentExerciseIndex(after)
+    const nextEx = after.exercises[nextIndex]
     const pairedPrev = ex > 0 && after.exercises[ex - 1].supersetWithNext ? after.exercises[ex - 1] : null
     const label = pairedPrev ? `${pairedPrev.name} + ${cur.name}` : cur.name
-    const nextText = nextEx ? (lastSetOfExercise ? nextEx.name : L(`Série ${i + 2}/${cur.sets.length} · ${cur.name}`, `Set ${i + 2}/${cur.sets.length} · ${cur.name}`)) : undefined
+    const nextSet = nextEx?.sets.findIndex(set => !set.completed) ?? -1
+    const nextText = nextEx ? (lastSetOfExercise || nextIndex !== ex ? nextEx.name : L(`Série ${nextSet + 1}/${nextEx.sets.length} · ${nextEx.name}`, `Set ${nextSet + 1}/${nextEx.sets.length} · ${nextEx.name}`)) : undefined
     get().startRest(rest, label, nextText)
   },
 
@@ -595,7 +617,12 @@ export const useStore = create<Store>((set, get) => ({
     ),
 
   skipExercise: (ex, skipped, reason) =>
-    get().update((s) => withActive(s, (a) => mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined })))),
+    get().update((s) => withActive(s, (a) => {
+      const focus = currentExerciseIndex(a)
+      const next = mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined }))
+      // Resolve before changing skip state, so legacy drafts also retain their focus.
+      return focus >= 0 ? { ...next, activeExerciseIndex: focus } : next
+    })),
 
   replacePlannedExercise: (type, index, newId, scope) => {
     const state = get().state
@@ -712,7 +739,10 @@ export const useStore = create<Store>((set, get) => ({
 
   stopRest: () => {
     const running = get().state.activeWorkout?.timer
-    get().update((s) => withActive(s, (a) => ({ ...a, timer: null, timerEndAt: null })))
+    get().update((s) => withActive(s, (a) => {
+      const focus = currentExerciseIndex(a)
+      return { ...a, timer: null, timerEndAt: null, ...(focus >= 0 ? { activeExerciseIndex: focus } : {}) }
+    }))
     if (running && running.endAt > Date.now() && get().state.prefs.push) cancelRestPush()
   },
 

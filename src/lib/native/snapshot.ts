@@ -1,4 +1,5 @@
 import type { ActiveWorkout, Prefs } from '../types'
+import { currentExerciseIndex } from '../activeExercise'
 
 /** Flat, versioned contract shared by ActivityKit and the Android service. Epochs are milliseconds. */
 export interface WorkoutActivityState {
@@ -23,10 +24,7 @@ export interface WorkoutActivityState {
 export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en', now = Date.now(), appearance: Partial<Pick<Prefs, 'theme' | 'accent'>> & { systemDark?: boolean } = {}): WorkoutActivityState | null {
   if (!a || a.reopened) return null
   const exercises = a.exercises.filter(e => !e.skipped)
-  // A rest may follow a set entered out of order: prefer the store's explicit next exercise.
-  const next = a.timer?.next?.replace(/^(?:Série|Set) \d+(?:\/\d+)? · /, '')
-  const exercise = exercises.find(e => e.name === next && e.sets.some(s => !s.completed))
-    ?? exercises.find(e => e.sets.some(s => !s.completed))
+  const exercise = a.exercises[currentExerciseIndex(a)]
   const i = exercise?.sets.findIndex(s => !s.completed) ?? -1
   const prescription = exercise?.prescription ?? exercise?.target
   const weight = i >= 0 ? (exercise!.sets[i].weight ?? prescription?.weight) : null
