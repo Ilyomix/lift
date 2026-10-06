@@ -46,6 +46,24 @@ test('tab edges do not wrap and do not claim the gesture', () => {
   first.cleanup(); last.cleanup()
 })
 
+test('passive non-cancelable touchstart can lead to a deliberate cancelable swipe', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 108, 100)], 0, undefined, false)
+  assert.equal(f.send('touchmove', [point(1, 280, 100)], 160), true)
+  assert.equal(f.send('touchend', [], 300, [point(1, 280, 100)]), true)
+  assert.deepEqual(f.actions, [{ type: 'navigate', path: '' }])
+  f.cleanup()
+})
+
+test('non-cancelable movement after a passive start still belongs to the browser', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 108, 100)], 0, undefined, false)
+  assert.equal(f.send('touchmove', [point(1, 280, 100)], 160, undefined, false), false)
+  f.send('touchend', [], 300, [point(1, 280, 100)])
+  assert.deepEqual(f.actions, [])
+  f.cleanup()
+})
+
 test('progress sub-tabs are main pages, exercise and measurement routes are not', () => {
   for (const path of ['progres', 'progres/corps', 'progres/volume', 'progres/seances']) assert.equal(mainRouteIndex(path), 3)
   for (const path of ['progres/exercice/chest-press', 'progres/corps/mesure', 'plus/programme']) assert.equal(mainRouteIndex(path), -1)
@@ -55,7 +73,7 @@ test('progress sub-tabs are main pages, exercise and measurement routes are not'
   f.cleanup()
 })
 
-test('program tab follows Calendar navigation while its session sheets keep edge back', () => {
+test('program tab follows Calendar navigation while its editor supports back from the page', () => {
   assert.equal(mainRouteIndex('calendrier/programme'), 2)
   assert.equal(mainRouteIndex('calendrier/programme/PUSH'), -1)
   const program = fixture('calendrier/programme')
@@ -63,16 +81,14 @@ test('program tab follows Calendar navigation while its session sheets keep edge
   program.swipe(140, 240)
   assert.deepEqual(program.actions, [{ type: 'navigate', path: 'progres' }, { type: 'navigate', path: 'seance' }])
   const sheet = fixture('calendrier/programme/PUSH', true)
-  assert.equal(sheet.swipe(100, 220), false)
-  assert.equal(sheet.swipe(30, 130), true)
+  assert.equal(sheet.swipe(100, 220), true)
   assert.deepEqual(sheet.actions, [{ type: 'back' }])
   program.cleanup(); sheet.cleanup()
 })
 
-test('secondary pages return only from the inner left edge and only with real history', () => {
+test('secondary pages return from any content area and only with real history', () => {
   const f = fixture('plus/reglages', true)
-  assert.equal(f.swipe(100, 220), false)
-  assert.equal(f.swipe(30, 130), true)
+  assert.equal(f.swipe(100, 220), true)
   assert.deepEqual(f.actions, [{ type: 'back' }])
   f.context.canGoBack = false
   assert.equal(f.swipe(30, 130), false)
@@ -165,6 +181,7 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
     clientWidth = 300
     scrollWidth = 300
     overflowX = 'visible'
+    touchAction = 'auto'
     constructor(readonly tagName: string, readonly parentElement: ElementStub | null = null, readonly ignore = false) {}
     closest(selector: string): ElementStub | null {
       const selectors = selector.split(',').map(s => s.trim())
@@ -177,14 +194,20 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
   const originalElement = Object.getOwnPropertyDescriptor(globalThis, 'Element')
   const originalStyle = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle')
   Object.defineProperty(globalThis, 'Element', { value: ElementStub, configurable: true })
-  Object.defineProperty(globalThis, 'getComputedStyle', { value: (node: ElementStub) => ({ overflowX: node.overflowX }), configurable: true })
+  Object.defineProperty(globalThis, 'getComputedStyle', { value: (node: ElementStub) => ({ overflowX: node.overflowX, touchAction: node.touchAction }), configurable: true })
   try {
     const main = new ElementStub('MAIN')
     const check = (target: ElementStub) => excludesSwipeTarget(target as unknown as EventTarget)
-    assert.equal(check(new ElementStub('SPAN', new ElementStub('BUTTON', main))), true)
-    assert.equal(check(new ElementStub('SPAN', new ElementStub('A', main))), true)
+    assert.equal(check(new ElementStub('SPAN', new ElementStub('BUTTON', main))), false)
+    assert.equal(check(new ElementStub('SPAN', new ElementStub('A', main))), false)
     assert.equal(check(new ElementStub('SPAN', new ElementStub('DIV', main, true))), true)
     assert.equal(check(new ElementStub('CANVAS', main)), true)
+    const reorderHandle = new ElementStub('BUTTON', main)
+    reorderHandle.touchAction = 'none'
+    assert.equal(check(new ElementStub('SVG', reorderHandle)), true, 'a sortable grip owns touch even though it is an ordinary button')
+    const chart = new ElementStub('RECT', new ElementStub('SVG', main))
+    chart.touchAction = 'pan-y'
+    assert.equal(check(chart), true, 'horizontal chart scrubbing must not change tabs')
     const scroller = new ElementStub('DIV', main)
     scroller.scrollWidth = 600; scroller.overflowX = 'auto'
     assert.equal(check(new ElementStub('P', scroller)), true)

@@ -9,6 +9,7 @@ import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, progr
 import { studyCount } from '../lib/research'
 import { useStore } from '../lib/store'
 import { navigate } from '../lib/router'
+import { isNative, nativeNotificationPermissionStatus } from '../lib/native/bridge'
 import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
 import { ZonePicker } from '../components/ZonePicker'
@@ -51,6 +52,8 @@ const inRange = (v: number | null, min: number, max: number): v is number => v !
 export function Onboarding() {
   const [language, setLanguage] = useState<Lang>(lang())
   const [step, setStep] = useState(0)
+  const [notifications, setNotifications] = useState(false)
+  const [notificationBusy, setNotificationBusy] = useState(false)
   const title = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (!step) return
@@ -95,6 +98,8 @@ export function Onboarding() {
   const finish = () => {
     if (!answers || !preview) return
     useStore.getState().completeOnboarding(answers)
+    // completeOnboarding creates fresh prefs; apply only the choice made on this screen.
+    if (isNative()) useStore.getState().setPrefs({ notifications })
     navigate('seance')
   }
 
@@ -131,18 +136,82 @@ export function Onboarding() {
         {step === 2 && <DaysStep days={d.days} onChange={(days) => patch({ days })} />}
         {step === 3 && <BodyStep d={d} patch={patch} />}
         {step === 4 && <GoalStep d={d} patch={patch} start={start} preview={preview} />}
-        {step === 5 && preview && answers && <Summary answers={answers} preview={preview} />}
+        {step === 5 && preview && answers && <>
+          <Summary answers={answers} preview={preview} />
+          {isNative() && <OnboardingNotifications enabled={notifications} onEnabled={setNotifications} onBusy={setNotificationBusy} />}
+        </>}
       </div>
 
       <div className="sticky bottom-0 -mx-5 border-t border-line bg-bg px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
         {step < STEPS ? (
           <Button variant="primary" size="lg" full disabled={!canNext} onClick={next}>{L('Continuer', 'Continue')}</Button>
         ) : (
-          <Button variant="primary" size="lg" full disabled={!answers || !preview} onClick={finish}>{L('Voir ma première séance', 'See my first workout')}</Button>
+          <Button variant="primary" size="lg" full disabled={!answers || !preview || notificationBusy} onClick={finish}>{L('Voir ma première séance', 'See my first workout')}</Button>
         )}
       </div>
     </main>
   )
+}
+
+/** Optional native alerts: neither entering nor revisiting this step requests permission. */
+function OnboardingNotifications({ enabled, onEnabled, onBusy }: { enabled: boolean; onEnabled: (value: boolean) => void; onBusy: (value: boolean) => void }) {
+  const [permission, setPermission] = useState<Awaited<ReturnType<typeof nativeNotificationPermissionStatus>> | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+  const permissionRead = useRef(0)
+  useEffect(() => {
+    let active = true
+    const refresh = () => {
+      const read = ++permissionRead.current
+      void nativeNotificationPermissionStatus().then(status => {
+        if (!active || read !== permissionRead.current) return
+        setPermission(status)
+        setError(false)
+        if (status !== 'granted') onEnabled(false)
+      }).catch(() => { if (active && read === permissionRead.current) setError(true) })
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    refresh()
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [onEnabled])
+  const enable = async () => {
+    if (busy) return
+    setBusy(true)
+    onBusy(true)
+    setError(false)
+    ++permissionRead.current
+    try {
+      const status = await nativeNotificationPermissionStatus(true)
+      // A focus check started before the system prompt resolved cannot overwrite its answer.
+      ++permissionRead.current
+      setPermission(status)
+      onEnabled(status === 'granted')
+    } catch {
+      setError(true)
+    } finally {
+      setBusy(false)
+      onBusy(false)
+    }
+  }
+  return <div className="mt-5 border-t border-line pt-5">
+    <SectionHeading icon={<SportArt kind="reminders" size="title" />}>{L('Notification de fin de repos', 'End-of-rest notification')}</SectionHeading>
+    <p className="mt-2 text-[13px] leading-[1.5] text-text-2">{L('Reçois une alerte quand ton repos se termine, même écran verrouillé. Facultatif : tu peux continuer sans l’activer.', 'Get an alert when your rest ends, even with the screen locked. Optional: you can continue without enabling it.')}</p>
+    <div className="mt-3" aria-live="polite">
+      {enabled && <p className="mb-2 text-[13px] font-medium text-signal-text">{L('Notifications activées.', 'Notifications enabled.')}</p>}
+      {permission === 'denied' && <p className="mb-2 text-[13px] leading-[1.5] text-text-2">{L('Autorisation refusée. Pour changer ton choix, ouvre les réglages de l’appareil → Lift → Notifications, puis reviens ici.', 'Permission denied. To change your choice, open device settings → Lift → Notifications, then return here.')}</p>}
+      {error && <p className="mb-2 text-[13px] leading-[1.5] text-warn">{L('Impossible de vérifier les notifications. Réessaie ou continue sans les activer.', 'Couldn’t check notifications. Try again or continue without enabling them.')}</p>}
+    </div>
+    <Button variant="soft" full disabled={busy} onClick={() => enabled ? onEnabled(false) : void enable()}>
+      {busy ? L('Vérification…', 'Checking…') : enabled ? L('Désactiver', 'Turn off') : permission === 'denied' ? L('Vérifier l’autorisation', 'Check permission') : L('Activer les notifications', 'Enable notifications')}
+    </Button>
+    <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Modifiable ensuite dans Plus → Réglages → Repos et alertes.', 'You can change this later in More → Settings → Rest and alerts.')}</p>
+  </div>
 }
 
 function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage: (l: Lang) => void; onStart: () => void }) {

@@ -9,6 +9,7 @@ import {
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
+import { isNative } from '../lib/native/bridge'
 import {
   calorieAdvice, goalWeightRange, measureSeries, movingAverage7, nutritionFor, proteinTargetFor, recentPace, sessionsThisWeek, weekStrip, weightStatus,
 } from '../lib/stats'
@@ -92,16 +93,16 @@ export function Home() {
         </div>
         <div className="mt-3"><SessionTrack plan={plan} /></div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <button type="button" className="pressable -ml-2 inline-flex min-h-11 items-center gap-2 rounded-[10px] px-2 py-1 text-left hover:bg-surface-2" onClick={() => setGoalOpen(true)}
+          <Button variant="outline" size="sm" className="max-w-full" onClick={() => setGoalOpen(true)}
             aria-label={cycle ? L('Mode entretien, sans date objectif, modifier', 'Maintenance mode, no goal date, edit') : L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
           >
             {cycle ? <InfinityIcon size={18} className="shrink-0 text-signal-text" aria-hidden /> : <Flag size={18} className="shrink-0 text-signal-text" aria-hidden />}
-            <span>
+            <span className="min-w-0 text-left">
               <span className="flex items-center gap-2 text-[13px] leading-5 font-semibold">{cycle ? L('Entretien', 'Maintenance') : fmtDate(GOAL_DATE, { long: true, year: true })}<Pencil size={12} className="text-muted" aria-hidden /></span>
               <span className="block text-[12px] leading-[18px] text-text-2 tnum">{cycle ? L(`Cycle jusqu’au ${fmtDate(cycle.end)}`, `Cycle until ${fmtDate(cycle.end)}`) : ctx.after ? L('Programme terminé', 'Program complete') : plural(weeksLeft, L('semaine restante', 'week left'), L('semaines restantes', 'weeks left'))}</span>
             </span>
-          </button>
-          <Button variant="ghost" size="sm" className="-mr-2 px-2" onClick={() => navigate('calendrier/programme')} aria-label={L('Voir le programme', 'View program')}>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('calendrier/programme')} aria-label={L('Voir le programme', 'View program')}>
             {L('Programme', 'Program')}<ArrowRight size={16} aria-hidden />
           </Button>
         </div>
@@ -143,11 +144,11 @@ export function Home() {
             </div>
             {!active && nextCtx.effort && <p className="mt-3 text-[13px] text-muted">{nextCtx.title} · {nextCtx.effort}</p>}
             {!active && (
-              <button type="button" onClick={() => setGymOpen(true)} className="pressable -mx-1 mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-[8px] px-1 text-[13px] font-medium text-text-2 hover:text-text">
+              <Button variant="outline" size="sm" onClick={() => setGymOpen(true)} className="mt-2 max-w-full">
                 <MapPin size={14} aria-hidden />
-                {placeName(state, state.gymId)}
+                <span className="min-w-0 truncate">{placeName(state, state.gymId)}</span>
                 <ChevronDown size={14} className="text-muted" aria-hidden />
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex gap-2 border-t border-line p-3">
@@ -167,7 +168,7 @@ export function Home() {
         <WeekStrip days={week} />
       </Section>
 
-      <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="ghost" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
+      <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="outline" size="sm" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
         <div className="grid grid-cols-2 gap-2.5">
           <Tile
             label={L('Poids', 'Weight')}
@@ -203,7 +204,7 @@ export function Home() {
         </div>
       </Section>
 
-      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="ghost" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')} <ArrowRight size={16} aria-hidden /></Button>}>
+      <Section art="nutrition" title={L('Nutrition du jour', 'Today’s nutrition')} action={<Button variant="outline" size="sm" onClick={() => navigate('plus/nutrition')}>{L('Saisir', 'Log')} <ArrowRight size={16} aria-hidden /></Button>}>
         <Card className="grid grid-cols-3 divide-x divide-line overflow-hidden">
           <NutriCell label={L('Protéines', 'Protein')} value={nut.protein} unit="g" target={`${protein.min}–${protein.max}`} ratio={nut.protein / protein.min} />
           <NutriCell label="Calories" value={nut.calories} unit="kcal" target={`${state.nutritionTargets.calories}`} ratio={nut.calories / state.nutritionTargets.calories} />
@@ -252,7 +253,7 @@ export function Home() {
           ...(daysSinceBackup === null || daysSinceBackup > 7
             ? [{ icon: <Download size={18} aria-hidden />, text: daysSinceBackup === null ? L('Tes données sont sur cet appareil. Exporte une sauvegarde pour les conserver.', 'Your data is on this device. Export a backup to keep a copy.') : L(`Dernière sauvegarde il y a ${daysSinceBackup} jours.`, `Last backup ${daysSinceBackup} days ago.`), action: L('Exporter', 'Export'), to: 'plus/donnees' }]
             : []),
-          ...(isIOS() && !isStandalone()
+          ...(!isNative() && isIOS() && !isStandalone()
             ? [{ icon: <Smartphone size={18} aria-hidden />, text: L('Installe Lift : Partager, puis « Sur l’écran d’accueil ».', 'Install Lift: Share, then “Add to Home Screen”.'), action: L('Aide', 'Help'), to: 'plus/a-propos' }]
             : []),
         ]}

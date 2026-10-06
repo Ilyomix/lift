@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChartColumn, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, History, MessageSquare, Settings2, Smartphone, Sparkles, Target, Trash, TriangleAlert, Upload, Utensils } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, History, MessageSquare, Settings2, Smartphone, Sparkles, Target, Trash, TriangleAlert, Upload, Utensils } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
@@ -61,9 +61,9 @@ export function AboutScreen() {
           {L('Code source sur GitHub', 'Source code on GitHub')}<ExternalLink size={16} className="shrink-0 text-muted" aria-hidden />
         </a>
       </Card>
-      <Section icon={<Smartphone size={18} aria-hidden />} title={L('Installation', 'Installation')}>
+      {!isNative() && <Section icon={<Smartphone size={18} aria-hidden />} title={L('Installation', 'Installation')}>
         <Card className="p-4">
-          {isNative() || isStandalone() ? (
+          {isStandalone() ? (
             <p className="text-[14px] text-text-2">{L('Lift est installée : elle fonctionne hors ligne.', 'Lift is installed: it works offline.')}</p>
           ) : (
             <ol className="space-y-2 text-[14px] leading-[1.45] text-text-2">
@@ -73,7 +73,7 @@ export function AboutScreen() {
             </ol>
           )}
         </Card>
-      </Section>
+      </Section>}
     </Screen>
   )
 }
@@ -109,7 +109,7 @@ export function NutritionScreen() {
         <Toggle label={L('Créatine', 'Creatine')} hint={L(`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`, `${state.nutritionTargets.creatine} g per day · makes you retain 1–2 kg of water`)} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
-      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
+      <Section art="chart" title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
         {hasRecentNutrition ? <Card className="p-4">
           <Columns
             ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
@@ -142,7 +142,7 @@ export function NutritionTargetsScreen() {
     <Screen>
       <Header art="nutrition" backTo="plus/reglages" title={L('Cibles nutritionnelles', 'Nutrition targets')} sub={L('Tes cibles quotidiennes et leurs ajustements.', 'Your daily targets and their adjustments.')} />
       <NutritionTargetForm />
-      <Section icon={<Settings2 size={18} aria-hidden />} title={L('Ajuster les calories', 'Adjust calories')}>
+      <Section art="settings" title={L('Ajuster les calories', 'Adjust calories')}>
         <Card className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -188,7 +188,7 @@ export function NutritionTargetsScreen() {
               >
                 {L(`Passer à ${step.target} kcal`, `Switch to ${step.target} kcal`)}
               </Button>
-              <Button variant="ghost" full onClick={() => setNormal(null)} className="mt-2">{L('Revenir à la question', 'Back to the question')}</Button>
+              <Button variant="outline" full onClick={() => setNormal(null)} className="mt-2">{L('Revenir à la question', 'Back to the question')}</Button>
             </>
           )}
         </Card>
@@ -358,7 +358,7 @@ export function CoachScreen() {
         <Button variant="outline" size="lg" full onClick={() => void shareText(globalPrompt(state), L('Bilan Lift', 'Lift summary'))}>{L('Partager le bilan du programme', 'Share program summary')}</Button>
       </div>
 
-      <Section icon={<MessageSquare size={18} aria-hidden />} title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="ghost" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
+      <Section icon={<MessageSquare size={18} aria-hidden />} title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="outline" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
         <textarea aria-label={L('Réponse de l’IA', 'AI reply')} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" disabled={!text.trim()} onClick={analyze}>{L('Prévisualiser les modifications', 'Preview changes')}</Button>

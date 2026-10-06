@@ -7,11 +7,13 @@ import { L } from '../lib/i18n'
 import { preparePush, pushReady } from '../lib/push'
 import { useStore } from '../lib/store'
 import { cx, IconButton, Segmented } from './ui'
+import { useDismissGesture } from './useDismissGesture'
 
 function useNow(active: boolean) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!active) return
+    setNow(Date.now())
     const id = window.setInterval(() => setNow(Date.now()), 200)
     const onVis = () => setNow(Date.now())
     document.addEventListener('visibilitychange', onVis)
@@ -77,28 +79,11 @@ function splitNext(next: string | undefined): { step: string; name: string } | n
   return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { step: L('Exercice suivant', 'Next exercise'), name: next }
 }
 
-/** One character of a seven-segment readout: when it changes, the old figure fades out as the new one fades in. */
-function SegChar({ ch }: { ch: string }) {
-  const [cur, setCur] = useState(ch)
-  const [old, setOld] = useState<string | null>(null)
-  if (ch !== cur) {
-    setOld(cur)
-    setCur(ch)
-  }
-  return (
-    <span className="relative inline-block">
-      {old !== null && <span key={`out-${cur}`} className="seg-out absolute inset-0">{old}</span>}
-      <span key={`in-${cur}`} className={old !== null ? 'seg-in inline-block' : 'inline-block'}>{cur}</span>
-    </span>
-  )
-}
-
-/** Seven-segment clock: unlit segments shown faintly behind, each figure cross-fading when it changes. */
+/** Stable digits during the countdown; only the complete expired readout pulses. */
 function SegDigits({ value, className }: { value: string; className?: string }) {
   return (
     <span className={cx('seg seg-ghost tnum whitespace-nowrap', className)} data-ghost={value.replace(/\d/g, '8')} aria-hidden>
-      {/* Keyed from the right: the seconds keep their place when the minutes gain or lose a figure. */}
-      {[...value].map((ch, i) => <SegChar key={value.length - i} ch={ch} />)}
+      {value}
     </span>
   )
 }
@@ -204,6 +189,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const { adjustRest, stopRest } = useStore.getState()
   const [step, setStep] = useState('15')
   const dialog = useRef<HTMLDivElement>(null)
+  useDismissGesture(dialog, true, onClose)
   const close = useRef(onClose)
   useEffect(() => { close.current = onClose })
   useEffect(() => {
@@ -252,7 +238,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const selectedStep = steps.find((x) => x.value === step)!
   return (
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text outline-none safe-top safe-bottom">
-      <div className="flex items-center justify-between px-5 pt-2">
+      <div data-sheet-handle className="flex shrink-0 items-center justify-between px-5 pt-2">
         <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
         <button type="button" onClick={onClose} aria-label={L('Réduire le minuteur', 'Minimize timer')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />

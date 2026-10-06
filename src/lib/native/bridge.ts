@@ -16,9 +16,16 @@ export const WorkoutActivity = registerPlugin<{
   addListener(event: 'actionPerformed', listener: () => void): Promise<PluginListenerHandle>
 }>('WorkoutActivity')
 
+/** Checking never prompts. Requests are reserved for an explicit user action. */
+export async function nativeNotificationPermissionStatus(request = false) {
+  if (!isNative()) return 'unsupported' as const
+  const current = await LocalNotifications.checkPermissions()
+  if (!request || (current.display !== 'prompt' && current.display !== 'prompt-with-rationale')) return current.display
+  return (await LocalNotifications.requestPermissions()).display
+}
+
 export async function nativeNotificationPermission(request = false): Promise<boolean> {
-  const p = request ? await LocalNotifications.requestPermissions() : await LocalNotifications.checkPermissions()
-  return p.display === 'granted'
+  return await nativeNotificationPermissionStatus(request) === 'granted'
 }
 
 const REST_ID = 7401

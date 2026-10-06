@@ -65,12 +65,6 @@ const submit = latestSync(async (_state: ReturnType<typeof useStore.getState>['s
   // Reconciliation may have changed the timer since this update was queued.
   const state = useStore.getState().state
   const snapshot = activityState(state)
-  if (snapshot && state.prefs.liveActivity !== false && Capacitor.getPlatform() === 'android' && document.visibilityState === 'visible') {
-    const permission = await LocalNotifications.checkPermissions()
-    if (permission.display === 'prompt' || permission.display === 'prompt-with-rationale') {
-      await LocalNotifications.requestPermissions()
-    }
-  }
   const nextKey = JSON.stringify([snapshot?.workoutId, snapshot?.restEndAt, snapshot?.exercise, snapshot?.setLabel, snapshot?.detail, state.prefs.notifications, state.prefs.sound])
   if (nextKey !== alertKey) {
     try {

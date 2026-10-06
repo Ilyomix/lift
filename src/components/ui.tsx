@@ -7,6 +7,7 @@ import { L, locale } from '../lib/i18n'
 import { back } from '../lib/router'
 import { useStore } from '../lib/store'
 import { SportArt, type SportArtKind } from './SportArt'
+import { useDismissGesture } from './useDismissGesture'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -426,6 +427,7 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 
 export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
+  useDismissGesture(ref, open, onClose)
   const titleId = useId()
   // The latest onClose, without re-running the focus effect: parents re-render
   // (a clock ticking, a timer) and pass a new function each time; re-running the
@@ -478,7 +480,9 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
           tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
         )}
       >
-        <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+        <div data-sheet-handle className="shrink-0 pt-2">
+          <div aria-hidden className="mx-auto h-1 w-8 rounded-full bg-line-strong" />
+          <div className="flex items-center justify-between gap-3 px-4 pt-1 pb-2">
           <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">
             {icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
             <span className="min-w-0">{title}</span>
@@ -486,6 +490,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
           <IconButton label={L('Fermer', 'Close')} onClick={onClose} className="-mr-2">
             <X size={20} aria-hidden />
           </IconButton>
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
         {footer && <div className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{footer}</div>}

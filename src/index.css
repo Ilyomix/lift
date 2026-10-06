@@ -418,18 +418,6 @@
   animation: fade 200ms ease-out both;
 }
 
-/* A seven-segment figure that changes: the old one fades out while the new one fades in. */
-@keyframes seg-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-.seg-in {
-  animation: fade 320ms ease-out both;
-}
-.seg-out {
-  animation: seg-out 320ms ease-out both;
-}
-
 /* Only the expired readout breathes; its labels and controls remain still. */
 @keyframes rest-expired-pulse {
   0%, 100% { opacity: 1; }

@@ -25,14 +25,16 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
   }
   const start = (event: TouchEvent) => {
     clear()
-    if (event.touches.length !== 1 || !event.cancelable || event.defaultPrevented || options.blocked() || options.excluded(event.target)) return
+    // This passive listener only observes the start. Claiming the gesture waits
+    // for a cancelable horizontal move; a non-cancelable start is not a scroll.
+    if (event.touches.length !== 1 || event.defaultPrevented || options.blocked() || options.excluded(event.target)) return
     const touch = event.touches[0]
     const context = { ...options.context() }
     const x = touch.clientX - context.left
     // Preserve the system's screen-edge gestures, including Safari Back/Forward.
     if (x < 20 || x > context.width - 20) return
     const tab = mainRouteIndex(context.path)
-    if (tab < 0 && (x > 56 || !context.canGoBack)) return
+    if (tab < 0 && !context.canGoBack) return
     candidate = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: event.timeStamp, context, tab, direction: 0 }
   }
   const valid = (event: TouchEvent, start: Candidate) => {
@@ -82,13 +84,19 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
   }
 }
 
-const INTERACTIVE = 'input, textarea, select, button, a, summary, label, nav, canvas, svg, video, audio, iframe, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="tab"], [role="tablist"], [role="switch"], [role="spinbutton"], [role="combobox"], [role="listbox"], [draggable="true"], [data-swipe-ignore]'
+// A horizontal swipe can begin on a row or button: claiming touchend suppresses
+// its click. Inputs, sliders, tabs, reorder handles and 3D keep their own gestures.
+const INTERACTIVE = 'input, textarea, select, nav, canvas, video, audio, iframe, [contenteditable]:not([contenteditable="false"]), [role="slider"], [role="tab"], [role="tablist"], [role="switch"], [role="spinbutton"], [role="combobox"], [role="listbox"], [draggable="true"], [data-swipe-ignore]'
 
 export function excludesSwipeTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element) || !target.closest('main') || target.closest(INTERACTIVE)) return true
   for (let node: Element | null = target; node; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    // Reorder handles reserve all touch motion; charts reserve horizontal motion
+    // while letting the browser scroll vertically. Neither uses HTML draggable.
+    if (style.touchAction === 'none' || style.touchAction.split(' ').includes('pan-y')) return true
     // Keep carousels, segmented scrollers and tables in control even at their ends.
-    if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return true
+    if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(style.overflowX)) return true
     if (node.tagName === 'MAIN') break
   }
   return false
