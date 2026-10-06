@@ -86,8 +86,6 @@ private struct LiftMark: View {
 }
 
 private struct RestClock: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let state: WorkoutAttributes.ContentState
     let palette: ActivityPalette
     var size: CGFloat
@@ -100,53 +98,107 @@ private struct RestClock: View {
                 Text(state.restLabel == "Repos" ? "Ouvrir Lift" : "Open Lift")
                     .font(.custom("Geologica-SemiBold", fixedSize: min(size, 15)))
             } else if presentation == .restFinished {
-                ZStack(alignment: .trailing) {
-                    Text("00:00")
-                        .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
-                        .opacity(0.10)
-                        .accessibilityHidden(true)
-                    Text("00:00")
-                        .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
-                }
-                .monospacedDigit()
-                .transition(reduceMotion || isLuminanceReduced
-                            ? .identity : .asymmetric(insertion: .opacity, removal: .identity))
+                finishedReadout
+                    .accessibilityLabel(state.restLabel == "Repos" ? "Repos terminé" : "Rest over")
             } else if let range = state.timerRange {
-                // ActivityKit renders the countdown while the host app is suspended.
-                // Both faces keep DSEG7's outlines and pad a single minute digit
-                // using contextual glyphs, without a per-second update loop.
                 ZStack(alignment: .trailing) {
-                    // This renamed DSEG derivative draws every digit as an eight.
-                    // Matching system timers keep the ghost aligned even at 10:00 → 9:59.
-                    Text(timerInterval: range, countsDown: true, showsHours: false)
-                        .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
-                        .monospacedDigit()
-                        .opacity(0.10)
-                        .accessibilityHidden(true)
-                    Text(timerInterval: range, countsDown: true, showsHours: false)
-                        .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
-                        .monospacedDigit()
+                    countdownReadout(range: range)
+                        .foregroundStyle(palette.text)
+                        .mask { RestPhaseMask(deadline: range.upperBound, finished: false) }
+                    finishedReadout
+                        .mask { RestPhaseMask(deadline: range.upperBound, finished: true) }
                 }
-                // Remove the old timer immediately at expiry. Crossfading two
-                // identical zero readouts would hide the finished-state pulse.
-                .transition(.identity)
+                // A visual mask does not hide children from VoiceOver. Expose
+                // exactly one native, self-updating remaining-time value.
+                .accessibilityRepresentation {
+                    Text(timerInterval: range, countsDown: true, showsHours: false)
+                        .accessibilityLabel(state.restLabel == "Repos" ? "Temps de repos restant" : "Rest time remaining")
+                        .accessibilityValue(Text(timerInterval: range, countsDown: true, showsHours: false))
+                }
             } else {
                 Text(state.totalSets > 0 && state.completedSets >= state.totalSets
                      ? (state.restLabel == "Repos" ? "Terminé" : "Done") : state.readyLabel)
                     .font(.custom("Geologica-SemiBold", fixedSize: min(size, 24)))
             }
         }
-        // A system-rendered insertion transition: in → out → in, then fixed zero.
-        // Autoreverse counts as a repeat, so 3 × 0.35 s stays under WidgetKit's
-        // two-second limit and finishes fully visible. No extension timer loop.
-        // iOS 16 uses system transition timing; Always-On/Reduce Motion stay still.
-        .animation(presentation == .restFinished && !reduceMotion && !isLuminanceReduced
-                   ? .easeInOut(duration: 0.35).repeatCount(3, autoreverses: true) : nil,
-                   value: presentation)
         .lineLimit(1)
         .minimumScaleFactor(0.65)
         .multilineTextAlignment(.trailing)
+        .foregroundStyle(palette.text)
+    }
+
+    private var finishedReadout: some View {
+        ZStack(alignment: .trailing) {
+            Text("00:00")
+                .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
+                .opacity(0.10)
+                .accessibilityHidden(true)
+            Text("00:00")
+                .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
+        }
+        .monospacedDigit()
         .foregroundStyle(palette.accent)
+    }
+
+    private func countdownReadout(range: ClosedRange<Date>) -> some View {
+        ZStack(alignment: .trailing) {
+            Text(timerInterval: range, countsDown: true, showsHours: false)
+                .font(.custom("LiftSegmentGhost-BoldItalic", fixedSize: size))
+                .opacity(0.10)
+                .accessibilityHidden(true)
+            Text(timerInterval: range, countsDown: true, showsHours: false)
+                .font(.custom("LiftTimer-BoldItalic", fixedSize: size))
+        }
+        .monospacedDigit()
+    }
+}
+
+// The system advances a timer ProgressView even while Lift is suspended.
+// Use its endpoint to reveal the finished title/readout: isStale can arrive
+// well after the deadline. The two mirrored masks meet within a 100 ms window;
+// clip the enlarged rail before filtering so composition stays label-sized.
+// System-renderer regression recordings and device limits: tests/native-timing.
+private struct RestPhaseMask: View {
+    let deadline: Date
+    let finished: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ProgressView(timerInterval: deadline.addingTimeInterval(-0.05)...deadline.addingTimeInterval(0.05),
+                         countsDown: !finished) { EmptyView() } currentValueLabel: { EmptyView() }
+                .progressViewStyle(.linear)
+                .tint(.white)
+                .environment(\.colorScheme, .dark)
+                .frame(width: 100, height: 4)
+                .scaleEffect(x: finished ? -8 : 8, y: 32)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .background(.black)
+                .compositingGroup()
+                .contrast(100)
+                .luminanceToAlpha()
+                .clipped()
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct RestHeading: View {
+    let state: WorkoutAttributes.ContentState
+    let isStale: Bool
+
+    var body: some View {
+        if let end = state.endDate, state.presentation(isStale: isStale) == .countdown {
+            ZStack(alignment: .trailing) {
+                Text(state.restLabel.uppercased())
+                    .mask { RestPhaseMask(deadline: end, finished: false) }
+                Text(state.restLabel == "Repos" ? "REPOS TERMINÉ" : "REST OVER")
+                    .mask { RestPhaseMask(deadline: end, finished: true) }
+            }
+            .accessibilityHidden(true)
+        } else {
+            Text(state.restHeading(isStale: isStale).uppercased())
+        }
     }
 }
 
@@ -255,7 +307,7 @@ private struct LockScreenWorkout: View {
                     .frame(width: 128, alignment: .trailing)
                     .overlay(alignment: .topTrailing) {
                         if showRest {
-                            Text(state.restHeading(isStale: isStale).uppercased())
+                            RestHeading(state: state, isStale: isStale)
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.7)
                                 .foregroundStyle(palette.muted)
@@ -312,7 +364,7 @@ struct LiftActivity: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 3) {
                         if showRest {
-                            Text(state.restHeading(isStale: context.isStale).uppercased())
+                            RestHeading(state: state, isStale: context.isStale)
                                 .font(.custom("Geologica-Bold", fixedSize: 9))
                                 .tracking(1.2)
                                 .foregroundStyle(palette.muted)
