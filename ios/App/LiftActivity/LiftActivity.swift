@@ -183,6 +183,23 @@ private struct RestPhaseMask: View {
     }
 }
 
+@available(iOS 27.0, *)
+private struct CompactIslandRestClock: View {
+    @Environment(\.isDynamicIslandLimitedInWidth) private var isLimitedInWidth
+    let state: WorkoutAttributes.ContentState
+    let palette: ActivityPalette
+    let isStale: Bool
+
+    var body: some View {
+        // iOS supplies this flag for the constrained landscape presentation,
+        // even while the host app is suspended. Keep only the leading Lift mark.
+        if !isLimitedInWidth {
+            RestClock(state: state, palette: palette, size: 12, isStale: isStale)
+                .frame(width: 52, alignment: .trailing)
+        }
+    }
+}
+
 private struct RestHeading: View {
     let state: WorkoutAttributes.ContentState
     let isStale: Bool
@@ -406,8 +423,12 @@ struct LiftActivity: Widget {
                     .padding(3)
                     .frame(width: 26, height: 26)
             } compactTrailing: {
-                RestClock(state: state, palette: palette, size: 12, isStale: context.isStale)
-                    .frame(width: 52, alignment: .trailing)
+                if #available(iOS 27.0, *) {
+                    CompactIslandRestClock(state: state, palette: palette, isStale: context.isStale)
+                } else {
+                    RestClock(state: state, palette: palette, size: 12, isStale: context.isStale)
+                        .frame(width: 52, alignment: .trailing)
+                }
             } minimal: {
                 LiftMark(size: 20, accent: state.accent)
                     .padding(3)

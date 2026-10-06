@@ -219,3 +219,18 @@ video SHA256 is `0329d83ceb808950b12df292cc20a2c35f14b4726565f5069789681edd1ec1c
 References: [dynamic Text formatting and reduced cadence](https://developer.apple.com/documentation/swiftui/text/init(_:format:)-8sfgg),
 [TimeDataSource](https://developer.apple.com/documentation/swiftui/timedatasource).
 Local rejected-prototype proof: `.local-release/rest-label-qa/custom-format-countdown.jpg`.
+
+### Compact Dynamic Island in landscape (iOS 27)
+
+`CompactIslandRestClock` reads the system environment value
+`isDynamicIslandLimitedInWidth`. The constrained landscape presentation omits
+the trailing timer, leaving the leading Lift icon. Portrait, expanded Island
+and Lock Screen layouts retain their timers. Earlier iOS versions keep their
+existing layout; no host-app orientation observer or content update is needed.
+
+Verify on iOS 27: start a rest, background Lift, rotate to landscape and back.
+Expect no compact timer in landscape and the continuing countdown in portrait.
+Repeat after expiry and while another app owns a second Live Activity. The
+installed iOS 26.5 simulator cannot validate this new system presentation.
+
+Reference: [Apple's constrained-width example](https://developer.apple.com/videos/play/wwdc2026/223/?time=633).
