@@ -36,7 +36,7 @@ export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
       <Segmented
         label={L('Suivi des progrès', 'Progress view')}
         value={tab}
-        onChange={(t) => navigate(t === 'force' ? 'progres' : `progres/${t}`, { replace: true })}
+        onChange={(t) => navigate(t === 'force' ? 'progres' : `progres/${t}`, { replace: true, transition: 'none' })}
         options={[
           { value: 'force', label: L('Force', 'Strength') },
           { value: 'corps', label: L('Corps', 'Body') },

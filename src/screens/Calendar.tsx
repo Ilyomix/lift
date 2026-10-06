@@ -37,7 +37,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         label={L('Vue du calendrier', 'Calendar view')}
         value={tab}
         layout="fit"
-        onChange={(value) => navigate(value === 'programme' ? 'calendrier/programme' : 'calendrier', { replace: true })}
+        onChange={(value) => navigate(value === 'programme' ? 'calendrier/programme' : 'calendrier', { replace: true, transition: 'none' })}
         options={[
           { value: 'calendrier', label: L('Calendrier', 'Calendar') },
           { value: 'programme', label: L('Programme', 'Program') },

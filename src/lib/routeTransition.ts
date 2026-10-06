@@ -2,6 +2,12 @@ import { mainRouteIndex } from './swipeNavigation'
 
 export type PageSnapshot = { node: HTMLElement; scrollY: number; width: number }
 
+/** Page motion has already presented this screen. Removing its temporary CSS
+ * suppression must not replay the initial opacity:0 entrance afterwards. */
+export function settlePageEntrance(screen: HTMLElement) {
+  screen.querySelectorAll('.screen-in').forEach(page => page.classList.remove('screen-in'))
+}
+
 /** A visual copy only: no React mount, subscriptions, portals or active embeds. */
 export function snapshotPage(screen: HTMLElement, width: number): PageSnapshot {
   const node = screen.cloneNode(true) as HTMLElement

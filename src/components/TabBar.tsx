@@ -28,7 +28,7 @@ export function TabBar({ current }: { current: string }) {
               <button
                 type="button"
                 aria-current={selected ? 'page' : undefined}
-                onClick={() => navigate(path)}
+                onClick={() => navigate(path, { transition: 'none' })}
                 className={cx('pressable relative flex h-[58px] w-full flex-col items-center justify-center gap-1 text-[10.5px] font-semibold tracking-[0.01em]', selected ? 'text-text' : 'text-muted hover:text-text-2')}
               >
                 <span className="relative">

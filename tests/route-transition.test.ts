@@ -1,6 +1,25 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { pageOffsets, routeDirection } from '../src/lib/routeTransition'
+import { pageOffsets, routeDirection, settlePageEntrance } from '../src/lib/routeTransition'
+
+test('settling page motion consumes only the current screen entrance, so cleanup cannot replay its fade', () => {
+  const page = { classList: new Set(['screen-in', 'safe-top', 'mx-auto']) }
+  const modal = { classList: new Set(['sheet-enter', 'bg-surface']) }
+  const untouched = { classList: new Set(['screen-in', 'safe-top']) }
+  const root = (children: typeof page[]) => ({
+    querySelectorAll: (selector: string) => children
+      .filter(child => child.classList.has(selector.slice(1)))
+      .map(child => ({ classList: { remove: (name: string) => child.classList.delete(name) } })),
+  }) as unknown as HTMLElement
+  const screen = root([page, modal])
+  settlePageEntrance(screen)
+  assert.equal(page.classList.has('screen-in'), false, 'arrival remains fully visible when temporary suppression is removed')
+  assert.deepEqual([...page.classList], ['safe-top', 'mx-auto'], 'layout classes remain intact')
+  assert.equal(modal.classList.has('sheet-enter'), true, 'panel entrances keep their own lifecycle')
+  assert.equal(untouched.classList.has('screen-in'), true, 'initial presentation of another screen is unaffected')
+  settlePageEntrance(screen)
+  assert.equal(page.classList.has('screen-in'), false, 'cancellation, invalidation and disposal cannot rearm the entrance')
+})
 
 test('paired pages cover the viewport without a gap or overlap throughout either swipe', () => {
   for (const width of [320, 390, 640]) {

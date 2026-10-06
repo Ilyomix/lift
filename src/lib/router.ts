@@ -3,6 +3,9 @@ import { createNavigationHistory } from './navigationHistory'
 
 let history: ReturnType<typeof createNavigationHistory> | undefined
 const navigationHistory = () => history ??= createNavigationHistory(window)
+// Event-local intent: a tab tap must not change future Back/Forward transitions.
+const directChanges = new WeakSet<Event>()
+export const isDirectRouteChange = (event: Event) => directChanges.has(event)
 
 function subscribe(cb: () => void) {
   navigationHistory()
@@ -27,9 +30,13 @@ export function useRoute(): string[] {
   return decodeRouteHash(hash)
 }
 
-export function navigate(path: string, opts: { replace?: boolean } = {}) {
+export function navigate(path: string, opts: { replace?: boolean; transition?: 'none' } = {}) {
   const target = `#/${path.replace(/^\/+/, '')}`
-  if (navigationHistory().navigate(target, opts.replace)) window.dispatchEvent(new HashChangeEvent('hashchange'))
+  if (navigationHistory().navigate(target, opts.replace)) {
+    const event = new HashChangeEvent('hashchange')
+    if (opts.transition === 'none') directChanges.add(event)
+    window.dispatchEvent(event)
+  }
   window.scrollTo({ top: 0 })
 }
 

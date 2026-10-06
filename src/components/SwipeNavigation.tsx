@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
-import { canGoBack, decodeRouteHash, goBack, navigate, navigationPosition, previousRoute } from '../lib/router'
+import { canGoBack, decodeRouteHash, goBack, isDirectRouteChange, navigate, navigationPosition, previousRoute } from '../lib/router'
 import { bindSwipeNavigation, excludesSwipeTarget } from '../lib/swipeNavigation'
-import { pageOffsets, routeDirection, snapshotPage, type PageSnapshot } from '../lib/routeTransition'
+import { pageOffsets, routeDirection, settlePageEntrance, snapshotPage, type PageSnapshot } from '../lib/routeTransition'
 import { useStore } from '../lib/store'
 
 /** One live route. Previous pages are inert visual copies, never mounted twice. */
@@ -33,6 +33,9 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
 
   const stop = () => { animations.forEach(a => a.cancel()); animations = []; clearTimeout(fallback) }
   const clean = () => {
+    // data-route-moving temporarily disables screen-in. Consume that entrance
+    // before lifting the suppression, including a cancelled or interrupted drag.
+    if (viewport.hasAttribute('data-route-moving')) settlePageEntrance(screen)
     stop(); preview?.remove(); outgoing?.remove(); preview = outgoing = undefined
     screen.style.removeProperty('translate'); screen.style.removeProperty('will-change'); screen.style.removeProperty('opacity')
     viewport.removeAttribute('data-route-moving')
@@ -63,7 +66,7 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
     cache.delete(name); cache.set(name, snapshot)
     if (cache.size > 8) cache.delete(cache.keys().next().value!)
   }
-  const capture = () => {
+  const capture = (event: Event) => {
     const target = decodeRouteHash(window.location.hash).join('/')
     if (target === route || pending?.target === target) return
     const bounds = viewport.getBoundingClientRect()
@@ -78,7 +81,7 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
     pending = { target, direction, offset: start, scrollY }
     settling = true
     viewport.setAttribute('data-route-moving', '')
-    if (!reduced.matches) {
+    if (!reduced.matches && !isDirectRouteChange(event)) {
       outgoing = layer(snapshot, snapshot.scrollY)
       outgoing.style.translate = `${start}px 0`
     }
