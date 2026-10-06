@@ -272,12 +272,17 @@ private struct LockScreenWorkout: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 LiftMark(size: 24, accent: state.accent)
-                Text("Lift")
-                    .font(.custom("Geologica-Bold", fixedSize: 14))
-                Text("· \(state.workoutType)")
-                    .font(.custom("Geologica-Medium", fixedSize: 12))
-                    .foregroundStyle(palette.muted)
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text("Lift")
+                        .font(.custom("Geologica-Bold", fixedSize: 14))
+                        .foregroundStyle(palette.text)
+                    Text("·")
+                        .accessibilityHidden(true)
+                    Text(state.workoutType)
+                        .lineLimit(1)
+                }
+                .font(.custom("Geologica-Medium", fixedSize: 14))
+                .foregroundStyle(palette.muted)
                 Spacer(minLength: 8)
                 Text(state.setLabel)
                     .font(.custom("Geologica-SemiBold", fixedSize: 11))
