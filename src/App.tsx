@@ -143,7 +143,11 @@ export default function App() {
       {effects}
       <div className="status-scrim" aria-hidden />
       <SwipeNavigation path={path} />
-      <Routes key={screenKey} path={path} />
+      <div className="route-viewport mx-auto w-full max-w-[640px]">
+        {/* The motion surface stays mounted when a page swaps its own <main>
+            (for example, a workout preview becoming an active workout). */}
+        <div className="route-surface"><Routes key={screenKey} path={path} /></div>
+      </div>
       <RouteFocus route={routeKey} />
       <RestDock />
       <TabBar current={path[0] ?? ''} />

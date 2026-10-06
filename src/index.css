@@ -402,6 +402,10 @@
 .screen-in {
   animation: screen-in 240ms var(--ease-out-quart) both;
 }
+.route-viewport {
+  /* Clip horizontal page motion without creating a vertical scroll container. */
+  overflow-x: clip;
+}
 
 @keyframes sheet-up {
   from { transform: translateY(100%); }

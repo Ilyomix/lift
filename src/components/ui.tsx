@@ -427,7 +427,8 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 
 export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
-  useDismissGesture(ref, open, onClose)
+  const backdrop = useRef<HTMLDivElement>(null)
+  useDismissGesture(ref, open, onClose, backdrop)
   const titleId = useId()
   // The latest onClose, without re-running the focus effect: parents re-render
   // (a clock ticking, a timer) and pass a new function each time; re-running the
@@ -468,7 +469,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose} aria-hidden />
       <div
         ref={ref}
         role="dialog"
@@ -480,7 +481,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
           tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
         )}
       >
-        <div data-sheet-handle className="shrink-0 pt-2">
+        <div data-sheet-handle className="shrink-0 touch-none select-none pt-2">
           <div aria-hidden className="mx-auto h-1 w-8 rounded-full bg-line-strong" />
           <div className="flex items-center justify-between gap-3 px-4 pt-1 pb-2">
           <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">

@@ -1,16 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bindSwipeNavigation, excludesSwipeTarget, mainRouteIndex, type SwipeAction, type SwipeContext } from '../src/lib/swipeNavigation'
+import { bindSwipeNavigation, excludesSwipeTarget, mainRouteIndex, type SwipeAction, type SwipeContext, type SwipeRelease } from '../src/lib/swipeNavigation'
 
 const point = (identifier: number, clientX: number, clientY: number) => ({ identifier, clientX, clientY })
 function fixture(path = '', canGoBack = false) {
   const target = new EventTarget()
   const actions: SwipeAction[] = []
+  const drags: number[] = [], releases: SwipeRelease[] = []
+  let cancellations = 0
   const context: SwipeContext = { path, left: 0, width: 390, scrollY: 0, canGoBack }
   let excluded = false, blocked = false
   const cleanup = bindSwipeNavigation(target as unknown as Document, {
     context: () => context, excluded: () => excluded, blocked: () => blocked,
-    perform: action => actions.push(action),
+    perform: (action, release) => { actions.push(action); releases.push(release) },
+    drag: offset => drags.push(offset), cancel: () => { cancellations++ },
   })
   const send = (type: string, touches: ReturnType<typeof point>[], time: number, changed = touches, cancelable = true, prevented = false) => {
     const event = new Event(type, { cancelable })
@@ -25,8 +28,54 @@ function fixture(path = '', canGoBack = false) {
     send('touchend', [], duration, [point(1, toX, 100 + dy)])
     return claimed
   }
-  return { actions, context, cleanup, send, swipe, exclude: () => { excluded = true }, block: () => { blocked = true } }
+  return { actions, drags, releases, get cancellations() { return cancellations }, context, cleanup, send, swipe, exclude: () => { excluded = true }, block: () => { blocked = true } }
 }
+
+test('claimed horizontal moves follow the finger and release carries actual direction and width', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 240, 100)], 0)
+  f.send('touchmove', [point(1, 234, 100)], 20)
+  assert.deepEqual(f.drags, [], 'movement below intent threshold does not move the page')
+  f.send('touchmove', [point(1, 210, 100)], 50)
+  f.send('touchmove', [point(1, 170, 100)], 100)
+  f.send('touchend', [], 150, [point(1, 155, 100)])
+  assert.deepEqual(f.drags, [-30, -70])
+  assert.deepEqual(f.releases, [{ offset: -85, width: 390 }])
+  assert.equal(f.cancellations, 0, 'successful release must not snap back before navigating')
+  f.cleanup()
+})
+
+test('a short claimed drag follows all the way back, cancels once and suppresses its click', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 240, 100)], 0)
+  f.send('touchmove', [point(1, 200, 100)], 50)
+  f.send('touchmove', [point(1, 236, 100)], 100)
+  f.send('touchmove', [point(1, 240, 100)], 120)
+  assert.equal(f.send('touchend', [], 150, [point(1, 240, 100)]), true)
+  assert.deepEqual(f.drags, [-40, -4, 0])
+  assert.equal(f.cancellations, 1)
+  assert.deepEqual(f.actions, [])
+  f.cleanup()
+  assert.equal(f.cancellations, 1)
+})
+
+test('claimed drag cancellation clears visual ownership on interruption and unmount', () => {
+  for (const interrupt of [
+    (f: ReturnType<typeof fixture>) => f.send('touchcancel', [], 150),
+    (f: ReturnType<typeof fixture>) => f.send('touchstart', [point(1, 200, 100), point(2, 180, 100)], 150),
+    (f: ReturnType<typeof fixture>) => { f.context.path = 'plus'; f.send('touchend', [], 150, [point(1, 100, 100)]) },
+    (f: ReturnType<typeof fixture>) => f.cleanup(),
+  ]) {
+    const f = fixture('seance')
+    f.send('touchstart', [point(1, 240, 100)], 0)
+    f.send('touchmove', [point(1, 200, 100)], 50)
+    interrupt(f)
+    assert.equal(f.cancellations, 1)
+    assert.deepEqual(f.actions, [])
+    f.cleanup()
+    assert.equal(f.cancellations, 1)
+  }
+})
 
 test('deliberate swipes follow tab order, including a slow accessible swipe', () => {
   const f = fixture('seance')

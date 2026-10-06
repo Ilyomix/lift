@@ -189,7 +189,8 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   const { adjustRest, stopRest } = useStore.getState()
   const [step, setStep] = useState('15')
   const dialog = useRef<HTMLDivElement>(null)
-  useDismissGesture(dialog, true, onClose)
+  const backdrop = useRef<HTMLDivElement>(null)
+  useDismissGesture(dialog, true, onClose, backdrop)
   const close = useRef(onClose)
   useEffect(() => { close.current = onClose })
   useEffect(() => {
@@ -237,8 +238,10 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
   ]
   const selectedStep = steps.find((x) => x.value === step)!
   return (
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter fixed inset-0 z-[75] flex flex-col overflow-y-auto bg-bg text-text outline-none safe-top safe-bottom">
-      <div data-sheet-handle className="flex shrink-0 items-center justify-between px-5 pt-2">
+    <div className="fixed inset-0 z-[75]">
+      <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)]" aria-hidden />
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={L('Minuteur de repos', 'Rest timer')} tabIndex={-1} className="overlay-enter absolute inset-0 flex flex-col overflow-y-auto overscroll-contain bg-bg text-text outline-none safe-top safe-bottom">
+      <div data-sheet-handle className="flex shrink-0 touch-none select-none items-center justify-between px-5 pt-2">
         <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-text-2"><Timer size={18} aria-hidden />{L('Repos', 'Rest')}</span>
         <button type="button" onClick={onClose} aria-label={L('Réduire le minuteur', 'Minimize timer')} className="pressable -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2">
           <ChevronDown size={24} />
@@ -291,6 +294,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
         </div>
         <button type="button" onClick={() => { stopRest(); onClose() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
       </div>
+    </div>
     </div>
   )
 }
