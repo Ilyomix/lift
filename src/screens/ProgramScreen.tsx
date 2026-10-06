@@ -44,7 +44,7 @@ export function ProgramContent() {
 
       <ProgramProgress paused={state.programPause.active} />
 
-      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Séances', 'Workouts')}>
+      <Section art="dumbbell" title={L('Séances', 'Workouts')}>
         <Card className="divide-y divide-line">
           {ROTATION.map((t) => {
             const tpl = state.templates[t]
@@ -119,7 +119,7 @@ export function ProgramContent() {
         </Disclosure>
       </div>
 
-      <Button variant="ghost" className="mt-4" icon={<BookOpen size={18} aria-hidden />} onClick={() => navigate('plus/preuves')}>
+      <Button variant="outline" className="mt-4" icon={<BookOpen size={18} aria-hidden />} onClick={() => navigate('plus/preuves')}>
         {L('Sources scientifiques', 'Scientific sources')}<ChevronRight size={16} aria-hidden />
       </Button>
     </>
@@ -159,7 +159,7 @@ export function SourcesScreen() {
         </Disclosure>
       </Card>
 
-      <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Principes d’entraînement', 'Training principles')}>
+      <Section art="dumbbell" title={L('Principes d’entraînement', 'Training principles')}>
         <Card className="divide-y divide-line">
           {PRINCIPLES.map((p) => (
             <Disclosure key={p.id} bordered={false} className="px-4" title={
@@ -242,7 +242,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
         <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <p className="text-[13px] leading-5 text-text-2">{L('Glisse la poignée pour changer l’ordre.', 'Drag the handle to change the order.')}</p>
-            <Button variant="ghost" size="sm" icon={<RotateCcw size={16} aria-hidden />} disabled={!canResetOrder}
+            <Button variant="outline" size="sm" icon={<RotateCcw size={16} aria-hidden />} disabled={!canResetOrder}
               aria-label={L('Rétablir l’ordre par défaut', 'Restore default order')}
               onClick={() => {
                 resetTemplateOrder(type)

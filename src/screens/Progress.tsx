@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, Camera, ChartColumn, ChevronLeft, ChevronRight, Columns2, Dumbbell, Gauge, History, Plus, Ruler, Trash } from 'lucide-react'
+import { BookOpen, Camera, ChevronLeft, ChevronRight, Columns2, Gauge, Plus, Ruler, Trash } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -90,7 +90,7 @@ function ForceTab() {
 
 function ExerciseList({ title, rows }: { title: string; rows: { id: string; name: string; muscle: string; h: ReturnType<typeof exerciseHistory>; delta: number | null }[] }) {
   return (
-    <Section icon={<Dumbbell size={18} aria-hidden />} title={title}>
+    <Section art="dumbbell" title={title}>
       <Card className="divide-y divide-line">
         {rows.map((r) => {
           const last = r.h[r.h.length - 1]
@@ -155,7 +155,7 @@ export function ExerciseDetail({ id }: { id: string }) {
               />
             </div>
           </Card>
-          <Section icon={<History size={18} aria-hidden />} title={L('Historique', 'History')}>
+          <Section art="logbook" title={L('Historique', 'History')}>
             <Card className="divide-y divide-line">
               {[...h].reverse().map((x) => (
                 <button key={x.workoutId} type="button" onClick={() => navigate(`seance/${x.workoutId}`)} className="pressable flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2">
@@ -268,7 +268,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
 
       {weights.length > 0 && <Button variant="primary" size="lg" full className="mt-4" icon={<Plus size={18} aria-hidden />} onClick={() => setMeasure(true)}>{L('Ajouter des mesures', 'Add measurements')}</Button>}
 
-      {state.bodyEntries.length > 0 && <Section icon={<Ruler size={18} aria-hidden />} title={L('Mesures', 'Measurements')}>
+      {state.bodyEntries.length > 0 && <Section art="measuring-tape" title={L('Mesures', 'Measurements')}>
         <MeasureList entries={state.bodyEntries} />
       </Section>}
 
@@ -362,7 +362,7 @@ function Photos() {
     }
   }
   return (
-    <Section icon={<Camera size={18} aria-hidden />} title={L('Photos de progression', 'Progress photos')} action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
+    <Section art="camera" title={L('Photos de progression', 'Progress photos')} action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
       {photos.length > 0 ? <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
@@ -456,7 +456,7 @@ function VolumeTab() {
   )
   return (
     <>
-      <Section icon={<ChartColumn size={18} aria-hidden />} title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
+      <Section art="chart" title={L('Séries par muscle', 'Sets per muscle')} className="mt-0">
         {/* The week shown, with a step to the one before and the one after: one control, the week in its middle. */}
         <div className="mb-3 flex min-h-12 items-center rounded-[12px] border border-line-strong" role="group" aria-label={L('Semaine affichée', 'Week shown')}>
           <IconButton label={L('Semaine précédente', 'Previous week')} onClick={() => setOffset(offset + 1)}>
@@ -482,7 +482,7 @@ function VolumeTab() {
             : <Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
         >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other workouts remain in your history.')}</Empty>}
       </Section>
-      {counts.some((count) => count.count > 0) && <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Séances par semaine', 'Workouts per week')}>
+      {counts.some((count) => count.count > 0) && <Section art="calendar" title={L('Séances par semaine', 'Workouts per week')}>
         <Card className="p-4">
           <Columns
             ariaLabel={L('Séances par semaine sur 12 semaines', 'Workouts per week over 12 weeks')}
@@ -526,7 +526,7 @@ function HistoryTab() {
   return (
     <>
       {groups.map(([month, list]) => (
-        <Section key={month} icon={<CalendarDays size={18} aria-hidden />} title={capitalize(parseISO(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }))} className="first:mt-0">
+        <Section key={month} art="calendar" title={capitalize(parseISO(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }))} className="first:mt-0">
           <Card className="divide-y divide-line">
             {list.map((w) => {
               const minutes = sessionDurationMin(w)

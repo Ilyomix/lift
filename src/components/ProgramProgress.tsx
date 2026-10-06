@@ -1,4 +1,4 @@
-import { CalendarDays, History, Layers3 } from 'lucide-react'
+import { History, Layers3 } from 'lucide-react'
 import { fmtDate, todayISO } from '../lib/date'
 import { L } from '../lib/i18n'
 import { GOAL_DATE, MAINTENANCE, PHASES, type Period } from '../lib/program'
@@ -6,6 +6,7 @@ import { programTimelineAt } from '../lib/programTimeline'
 import { PhaseTrack } from './Program'
 import { Button, Card, cx, Disclosure, SectionHeading, Tag } from './ui'
 import { navigate } from '../lib/router'
+import { SportArt } from './SportArt'
 
 /** Keep the original phase track and period markers, with past blocks folded away. */
 export function ProgramProgress({ today = todayISO(), paused = false }: { today?: string; paused?: boolean }) {
@@ -13,7 +14,7 @@ export function ProgramProgress({ today = todayISO(), paused = false }: { today?
   const first = upcoming[0]
   const shown = [...(current ? [current] : []), ...upcoming.slice(0, 4)]
   return <section aria-label={L('Progression du programme', 'Program progress')} className="mb-6">
-    <SectionHeading className="mb-3" icon={<CalendarDays />} action={paused ? <Tag tone="outline">{L('En pause', 'Paused')}</Tag> : undefined}>{L('Étapes du programme', 'Program stages')}</SectionHeading>
+    <SectionHeading className="mb-3" icon={<SportArt kind="program" size="title" />} action={paused ? <Tag tone="outline">{L('En pause', 'Paused')}</Tag> : undefined}>{L('Étapes du programme', 'Program stages')}</SectionHeading>
     <PhaseTrack today={today} />
     {current && <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <p className="text-[15px] leading-5 font-semibold">{context.title}</p>

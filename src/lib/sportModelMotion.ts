@@ -19,6 +19,7 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
     trophy: [24, 4.1], coach: [32, 0],
     program: [29, .9], evidence: [32, 2.2], pause: [31, 3.3], reminders: [28, 1.4],
     privacy: [30, 2.7], kit: [32, 1.7], logbook: [29, 3.8],
+    camera: [28, 1.05], 'measuring-tape': [31, 2.05], 'body-target': [30, 3.05],
     'workout-upper': [28, 1.1], 'workout-lower': [30, 2.1], 'workout-push': [28.5, .5],
     'workout-pull': [29, 1.6], 'workout-legs': [31, 2.6],
   }
@@ -105,6 +106,19 @@ export function createSportMotion(kind: SportArtKind, root: Object3D, mixer: Ani
         case 'appearance':
           move('AppearanceThumbSlide', X, .9 * gesture(phase, .2, .60, .18, .70))
           break
+        case 'camera':
+          move('CameraFocusSlide', Z, .075 * gesture(phase, .2, .55, .22, .65))
+          move('CameraShutterPress', Y, -.035 * gesture(phase, .80, .18, .08, .25))
+          break
+        case 'measuring-tape':
+          move('TapePullSlide', X, .26 * gesture(phase, .2, .60, .18, .75))
+          break
+        case 'body-target': {
+          const focus = .055 * gesture(phase, .2, .60, .18, .75)
+          move('BodyFocusLeft', X, focus)
+          move('BodyFocusRight', X, -focus)
+          break
+        }
         case 'stopwatch':
           turn('SecondHandPivot', Z, phase < 2 ? ease((phase - .2) / 1.8) * Math.PI * 2 : 0)
           break

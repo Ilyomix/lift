@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, Camera, Check, Eye, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
+import { BookOpen, Camera, Check, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -124,7 +124,7 @@ export function VisualGoalScreen() {
         </Card>
       )}
 
-      <Section icon={<Eye size={18} aria-hidden />} title={L('Physique visé', 'Target physique')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
+      <Section art="body-target" title={L('Physique visé', 'Target physique')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
         <div className="grid gap-2" role="group" aria-label={L('Physique visé', 'Target physique')}>
           {LOOKS.map((l) => {
             const on = l.id === look
@@ -185,7 +185,7 @@ export function VisualGoalScreen() {
         </Disclosure>
       </Section>
 
-      <Section icon={<Ruler size={18} aria-hidden />} title={L('Où tu en es', 'Where you stand')}>
+      <Section art="measuring-tape" title={L('Où tu en es', 'Where you stand')}>
         <div className="grid grid-cols-2 gap-3">
           <Field label={L('Taille (cm)', 'Height (cm)')}><input className={inputClass} inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="189" /></Field>
           <div className="min-w-0">
@@ -233,7 +233,7 @@ export function VisualGoalScreen() {
       </Section>
 
       {plan && (
-        <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Le plan', 'The plan')}>
+        <Section art="program" title={L('Le plan', 'The plan')}>
           <Card className="divide-y divide-line">
             <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${kg(plan.target[1])}`} hint={L(`${plan.range[0]}–${pct(plan.range[1])} de gras, masse maigre conservée sans gain présumé`, `${plan.range[0]}–${pct(plan.range[1])} body fat, lean mass retained with no assumed gain`)} strong />
             <Line label={L('Sèche', 'Cut')} value={plan.cutWeeks === 0 ? L('Aucune', 'None') : plural(plan.cutWeeks, L('semaine', 'week'), L('semaines', 'weeks'))} hint={plan.cutWeeks === 0 ? L('Tu es déjà dans la fourchette : recomposition jusqu’à la date.', 'You’re already in the range: recomposition until the date.') : L(`Scénario prudent, limité par le budget de 500 kcal/j, pauses incluses${plan.cutWeeks !== CUT_WEEKS ? ` (le plan de base en prévoit ${CUT_WEEKS})` : ''}`, `Conservative scenario, capped by the 500 kcal/day budget, breaks included${plan.cutWeeks !== CUT_WEEKS ? ` (the base plan calls for ${CUT_WEEKS})` : ''}`)} />
@@ -264,7 +264,7 @@ export function VisualGoalScreen() {
                 <Button variant="outline" size="lg" full onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(goalDate, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
               </>
             )}
-            {applied && <Button variant="ghost" full onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')) }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
+            {applied && <Button variant="outline" full onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')) }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
           </div>
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
             {L('Appliquer fixe ton poids cible, la durée de la sèche (le calendrier est recalculé) et les zones prioritaires dans tes séances. Ton poids ne change jamais tes charges.', 'Applying sets your target weight, the length of the cut (the calendar is recalculated) and the priority areas in your workouts. Your weight never changes your loads.')}
@@ -279,7 +279,7 @@ export function VisualGoalScreen() {
             <div className="grid gap-2">
               <p className="text-[13px] leading-[1.45] text-text-2">{L('Compare-la à tes photos dans Progrès → Corps → Comparer.', 'Compare it with your photos in Progress → Body → Compare.')}</p>
               <Button size="sm" variant="soft" icon={<Camera size={15} aria-hidden />} aria-label={L('Changer la photo', 'Change photo')} onClick={() => file.current?.click()}>{L('Changer', 'Change')}</Button>
-              <Button size="sm" variant="ghost" icon={<ImageOff size={15} aria-hidden />} aria-label={L('Retirer la photo', 'Remove photo')} onClick={() => void setGoalPhoto(null)}>{L('Retirer', 'Remove')}</Button>
+              <Button size="sm" variant="outline" icon={<ImageOff size={15} aria-hidden />} aria-label={L('Retirer la photo', 'Remove photo')} onClick={() => void setGoalPhoto(null)}>{L('Retirer', 'Remove')}</Button>
             </div>
           </div>
         ) : (

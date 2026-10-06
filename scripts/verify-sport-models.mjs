@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const names = ['program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'dumbbell', 'plate', 'stopwatch', 'calendar', 'chart', 'nutrition', 'settings', 'appearance', 'backup', 'coach', 'trophy', 'workout-upper', 'workout-lower', 'workout-push', 'workout-pull', 'workout-legs'];
+const names = ['program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'dumbbell', 'plate', 'stopwatch', 'calendar', 'chart', 'nutrition', 'settings', 'appearance', 'backup', 'coach', 'trophy', 'camera', 'measuring-tape', 'body-target', 'workout-upper', 'workout-lower', 'workout-push', 'workout-pull', 'workout-legs'];
 const allowedMaterials = new Set(['LiftGraphite', 'LiftCobalt', 'LiftSilver', 'LiftInk']);
 const report = [];
 for (const name of names) {

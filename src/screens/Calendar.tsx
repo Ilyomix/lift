@@ -53,9 +53,9 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></SectionHeading>
+        <SectionHeading>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></SectionHeading>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          {month !== monthKey(today) && <Button size="sm" variant="ghost" onClick={() => setMonth(monthKey(today))}>{L('Aujourd’hui', 'Today')}</Button>}
+          {month !== monthKey(today) && <Button size="sm" variant="outline" onClick={() => setMonth(monthKey(today))}>{L('Aujourd’hui', 'Today')}</Button>}
           <IconButton label={L('Mois précédent', 'Previous month')} onClick={() => setMonth(addMonths(month, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
           <IconButton label={L('Mois suivant', 'Next month')} onClick={() => setMonth(addMonths(month, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
         </div>
@@ -116,7 +116,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       </div>
 
       {next.length > 0 && (
-        <Section icon={<Flag size={18} aria-hidden />} title={L('Prochaines étapes', 'Upcoming milestones')}>
+        <Section art="program" title={L('Prochaines étapes', 'Upcoming milestones')}>
           <Card className="overflow-hidden">
             <ol className="divide-y divide-line">
               {next.map((ms, index) => {

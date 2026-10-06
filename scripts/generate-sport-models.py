@@ -8,6 +8,7 @@ encoder from their Blender PNG renders; no external illustration is substituted.
 """
 import bpy
 import bmesh
+import hashlib
 import json
 import math
 import shutil
@@ -372,6 +373,83 @@ def appearance():
     animate(thumb,'location',[(1,(-.45,-.295,0)),(81,(.45,-.295,0)),(111,(.45,-.295,0)),(201,(-.45,-.295,0)),(END,(-.45,-.295,0))])
 
 
+def camera():
+    """Compact camera, with a translating focus barrel and real shutter button."""
+    box('CameraBody',(0,0,0),(1.90,.62,1.18),'LiftGraphite',bevel=.14)
+    box('CameraTop',(-.22,0,.64),(.72,.46,.18),'LiftGraphite',bevel=.06)
+    box('CameraGrip',(.73,-.24,-.015),(.35,.27,.99),'LiftCobalt',bevel=.10)
+    box('CameraViewfinder',(-.64,-.326,.30),(.25,.035,.17),'LiftSilver',bevel=.025)
+    cylinder('CameraLensMount',(-.12,-.36,-.045),.43,.16,'LiftSilver',bevel=.027)
+    focus=empty('CameraFocusSlide',GEOMETRY,(0,0,0))
+    cylinder('CameraLensBarrel',(-.12,-.49,-.045),.385,.20,'LiftGraphite',bevel=.025,parent=focus)
+    torus('CameraFocusRing',(-.12,-.596,-.045),.35,.035,'LiftCobalt',parent=focus)
+    cylinder('CameraLensGlass',(-.12,-.606,-.045),.306,.026,'LiftInk',bevel=.008,parent=focus)
+    torus('CameraOptics',(-.12,-.623,-.045),.216,.016,'LiftSilver',parent=focus)
+    shutter=empty('CameraShutterPress',GEOMETRY,(0,0,0))
+    cylinder('CameraShutter',(.66,-.025,.638),.12,.09,'LiftSilver',axis='Z',bevel=.018,parent=shutter)
+    animate(focus,'location',[(1,(0,0,0)),(55,(0,-.075,0)),(81,(0,-.075,0)),(151,(0,0,0)),(END,(0,0,0))])
+    animate(shutter,'location',[(1,(0,0,0)),(73,(0,0,0)),(88,(0,0,-.035)),(111,(0,0,0)),(END,(0,0,0))])
+
+
+def measuring_tape():
+    """Retractable measuring tape: the markings move with its physical strip."""
+    cylinder('TapeCase',(-.48,.02,.02),.66,.38,'LiftGraphite',vertices=48,bevel=.075)
+    cylinder('TapeFace',(-.48,-.187,.02),.535,.055,'LiftCobalt',vertices=48,bevel=.025)
+    cylinder('TapeCenter',(-.48,-.226,.02),.18,.03,'LiftSilver',vertices=40,bevel=.015)
+    # The ribbon overlaps inside the case at every phase. It never stretches,
+    # so the graduations stay evenly spaced while the exit reveals more tape.
+    pull=empty('TapePullSlide',GEOMETRY,(0,0,0))
+    box('MeasuringRibbon',(.44,0,-.43),(1.21,.23,.032),'LiftSilver',bevel=.01,parent=pull)
+    for i in range(12):
+        x=-.06+i*.09
+        box('RibbonTick'+str(i),(x,-.044,-.409),(.013,.12 if i%5==0 else .065,.009),'LiftInk',bevel=.002,parent=pull)
+    box('TapeHook',(1.058,0,-.478),(.04,.29,.13),'LiftGraphite',bevel=.012,parent=pull)
+    box('TapeExit',(.12,.02,-.43),(.12,.32,.12),'LiftGraphite',bevel=.025)
+    animate(pull,'location',[(1,(0,0,0)),(81,(.26,0,0)),(111,(.26,0,0)),(201,(0,0,0)),(END,(0,0,0))])
+
+
+def body_target():
+    """A framed, anonymous CC0 athlete: the frame focuses, the body stays still."""
+    source=ROOT/'public/models/exercise/athlete.glb'
+    # Match the matte human category models; metalness stays material-authored
+    # at runtime while the shared LiftSilver color remains theme-adaptive.
+    surface=MAT['LiftSilver'].node_tree.nodes.get('Principled BSDF')
+    surface.inputs['Metallic'].default_value=0
+    surface.inputs['Roughness'].default_value=.44
+    before=set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(source))
+    imported=set(bpy.data.objects)-before
+    depsgraph=bpy.context.evaluated_depsgraph_get()
+    surfaces=[obj for obj in imported if obj.name in {'SK_AthleteBody','SK_AthleteShorts'}]
+    assert len(surfaces)==2 and all(obj.type=='MESH' for obj in surfaces), 'Expected the two canonical athlete surfaces'
+    # Bake the approved continuous human surface in its relaxed bind pose. No
+    # new rig, primitive anatomy, decimation, or copied workout-icon silhouette.
+    # Blender also creates a hidden bone display mesh on skin import. It is
+    # not a node in the source GLB and must never become icon geometry.
+    for original in surfaces:
+        evaluated=original.evaluated_get(depsgraph)
+        data=bpy.data.meshes.new_from_object(evaluated,depsgraph=depsgraph)
+        data.transform(original.matrix_world)
+        is_shorts=any(mat and mat.name.startswith('M_Shorts') for mat in data.materials)
+        data.materials.clear()
+        data.materials.append(MAT['LiftGraphite' if is_shorts else 'LiftSilver'])
+        for polygon in data.polygons:
+            polygon.material_index=0
+            polygon.use_smooth=True
+        obj=bpy.data.objects.new('SM_TargetShorts' if is_shorts else 'SM_TargetBody',data)
+        bpy.context.collection.objects.link(obj)
+        obj.parent=GEOMETRY
+    for original in imported:
+        bpy.data.objects.remove(original,do_unlink=True)
+    # Four focus corners follow the actual full-body envelope; the viewer sees
+    # a physique/priority-area illustration, rather than a workout demonstration.
+    for side,name in [(-1,'Left'),(1,'Right')]:
+        pivot=empty('BodyFocus'+name,GEOMETRY)
+        for z,vertical in [(.08,1),(1.79,-1)]:
+            line('BodyFocus'+name+str(z),[(side*.45,-.22,z+vertical*.19),(side*.45,-.22,z),(side*.29,-.22,z)],.028,'LiftCobalt',parent=pivot)
+        animate(pivot,'location',[(1,(0,0,0)),(81,(-side*.055,0,0)),(111,(-side*.055,0,0)),(201,(0,0,0)),(END,(0,0,0))])
+
+
 def backup():
     box('ArchiveBody',(0,0,-.14),(1.5,.99,1.35),bevel=.11)
     lid=empty('LidHinge',GEOMETRY,(0,.51,.58))
@@ -618,9 +696,10 @@ def merge_static_meshes():
 
 MODELS = {'dumbbell': dumbbell, 'plate':plate, 'stopwatch': stopwatch, 'calendar':calendar,
           'chart':chart,'nutrition':nutrition,'settings':settings,'appearance':appearance,'backup':backup,'coach':coach,'trophy':trophy,
-          'program':program,'evidence':evidence,'pause':pause,'reminders':reminders,'privacy':privacy,'kit':kit,'logbook':logbook}
+          'program':program,'evidence':evidence,'pause':pause,'reminders':reminders,'privacy':privacy,'kit':kit,'logbook':logbook,
+          'camera':camera,'measuring-tape':measuring_tape,'body-target':body_target}
 
-SECTION_MODELS = {'program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'appearance'}
+SECTION_MODELS = {'program', 'evidence', 'pause', 'reminders', 'privacy', 'kit', 'logbook', 'appearance', 'camera', 'measuring-tape', 'body-target'}
 
 
 def build(name):
@@ -661,7 +740,7 @@ def build(name):
     cam_data.type = 'ORTHO'
     cam = bpy.data.objects.new('IconCamera', cam_data)
     scene.collection.objects.link(cam)
-    cam.location = (3, -6, 2.7)
+    cam.location = (1.0, -6, 1.2) if name=='body-target' else (3, -6, 2.7)
     cam.rotation_euler = (-cam.location).to_track_quat('-Z', 'Y').to_euler()
     scene.camera = cam
     bpy.context.view_layer.update()
@@ -718,6 +797,10 @@ def build(name):
     for obj in meshes:
         obj.data.calc_loop_triangles()
     record = {'name': name, 'bytes': path.stat().st_size, 'meshes': len(meshes), 'meshBatching': {'before':before_merge,'after':after_merge,'method':'Lossless join by direct parent and identical material; animated pivots preserved'}, 'triangles': sum(len(o.data.loop_triangles) for o in meshes), 'sourceBounds': [list(low), list(high)], 'normalizationScale': scale, 'cameraOrthoScale': cam_data.ortho_scale, 'durationSeconds': 6, 'authoringFps': FPS, 'materials': list(MAT), 'animatedPivots': [obj.name for obj in scene.objects if obj.animation_data], 'staticArtRoot': art.animation_data is None, 'license': 'Original Lift artwork; no external assets or textures'}
+    if name=='body-target':
+        source=ROOT/'public/models/exercise/athlete.glb'
+        record['license']='CC0 MakeHuman/MPFB athlete with original Lift anonymous head and focus frame; no textures'
+        record['source']={'path':str(source.relative_to(ROOT)),'sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'licenseDetails':'docs/assets/exercise-athlete.md'}
     if fallback:
         record['fallback'] = {'path': str(fallback.relative_to(ROOT)), 'bytes': fallback.stat().st_size, 'source': str((WORK / (name+'.png')).relative_to(ROOT)), 'method': 'Blender Cycles RGBA PNG encoded as WebP with Pillow; alpha preserved'}
     (WORK / (name+'.json')).write_text(json.dumps(record, indent=2)+'\n')
