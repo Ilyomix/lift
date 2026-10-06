@@ -29,6 +29,19 @@ def build(ghost: bool) -> None:
             font["glyf"][name] = deepcopy(font["glyf"][eight])
             font["hmtx"][name] = font["hmtx"][eight]
 
+    # System timer text may redact seconds with a typographic dash when its
+    # update cadence is reduced. DSEG only provides ASCII '-', so Unicode
+    # dashes would fall back to another font and lose the segment geometry.
+    # Keep the lit middle segment, but show all unlit segments behind it.
+    hyphen = cmap[ord("-")]
+    if ghost:
+        font["glyf"][hyphen] = deepcopy(font["glyf"][eight])
+        font["hmtx"][hyphen] = font["hmtx"][eight]
+    for table in font["cmap"].tables:
+        if table.isUnicode():
+            for codepoint in (0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2212, 0xFF0D):
+                table.cmap[codepoint] = hyphen
+
     advance, bearing = font["hmtx"][digits[0]]
     for name in digits:
         pen = TTGlyphPen(font.getGlyphSet())
@@ -51,9 +64,9 @@ def build(ghost: bool) -> None:
     names = {
         1: family,
         2: "Bold Italic",
-        3: family + " Bold Italic 1.100",
+        3: family + " Bold Italic 1.200",
         4: family + " Bold Italic",
-        5: "Version 1.100",
+        5: "Version 1.200",
         6: postscript,
     }
     for record in font["name"].names:
@@ -61,6 +74,7 @@ def build(ghost: bool) -> None:
             record.string = names[record.nameID].encode(record.getEncoding())
     font["name"].setName(
         "Modified for Lift, 2026: contextual leading-zero minute glyphs; "
+        + "Unicode timer dashes use segment outlines; "
         + ("decimal outlines replaced by eight; " if ghost else "")
         + "renamed " + family + ". Based on DSEG7 Classic Mini Bold Italic 0.46 "
         "by keshikan. Original copyright and SIL OFL 1.1 retained. "

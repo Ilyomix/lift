@@ -87,3 +87,35 @@ Local QA artifacts (not included in a fresh checkout):
 Apple references: [stale date](https://developer.apple.com/documentation/activitykit/activitycontent/staledate),
 [stale UI at 16:54 in WWDC23](https://developer.apple.com/videos/play/wwdc2023/10185/?time=1014),
 [supported animations and limits](https://developer.apple.com/documentation/widgetkit/animating-data-updates-in-widgets-and-live-activities).
+
+## Reduced-cadence timer fonts
+
+`TimerFontTests` loads the actual bundled fonts through CoreText. It verifies
+that ASCII and Unicode timer dashes use Lift's segment glyph, have the same
+advance as a digit, and retain a complete eight-shaped ghost. It also checks
+the padded `1:00` / `0:59` boundary at the Lock Screen and Island font sizes.
+Regenerate both derived fonts with `python3 scripts/generate-native-timer-ghost.py`
+(fonttools 4.62.1). The upstream DSEG file remains unchanged.
+
+Apple documents that dynamic timer Text can replace fields with dashes when the
+display updates too slowly for those fields, such as reduced luminance. This is
+not a countdown failure. The shipped DSEG derivative previously lacked Unicode
+dashes, causing CoreText to use another font; its ghost only covered digits.
+The tests establish glyph shaping, not physical-device Always-On behavior.
+
+## Rejected immediate-label prototype (2026-10-06)
+
+A custom `DiscreteFormatStyle` with `Text(.currentDate, format:)` compiled and
+passed its date-boundary tests, but the actual iOS 26.5 Live Activity rendered a
+placeholder instead of the expanded content. The prototype was removed. Do not
+substitute that compilation result for WidgetKit validation. No per-second
+background task, unsupported timeline, or early stale date is used as a workaround.
+
+The supported label still follows `isStale`, or a fresh foreground/action update.
+Its change at the exact zero crossing is **not guaranteed**. The repository's
+`push/` service supports browser Web Push with VAPID, not APNs ActivityKit update
+tokens; it cannot update the native activity without a separate implementation.
+
+References: [dynamic Text formatting and reduced cadence](https://developer.apple.com/documentation/swiftui/text/init(_:format:)-8sfgg),
+[TimeDataSource](https://developer.apple.com/documentation/swiftui/timedatasource).
+Local rejected-prototype proof: `.local-release/rest-label-qa/custom-format-countdown.jpg`.

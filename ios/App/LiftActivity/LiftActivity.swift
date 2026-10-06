@@ -305,7 +305,9 @@ struct LiftActivity: Widget {
                         }
                     }
                     .foregroundStyle(palette.text)
-                    .padding(.leading, 6)
+                    // Both regions share one vertical centre, even when the
+                    // status changes from one short word to the finished label.
+                    .frame(height: 40, alignment: .center)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 3) {
@@ -316,17 +318,17 @@ struct LiftActivity: Widget {
                                 .foregroundStyle(palette.muted)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.85)
-                                // The heading sits higher than the timer, where
-                                // the Island's rounded corner needs more inset.
-                                .padding(.trailing, 12)
                         }
                         RestClock(state: state, palette: palette, size: 23, isStale: context.isStale)
                     }
-                    .frame(width: 112, alignment: .trailing)
+                    // All regions use the same outer margins. The heading and
+                    // digits share the body/progress/actions trailing edge.
+                    .frame(width: 100, alignment: .trailing)
+                    .frame(height: 40, alignment: .center)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     // Keep the full summary and progress inside the expanded height budget.
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(state.exercise)
                             .font(.custom("Geologica-SemiBold", fixedSize: 16))
                             .lineLimit(1)
@@ -337,12 +339,10 @@ struct LiftActivity: Widget {
                             .lineLimit(1)
                         WorkoutProgress(state: state, palette: palette)
                         WorkoutActions(state: state, palette: palette, isStale: context.isStale)
-                            .padding(.horizontal, 8)
                     }
                     .foregroundStyle(palette.text)
                     .environment(\.colorScheme, .dark)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 2)
                 }
             } compactLeading: {
                 LiftMark(size: 20, accent: state.accent)
@@ -356,10 +356,9 @@ struct LiftActivity: Widget {
                     .padding(3)
                     .frame(width: 26, height: 26)
             }
-            // Give WidgetKit the margins for the whole expanded presentation.
-            // Reserve the curved corners explicitly instead of relying on the
-            // default mask geometry. Progress stays above the lower button row.
-            .contentMargins(.horizontal, 24, for: .expanded)
+            // One shared safe inset aligns logo, summary, progress and actions;
+            // it also protects the top heading from the curved right corner.
+            .contentMargins(.horizontal, 36, for: .expanded)
             .contentMargins(.top, 16, for: .expanded)
             .contentMargins(.bottom, 16, for: .expanded)
             .keylineTint(palette.accent)
