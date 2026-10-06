@@ -57,12 +57,16 @@ test('logging the final row first keeps the current exercise and announces its a
 test('skipping current work advances forward and wraps, excluding completed and skipped exercises', () => {
   complete(1, 0); complete(1, 1)
   actions().focusExercise(2)
+  const deadline = active().timer!.endAt
   actions().skipExercise(2, true)
   assert.equal(currentExerciseIndex(active()), 0)
+  assert.equal(active().timer!.next, 'Série 1/2 · Exercise 0')
+  assert.equal(active().timer!.endAt, deadline, 'skipping an exercise preserves the current rest deadline')
   actions().focusExercise(1)
   assert.equal(currentExerciseIndex(active()), 0, 'completed exercises cannot claim focus')
   actions().skipExercise(0, true)
   assert.equal(currentExerciseIndex(active()), -1)
+  assert.equal(active().timer!.next, undefined, 'the rest never points at skipped or completed work')
   assert.equal(workoutActivityState(active(), 'en')!.exercise, 'Workout complete')
   actions().skipExercise(2, false)
   assert.equal(currentExerciseIndex(active()), 2)

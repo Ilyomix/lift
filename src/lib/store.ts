@@ -621,7 +621,15 @@ export const useStore = create<Store>((set, get) => ({
       const focus = currentExerciseIndex(a)
       const next = mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined }))
       // Resolve before changing skip state, so legacy drafts also retain their focus.
-      return focus >= 0 ? { ...next, activeExerciseIndex: focus } : next
+      const focused = focus >= 0 ? { ...next, activeExerciseIndex: focus } : next
+      const nextFocus = currentExerciseIndex(focused)
+      const exercise = focused.exercises[nextFocus]
+      const step = exercise?.sets.findIndex(set => !set.completed) ?? -1
+      return {
+        ...focused,
+        activeExerciseIndex: nextFocus >= 0 ? nextFocus : focused.activeExerciseIndex,
+        timer: focused.timer ? { ...focused.timer, next: exercise ? L(`Série ${step + 1}/${exercise.sets.length} · ${exercise.name}`, `Set ${step + 1}/${exercise.sets.length} · ${exercise.name}`) : undefined } : null,
+      }
     })),
 
   replacePlannedExercise: (type, index, newId, scope) => {

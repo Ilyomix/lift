@@ -4,7 +4,7 @@ import { exerciseContextReason } from '../lib/comparability'
 import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, MapPin, Pencil, Play, Plus, SlidersHorizontal, StickyNote, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SlidersHorizontal, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
@@ -12,7 +12,7 @@ import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plura
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
 import { sessionExercises } from '../lib/exerciseReplacement'
-import { LIBRARY } from '../lib/library'
+import { infoFor, LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
 import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
 import { navigate } from '../lib/router'
@@ -149,38 +149,62 @@ function useElapsed(startedAt: string): number | null {
 
 function ActiveSession() {
   const a = useStore((s) => s.state.activeWorkout)!
-  const { finishSession, discardSession, setSessionField } = useStore.getState()
+  const { finishSession, discardSession, setSessionField, focusExercise } = useStore.getState()
   // No clock on a finished session reopened to be corrected: nothing is being timed.
   const running = useElapsed(a.startedAt)
   const elapsed = a.reopened ? null : running
   const [menu, setMenu] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
+  const [exercisePicker, setExercisePicker] = useState(false)
+  // Reviewing completed work must not change the exercise announced by Live Activity.
+  const [reviewIndex, setReviewIndex] = useState<number | null>(null)
   const ctx = contextAt(a.date)
   const total = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + e.sets.length, 0)
-  const done = a.exercises.reduce((n, e) => n + doneSets(e).length, 0)
+  const done = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + doneSets(e).length, 0)
   const pending = total - done
   const current = currentExerciseIndex(a)
-  const cur = current >= 0 ? a.exercises[current] : null
-  const curSet = cur ? cur.sets.findIndex((s) => !s.completed) : -1
+  const displayed = reviewIndex ?? current
+  const displayedExercise = a.exercises[displayed]
 
-  // When an exercise is finished, bring the next one into view.
-  const prev = useRef(current)
   useEffect(() => {
-    if (current !== prev.current && current >= 0 && prev.current >= 0 && !hasPendingSets(a.exercises[prev.current])) {
-      const el = document.getElementById(`exercise-${current}`)
-      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      el?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    if (reviewIndex !== null && hasPendingSets(a.exercises[reviewIndex])) {
+      focusExercise(reviewIndex)
+      setReviewIndex(null)
     }
-    prev.current = current
-  }, [current, a.exercises])
+  }, [reviewIndex, a.exercises, focusExercise])
+
+  const chooseExercise = (index: number) => {
+    if (!a.exercises[index]) return
+    if (hasPendingSets(a.exercises[index])) {
+      focusExercise(index)
+      setReviewIndex(null)
+    } else setReviewIndex(index)
+    setExercisePicker(false)
+  }
+
+  // The active card follows the same focus as rest and Live Activity, including supersets.
+  const cardSlot = useRef<HTMLDivElement>(null)
+  const prev = useRef(displayed)
+  useEffect(() => {
+    if (displayed !== prev.current) {
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      cardSlot.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    }
+    prev.current = displayed
+  }, [displayed])
+
+  const showSets = () => {
+    const sets = cardSlot.current?.querySelector<HTMLElement>(`#sets-${displayed}`)
+    if (!sets) return
+    sets.focus({ preventScroll: true })
+    sets.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+  }
 
   const finish = () => {
     const id = finishSession()
     if (id) navigate('seance/bilan', { replace: true })
   }
-  const jump = () => document.getElementById(`exercise-${current}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
   return (
     <Screen className="pb-[calc(170px+env(safe-area-inset-bottom))]">
       <Header
@@ -197,25 +221,23 @@ function ActiveSession() {
 
       {/* Focus bar: stays on top while scrolling, opaque (nothing blurs under it). */}
       <div className="sticky top-[var(--top-bar)] z-30 -mx-4 border-b border-line bg-bg px-4 pt-2 pb-3">
-        <button type="button" onClick={jump} disabled={!cur} className="flex w-full items-center gap-3 text-left" aria-label={cur ? L(`Exercice en cours : ${cur.name}, série ${curSet + 1} sur ${cur.sets.length}`, `Current exercise: ${cur.name}, set ${curSet + 1} of ${cur.sets.length}`) : L('Toutes les séries sont faites', 'All sets done')}>
-          <span className="min-w-0 flex-1">
-            {/* The set and the session clock share the first line; the exercise name has the whole width under them. */}
-            <span className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-semibold tracking-[0.08em] text-signal-text uppercase">{cur ? L(`Série ${curSet + 1}/${cur.sets.length}`, `Set ${curSet + 1}/${cur.sets.length}`) : L('Terminé', 'Done')}</span>
-              {elapsed !== null && (
-                <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={L('Durée de la séance', 'Workout duration')}>
-                  <Timer size={14} className="text-muted" aria-hidden />
-                  <span className="seg seg-ghost text-[15px] leading-none text-text tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-hidden>{fmtClock(elapsed)}</span>
-                </span>
-              )}
-            </span>
-            <span className="mt-0.5 block truncate text-[15px] leading-5 font-semibold">{cur ? cur.name : L('Toutes les séries sont faites', 'All sets done')}</span>
-          </span>
-        </button>
-        <div className="mt-2.5 flex items-center gap-3">
-          <ProgressBar value={total ? done / total : 0} label={L('Séries validées', 'Sets logged')} />
-          <span className="shrink-0 text-[12px] font-semibold text-text-2 tnum">{done}/{total}</span>
+        <div className="mb-2 flex items-center justify-between gap-3 text-[12px] text-text-2">
+          <span className="tnum">{done}/{total} {L('séries validées', 'sets logged')}</span>
+          {elapsed !== null && <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={L(`Durée de la séance : ${fmtClock(elapsed)}`, `Workout duration: ${fmtClock(elapsed)}`)}>
+            <Timer size={13} className="text-muted" aria-hidden />
+            <span className="seg seg-ghost text-[13px] leading-none text-text tnum" data-ghost={fmtClock(elapsed).replace(/\d/g, '8')} aria-hidden>{fmtClock(elapsed)}</span>
+          </span>}
         </div>
+        <div role="group" aria-label={L('Actions de l’exercice', 'Exercise actions')} className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" icon={<List size={16} aria-hidden />} onClick={() => setExercisePicker(true)} aria-label={L('Choisir un exercice', 'Choose an exercise')} aria-haspopup="dialog">
+            {L('Exercices', 'Exercises')}
+          </Button>
+          <Button variant="soft" size="sm" className="flex-1" disabled={!displayedExercise || displayedExercise.skipped} onClick={showSets} aria-controls={displayedExercise && !displayedExercise.skipped ? `sets-${displayed}` : undefined}>
+            {displayedExercise && hasPendingSets(displayedExercise) ? L('Saisir les séries', 'Log sets') : L('Voir les séries', 'Review sets')}
+            <ArrowDown size={16} aria-hidden />
+          </Button>
+        </div>
+        <ProgressBar className="mt-3" value={total ? done / total : 0} label={L('Séries validées', 'Sets logged')} />
       </div>
 
       {a.reopened && (
@@ -231,30 +253,51 @@ function ActiveSession() {
         </p>
       )}
 
-      <div className="mt-4 space-y-3">
+      <div ref={cardSlot} className="mt-4 scroll-mt-[calc(var(--top-bar)+132px)]">
+        {/* Keep sheet hosts mounted while cards change, so dismissals can finish. */}
         {a.exercises.map((ex, i) => (
-          <ExerciseLogger key={`${ex.exerciseId}-${i}`} index={i} ex={ex} nextName={a.exercises[i + 1]?.name} current={i === current} gymId={gymOf(a)} />
+          <div key={i} hidden={i !== displayed}>
+            <ExerciseLogger index={i} ex={ex} nextName={a.exercises[i + 1]?.name} current={i === current} displayed={i === displayed} gymId={gymOf(a)} />
+          </div>
         ))}
+        {displayed < 0 && <Card className="p-5 text-center">
+          <h2 className="text-[18px] font-semibold">{L('Toutes les séries sont faites', 'All sets done')}</h2>
+          <p className="mt-2 text-[13px] leading-5 text-text-2">{L('Termine ta séance pour voir ton bilan, ou sélectionne un exercice pour corriger une série.', 'Finish your workout to see your summary, or select an exercise to edit a set.')}</p>
+        </Card>}
       </div>
 
-      <Section icon={<StickyNote />} title={L('Notes de séance', 'Workout notes')}>
-        <textarea
-          className={cx(inputClass, 'h-24 resize-none py-2.5')}
-          aria-label={L('Notes de séance', 'Workout notes')}
-          placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')}
-          value={a.notes}
-          onChange={(e) => setSessionField({ notes: e.target.value })}
-        />
-      </Section>
+      <div role="group" aria-label={L('Parcourir les exercices', 'Browse exercises')} className="mt-3 grid grid-cols-2 gap-2">
+        <Button variant="outline" size="sm" icon={<ChevronLeft size={16} aria-hidden />} aria-label={L('Exercice précédent', 'Previous exercise')} disabled={displayed === 0 || !a.exercises.length} onClick={() => chooseExercise(displayed < 0 ? a.exercises.length - 1 : displayed - 1)}>{L('Précédent', 'Previous')}</Button>
+        <Button variant="outline" size="sm" aria-label={L('Exercice suivant', 'Next exercise')} disabled={displayed < 0 || displayed >= a.exercises.length - 1} onClick={() => chooseExercise(displayed + 1)}>{L('Suivant', 'Next')}<ChevronRight size={16} aria-hidden /></Button>
+      </div>
 
-      <Button variant="primary" size="lg" full className="mt-6" icon={<CircleCheck size={18} aria-hidden />} onClick={() => (pending > 0 ? setConfirmFinish(true) : finish())}>
+      <Button variant={pending > 0 ? 'outline' : 'primary'} size="lg" full className="mt-5" icon={<CircleCheck size={18} aria-hidden />} onClick={() => (pending > 0 ? setConfirmFinish(true) : finish())}>
         {L('Terminer la séance', 'Finish workout')}
       </Button>
       <p className="mt-2 text-center text-[12px] text-muted">{pending > 0 ? `${plural(pending, L('série restante', 'set left'), L('séries restantes', 'sets left'))}` : L('Toutes les séries sont validées.', 'All sets are logged.')}</p>
 
+      <Sheet icon={<Dumbbell />} open={exercisePicker} onClose={() => setExercisePicker(false)} title={L('Exercices de la séance', 'Workout exercises')}>
+        <ol className="divide-y divide-line">
+          {a.exercises.map((ex, i) => <li key={`${ex.exerciseId}-${i}`}>
+            <button type="button" onClick={() => chooseExercise(i)} aria-current={i === displayed ? 'step' : undefined} className="pressable flex min-h-14 w-full items-center gap-3 py-3 text-left">
+              <span className={cx('w-6 shrink-0 text-center text-[12px] font-semibold tnum', i === current ? 'text-signal-text' : 'text-muted')}>{!ex.skipped && !hasPendingSets(ex) ? <Check size={18} aria-hidden /> : String(i + 1).padStart(2, '0')}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-medium">{ex.name}</span>
+                <span className="mt-0.5 block text-[12px] text-text-2">{ex.skipped ? L('Non réalisé', 'Not done') : L(`${doneSets(ex).length}/${ex.sets.length} séries validées`, `${doneSets(ex).length}/${ex.sets.length} sets logged`)}</span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
+            </button>
+          </li>)}
+        </ol>
+      </Sheet>
+
       <Sheet icon={<Dumbbell />} open={menu} onClose={() => setMenu(false)} title={L('Séance', 'Workout')}>
         <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Date de la séance', 'Workout date')}</p>
         <DateInput label={L('Date de la séance', 'Workout date')} value={a.date} max={todayISO()} onChange={(v) => v && setSessionField({ date: v })} />
+        <label className="mt-5 block">
+          <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Notes de séance', 'Workout notes')}</span>
+          <textarea className={cx(inputClass, 'h-24 resize-none py-2.5')} placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')} value={a.notes} onChange={(e) => setSessionField({ notes: e.target.value })} />
+        </label>
         <div className="mt-5">
           <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
             {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard workout')}
@@ -299,13 +342,13 @@ const setColumns = 'grid grid-cols-[44px_minmax(0,1fr)_minmax(0,0.9fr)_52px_44px
 /** The skip reason stored by « Passer cet exercice », shown in the current language; other reasons are left as typed. */
 const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : r)
 
-function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; gymId: string }) {
+function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; displayed: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
   const autoLoad = useStore((s) => s.state.prefs.autoLoad)
   const { addSet, removeSet, skipExercise, setExerciseField, undoHint, focusExercise } = useStore.getState()
   const [info, setInfo] = useState(false)
   const [menu, setMenu] = useState(false)
-  const [open, setOpen] = useState(false)
+  const exerciseInfo = infoFor(ex.exerciseId, { name: ex.name })
   const bound = isGymBound(ex)
   // The reference is the last session in the same rep range: an exercise two sessions have in two ranges is followed like for like.
   const { minReps, maxReps } = ex.target
@@ -346,26 +389,6 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
     )
   }
 
-  // Finished exercises fold into one line; tap to reopen (to correct a set).
-  if (allDone && !open) {
-    return (
-      <button
-        type="button"
-        id={`exercise-${index}`}
-        onClick={() => setOpen(true)}
-        className="pressable card flex w-full scroll-mt-[calc(var(--top-bar)+96px)] items-center gap-3 px-4 py-3 text-left hover:border-line-strong"
-        aria-label={L(`${ex.name} terminé : ${setsSummary(ex.sets, ex.unit)}. Ouvrir`, `${ex.name} done: ${setsSummary(ex.sets, ex.unit)}. Open`)}
-      >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal text-signal-ink"><Check size={14} strokeWidth={3} aria-hidden /></span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-medium">{ex.name}</span>
-          <span className="block truncate text-[13px] text-text-2 tnum">{setsSummary(ex.sets, ex.unit)}{validated ? ` · ${validated.text}` : noLoadLeft ? L(' · maximum de répétitions atteint : variante plus difficile', ' · rep target reached: harder variation') : ''}</span>
-        </span>
-        <ChevronDown size={16} className="shrink-0 text-muted" aria-hidden />
-      </button>
-    )
-  }
-
   return (
     <Card
       as="article"
@@ -380,17 +403,26 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
           <h3 className="text-[17px] leading-[1.25] font-semibold tracking-[-0.015em]">{ex.name}</h3>
           <p className="mt-0.5 text-[13px] text-text-2">{ex.muscle}{ex.replacement ? L(` · remplace ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`, ` · replaces ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`) : ''}</p>
         </div>
-        {allDone && <IconButton label={L('Replier', 'Collapse')} onClick={() => setOpen(false)} className="-mt-1.5 -mr-1"><ChevronDown size={19} className="rotate-180" /></IconButton>}
-        <IconButton label={L(`Démo et technique : ${ex.name}`, `Demo and technique: ${ex.name}`)} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
-        <IconButton label={L(`Options : ${ex.name}`, `Options: ${ex.name}`)} onClick={() => setMenu(true)} className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
+        <IconButton label={L(`Détails de l’exercice : ${ex.name}`, `Exercise details: ${ex.name}`)} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
+        <IconButton label={L(`Options : ${ex.name}`, `Options: ${ex.name}`)} onClick={() => setMenu(true)} aria-haspopup="dialog" className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pl-[52px]">
+      <div className="flex flex-wrap items-center gap-x-1.5 px-4 pt-2">
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
+        <EffortGuidance exercise={ex} />
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
-        {(ex.unit !== 'PDC' || !!target) && <Tag tone="outline">{target !== null ? fmtLoad(target, ex.unit) : L('Charge à trouver', 'Find your load')}</Tag>}
       </div>
-      <div className="space-y-1 px-4 pt-2.5 pl-[52px] text-[13px] leading-[1.45]">
+      {displayed && <div className="grid items-center gap-4 px-4 pt-3 pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <DemoFrames key={ex.exerciseId} id={ex.exerciseId} name={ex.name} compact className="mx-auto w-full max-w-[320px]" />
+        {(exerciseInfo.cues.length > 0 || ex.technique) && <section aria-labelledby={`technique-${index}`}>
+          <h4 id={`technique-${index}`} className="text-[14px] font-semibold">{L('Technique', 'Technique')}</h4>
+          {exerciseInfo.cues.length > 0 && <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[13px] leading-5 text-text-2 marker:font-semibold marker:text-signal-text">
+            {exerciseInfo.cues.map((cue, cueIndex) => <li key={cueIndex} className="pl-1">{cue}</li>)}
+          </ol>}
+          {ex.technique && <p className="mt-2 text-[13px] leading-5 text-text">{ex.technique}</p>}
+        </section>}
+      </div>}
+      <div className="space-y-1 border-t border-line px-4 pt-3 text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
             <span className="font-semibold text-text">{L('Première fois dans cette salle.', 'First time at this gym.')}</span> {L(`Charge de ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}) comme départ : ajuste si la machine est différente, l’app retiendra la tienne.`, `Starting from your load at ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}): adjust if the machine is different, the app will remember yours.`)}
@@ -409,12 +441,10 @@ function ExerciseLogger({ index, ex, nextName, current, gymId }: { index: number
         )}
         {lest && !!target && <p className="text-muted">{L('Lest proposé : saisis-le si tu l’ajoutes, sinon la série compte au poids du corps.', 'Suggested added load: type it in if you use it, otherwise the set counts at body weight.')}</p>}
         {ex.note && <p className="text-muted">{ex.note}</p>}
-        {ex.technique && <p className="flex gap-1.5 text-muted"><StickyNote size={13} className="mt-[3px] shrink-0" aria-hidden />{ex.technique}</p>}
         {p?.notes.filter((n) => !isReentryNote(n)).map((n) => <p key={n} className="text-muted">{n}</p>)}
       </div>
 
-      <div className="mt-3 px-3 pb-3">
-        <EffortGuidance exercise={ex} />
+      <div id={`sets-${index}`} role="group" aria-label={L(`Séries : ${ex.name}`, `Sets: ${ex.name}`)} tabIndex={-1} className="mt-3 scroll-mt-[calc(var(--top-bar)+132px)] px-3 pb-3 focus-visible:outline-2 focus-visible:outline-signal">
         <div className={cx(setColumns, 'px-2 pb-1.5 text-center text-[11px] leading-[1.25] font-medium text-text-2')}>
           <span>{L('Série', 'Set')}</span>
           <span>{unitLabel}</span>

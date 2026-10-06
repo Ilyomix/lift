@@ -9,7 +9,7 @@ import { Button, IconButton, Segmented } from './ui'
 
 type ModelHandle = ReturnType<typeof mountExerciseModel>
 
-export function ExerciseDemo({ id, name, className }: { id: string; name: string; className?: string }) {
+export function ExerciseDemo({ id, name, className, compact = false }: { id: string; name: string; className?: string; compact?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const handle = useRef<ModelHandle | null>(null)
   const orbit = useRef<ExerciseOrbit>({ yaw: 0, pitch: 0 })
@@ -133,7 +133,7 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
         </Button>}
       </div>
       <div className="mt-2">
-        <Segmented<ExerciseView>
+        {!compact && <Segmented<ExerciseView>
           layout="fit"
           label={L('Vue du modèle', 'Model view')}
           value={ready && !rotated ? view : undefined}
@@ -144,7 +144,7 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
             { value: 'front', label: L('Face', 'Front') },
             { value: 'back', label: L('Dos', 'Back') },
           ]}
-        />
+        />}
         <p className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-muted">
           <Hand size={14} strokeWidth={1.75} className="hidden shrink-0 [@media(pointer:coarse)]:block" aria-hidden />
           <MousePointer2 size={14} strokeWidth={1.75} className="shrink-0 [@media(pointer:coarse)]:hidden" aria-hidden />
@@ -152,12 +152,12 @@ export function ExerciseDemo({ id, name, className }: { id: string; name: string
           <span className="[@media(pointer:coarse)]:hidden">{L('Glisser pour tourner', 'Drag to rotate')}</span>
         </p>
       </div>
-      <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
-        {direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span className="min-w-0"><strong className="font-semibold">{L(direct.length === 1 ? 'Muscle principal : ' : 'Muscles principaux : ', direct.length === 1 ? 'Primary muscle: ' : 'Primary muscles: ')}</strong>{direct.join(', ')}</span></p>}
-        {secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span className="min-w-0"><strong className="font-semibold">{L(secondary.length === 1 ? 'Muscle secondaire : ' : 'Muscles secondaires : ', secondary.length === 1 ? 'Secondary muscle: ' : 'Secondary muscles: ')}</strong>{secondary.join(', ')}</span></p>}
-        {!direct.length && !secondary.length && <p>{L('Consulte la vidéo de référence pour les muscles sollicités.', 'See the reference video for the muscles involved.')}</p>}
+      {(!compact || !animated) && <figcaption className="mt-2 space-y-1.5 text-[12px] leading-[1.45] text-text-2">
+        {!compact && direct.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal" /><span className="min-w-0"><strong className="font-semibold">{L(direct.length === 1 ? 'Muscle principal : ' : 'Muscles principaux : ', direct.length === 1 ? 'Primary muscle: ' : 'Primary muscles: ')}</strong>{direct.join(', ')}</span></p>}
+        {!compact && secondary.length > 0 && <p className="flex gap-2"><span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal opacity-40" /><span className="min-w-0"><strong className="font-semibold">{L(secondary.length === 1 ? 'Muscle secondaire : ' : 'Muscles secondaires : ', secondary.length === 1 ? 'Secondary muscle: ' : 'Secondary muscles: ')}</strong>{secondary.join(', ')}</span></p>}
+        {!compact && !direct.length && !secondary.length && <p>{L('Consulte la vidéo de référence pour les muscles sollicités.', 'See the reference video for the muscles involved.')}</p>}
         {!animated && <p className="pt-1 text-muted">{L('Vue anatomique uniquement. Consulte les consignes et une vidéo de référence pour le mouvement.', 'Anatomy view only. Check the exercise instructions and a reference video for the movement.')}</p>}
-      </figcaption>
+      </figcaption>}
     </figure>
   )
 }
