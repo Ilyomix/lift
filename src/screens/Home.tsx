@@ -92,18 +92,23 @@ export function Home() {
           <p className="ml-auto shrink-0 text-[22px] leading-none font-semibold tnum">{L(`${pct} %`, `${pct}%`)}</p>
         </div>
         <div className="mt-3"><SessionTrack plan={plan} /></div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <Button variant="outline" size="sm" className="max-w-full" onClick={() => setGoalOpen(true)}
+        <div className="mt-3 grid grid-cols-[3fr_2fr] items-stretch gap-2">
+          <Button variant="outline" size="sm" full className="h-full" onClick={() => setGoalOpen(true)}
             aria-label={cycle ? L('Mode entretien, sans date objectif, modifier', 'Maintenance mode, no goal date, edit') : L(`Objectif le ${fmtDate(GOAL_DATE, { long: true, year: true })}, modifier`, `Goal date ${fmtDate(GOAL_DATE, { long: true, year: true })}, edit`)}
           >
             {cycle ? <InfinityIcon size={18} className="shrink-0 text-signal-text" aria-hidden /> : <Flag size={18} className="shrink-0 text-signal-text" aria-hidden />}
-            <span className="min-w-0 text-left">
-              <span className="flex items-center gap-2 text-[13px] leading-5 font-semibold">{cycle ? L('Entretien', 'Maintenance') : fmtDate(GOAL_DATE, { long: true, year: true })}<Pencil size={12} className="text-muted" aria-hidden /></span>
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-[13px] leading-5 font-semibold">{cycle ? L('Entretien', 'Maintenance') : fmtDate(GOAL_DATE, { long: true, year: true })}</span>
               <span className="block text-[12px] leading-[18px] text-text-2 tnum">{cycle ? L(`Cycle jusqu’au ${fmtDate(cycle.end)}`, `Cycle until ${fmtDate(cycle.end)}`) : ctx.after ? L('Programme terminé', 'Program complete') : plural(weeksLeft, L('semaine restante', 'week left'), L('semaines restantes', 'weeks left'))}</span>
             </span>
+            <Pencil size={14} className="text-muted" aria-hidden />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('calendrier/programme')} aria-label={L('Voir le programme', 'View program')}>
-            {L('Programme', 'Program')}<ArrowRight size={16} aria-hidden />
+          <Button variant="outline" size="sm" full className="h-full" onClick={() => navigate('calendrier/programme')} aria-label={L('Voir le programme', 'View program')}>
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-[13px] leading-5 font-semibold">{L('Programme', 'Program')}</span>
+              <span className="block text-[12px] leading-[18px] text-text-2">{L('Voir les étapes', 'View stages')}</span>
+            </span>
+            <ArrowRight size={16} className="text-signal-text" aria-hidden />
           </Button>
         </div>
       </section>
