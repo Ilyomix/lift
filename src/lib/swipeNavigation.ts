@@ -14,6 +14,7 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
   context: () => SwipeContext
   excluded: (target: EventTarget | null) => boolean
   blocked: () => boolean
+  edgeInset?: number
   perform: (action: SwipeAction, release: SwipeRelease) => void
   drag?: (offset: number, action: SwipeAction) => void
   cancel?: () => void
@@ -38,8 +39,9 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
     const touch = event.touches[0]
     const context = { ...options.context() }
     const x = touch.clientX - context.left
-    // Preserve the system's screen-edge gestures, including Safari Back/Forward.
-    if (x < 20 || x > context.width - 20) return
+    // Browsers own Back/Forward at the edges; the native shell has no such handler.
+    const edgeInset = options.edgeInset ?? 20
+    if (x < edgeInset || x > context.width - edgeInset) return
     const tab = mainRouteIndex(context.path)
     if (tab < 0 && !context.canGoBack) return
     candidate = { id: touch.identifier, x: touch.clientX, y: touch.clientY, context, tab, direction: 0 }
@@ -106,7 +108,9 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
 const INTERACTIVE = 'input, textarea, select, nav, canvas, video, audio, iframe, [contenteditable]:not([contenteditable="false"]), [role="slider"], [role="tab"], [role="tablist"], [role="switch"], [role="spinbutton"], [role="combobox"], [role="listbox"], [draggable="true"], [data-swipe-ignore]'
 
 export function excludesSwipeTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element) || !target.closest('main') || target.closest(INTERACTIVE)) return true
+  if (!(target instanceof Element)) return true
+  const surface = target.closest('.route-surface')
+  if (!surface || target.closest(INTERACTIVE)) return true
   for (let node: Element | null = target; node; node = node.parentElement) {
     const style = getComputedStyle(node)
     // Reorder grips reserve all touch motion. The chart's SVG pan-y surface
@@ -116,7 +120,7 @@ export function excludesSwipeTarget(target: EventTarget | null): boolean {
       || (style.touchAction.split(' ').includes('pan-y') && node.closest('svg'))) return true
     // Keep carousels, segmented scrollers and tables in control even at their ends.
     if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(style.overflowX)) return true
-    if (node.tagName === 'MAIN') break
+    if (node === surface) break
   }
   return false
 }

@@ -3,6 +3,7 @@ import { canGoBack, decodeRouteHash, goBack, isDirectRouteChange, navigate, navi
 import { bindSwipeNavigation, excludesSwipeTarget } from '../lib/swipeNavigation'
 import { pageOffsets, routeDirection, settlePageEntrance, snapshotPage, type PageSnapshot } from '../lib/routeTransition'
 import { useStore } from '../lib/store'
+import { isNative } from '../lib/native/bridge'
 
 /** One live route. Previous pages are inert visual copies, never mounted twice. */
 export function SwipeNavigation({ path }: { path: string[] }) {
@@ -94,6 +95,7 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
       return { path: route, left: bounds.left, width: bounds.width, scrollY: window.scrollY, canGoBack: canGoBack() }
     },
     excluded: excludesSwipeTarget,
+    edgeInset: isNative() ? 0 : 20,
     blocked: () => settling || !!document.querySelector('[aria-modal="true"], dialog[open]')
       || !!document.activeElement?.matches('input, textarea, select, [contenteditable]:not([contenteditable="false"])')
       || !!window.getSelection()?.toString(),

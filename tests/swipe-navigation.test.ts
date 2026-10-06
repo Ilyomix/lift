@@ -3,7 +3,7 @@ import test from 'node:test'
 import { bindSwipeNavigation, excludesSwipeTarget, mainRouteIndex, type SwipeAction, type SwipeContext, type SwipeRelease } from '../src/lib/swipeNavigation'
 
 const point = (identifier: number, clientX: number, clientY: number) => ({ identifier, clientX, clientY })
-function fixture(path = '', canGoBack = false) {
+function fixture(path = '', canGoBack = false, edgeInset = 20) {
   const target = new EventTarget()
   const actions: SwipeAction[] = []
   const previews: SwipeAction[] = []
@@ -12,7 +12,7 @@ function fixture(path = '', canGoBack = false) {
   const context: SwipeContext = { path, left: 0, width: 390, scrollY: 0, canGoBack }
   let excluded = false, blocked = false
   const cleanup = bindSwipeNavigation(target as unknown as Document, {
-    context: () => context, excluded: () => excluded, blocked: () => blocked,
+    context: () => context, excluded: () => excluded, blocked: () => blocked, edgeInset,
     perform: (action, release) => { actions.push(action); releases.push(release) },
     drag: (offset, action) => { drags.push(offset); previews.push(action) }, cancel: () => { cancellations++ },
   })
@@ -160,6 +160,20 @@ test('outer 20 pixels remain reserved to browser/system gestures', () => {
   f.cleanup()
 })
 
+test('native pages accept both screen edges, including Back from a detail page', () => {
+  const f = fixture('seance', true, 0)
+  assert.equal(f.swipe(1, 120), true)
+  assert.deepEqual(f.actions.at(-1), { type: 'navigate', path: '' })
+  assert.equal(f.swipe(389, 250), true)
+  assert.deepEqual(f.actions.at(-1), { type: 'navigate', path: 'calendrier' })
+  f.context.path = 'plus/reglages'
+  assert.equal(f.swipe(1, 120), true)
+  assert.deepEqual(f.actions.at(-1), { type: 'back' })
+  assert.equal(f.swipe(-1, 120), false, 'outside the page is still excluded')
+  assert.equal(f.swipe(391, 250), false)
+  f.cleanup()
+})
+
 test('vertical intent is never reclaimed after it turns horizontal', () => {
   const f = fixture('seance')
   f.send('touchstart', [point(1, 220, 100)], 0)
@@ -263,11 +277,11 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
     scrollWidth = 300
     overflowX = 'visible'
     touchAction = 'auto'
-    constructor(readonly tagName: string, readonly parentElement: ElementStub | null = null, readonly ignore = false) {}
+    constructor(readonly tagName: string, readonly parentElement: ElementStub | null = null, readonly ignore = false, readonly className = '') {}
     closest(selector: string): ElementStub | null {
       const selectors = selector.split(',').map(s => s.trim())
       for (let node: ElementStub | null = this; node; node = node.parentElement) {
-        if (selectors.includes(node.tagName.toLowerCase()) || (node.ignore && selectors.includes('[data-swipe-ignore]'))) return node
+        if (selectors.includes(node.tagName.toLowerCase()) || selectors.includes(`.${node.className}`) || (node.ignore && selectors.includes('[data-swipe-ignore]'))) return node
       }
       return null
     }
@@ -277,8 +291,11 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
   Object.defineProperty(globalThis, 'Element', { value: ElementStub, configurable: true })
   Object.defineProperty(globalThis, 'getComputedStyle', { value: (node: ElementStub) => ({ overflowX: node.overflowX, touchAction: node.touchAction }), configurable: true })
   try {
-    const main = new ElementStub('MAIN')
+    const surface = new ElementStub('DIV', null, false, 'route-surface')
+    const main = new ElementStub('MAIN', surface)
     const check = (target: ElementStub) => excludesSwipeTarget(target as unknown as EventTarget)
+    assert.equal(check(surface), false, 'blank space below a short page is navigable')
+    assert.equal(check(new ElementStub('DIV', surface)), false, 'page margins outside main are navigable')
     assert.equal(check(new ElementStub('SPAN', new ElementStub('BUTTON', main))), false)
     assert.equal(check(new ElementStub('SPAN', new ElementStub('A', main))), false)
     assert.equal(check(new ElementStub('SPAN', new ElementStub('DIV', main, true))), true)
