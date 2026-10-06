@@ -15,10 +15,10 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
   excluded: (target: EventTarget | null) => boolean
   blocked: () => boolean
   perform: (action: SwipeAction, release: SwipeRelease) => void
-  drag?: (offset: number) => void
+  drag?: (offset: number, action: SwipeAction) => void
   cancel?: () => void
 }) {
-  type Candidate = { id: number; x: number; y: number; time: number; context: SwipeContext; tab: number; direction: number }
+  type Candidate = { id: number; x: number; y: number; context: SwipeContext; tab: number; direction: number }
   let candidate: Candidate | undefined
   const clear = () => {
     const claimed = !!candidate?.direction
@@ -42,11 +42,11 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
     if (x < 20 || x > context.width - 20) return
     const tab = mainRouteIndex(context.path)
     if (tab < 0 && !context.canGoBack) return
-    candidate = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: event.timeStamp, context, tab, direction: 0 }
+    candidate = { id: touch.identifier, x: touch.clientX, y: touch.clientY, context, tab, direction: 0 }
   }
   const valid = (event: TouchEvent, start: Candidate) => {
     const now = options.context()
-    return event.timeStamp - start.time <= 900 && !event.defaultPrevented && !options.blocked()
+    return !event.defaultPrevented && !options.blocked()
       && now.path === start.context.path && now.width === start.context.width
       && Math.abs(now.scrollY - start.context.scrollY) <= 4
   }
@@ -57,13 +57,18 @@ export function bindSwipeNavigation(element: HTMLElement | Document, options: {
     const touch = event.touches[0]
     if (touch.identifier !== current.id) { clear(); return }
     const dx = touch.clientX - current.x, dy = touch.clientY - current.y
-    if (!current.direction && Math.max(Math.abs(dx), Math.abs(dy)) < 12) return
+    // Safari can take ownership after the first unprevented touchmove. Reserve
+    // a clearly horizontal move immediately, even below 12 px; still leave
+    // tiny ambiguous/vertical motion alone so ordinary scrolling can begin.
+    const horizontal = dx !== 0 && Math.abs(dx) >= Math.abs(dy) * 2
+    if (!current.direction && Math.max(Math.abs(dx), Math.abs(dy)) < 12 && !horizontal) return
     if (Math.abs(dx) < Math.abs(dy) * 2 || (current.direction && dx !== 0 && Math.sign(dx) !== current.direction)) { clear(); return }
     const direction = current.direction || Math.sign(dx)
-    if (!action(current, direction)) { clear(); return }
+    const next = action(current, direction)
+    if (!next) { clear(); return }
     current.direction = direction
     event.preventDefault()
-    options.drag?.(Math.max(-current.context.width, Math.min(current.context.width, dx)))
+    options.drag?.(Math.max(-current.context.width, Math.min(current.context.width, dx)), next)
   }
   const end = (event: TouchEvent) => {
     const current = candidate
@@ -104,9 +109,11 @@ export function excludesSwipeTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element) || !target.closest('main') || target.closest(INTERACTIVE)) return true
   for (let node: Element | null = target; node; node = node.parentElement) {
     const style = getComputedStyle(node)
-    // Reorder handles reserve all touch motion; charts reserve horizontal motion
-    // while letting the browser scroll vertically. Neither uses HTML draggable.
-    if (style.touchAction === 'none' || style.touchAction.split(' ').includes('pan-y')) return true
+    // Reorder grips reserve all touch motion. The chart's SVG pan-y surface
+    // owns horizontal scrubbing; pan-y on an ordinary page only allows native
+    // vertical scrolling and must not disable horizontal page navigation.
+    if (style.touchAction === 'none'
+      || (style.touchAction.split(' ').includes('pan-y') && node.closest('svg'))) return true
     // Keep carousels, segmented scrollers and tables in control even at their ends.
     if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(style.overflowX)) return true
     if (node.tagName === 'MAIN') break

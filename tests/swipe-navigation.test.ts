@@ -6,6 +6,7 @@ const point = (identifier: number, clientX: number, clientY: number) => ({ ident
 function fixture(path = '', canGoBack = false) {
   const target = new EventTarget()
   const actions: SwipeAction[] = []
+  const previews: SwipeAction[] = []
   const drags: number[] = [], releases: SwipeRelease[] = []
   let cancellations = 0
   const context: SwipeContext = { path, left: 0, width: 390, scrollY: 0, canGoBack }
@@ -13,7 +14,7 @@ function fixture(path = '', canGoBack = false) {
   const cleanup = bindSwipeNavigation(target as unknown as Document, {
     context: () => context, excluded: () => excluded, blocked: () => blocked,
     perform: (action, release) => { actions.push(action); releases.push(release) },
-    drag: offset => drags.push(offset), cancel: () => { cancellations++ },
+    drag: (offset, action) => { drags.push(offset); previews.push(action) }, cancel: () => { cancellations++ },
   })
   const send = (type: string, touches: ReturnType<typeof point>[], time: number, changed = touches, cancelable = true, prevented = false) => {
     const event = new Event(type, { cancelable })
@@ -28,18 +29,19 @@ function fixture(path = '', canGoBack = false) {
     send('touchend', [], duration, [point(1, toX, 100 + dy)])
     return claimed
   }
-  return { actions, drags, releases, get cancellations() { return cancellations }, context, cleanup, send, swipe, exclude: () => { excluded = true }, block: () => { blocked = true } }
+  return { actions, drags, previews, releases, get cancellations() { return cancellations }, context, cleanup, send, swipe, exclude: () => { excluded = true }, block: () => { blocked = true } }
 }
 
-test('claimed horizontal moves follow the finger and release carries actual direction and width', () => {
+test('the first small horizontal move is claimed before the browser takes scrolling ownership', () => {
   const f = fixture('seance')
-  f.send('touchstart', [point(1, 240, 100)], 0)
-  f.send('touchmove', [point(1, 234, 100)], 20)
-  assert.deepEqual(f.drags, [], 'movement below intent threshold does not move the page')
+  f.send('touchstart', [point(1, 240, 100)], 0, undefined, false)
+  assert.equal(f.send('touchmove', [point(1, 234, 101)], 20), true,
+    'prevent the default action of the first clearly horizontal move, not only later large moves')
   f.send('touchmove', [point(1, 210, 100)], 50)
   f.send('touchmove', [point(1, 170, 100)], 100)
   f.send('touchend', [], 150, [point(1, 155, 100)])
-  assert.deepEqual(f.drags, [-30, -70])
+  assert.deepEqual(f.drags, [-6, -30, -70])
+  assert.deepEqual(f.previews, Array(3).fill({ type: 'navigate', path: 'calendrier' }))
   assert.deepEqual(f.releases, [{ offset: -85, width: 390 }])
   assert.equal(f.cancellations, 0, 'successful release must not snap back before navigating')
   f.cleanup()
@@ -79,7 +81,7 @@ test('claimed drag cancellation clears visual ownership on interruption and unmo
 
 test('deliberate swipes follow tab order, including a slow accessible swipe', () => {
   const f = fixture('seance')
-  assert.equal(f.swipe(240, 140, 8, 850), true)
+  assert.equal(f.swipe(240, 140, 8, 1800), true)
   assert.deepEqual(f.actions, [{ type: 'navigate', path: 'calendrier' }])
   f.context.path = 'calendrier'
   f.swipe(140, 240)
@@ -137,6 +139,11 @@ test('program tab follows Calendar navigation while its editor supports back fro
 
 test('secondary pages return from any content area and only with real history', () => {
   const f = fixture('plus/reglages', true)
+  f.send('touchstart', [point(1, 100, 100)], 0)
+  f.send('touchmove', [point(1, 106, 100)], 25)
+  assert.deepEqual(f.previews, [{ type: 'back' }], 'destination is known while the finger is still down')
+  assert.deepEqual(f.actions, [], 'preview does not navigate before release')
+  f.send('touchcancel', [], 40)
   assert.equal(f.swipe(100, 220), true)
   assert.deepEqual(f.actions, [{ type: 'back' }])
   f.context.canGoBack = false
@@ -163,16 +170,41 @@ test('vertical intent is never reclaimed after it turns horizontal', () => {
   f.cleanup()
 })
 
-test('diagonal, short, overlong and reversed gestures cannot navigate', () => {
+test('diagonal, short and reversed gestures cannot navigate', () => {
   const f = fixture('seance')
   assert.equal(f.swipe(220, 140, 70), false)
   f.swipe(220, 175)
-  f.swipe(220, 140, 0, 950)
   f.send('touchstart', [point(1, 220, 100)], 0)
   f.send('touchmove', [point(1, 190, 100)], 100)
   assert.equal(f.send('touchmove', [point(1, 300, 100)], 200), false)
   f.send('touchend', [], 300, [point(1, 300, 100)])
   assert.deepEqual(f.actions, [])
+  f.cleanup()
+})
+
+test('a stationary hold and an ambiguous small diagonal do not claim a gesture', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 220, 100)], 0)
+  assert.equal(f.send('touchmove', [point(1, 220, 100)], 1000), false)
+  assert.equal(f.send('touchmove', [point(1, 216, 104)], 1100), false)
+  assert.deepEqual(f.drags, [])
+  assert.equal(f.send('touchmove', [point(1, 213, 130)], 1200), false)
+  assert.equal(f.send('touchmove', [point(1, 100, 130)], 1400), false)
+  f.send('touchend', [], 1500, [point(1, 100, 130)])
+  assert.deepEqual(f.actions, [])
+  f.cleanup()
+})
+
+test('a claimed drag remains interactive after a pause and can still be cancelled', () => {
+  const f = fixture('seance')
+  f.send('touchstart', [point(1, 240, 100)], 0)
+  assert.equal(f.send('touchmove', [point(1, 200, 100)], 50), true)
+  assert.equal(f.send('touchmove', [point(1, 170, 100)], 1600), true)
+  assert.equal(f.send('touchmove', [point(1, 235, 100)], 2200), true)
+  assert.equal(f.send('touchend', [], 2500, [point(1, 235, 100)]), true)
+  assert.deepEqual(f.drags, [-40, -70, -5])
+  assert.deepEqual(f.actions, [])
+  assert.equal(f.cancellations, 1)
   f.cleanup()
 })
 
@@ -251,6 +283,8 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
     assert.equal(check(new ElementStub('SPAN', new ElementStub('A', main))), false)
     assert.equal(check(new ElementStub('SPAN', new ElementStub('DIV', main, true))), true)
     assert.equal(check(new ElementStub('CANVAS', main)), true)
+    assert.equal(check(new ElementStub('INPUT', main)), true)
+    assert.equal(check(new ElementStub('SELECT', main)), true)
     const reorderHandle = new ElementStub('BUTTON', main)
     reorderHandle.touchAction = 'none'
     assert.equal(check(new ElementStub('SVG', reorderHandle)), true, 'a sortable grip owns touch even though it is an ordinary button')
@@ -261,6 +295,15 @@ test('exclusion uses ancestors for button text, the entire 3D viewport and horiz
     scroller.scrollWidth = 600; scroller.overflowX = 'auto'
     assert.equal(check(new ElementStub('P', scroller)), true)
     assert.equal(check(new ElementStub('P', main)), false)
+    main.touchAction = 'pan-y'
+    assert.equal(check(new ElementStub('P', main)), false,
+      'a page that permits native vertical panning must still allow app horizontal navigation')
+    assert.equal(check(chart), true, 'the chart still owns its own horizontal scrubbing')
+    main.touchAction = 'pan-y pinch-zoom'
+    assert.equal(check(new ElementStub('P', main)), false, 'pinch zoom can remain allowed on the page')
+    const pageSection = new ElementStub('DIV', main)
+    pageSection.touchAction = 'pan-y'
+    assert.equal(check(new ElementStub('SPAN', pageSection)), false)
     assert.equal(check(new ElementStub('P')), true)
   } finally {
     if (originalElement) Object.defineProperty(globalThis, 'Element', originalElement)

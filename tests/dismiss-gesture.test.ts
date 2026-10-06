@@ -3,10 +3,11 @@ import test from 'node:test'
 import { bindDismissGesture, createDismissMotion } from '../src/lib/dismissGesture'
 
 const point = (x: number, y: number, id = 1) => ({ clientX: x, clientY: y, identifier: id })
-function fixture(allowed = true) {
+function fixture(allowed = true, height = 400) {
   const target = new EventTarget()
   const drags: number[] = [], releases: boolean[] = []
   const cleanup = bindDismissGesture(target as unknown as HTMLElement, {
+    height: () => height,
     canStart: () => allowed, drag: dy => drags.push(dy), release: dismissed => releases.push(dismissed),
   })
   const send = (type: string, touches: ReturnType<typeof point>[], time: number, changed = touches, cancelable = true) => {
@@ -33,10 +34,30 @@ test('downward pull dismisses; short pull returns to its original position', () 
   f.cleanup()
 })
 
-test('a deliberate downward flick dismisses without needing a long drag', () => {
+test('a small quick flick returns instead of disappearing, regardless of release speed', () => {
   const f = fixture()
-  f.pull(60, 100)
-  assert.deepEqual(f.releases, [true])
+  for (const distance of [48, 60, 100, 119]) f.pull(distance, 80)
+  assert.deepEqual(f.releases, [false, false, false, false])
+  f.cleanup()
+})
+
+test('dismissal requires a substantial pull scaled to the visible panel height', () => {
+  for (const [height, threshold] of [[300, 120], [600, 150], [844, 200]]) {
+    const f = fixture(true, height)
+    f.pull(threshold - 1, 80)
+    f.pull(threshold, 800)
+    assert.deepEqual(f.releases, [false, true], `height ${height}: quick short pull returns, deliberate long pull closes`)
+    f.cleanup()
+  }
+})
+
+test('pulling back deliberately cancels even while still past the dismissal distance', () => {
+  const f = fixture()
+  f.send('touchstart', [point(100, 100)], 0)
+  f.send('touchmove', [point(100, 300)], 300)
+  f.send('touchmove', [point(100, 250)], 400)
+  f.send('touchend', [], 450, [point(100, 250)])
+  assert.deepEqual(f.releases, [false])
   f.cleanup()
 })
 
@@ -91,7 +112,7 @@ test('the first small downward move is owned before Safari can start scrolling',
   assert.deepEqual(f.drags, [4], 'the sheet already follows the finger below the old 12px threshold')
   assert.equal(f.send('touchmove', [point(101, 168)], 64), true)
   f.send('touchend', [], 100, [point(101, 168)])
-  assert.deepEqual(f.releases, [true])
+  assert.deepEqual(f.releases, [false], 'claiming the first move must not make a small pull dismiss')
   f.cleanup()
 })
 
@@ -171,6 +192,20 @@ test('reduced motion has no spatial drag or exit, retaining fade feedback and cl
   assert.equal(f.panel.style.opacity, '0')
   t.mock.timers.tick(100)
   assert.equal(f.closes(), 1)
+  f.motion.dispose()
+})
+
+test('a short pull restores the panel and backdrop with reduced motion, without closing', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const f = motionFixture(true)
+  f.motion.drag(60)
+  f.motion.release(false)
+  assert.equal(f.panel.style.transform, 'none')
+  assert.equal(f.panel.style.opacity, '1')
+  assert.equal(f.backdrop.style.opacity, '1')
+  t.mock.timers.tick(100)
+  assert.equal(f.motion.settling, false)
+  assert.equal(f.closes(), 0)
   f.motion.dispose()
 })
 

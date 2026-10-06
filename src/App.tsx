@@ -99,12 +99,6 @@ export default function App() {
   // Keep Calendar's selected month when switching its two top-level tabs.
   const screenKey = routeKey === 'calendrier' || routeKey === 'calendrier/programme' ? 'calendrier' : routeKey
 
-  useLayoutEffect(() => {
-    // Hash links also navigate without calling navigate(). Reset after the
-    // destination mounts, so a long source page cannot leave it scrolled down.
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [routeKey])
-
   useEffect(() => {
     void useStore.getState().init()
     const flush = () => void useStore.getState().flush()

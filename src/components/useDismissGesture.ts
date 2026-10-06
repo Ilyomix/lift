@@ -13,6 +13,7 @@ export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: b
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const motion = createDismissMotion(panel, backdrop?.current ?? null, reduced, () => close.current())
     const unbind = bindDismissGesture(panel, {
+      height: () => panel.getBoundingClientRect().height,
       canStart: target => {
         if (motion.settling || !(target instanceof Element) || target.closest(CONTROLS)) return false
         if (document.activeElement?.matches('input, textarea, select, [contenteditable]')) return false

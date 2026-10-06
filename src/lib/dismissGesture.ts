@@ -1,10 +1,11 @@
 /** A downward pull owns the gesture only after vertical intent is established. */
 export function bindDismissGesture(element: HTMLElement, options: {
+  height: () => number
   canStart: (target: EventTarget | null) => boolean
   drag: (distance: number) => void
   release: (dismiss: boolean) => void
 }) {
-  type Pull = { id: number; x: number; y: number; time: number; distance: number; claimed: boolean }
+  type Pull = { id: number; x: number; y: number; threshold: number; peak: number; claimed: boolean }
   let pull: Pull | undefined
   const cancel = () => {
     if (pull?.claimed) options.release(false)
@@ -14,7 +15,10 @@ export function bindDismissGesture(element: HTMLElement, options: {
     cancel()
     if (event.touches.length !== 1 || event.defaultPrevented || !options.canStart(event.target)) return
     const touch = event.touches[0]
-    pull = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: event.timeStamp, distance: 0, claimed: false }
+    // A small flick must return, including on full-height rest panels. Freeze
+    // the threshold for this gesture so content changes cannot decide its fate.
+    const threshold = Math.max(120, Math.min(200, options.height() * 0.25))
+    pull = { id: touch.identifier, x: touch.clientX, y: touch.clientY, threshold, peak: 0, claimed: false }
   }
   const move = (event: TouchEvent) => {
     if (!pull) return
@@ -30,8 +34,8 @@ export function bindDismissGesture(element: HTMLElement, options: {
       pull.claimed = true
     }
     event.preventDefault()
-    pull.distance = Math.max(0, dy)
-    options.drag(pull.distance)
+    pull.peak = Math.max(pull.peak, dy)
+    options.drag(Math.max(0, dy))
   }
   const end = (event: TouchEvent) => {
     const current = pull
@@ -41,9 +45,10 @@ export function bindDismissGesture(element: HTMLElement, options: {
     const touch = Array.from(event.changedTouches).find(point => point.identifier === current.id)
     if (!touch) { options.release(false); return }
     const dy = touch.clientY - current.y
-    const duration = Math.max(1, event.timeStamp - current.time)
-    // A short deliberate flick or a longer pull; reversing before release cancels.
-    const dismiss = dy >= 100 || (dy >= 48 && dy / duration >= 0.5)
+    // Distance, not speed, confirms closing. A clear reversal expresses the
+    // intent to keep the panel, even if it is still below its starting point.
+    const reversed = current.peak - dy >= 24
+    const dismiss = dy >= current.threshold && !reversed
     if (event.cancelable) event.preventDefault()
     options.release(dismiss)
   }

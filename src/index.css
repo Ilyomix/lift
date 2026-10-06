@@ -406,6 +406,29 @@
   /* Clip horizontal page motion without creating a vertical scroll container. */
   overflow-x: clip;
 }
+.route-surface {
+  min-height: 100dvh;
+  background: var(--bg);
+  /* Reserve horizontal navigation before WebKit commits a native scroll. */
+  touch-action: pan-y pinch-zoom;
+}
+.route-viewport[data-route-moving] .screen-in {
+  animation: none;
+}
+.route-transition-copy {
+  position: fixed;
+  top: 0;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  z-index: 30;
+  pointer-events: none;
+  contain: layout paint;
+}
+.route-transition-copy *, .route-transition-copy *::before, .route-transition-copy *::after {
+  animation: none !important;
+  transition: none !important;
+}
 
 @keyframes sheet-up {
   from { transform: translateY(100%); }

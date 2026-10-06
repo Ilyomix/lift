@@ -39,3 +39,8 @@ export function back(fallback: string) {
 
 export const canGoBack = () => navigationHistory().canGoBack()
 export const goBack = () => navigationHistory().goBack()
+export const navigationPosition = () => navigationHistory().position()
+export const previousRoute = () => {
+  const hash = navigationHistory().previousHash()
+  return hash === undefined ? undefined : decodeRouteHash(hash).join('/')
+}
