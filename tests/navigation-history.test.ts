@@ -137,3 +137,18 @@ test('replacing a previous tab updates the preview destination of an existing fo
   assert.equal(f.location.hash, '#/progres/corps')
   f.tracker.dispose()
 })
+
+test('a replaced calendar tab remains the back preview after forward traversal and reload', () => {
+  const f = fixture('#/calendrier')
+  f.tracker.navigate('#/seance/workout-id')
+  f.tracker.goBack()
+  f.tracker.navigate('#/calendrier/programme', true)
+  f.history.forward()
+  f.tracker.dispose()
+
+  const resumed = createNavigationHistory(f.host)
+  assert.equal(resumed.previousHash(), '#/calendrier/programme')
+  resumed.goBack()
+  assert.equal(f.location.hash, '#/calendrier/programme')
+  resumed.dispose()
+})

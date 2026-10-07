@@ -7,7 +7,7 @@ import {
   ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SlidersHorizontal, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
-import { capitalize, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
+import { capitalize, fmtDate, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
@@ -69,7 +69,7 @@ function SessionPreview() {
   return (
     <Screen>
       <Header
-        eyebrow={isNext ? `${L('Prochaine séance', 'Next workout')} · ${planned[0] ? fmtRelativeDay(planned[0].date, today) : ''}` : L('Autre séance', 'Another workout')}
+        eyebrow={today < PROGRAM_START ? L('Séance d’essai', 'Trial workout') : L('S’entraîner aujourd’hui', 'Train today')}
         art={workoutArt[type]}
         title={TYPE_META[type].label}
         sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}

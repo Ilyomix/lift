@@ -22,6 +22,9 @@ import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { AppIcon } from './Onboarding'
 import { workoutArt } from '../components/SportArt'
+import type { ISODate } from '../lib/types'
+import { sessionExercises } from '../lib/exerciseReplacement'
+import { CalendarDaySheet } from '../components/CalendarDaySheet'
 import { useSessionStart } from '../components/useSessionStart'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
@@ -31,6 +34,7 @@ export function Home() {
   const { start, confirmation } = useSessionStart(() => navigate('seance'))
   const [goalOpen, setGoalOpen] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
+  const [day, setDay] = useState<ISODate | null>(null)
   const today = todayISO()
   const ctx = contextAt(today)
   const plan = useMemo(() => sessionPlan(state, today), [state, today])
@@ -66,7 +70,7 @@ export function Home() {
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
   const nextDate = next?.date ?? today
   const nextCtx = contextAt(nextDate < PROGRAM_START ? PROGRAM_START : nextDate)
-  const nextSets = prescribeSession(state.templates[nextType].exercises, nextCtx.date, state.reentry, undefined, state.workouts).reduce((a, p) => a + p.sets, 0)
+  const nextSets = prescribeSession(sessionExercises(state, nextType), nextCtx.date, state.reentry, state.gymId, state.workouts).reduce((a, p) => a + p.sets, 0)
   const nextMinutes = sessionMinutes(nextType, nextSets, sessionPace(state.workouts, nextType))
 
   const begin = () => {
@@ -163,7 +167,7 @@ export function Home() {
               {active ? L('Reprendre', 'Resume') : restToday ? L('M’entraîner', 'Train today') : L('Commencer', 'Start')}
             </Button>
             {!active && (
-              <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
+              <Button variant="outline" size="lg" onClick={() => next ? setDay(nextDate) : navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
                 {L('Détail', 'Details')}
               </Button>
             )}
@@ -172,7 +176,7 @@ export function Home() {
       </Section>
 
       <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'workouts')}</span>}>
-        <WeekStrip days={week} />
+        <WeekStrip days={week} onSelect={setDay} />
       </Section>
 
       <Section art="trophy" title={L('Objectifs', 'Goals')} action={<Button variant="outline" size="sm" onClick={() => navigate('progres')}>{L('Progrès', 'Progress')} <ArrowRight size={16} aria-hidden /></Button>}>
@@ -265,6 +269,7 @@ export function Home() {
             : []),
         ]}
       />
+      {day && <CalendarDaySheet key={day} date={day} onClose={() => setDay(null)} planned={planned} onStart={start} />}
       {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
       {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
       {confirmation}

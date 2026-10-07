@@ -21,7 +21,11 @@ export function createNavigationHistory(host: Host) {
 
   const changed = () => {
     const known = entry(host.history.state)
-    if (known && known.id !== current.id) current = known // Back/Forward traversal.
+    if (known && known.id !== current.id) {
+      // A previous entry may have been replaced since this Forward entry was created.
+      current = { ...known, previousHash: hashes.get(known.index - 1) ?? known.previousHash }
+      if (current.previousHash !== known.previousHash) host.history.replaceState(stateWith(current), '')
+    }
     else if (host.location.hash !== hash) {
       // A normal #/ link creates an entry without going through navigate().
       current = fresh(current.index + 1, hash)

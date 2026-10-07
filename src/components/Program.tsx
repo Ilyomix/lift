@@ -2,6 +2,7 @@ import { Check, Play } from 'lucide-react'
 import { addDays, dayLetter, diffDays, fmtDate, mondayOf, monthName, parseISO, todayISO } from '../lib/date'
 import { L, locale } from '../lib/i18n'
 import { FOUNDATION_START, GOAL_DATE, MAINTENANCE, PERIODS, TYPE_META, type Period, type PhaseId, type SessionPlan } from '../lib/program'
+import type { ISODate } from '../lib/types'
 import type { DayStatus } from '../lib/stats'
 import { cx } from './ui'
 
@@ -209,7 +210,7 @@ export function SessionTrack({ plan }: { plan: SessionPlan }) {
   )
 }
 
-export function WeekStrip({ days }: { days: DayStatus[] }) {
+export function WeekStrip({ days, onSelect }: { days: DayStatus[]; onSelect: (date: ISODate) => void }) {
   return (
     <ol className="grid grid-cols-7 gap-1.5">
       {days.map((d) => {
@@ -218,18 +219,18 @@ export function WeekStrip({ days }: { days: DayStatus[] }) {
         const label = done ? L(`${TYPE_META[done.type].label} faite`, `${TYPE_META[done.type].label} done`) : d.active ? L(`${TYPE_META[d.active].label} en cours`, `${TYPE_META[d.active].label} in progress`) : d.planned ? L(`${TYPE_META[d.planned].label} prévue`, `${TYPE_META[d.planned].label} planned`) : d.paused ? L('Pause', 'Paused') : d.rest ? L('Repos', 'Rest') : L('Aucune séance', 'No workout')
         const day = parseISO(d.date).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric' })
         return (
-          <li key={d.date} className="flex min-w-0 flex-col items-center gap-1.5" aria-label={L(`${day} : ${label}`, `${day}: ${label}`)}>
+          <li key={d.date} className="flex min-w-0 flex-col items-center gap-1.5">
             <span className={cx('text-[11px] font-semibold', d.isToday ? 'text-signal-text' : 'text-muted')}>{dayLetter(parseISO(d.date).getDay())}</span>
-            <span
+            <button type="button" onClick={() => onSelect(d.date)} aria-label={L(`${day} : ${label}`, `${day}: ${label}`)}
               className={cx(
-                'flex h-10 w-full items-center justify-center rounded-[8px] font-semibold',
+                'pressable flex h-11 w-full items-center justify-center rounded-[8px] font-semibold',
                 code ? 'text-[11px] tracking-[0.02em]' : 'text-[10px]',
                 done ? 'bg-text text-bg' : d.active ? 'border border-signal bg-signal-soft text-signal-text' : d.planned ? 'border border-line-strong text-text-2' : d.paused ? 'hatch border border-line text-text-2' : d.rest ? 'border border-dashed border-line bg-surface text-text-2' : 'border border-dashed border-line text-muted',
                 d.isToday && 'ring-2 ring-signal ring-offset-2 ring-offset-bg',
               )}
             >
               {done ? d.done.length > 1 ? `${d.done.length}×` : <span className="flex items-center gap-0.5"><Check size={12} strokeWidth={3} aria-hidden />{code}</span> : d.active ? <span className="flex items-center gap-0.5"><Play size={10} aria-hidden />{code}</span> : code ?? (d.paused ? L('Pause', 'Pause') : d.rest ? L('Repos', 'Rest') : '—')}
-            </span>
+            </button>
           </li>
         )
       })}

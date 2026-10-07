@@ -1,8 +1,8 @@
 import { gymOf, HOME_GYM, isGymBound } from './gyms'
 import { LIBRARY } from './library'
-import { nextTargetText, takesLest } from './program'
+import { nextTargetText, takesLest, type projectSessions } from './program'
 import { previousPerformance } from './training'
-import { WORKOUT_TYPES, type AppState, type ReplacementScope, type SessionReplacement, type TemplateExercise, type WorkoutType } from './types'
+import { WORKOUT_TYPES, type AppState, type ISODate, type ReplacementScope, type SessionReplacement, type TemplateExercise, type WorkoutType } from './types'
 
 export type ReplacementResult = { state: AppState; reason?: 'invalid' | 'duplicate' | 'completed' | 'conflict' | 'reopened' }
 const validId = (id: string) => Object.hasOwn(LIBRARY, id)
@@ -62,6 +62,11 @@ export function sessionExercises(state: AppState, type: WorkoutType): TemplateEx
     const choice = drafts.find(item => item.index === index)
     return choice ? replacementTemplate(state, exercise, choice.exerciseId) : exercise
   })
+}
+
+/** A temporary alternative belongs to one occurrence, not every future workout. */
+export function scheduledExercises(state: AppState, type: WorkoutType, date: ISODate, projection: ReturnType<typeof projectSessions>): TemplateExercise[] {
+  return projection.find(item => item.type === type)?.date === date ? sessionExercises(state, type) : state.templates[type].exercises
 }
 
 export function clearSessionReplacement(state: AppState, type: WorkoutType, index?: number): AppState {
