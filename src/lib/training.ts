@@ -111,11 +111,12 @@ export function exerciseHistory(workouts: Workout[], exerciseId: string, gymId?:
 /**
  * Last performance of an exercise. With a rep range (`like`), the last one done in that range
  * comes first, so that an exercise the program has in two sessions with two ranges is followed
- * like for like; without any in that range, the last one anywhere.
+ * like for like; without any in that range, the last one anywhere. When supplied, prefer the
+ * same split within the range so programmed reminders keep their own reference.
  */
-export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string, like?: RepRange): { workout: Workout; exercise: WorkoutExercise } | null {
+export function previousPerformance(workouts: Workout[], exerciseId: string, excludeId?: string, gymId?: string, like?: RepRange, preferredType?: WorkoutType): { workout: Workout; exercise: WorkoutExercise } | null {
   return previousComparablePerformance(workouts, exerciseId, excludeId, like,
-    (w, ex) => gymId === undefined || !isGymBound(ex) || gymOf(w) === gymId)
+    (w, ex) => gymId === undefined || !isGymBound(ex) || gymOf(w) === gymId, preferredType)
 }
 
 export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
@@ -556,7 +557,10 @@ export function compareExercise(ex: WorkoutExercise, prev: WorkoutExercise | nul
   base.previousWeights = prevSets.map((s) => s.weight)
   if (deload) return { ...base, status: 'deload', headline: L('SEMAINE ALLÉGÉE', 'DELOAD WEEK'), detail: L('Semaine allégée : pas de comparaison.', 'Deload week: no comparison.') }
   const reason = contextReason ?? exerciseContextReason(ex, prev)
-  if (reason) return { ...base, status: reason === 'rep-range-changed' ? 'new-baseline' : 'different-context', headline: reason === 'rep-range-changed' ? L('NOUVELLE RÉFÉRENCE', 'NEW BASELINE') : L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: contextReasonLabel(reason), contextReason: reason, marked: false, isRecord: false, chargeValidated: false, suggestion: null }
+  if (reason) {
+    const newBaseline = reason === 'rep-range-changed' || reason === 'workout-type-changed'
+    return { ...base, status: newBaseline ? 'new-baseline' : 'different-context', headline: newBaseline ? L('NOUVELLE RÉFÉRENCE', 'NEW BASELINE') : L('CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'), detail: contextReasonLabel(reason), contextReason: reason, marked: false, isRecord: false, chargeValidated: false, suggestion: null }
+  }
   if (lightened(ex)) return { ...base, status: 'deload', headline: L('SÉANCE ALLÉGÉE', 'LIGHTER WORKOUT'), detail: L('Charges allégées par le programme : pas de comparaison.', 'Loads lightened by the program: no comparison.') }
   if (prevDeload || lightened(prev)) return { ...base, status: 'deload', headline: L('APRÈS SÉANCE ALLÉGÉE', 'AFTER A LIGHTER WORKOUT'), detail: L('Pas de comparaison avec une séance allégée.', 'No comparison with a lighter workout.') }
   if (breakDays >= BREAK_DAYS) return { ...base, status: 'deload', headline: L('APRÈS UNE PAUSE', 'AFTER A BREAK'), detail: L('Deux semaines ou plus sans séance depuis : pas de comparaison.', 'Two weeks or more without a workout since: no comparison.') }
@@ -661,7 +665,7 @@ export function dropAlert(workouts: Workout[], exerciseId: string, gymId?: strin
     const source = workouts.find((w) => w.id === h.workoutId)
     const ex = source?.exercises.find((e) => e.exerciseId === exerciseId)
     if (!source || !ex) return null
-    const before = previousPerformance(workoutsBefore(workouts, source), exerciseId, undefined, gymId, ex.prescription ?? ex.target)
+    const before = previousPerformance(workoutsBefore(workouts, source), exerciseId, undefined, gymId, ex.prescription ?? ex.target, source.type)
     if (!before || workoutContextReason(source, ex, before.workout, before.exercise)) return null
   }
   const info = infoFor(exerciseId)
@@ -755,8 +759,8 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   const exercises = w.exercises.map((ex) => {
     const completedOnly = { ...ex, sets: ex.sets.filter((s) => s.completed) }
     const g = isGymBound(ex) ? gym : undefined
-    // Compared like for like: with the last session where the exercise had this rep range.
-    const before = previousPerformance(others, ex.exerciseId, undefined, g, ex.prescription ?? ex.target)
+    // A reminder follows the same split's last performance, not the heavier slot between them.
+    const before = previousPerformance(others, ex.exerciseId, undefined, g, ex.prescription ?? ex.target, w.type)
     const prev = before?.exercise ?? null
     const history = exerciseHistory(others, ex.exerciseId, g)
     let comparison = compareExercise(completedOnly, prev, history, !!w.deload, !!before?.workout.deload, before ? longestBreak(others, before.workout.date, w.date) : 0, before ? workoutContextReason(w, ex, before.workout, before.exercise) : null)

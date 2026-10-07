@@ -1,5 +1,5 @@
 import { infoFor } from './library'
-import type { Workout, WorkoutExercise } from './types'
+import type { Workout, WorkoutExercise, WorkoutType } from './types'
 
 import type { ContextReason } from './trainingMessages'
 export type { ContextReason } from './trainingMessages'
@@ -18,27 +18,31 @@ export function workoutsBefore(workouts: Workout[], current: Pick<Workout, 'id' 
 }
 
 /**
- * Prefer the requested range, but never search through an explicitly flagged context change
+ * Prefer the requested range and split, but never search through an explicitly flagged context change
  * to resurrect an older machine. The most recent performance remains a useful baseline even
  * when its range differs. `accept` supplies the caller's gym filter.
  */
 export function previousComparablePerformance(
   workouts: Workout[], exerciseId: string, excludeId?: string, like?: Range,
   accept: (workout: Workout, exercise: WorkoutExercise) => boolean = () => true,
+  preferredType?: WorkoutType,
 ): { workout: Workout; exercise: WorkoutExercise } | null {
   const self = workouts.find((w) => w.id === excludeId)
   const ordered = chronological(self ? workoutsBefore(workouts, self) : workouts.filter((w) => w.id !== excludeId))
   let latest: { workout: Workout; exercise: WorkoutExercise } | null = null
+  let sameRangeFallback: { workout: Workout; exercise: WorkoutExercise } | null = null
   for (let i = ordered.length - 1; i >= 0; i--) {
     const workout = ordered[i]
     const exercise = workout.exercises.find((ex) => ex.exerciseId === exerciseId && complete(ex))
     if (!exercise || !accept(workout, exercise)) continue
-    if (latest && context(exercise) !== context(latest.exercise)) return latest
+    if (latest && (exercise.unit !== latest.exercise.unit || context(exercise) !== context(latest.exercise))) return sameRangeFallback ?? latest
     latest ??= { workout, exercise }
-    if (!like || sameRange(exercise.prescription ?? exercise.target, like)) return { workout, exercise }
-    if (context(exercise)) return latest
+    if (!like || sameRange(exercise.prescription ?? exercise.target, like)) {
+      if (!preferredType || workout.type === preferredType) return { workout, exercise }
+      sameRangeFallback ??= { workout, exercise }
+    }
   }
-  return latest
+  return sameRangeFallback ?? latest
 }
 
 /** Different measurements must not become a physiological fatigue diagnosis. */
@@ -73,11 +77,14 @@ function precedingWork(workout: Workout, exercise: WorkoutExercise): string {
 }
 
 export function workoutContextReason(now: Workout, exercise: WorkoutExercise, before: Workout, previous: WorkoutExercise): ContextReason | null {
+  const reason = exerciseContextReason(exercise, previous)
+  // An equipment change must not be hidden by the order of exercises in a split.
+  if (reason === 'unit-changed' || reason === 'conditions-changed') return reason
   if (!!now.periodId !== !!before.periodId) {
     return 'program-changed'
   }
-  if (precedingWork(now, exercise) !== precedingWork(before, previous)) {
-    return 'preceding-work-changed'
-  }
-  return exerciseContextReason(exercise, previous)
+  if (reason === 'rep-range-changed') return reason
+  const precedingChanged = precedingWork(now, exercise) !== precedingWork(before, previous)
+  if (now.type !== before.type && (reason === 'rest-changed' || precedingChanged)) return 'workout-type-changed'
+  return reason ?? (precedingChanged ? 'preceding-work-changed' : null)
 }

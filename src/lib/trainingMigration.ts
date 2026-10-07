@@ -3,7 +3,7 @@ import { isGymBound, gymOf } from './gyms'
 import { dropAlert, finalizeWorkout } from './training'
 import type { AppState, Template, Workout, WorkoutType } from './types'
 
-export const TRAINING_REVISION = 2
+export const TRAINING_REVISION = 3
 const automaticReasons = new Set(['nette baisse 2 séances de suite', 'clear drop 2 sessions in a row', 'baisse 2 séances de suite', 'down 2 sessions in a row'])
 
 /**

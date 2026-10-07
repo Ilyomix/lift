@@ -350,11 +350,12 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   const [menu, setMenu] = useState(false)
   const exerciseInfo = infoFor(ex.exerciseId, { name: ex.name })
   const bound = isGymBound(ex)
-  // The reference is the last session in the same rep range: an exercise two sessions have in two ranges is followed like for like.
+  // Prefer the same split and rep range, so a reminder is compared with its own reference.
   const { minReps, maxReps } = ex.target
   // (A session reopened to be corrected is still in the history: it is not its own reference.)
   const self = useStore((s) => s.state.activeWorkout?.id)
-  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined, { minReps, maxReps }), [workouts, ex.exerciseId, self, bound, gymId, minReps, maxReps])
+  const workoutType = useStore((s) => s.state.activeWorkout?.type)
+  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined, { minReps, maxReps }, workoutType), [workouts, ex.exerciseId, self, bound, gymId, minReps, maxReps, workoutType])
   const prev = prevPerf?.exercise ?? null
   const prevDate = prevPerf?.workout.date ?? null
   const p = ex.prescription

@@ -3,7 +3,7 @@ import { fmtLoad, fmtNum } from './format'
 import type { Comparison, WorkoutExercise } from './types'
 
 /** Stable, language-independent reasons returned by the training engine. */
-export type ContextReason = 'unit-changed' | 'conditions-changed' | 'rep-range-changed' | 'rest-changed' | 'program-changed' | 'preceding-work-changed'
+export type ContextReason = 'unit-changed' | 'conditions-changed' | 'rep-range-changed' | 'rest-changed' | 'program-changed' | 'preceding-work-changed' | 'workout-type-changed'
 type Translation = readonly [fr: string, en: string]
 
 /** Resolve through Lift's existing L(fr, en), at read/render time, never at module load. */
@@ -14,6 +14,7 @@ export const CONTEXT_MESSAGES = {
   'rest-changed': ['Repos prescrit différent : performances non directement comparables.', 'Prescribed rest changed: performances are not directly comparable.'],
   'program-changed': ['Passage à un nouveau programme : établis une référence avec ses consignes.', 'Transition to a new program: establish a baseline under its instructions.'],
   'preceding-work-changed': ['Le travail précédent sur ces muscles a changé : ne pas conclure à une baisse de niveau.', 'Earlier work on these muscles changed: do not infer a loss of ability.'],
+  'workout-type-changed': ['Première référence pour cet exercice avec les consignes de cette séance.', 'First baseline for this exercise with this workout’s instructions.'],
 } as const satisfies Record<ContextReason, Translation>
 
 export function contextReasonLabel(reason: ContextReason): string {

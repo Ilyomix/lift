@@ -98,6 +98,54 @@ test('fatigue after additional overlapping exercises is contextual, not an autom
   assert.equal(result.generalDrop, false)
 })
 
+test('programmed two-set reminders follow their own split without hiding changed conditions', () => {
+  const templates = defaultState().templates
+  const planned = (n: number, type: Workout['type']): Workout => ({
+    ...workout(n, templates[type].exercises.map((template) => ({
+      ...template,
+      target: { ...template.target, weight: 20 },
+      prescription: { ...template.target, weight: 20, rir: template.target.rir ?? '1–2', loadFactor: 1, notes: [] },
+      sets: Array.from({ length: template.target.sets }, () => set(20, 10)),
+      notes: '', skipped: false, validated: true, comparison: null,
+    }))), type,
+  })
+  const item = (w: Workout) => w.exercises.find((ex) => ex.exerciseId === 'triceps-overhead-rope')!
+  const upper = planned(1, 'UPPER')
+  const push = planned(2, 'PUSH')
+  const reminder = planned(3, 'UPPER')
+  item(reminder).sets = [set(20, 11), set(20, 11)]
+  assert.deepEqual([item(upper).sets.length, item(push).sets.length], [2, 3], 'real program reminder and main slot')
+  assert.equal(item(finalizeWorkout([upper], push).workout).comparison!.status, 'new-baseline', 'first different split is not a warning')
+  const result = finalizeWorkout([upper, push], reminder)
+  const comparison = item(result.workout).comparison!
+  assert.deepEqual([comparison.status, comparison.deltaCleanReps, comparison.previousSetReps], ['progress', 2, [10, 10]])
+  assert.equal(previousPerformance([upper, push], item(reminder).exerciseId, undefined, undefined, item(reminder).target, 'UPPER')!.workout.id, upper.id)
+  const named = structuredClone([upper, push, reminder])
+  for (const w of named) item(w).comparisonContext = 'Machine A'
+  assert.equal(previousPerformance(named.slice(0, 2), item(named[2]).exerciseId, undefined, undefined, item(named[2]).target, 'UPPER')!.workout.id, named[0].id, 'the same named machine is not a context boundary')
+  assert.equal(item(finalizeWorkout(named.slice(0, 2), named[2]).workout).comparison!.status, 'progress')
+  const reordered = structuredClone(reminder)
+  const index = reordered.exercises.indexOf(item(reordered))
+  reordered.exercises.splice(index, 0, exercise('triceps-rope'))
+  assert.equal(item(finalizeWorkout([upper, push], reordered).workout).comparison!.contextReason, 'preceding-work-changed', 'changed workload within the same split still matters')
+  const otherMachine = structuredClone(push)
+  item(otherMachine).comparisonContext = 'Machine B'
+  const changed = item(finalizeWorkout([upper, otherMachine], reminder).workout).comparison!
+  assert.equal(changed.contextReason, 'conditions-changed', 'the split preference cannot cross an intervening machine change')
+  item(otherMachine).comparisonContext = ''
+  item(otherMachine).unit = 'kg/main'
+  assert.equal(item(finalizeWorkout([upper, otherMachine], reminder).workout).comparison!.contextReason, 'unit-changed', 'nor an intervening measurement change')
+
+  const state = defaultState()
+  state.progressRevision = 2
+  state.workouts = [upper, push, reminder]
+  const rawSets = state.workouts.map((w) => w.exercises.map((ex) => ex.sets))
+  const migrated = upgradeTrainingDiagnostics(state)
+  assert.equal(item(migrated.workouts[2]).comparison!.status, 'progress', 'existing history is repaired too')
+  assert.deepEqual(migrated.workouts.map((w) => w.exercises.map((ex) => ex.sets)), rawSets)
+  assert.equal(upgradeTrainingDiagnostics(migrated), migrated)
+})
+
 test('backdated edits and unordered imports never compare against future sessions', () => {
   const first = workout(1, [exercise()])
   const current = workout(2, [exercise('pec-deck', [11, 11, 11])])
