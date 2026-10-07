@@ -7,6 +7,8 @@ import { addDays } from '../src/lib/date'
 import { cutDaysNeeded, cutLossPct, KCAL_PER_KG, CUT_MAX_DEFICIT } from '../src/lib/energy'
 import { effortSummary, effortTarget, recordedRir } from '../src/lib/effort'
 import { setLang } from '../src/lib/i18n'
+import { useStore } from '../src/lib/store'
+import { SessionSummary } from '../src/screens/Session'
 import { configurePlan, DEFAULT_GOAL, buildPeriods } from '../src/lib/program'
 import { calorieAdvice, plannedWeightPath, weightStatus } from '../src/lib/stats'
 import { compareExercise, finalizeWorkout, intraSessionAdjust, loadDecision, previousPerformance, progressionFor } from '../src/lib/training'
@@ -98,7 +100,7 @@ test('fatigue after additional overlapping exercises is contextual, not an autom
   assert.equal(result.generalDrop, false)
 })
 
-test('programmed two-set reminders follow their own split without hiding changed conditions', () => {
+test('programmed two-set reminders follow their own split without hiding changed conditions', async () => {
   const templates = defaultState().templates
   const planned = (n: number, type: Workout['type']): Workout => ({
     ...workout(n, templates[type].exercises.map((template) => ({
@@ -144,6 +146,30 @@ test('programmed two-set reminders follow their own split without hiding changed
   assert.equal(item(migrated.workouts[2]).comparison!.status, 'progress', 'existing history is repaired too')
   assert.deepEqual(migrated.workouts.map((w) => w.exercises.map((ex) => ex.sets)), rawSets)
   assert.equal(upgradeTrainingDiagnostics(migrated), migrated)
+
+  // Exercise the actual finish action and both summary sources: immediate result
+  // and the stored workout used after reopening the app.
+  const original = useStore.getState()
+  const initial = useStore.getInitialState()
+  const originalInitial = { ...initial }
+  try {
+    state.workouts = [upper, push]
+    state.activeWorkout = { ...reminder, timerEndAt: null, timer: null }
+    useStore.setState({ state, ready: true, hasData: false, storage: 'memory', lastFinish: null })
+    assert.equal(useStore.getState().finishSession(), reminder.id)
+    assert.equal(item(useStore.getState().lastFinish!.workout).comparison!.status, 'progress')
+    for (const savedOnly of [false, true]) {
+      if (savedOnly) useStore.setState({ lastFinish: null })
+      Object.assign(initial, useStore.getState())
+      const html = renderToStaticMarkup(createElement(SessionSummary))
+      assert.match(html, /Séance terminée/)
+      assert.doesNotMatch(html, /Conditions différentes/i, savedOnly ? 'persisted summary' : 'immediate finish summary')
+    }
+  } finally {
+    await useStore.getState().flush()
+    Object.assign(initial, originalInitial)
+    useStore.setState(original, true)
+  }
 })
 
 test('backdated edits and unordered imports never compare against future sessions', () => {
