@@ -1,7 +1,7 @@
 import { cutLossPct, KCAL_PER_KG, CUT_MAX_DEFICIT } from './energy'
 import { L, locale } from './i18n'
 import { addDays, dayNumber, diffDays, mondayOf, todayISO } from './date'
-import { contextAt, GOAL_DATE, PERIODS, PHASES, PROGRAM_START, type Period, type PlannedSession } from './program'
+import { contextAt, GOAL_DATE, isPausedDay, isRestDay, PERIODS, PHASES, PROGRAM_START, type Period, type PlannedSession } from './program'
 import type { AppState, BodyEntry, ISODate, NutritionTargets, Workout, WorkoutType } from './types'
 
 export interface Point {
@@ -166,8 +166,10 @@ export interface DayStatus {
   date: ISODate
   done: Workout[]
   planned: WorkoutType | null
+  active: WorkoutType | null
   isToday: boolean
   paused: boolean
+  rest: boolean
 }
 
 export function weekStrip(state: AppState, planned: PlannedSession[], paused: Set<ISODate>, today: ISODate = todayISO()): DayStatus[] {
@@ -179,8 +181,10 @@ export function weekStrip(state: AppState, planned: PlannedSession[], paused: Se
       date,
       done: state.workouts.filter((w) => w.date === date),
       planned: byDate.get(date) ?? null,
+      active: state.activeWorkout?.date === date ? state.activeWorkout.type : null,
       isToday: date === today,
-      paused: paused.has(date),
+      paused: paused.has(date) || isPausedDay(state, date, today),
+      rest: isRestDay(state, date, today),
     }
   })
 }

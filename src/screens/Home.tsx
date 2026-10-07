@@ -5,7 +5,7 @@ import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
-  contextAt, GOAL_DATE, pauseDays, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
+  contextAt, GOAL_DATE, isRestDay, pauseDays, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
@@ -22,12 +22,13 @@ import { SessionTrack, WeekStrip } from '../components/Program'
 import { Button, Card, cx, Num, ProgressBar, Screen, Section, Tag } from '../components/ui'
 import { AppIcon } from './Onboarding'
 import { workoutArt } from '../components/SportArt'
+import { useSessionStart } from '../components/useSessionStart'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
 
 export function Home() {
   const state = useStore((s) => s.state)
   const photos = useStore((s) => s.photos)
-  const startSession = useStore((s) => s.startSession)
+  const { start, confirmation } = useSessionStart(() => navigate('seance'))
   const [goalOpen, setGoalOpen] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
   const today = todayISO()
@@ -40,6 +41,7 @@ export function Home() {
   const perWeek = trainingDays(state).length
   const next = planned[0]
   const active = state.activeWorkout
+  const restToday = !active && isRestDay(state, today)
   const ws = weightStatus(state, today)
   const goal = goalWeightRange(state, today)
   const ma = movingAverage7(measureSeries(state.bodyEntries, 'weight')).slice(-20).map((p) => p.value)
@@ -68,8 +70,7 @@ export function Home() {
   const nextMinutes = sessionMinutes(nextType, nextSets, sessionPace(state.workouts, nextType))
 
   const begin = () => {
-    startSession(nextType)
-    navigate('seance')
+    start(nextType)
   }
 
   return (
@@ -135,9 +136,10 @@ export function Home() {
       )}
 
       {/* Next action — the one primary command of the screen */}
-      <Section art={workoutArt[nextType]} title={active ? L('Séance en cours', 'Workout in progress') : L('Prochaine séance', 'Next workout')}>
+      <Section art={restToday ? 'pause' : workoutArt[nextType]} title={active ? L('Séance en cours', 'Workout in progress') : restToday ? L('Repos aujourd’hui', 'Rest day today') : next ? L('Prochaine séance', 'Next workout') : L('Séance libre', 'Open workout')}>
         <Card className="overflow-hidden">
           <div className="p-4">
+            {restToday && <p className="mb-3 text-[13px] font-medium text-text-2">{next ? `${L('Prochaine séance', 'Next workout')} · ${capitalize(fmtRelativeDay(nextDate, today))}` : L('Séance libre', 'Open workout')}</p>}
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[26px] leading-none font-semibold tracking-[-0.03em]">{TYPE_META[nextType].label}</p>
@@ -145,7 +147,7 @@ export function Home() {
                   {TYPE_META[nextType].fr} · {active ? `${active.exercises.reduce((a, e) => a + doneSets(e).length, 0)} / ${active.exercises.reduce((a, e) => a + e.sets.length, 0)} ${L('séries', 'sets')}` : `${L(`${nextSets} séries`, plural(nextSets, 'set', 'sets'))} · ~${nextMinutes} min`}
                 </p>
               </div>
-              <Tag tone="outline">{active ? L('En cours', 'In progress') : capitalize(fmtRelativeDay(nextDate, today))}</Tag>
+              {!restToday && (active || next) && <Tag tone="outline">{active ? L('En cours', 'In progress') : capitalize(fmtRelativeDay(nextDate, today))}</Tag>}
             </div>
             {!active && nextCtx.effort && <p className="mt-3 text-[13px] text-muted">{nextCtx.title} · {nextCtx.effort}</p>}
             {!active && (
@@ -157,8 +159,8 @@ export function Home() {
             )}
           </div>
           <div className="flex gap-2 border-t border-line p-3">
-            <Button variant="primary" size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} onClick={active ? () => navigate('seance') : begin}>
-              {active ? L('Reprendre', 'Resume') : L('Commencer', 'Start')}
+            <Button variant={restToday ? 'outline' : 'primary'} size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} onClick={active ? () => navigate('seance') : begin}>
+              {active ? L('Reprendre', 'Resume') : restToday ? L('M’entraîner', 'Train today') : L('Commencer', 'Start')}
             </Button>
             {!active && (
               <Button variant="outline" size="lg" onClick={() => navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
@@ -265,6 +267,7 @@ export function Home() {
       />
       {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
       {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
+      {confirmation}
     </Screen>
   )
 }

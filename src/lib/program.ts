@@ -1126,6 +1126,23 @@ export function pauseDays(state: Pick<AppState, 'programPause'>, until: ISODate 
   return days
 }
 
+/** Recorded pause days plus the current pause, effective immediately and into its planned future. */
+export function isPausedDay(state: Pick<AppState, 'programPause'>, date: ISODate, today: ISODate = todayISO()): boolean {
+  if (pauseDays(state, today).has(date)) return true
+  const pause = state.programPause
+  return date >= today && pause.active
+    && (!pause.startedAt || date >= isoFromTimestamp(pause.startedAt))
+    && (!pause.plannedEnd || date <= pause.plannedEnd || date === today)
+}
+
+/** A scheduled recovery day, not an unlogged past workout or a day outside the plan. */
+export function isRestDay(state: AppState, date: ISODate, today: ISODate = todayISO()): boolean {
+  if (date < today || date < PROGRAM_START || (!MAINTENANCE && date > GOAL_DATE)) return false
+  if (trainingDays(state).includes(weekday(date))) return false
+  if (state.workouts.some((w) => w.date === date) || state.activeWorkout?.date === date) return false
+  return !isPausedDay(state, date, today)
+}
+
 export interface PlannedSession {
   date: ISODate
   type: WorkoutType
@@ -1165,6 +1182,7 @@ export interface CalendarCell {
   planned: PlannedSession | null
   active: boolean
   paused: boolean
+  rest: boolean
   isGoal: boolean
   isStart: boolean
 }
@@ -1187,7 +1205,6 @@ export function calendarMonth(state: AppState, month: string, planned: PlannedSe
     byDate.set(w.date, list)
   }
   const plannedBy = new Map(planned.map((p) => [p.date, p]))
-  const paused = pauseDays(state, today)
   const weeks: CalendarWeek[] = []
   for (let monday = mondayOf(first); monday <= last; monday = addDays(monday, 7)) {
     const mid = addDays(monday, 3)
@@ -1207,7 +1224,8 @@ export function calendarMonth(state: AppState, month: string, planned: PlannedSe
         done: byDate.get(date) ?? [],
         planned: plannedBy.get(date) ?? null,
         active: !!state.activeWorkout && state.activeWorkout.date === date,
-        paused: paused.has(date),
+        paused: isPausedDay(state, date, today),
+        rest: isRestDay(state, date, today),
         isGoal: !MAINTENANCE && date === GOAL_DATE,
         isStart: date === PROGRAM_START,
       })

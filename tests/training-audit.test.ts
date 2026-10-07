@@ -131,14 +131,15 @@ test('effort UI and persisted diagnostic reasons switch FR to EN to FR', () => {
   for (const language of ['fr', 'en', 'fr'] as const) {
     setLang(language)
     const html = renderToStaticMarkup(createElement(EffortGuidance, { exercise: ex }))
-    const summary = html.match(/<summary\b[^>]*>(.*?)<\/summary>/s)?.[1] ?? ''
-    assert.match(summary, language === 'en' ? /Target: 3 reps in reserve/ : /Cible : 3 répétitions en réserve/)
-    assert.doesNotMatch(html, /<details\b[^>]*\bopen(?:[\s=>])/, 'explanation starts collapsed')
-    assert.match(html, language === 'en' ? /about 3 more reps/ : /encore faire environ 3 répétitions/)
+    const trigger = html.match(/<button\b.*?<\/button>/s)?.[0] ?? ''
+    assert.match(trigger, /aria-haspopup="dialog"/)
+    assert.match(trigger, language === 'en' ? /aria-label="Understand the target: 3 reps in reserve"/ : /aria-label="Comprendre l’objectif : 3 répétitions en réserve"/)
+    assert.match(trigger, language === 'en' ? />3 reps in reserve / : />3 rép\. en réserve /)
+    assert.doesNotMatch(html, /role="dialog"|about 3 more reps|encore faire environ 3 répétitions/, 'explanation stays in the closed help sheet')
     assert.doesNotMatch(html, /Today’s instruction|Consigne du jour/)
-    const afterExplanation = html.split('</details>')[1]
-    assert.match(afterExplanation, /aria-live="polite"/)
-    assert.match(afterExplanation, language === 'en' ? /4 sets completed with fewer reps in reserve than planned/ : /4 séries réalisées avec moins de répétitions en réserve que prévu/, 'adaptive warning remains visible outside collapsed help')
+    const afterTrigger = html.split('</button>')[1]
+    assert.match(afterTrigger, /aria-live="polite"/)
+    assert.match(afterTrigger, language === 'en' ? /4 sets completed with fewer reps in reserve than planned/ : /4 séries réalisées avec moins de répétitions en réserve que prévu/, 'adaptive warning remains visible while the help sheet is closed')
     const report = renderToStaticMarkup(createElement(EffortReport, { exercises: [ex] }))
     assert.match(report, language === 'en' ? /extra set/ : /supplémentaire/)
     const prev = exercise(); prev.prescription!.restSeconds = 60
@@ -148,20 +149,22 @@ test('effort UI and persisted diagnostic reasons switch FR to EN to FR', () => {
   }
 })
 
-test('effort help keeps zero and missing targets distinct without an unwarranted warning', () => {
+test('effort help labels keep zero and missing targets distinct without an unwarranted warning', () => {
   const ex = exercise()
   for (const language of ['fr', 'en'] as const) {
     setLang(language)
     ex.prescription!.rir = '0'
     let html = renderToStaticMarkup(createElement(EffortGuidance, { exercise: ex }))
-    assert.match(html, language === 'en' ? /0 = no more repetitions possible with good form/ : /0 = ne plus pouvoir faire de répétition supplémentaire proprement/)
-    assert.doesNotMatch(html.split('</details>')[1], /<p\b/, 'sets at or above target do not show a warning')
+    assert.match(html, language === 'en' ? /aria-label="Understand the target: 0 reps in reserve"/ : /aria-label="Comprendre l’objectif : 0 répétitions en réserve"/)
+    assert.match(html, language === 'en' ? />0 reps in reserve / : />0 rép\. en réserve /)
+    assert.doesNotMatch(html, /role="dialog"/, 'help starts closed')
+    assert.doesNotMatch(html.split('</button>')[1], /<p\b/, 'sets at or above target do not show a warning')
     ex.prescription!.rir = ''
     ex.target.rir = ''
     html = renderToStaticMarkup(createElement(EffortGuidance, { exercise: ex }))
     assert.match(html, language === 'en' ? /Reserve not set/ : /Réserve non définie/)
     assert.doesNotMatch(html, /0 =|Infinity|NaN/)
-    assert.doesNotMatch(html.split('</details>')[1], /<p\b/, 'missing target cannot claim effort was exceeded')
+    assert.doesNotMatch(html.split('</button>')[1], /<p\b/, 'missing target cannot claim effort was exceeded')
   }
 })
 

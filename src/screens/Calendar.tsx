@@ -7,7 +7,7 @@ import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
   calendarMonth, contextAt, GOAL_DATE, MAINTENANCE, PERIODS, prescribeSession, projectSessions, reentryForGap, TYPE_META,
-  gapSinceLastSession, sessionPlan,
+  gapSinceLastSession, isPausedDay, isRestDay, sessionPlan,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { calendarMilestonesAt } from '../lib/programTimeline'
@@ -16,10 +16,11 @@ import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
 import { Button, Card, cx, DateInput, Disclosure, Empty, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, Tag, TimeInput, Toggle } from '../components/ui'
 import { ProgramContent } from './ProgramScreen'
+import { useSessionStart } from '../components/useSessionStart'
 
 export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'programme' }) {
   const state = useStore((s) => s.state)
-  const startSession = useStore((s) => s.startSession)
+  const { start, confirmation } = useSessionStart(() => navigate('seance'))
   const today = todayISO()
   const [month, setMonth] = useState(monthKey(today))
   const [day, setDay] = useState<ISODate | null>(null)
@@ -74,28 +75,31 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
             <div className="grid grid-cols-7 gap-1">
               {w.cells.map((c) => {
                 const done = c.done[0]
-                const code = done ? TYPE_META[done.type].code : c.planned ? TYPE_META[c.planned.type].code : null
+                const active = c.active ? state.activeWorkout : null
+                const code = done ? TYPE_META[done.type].code : active ? TYPE_META[active.type].code : c.planned ? TYPE_META[c.planned.type].code : null
+                const label = done ? L(`${TYPE_META[done.type].label} faite`, `${TYPE_META[done.type].label} done`) : active ? L(`${TYPE_META[active.type].label} en cours`, `${TYPE_META[active.type].label} in progress`) : c.planned ? L(`${TYPE_META[c.planned.type].label} prévue`, `${TYPE_META[c.planned.type].label} planned`) : c.paused ? L('Pause', 'Paused') : c.rest ? L('Repos', 'Rest') : L('Aucune séance', 'No workout')
                 return (
                   <button
                     key={c.date}
                     type="button"
                     onClick={() => setDay(c.date)}
-                    aria-label={`${fmtDate(c.date, { weekday: true, long: true })}${done ? L(` : ${TYPE_META[done.type].label} faite`, `: ${TYPE_META[done.type].label} done`) : c.planned ? L(` : ${TYPE_META[c.planned.type].label} prévue`, `: ${TYPE_META[c.planned.type].label} planned`) : ''}${c.paused ? L(', pause', ', paused') : ''}`}
+                    aria-label={`${fmtDate(c.date, { weekday: true, long: true })} : ${label}${c.isGoal ? L(', objectif', ', goal') : ''}`}
                     className={cx(
-                      'pressable relative flex aspect-[0.86] flex-col items-center justify-between rounded-[9px] border py-1.5',
+                      'pressable relative flex min-h-[52px] min-w-0 aspect-[0.86] flex-col items-center justify-between rounded-[9px] border py-1.5',
                       !c.inMonth && 'opacity-35',
                       w.kind === 'deload' && !done ? 'border-line-strong' : 'border-line',
                       c.paused && !done && 'hatch',
+                      c.rest && 'border-dashed bg-surface',
                       c.isToday && 'border-signal ring-1 ring-signal',
                     )}
                   >
-                    <span className={cx('text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}</span>
-                    {c.isGoal ? (
-                      <Flag size={16} className="text-signal-text" aria-hidden />
-                    ) : code ? (
-                      <span className={cx('flex h-[22px] min-w-[30px] items-center justify-center rounded-[5px] px-1 text-[10px] font-bold tracking-[0.03em]', done ? 'bg-text text-bg' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
-                        {c.done.length > 1 ? `${c.done.length}×` : code}
+                    <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
+                    {code ? (
+                      <span className={cx('flex h-[22px] min-w-[30px] items-center justify-center gap-0.5 rounded-[5px] px-1 text-[10px] font-bold tracking-[0.03em]', done ? 'bg-text text-bg' : active ? 'border border-signal bg-signal-soft text-signal-text' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
+                        {active && !done && <Play size={10} aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : code}
                       </span>
+                    ) : c.paused || c.rest ? (
+                      <span className="flex h-[22px] items-center text-[10px] font-medium text-text-2">{c.paused ? L('Pause', 'Pause') : L('Repos', 'Rest')}</span>
                     ) : (
                       <span className="h-[22px]" />
                     )}
@@ -110,6 +114,8 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-text-2">
         <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] bg-text" />} label={L('Terminée', 'Completed')} />
         <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-line-strong" />} label={L('Prévue', 'Planned')} />
+        <Legend swatch={<span className="flex h-3.5 w-5 items-center justify-center rounded-[3px] bg-signal-soft text-signal-text"><Play size={10} aria-hidden /></span>} label={L('En cours', 'In progress')} />
+        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-dashed border-line bg-surface" />} label={L('Repos', 'Rest')} />
         <Legend swatch={<span className="hatch h-3.5 w-5 rounded-[3px] border border-line" />} label={L('Pause', 'Paused')} />
         <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-signal" />} label={L('Aujourd’hui', 'Today')} />
         <span className="text-muted">UP Upper · LO Lower · PS Push · PL Pull · LG Legs</span>
@@ -149,9 +155,10 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         <Button variant="outline" size="lg" full icon={<CirclePause size={18} aria-hidden />} onClick={() => navigate('plus/pause')}>{state.programPause.active ? L('Gérer la pause', 'Manage the pause') : L('Mettre le programme en pause', 'Pause the program')}</Button>
       </div>
 
-      <DaySheet date={day} onClose={() => setDay(null)} planned={planned.find((p) => p.date === day) ?? null} onStart={(t) => { startSession(t); navigate('seance') }} />
+      <DaySheet date={day} onClose={() => setDay(null)} planned={planned.find((p) => p.date === day) ?? null} onStart={start} />
       </>}
       </div>
+      {confirmation}
     </Screen>
   )
 }
@@ -165,14 +172,22 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
   if (!date) return null
   const today = todayISO()
   const done = state.workouts.filter((w) => w.date === date)
+  const active = state.activeWorkout?.date === date ? state.activeWorkout : null
+  const rest = isRestDay(state, date, today)
+  const p = state.programPause
+  const paused = isPausedDay(state, date, today)
   const ctx = contextAt(date)
   return (
     <Sheet icon={<CalendarDays size={18} aria-hidden />} open onClose={onClose} title={capitalize(fmtDate(date, { weekday: true, long: true, year: true }))}>
-      <div className="flex flex-wrap items-center gap-2">
+      {!rest && !paused && <div className="flex flex-wrap items-center gap-2">
         {ctx.period && <Tag tone="ink">{ctx.title}</Tag>}
         {ctx.phase && <Tag tone="outline">{ctx.phase.short}</Tag>}
         {ctx.effort && <span className="text-[13px] text-text-2">{ctx.effort}</span>}
-      </div>
+      </div>}
+      {active && <div className="mt-4">
+        <p className="text-[15px] font-semibold">{TYPE_META[active.type].label} · {active.reopened ? L('Modification en cours', 'Editing workout') : L('Séance en cours', 'Workout in progress')}</p>
+        <Button variant="primary" size="lg" full className="mt-3" icon={<Play size={18} aria-hidden />} onClick={() => { onClose(); navigate('seance') }}>{active.reopened ? L('Reprendre les modifications', 'Continue editing') : L('Reprendre la séance', 'Resume workout')}</Button>
+      </div>}
       {done.length > 0 ? (
         <div className="mt-4 space-y-2">
           {done.map((w) => (
@@ -185,24 +200,29 @@ function DaySheet({ date, onClose, planned, onStart }: { date: ISODate | null; o
             </button>
           ))}
         </div>
-      ) : planned ? (
+      ) : active ? null : planned ? (
         <div className="mt-4">
+          {paused && <p className="mb-2 text-[13px] text-text-2">{L('Programme en pause : cette séance reste provisoire.', 'Program paused: this workout remains tentative.')}</p>}
           <p className="text-[15px]"><span className="font-semibold">{TYPE_META[planned.type].label}</span> {L('prévue', 'planned')} {planned.tentative ? L('(si reprise du programme)', '(if the program resumes)') : ''}</p>
           <ul className="mt-3 space-y-2 text-[14px] text-text-2">
             {prescribeSession(state.templates[planned.type].exercises, date, state.reentry, undefined, state.workouts).map((p, i) => (
               <li key={i} className="flex justify-between gap-3"><span>{state.templates[planned.type].exercises[i].name}</span><span className="shrink-0 tnum text-muted">{p.sets} × {p.minReps}–{p.maxReps}</span></li>
             ))}
           </ul>
-          {date === today && !state.activeWorkout && (
+          {date === today && !state.activeWorkout && !paused && (
             <Button variant="primary" size="lg" full className="mt-4" icon={<Play size={18} aria-hidden />} onClick={() => { onClose(); onStart(planned.type) }}>{L('Commencer maintenant', 'Start now')}</Button>
           )}
         </div>
+      ) : paused ? (
+        <Empty art="pause" title={p.active && date >= today ? L('Programme en pause', 'Program paused') : L('Pause enregistrée', 'Recorded pause')} action={p.active ? <Button onClick={() => { onClose(); navigate('plus/pause') }}>{L('Gérer la pause', 'Manage pause')}</Button> : <Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
+          {date < today || !p.active ? L('Cette date fait partie d’une pause enregistrée.', 'This date is part of a recorded pause.') : p.plannedEnd ? L(`La pause est prévue jusqu’au ${fmtDate(p.plannedEnd, { long: true })} inclus.`, `The pause is planned through ${fmtDate(p.plannedEnd, { long: true })}, inclusive.`) : L('Aucune date de reprise n’est fixée. Les séances à venir restent provisoires.', 'No return date is set. Upcoming workouts remain tentative.')}
+        </Empty>
       ) : (
-        <Empty art="calendar" title={date < today ? L('Aucune séance ce jour-là', 'No workout that day') : L('Une journée pour récupérer', 'A day to recover')} action={<Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
-          {date < today ? L('Aucune séance n’a été enregistrée à cette date.', 'No workout was recorded on this date.') : L('Aucune séance n’est prévue à cette date.', 'No workout is planned for this date.')}
+        <Empty art={rest ? 'pause' : 'calendar'} title={rest ? L('Jour de repos', 'Rest day') : date < today ? L('Aucune séance ce jour-là', 'No workout that day') : L('Aucune séance prévue', 'No workout planned')} action={<Button onClick={onClose}>{L('Revenir au calendrier', 'Return to calendar')}</Button>}>
+          {rest ? L('Ce jour est réservé à la récupération dans ton rythme de la semaine.', 'This is a recovery day in your weekly schedule.') : date < today ? L('Aucune séance n’a été enregistrée à cette date.', 'No workout was recorded on this date.') : L('Aucune séance n’est prévue à cette date.', 'No workout is planned for this date.')}
         </Empty>
       )}
-      {ctx.period && <p className="mt-4 text-[13px] leading-[1.45] text-muted">{ctx.period.note}</p>}
+      {!rest && !paused && ctx.period && <p className="mt-4 text-[13px] leading-[1.45] text-muted">{ctx.period.note}</p>}
     </Sheet>
   )
 }

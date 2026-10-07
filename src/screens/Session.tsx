@@ -26,6 +26,7 @@ import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
 import { workoutArt } from '../components/SportArt'
+import { useSessionStart } from '../components/useSessionStart'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
   Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
@@ -42,7 +43,7 @@ export function SessionScreen() {
 
 function SessionPreview() {
   const state = useStore((s) => s.state)
-  const startSession = useStore((s) => s.startSession)
+  const { start, confirmation } = useSessionStart(() => window.scrollTo({ top: 0 }))
   const today = todayISO()
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
   const [type, setType] = useState<WorkoutType>(planned[0]?.type ?? state.nextWorkoutType)
@@ -62,9 +63,7 @@ function SessionPreview() {
   const isNext = type === (planned[0]?.type ?? state.nextWorkoutType)
 
   const begin = () => {
-    unlockAudio()
-    startSession(type)
-    window.scrollTo({ top: 0 })
+    start(type)
   }
 
   return (
@@ -120,6 +119,7 @@ function SessionPreview() {
 
       {sheet !== null && exercises[sheet] && <ExerciseSheet key={`${type}-${sheet}-${exercises[sheet].exerciseId}`} exerciseId={exercises[sheet].exerciseId} open onClose={() => setSheet(null)} prescription={rx[sheet]} replacement={{ kind: 'planned', type, index: sheet }} />}
       {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
+      {confirmation}
     </Screen>
   )
 }
