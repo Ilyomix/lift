@@ -364,6 +364,8 @@ export interface AppState {
   prefs: Prefs
   /** weekday (0 = Sunday) → planned session type */
   schedule: Record<number, WorkoutType | null>
+  /** One ISO Monday's choices only. Target counts sessions, including multiple workouts on one day; days use 0 = Sunday. */
+  weekSchedules?: Record<ISODate, { days: number[]; target: number }>
   exerciseVideos: Record<string, string>
   archive?: {
     templatesBeforeResearch?: Record<string, Template>

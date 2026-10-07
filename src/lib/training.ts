@@ -6,7 +6,7 @@ import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
 import { L, lang } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
+import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, isRestDay, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
   ActiveWorkout, AppState, AutoChange, Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -726,6 +726,8 @@ export interface FinishResult {
   records: string[]
   /** Several exercises down two sessions in a row: the deload can come early. */
   generalDrop: boolean
+  /** Immediate post-workout prompt only; never kept in workout history. */
+  trainedOnRestDay?: boolean
 }
 
 /** Longest stretch without any session between two dates: a sparse schedule is not a break, two empty weeks are. */
@@ -962,6 +964,7 @@ export function describeChanges(changes: AutoChange[]): string {
 export function finishedState(s: AppState, now: string = new Date().toISOString(), today: ISODate = todayISO()): { state: AppState; result: FinishResult } | null {
   const a = s.activeWorkout
   if (!a) return null
+  const trainedOnRestDay = !a.reopened && isRestDay({ ...s, activeWorkout: null }, a.date, a.date)
   const original = a.reopened ? (s.workouts.find((w) => w.id === a.id) ?? null) : null
   const sessionNumber = original?.sessionNumber ?? Math.max(0, ...s.workouts.map((w) => w.sessionNumber)) + 1
   const workout: Workout = {
@@ -997,7 +1000,7 @@ export function finishedState(s: AppState, now: string = new Date().toISOString(
     const { also: _a, ...bare } = c
     return twins.length ? { ...bare, also: twins } : bare
   })
-  const result: FinishResult = { ...judged, changes, workout: { ...judged.workout, changes } }
+  const result: FinishResult = { ...judged, changes, workout: { ...judged.workout, changes }, trainedOnRestDay }
   const workouts = [...s.workouts.filter((x) => x.id !== workout.id), result.workout].sort((x, y) => (x.date === y.date ? x.sessionNumber - y.sessionNumber : x.date < y.date ? -1 : 1))
   const reentry = original ? s.reentry : s.reentry ? (s.reentry.sessionsLeft > 1 ? { ...s.reentry, sessionsLeft: s.reentry.sessionsLeft - 1 } : null) : null
   // What the lifter had decided stands when the corrected session asks for the same change: one undone

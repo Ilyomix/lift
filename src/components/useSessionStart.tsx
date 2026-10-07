@@ -34,8 +34,8 @@ export function useSessionStart(onStarted: () => void) {
       >
         <p className="text-[15px] leading-relaxed text-text-2">{L('Aujourd’hui est prévu pour le repos dans ton programme.', 'Today is a scheduled rest day in your program.')}</p>
         <p className="mt-3 text-[14px] leading-relaxed text-text-2">{L(
-          `Si tu commences ${pending ? TYPE_META[pending].label : ''} maintenant, cette séance sera datée d’aujourd’hui. Tes jours d’entraînement habituels restent inchangés.`,
-          `If you start ${pending ? TYPE_META[pending].label : ''} now, this workout will be dated today. Your usual training days stay the same.`,
+          `Si tu commences ${pending ? TYPE_META[pending].label : ''} maintenant, cette séance sera datée d’aujourd’hui. À la fin, tu pourras déplacer ton repos ou garder une séance supplémentaire cette semaine.`,
+          `If you start ${pending ? TYPE_META[pending].label : ''} now, this workout will be dated today. Afterwards, you can move your rest day or keep an extra workout this week.`,
         )}</p>
       </Sheet>
     ),

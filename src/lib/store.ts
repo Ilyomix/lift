@@ -2,15 +2,15 @@ import { upgradeTrainingDiagnostics } from './trainingMigration'
 import { currentExerciseIndex, hasPendingSets, nextPendingExerciseIndex } from './activeExercise'
 import { create } from 'zustand'
 import { clear, createStore, del, entries, get as idbGet, set as idbSet } from 'idb-keyval'
-import { defaultState, makeBackup, normalizeState, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
+import { defaultState, makeBackup, normalizeState, normalizeWeekSchedules, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
 import { applyPlanUpdate, type PlanUpdate } from './coach'
-import { addDays, diffDays, fmtDate, isoFromTimestamp, todayISO } from './date'
+import { addDays, diffDays, fmtDate, isoFromTimestamp, mondayOf, todayISO, weekday } from './date'
 import { roundTo, uid } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
   buildResearchTemplates, configurePlan, contextAt, defaultExerciseOrder, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
-  reentryForGap, scheduledGap, takesLest, trainingDays,
+  isPausedDay, maintenanceHorizon, REPORT_START, reentryForGap, scheduledGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
 import {
@@ -119,6 +119,7 @@ interface Store {
   setGoals: (patch: Partial<Goals>) => void
   setPrefs: (patch: Partial<Prefs>) => void
   setSchedule: (dow: number, type: WorkoutType | null) => void
+  setWeekSchedule: (week: ISODate, days: number[] | null) => boolean
   toggleTrainingDay: (dow: number) => void
   addGym: (name: string) => string
   renameGym: (id: string, name: string) => void
@@ -977,6 +978,37 @@ export const useStore = create<Store>((set, get) => ({
       const schedule = { ...s.schedule, [dow]: type }
       return { ...s, schedule, goals: { ...s.goals, sessionsPerWeek: Object.values(schedule).filter(Boolean).length } }
     }),
+
+  setWeekSchedule: (week, days) => {
+    if (days !== null && !Array.isArray(days)) return false
+    const choice = normalizeWeekSchedules({ [week]: { days: days ?? [], target: 100 } })?.[week]
+    if (!choice) return false
+    const state = get().state, today = todayISO(), endOfWeek = addDays(week, 6)
+    const start = state.settings.programStart ?? REPORT_START
+    const end = state.settings.maintenance ? maintenanceHorizon(today, start) : state.settings.goalDate
+    if (week < mondayOf(today) || endOfWeek < start || week > end) return false
+    if (days === null) {
+      if (!state.weekSchedules?.[week]) return true
+      const { [week]: _removed, ...remaining } = state.weekSchedules
+      const { weekSchedules: _old, ...kept } = state
+      get().update(() => Object.keys(remaining).length ? { ...kept, weekSchedules: remaining } : kept)
+      return true
+    }
+    const occupied = new Map(state.workouts.filter(workout => workout.date >= week && workout.date <= endOfWeek).map(workout => [workout.id, workout.date]))
+    const active = state.activeWorkout
+    if (active && !active.reopened && !state.workouts.some(workout => workout.id === active.id)
+      && active.date >= week && active.date <= endOfWeek) occupied.set(active.id, active.date)
+    const dates = new Set(occupied.values())
+    const selected = choice.days.map(day => addDays(week, (day + 6) % 7))
+    if (selected.some(date => !dates.has(date) && (date < today || date < start || date > end || isPausedDay(state, date, today)))) return false
+    const future = selected.filter(date => !dates.has(date))
+    const target = occupied.size + future.length
+    if (target > 100) return false
+    const chosen = new Set([...dates].map(weekday).concat(choice.days))
+    const value = { days: [1, 2, 3, 4, 5, 6, 0].filter(day => chosen.has(day)), target }
+    get().update(s => ({ ...s, weekSchedules: { ...s.weekSchedules, [week]: value } }))
+    return true
+  },
 
   toggleTrainingDay: (dow) =>
     get().update((s) => {

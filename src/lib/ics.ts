@@ -2,7 +2,7 @@
 // Event texts follow the interface language; UIDs stay the same so a re-import updates the events.
 import { addDays, parseISO, todayISO, weekday } from './date'
 import { L } from './i18n'
-import { GOAL_DATE, keyPeriods, MAINTENANCE, PERIODS, PROGRAM_START, scaledSession, sessionMinutes, sessionSlots, TYPE_META } from './program'
+import { GOAL_DATE, keyPeriods, MAINTENANCE, PERIODS, PROGRAM_START, projectSessions, scaledSession, sessionMinutes, sessionSlots, TYPE_META } from './program'
 import { sessionPace } from './training'
 import type { AppState, ISODate } from './types'
 
@@ -51,7 +51,7 @@ function firstOnOrAfter(from: ISODate, dow: number): ISODate {
   return d
 }
 
-function timed(uid: string, date: ISODate, time: string, minutes: number, summary: string, description: string, rrule: string | null, alarmMinutesBefore: number): string[] {
+function timed(uid: string, date: ISODate, time: string, minutes: number, summary: string, description: string, rrule: string | null, alarmMinutesBefore: number, excluded: ISODate[] = []): string[] {
   const [h, m] = time.split(':').map(Number)
   const start = `${compact(date)}T${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}00`
   return [
@@ -63,6 +63,7 @@ function timed(uid: string, date: ISODate, time: string, minutes: number, summar
     `SUMMARY:${escapeText(summary)}`,
     `DESCRIPTION:${escapeText(description)}`,
     ...(rrule ? [`RRULE:${rrule}`] : []),
+    ...(excluded.length ? [`EXDATE:${excluded.map(day => `${compact(day)}${start.slice(8)}`).join(',')}`] : []),
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
     `DESCRIPTION:${escapeText(summary)}`,
@@ -92,10 +93,20 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
   const until = `${compact(GOAL_DATE)}T235959`
   const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lift//Programme hypertrophie//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Lift']
   if (o.training) {
+    const projection = projectSessions(state, GOAL_DATE, today).filter(session => !session.tentative)
     for (let dow = 0; dow < 7; dow++) {
-      const type = state.schedule[dow]
-      if (!type) continue
-      const first = firstOnOrAfter(from, dow)
+      const sessions = projection.filter(session => weekday(session.date) === dow)
+      if (!sessions.length) continue
+      const { type, date: first } = sessions[0]
+      const dates = new Set(sessions.map(session => session.date))
+      const excluded: ISODate[] = []
+      // Keep stable weekday series while making one-week choices, occupied days
+      // and pauses explicit exclusions. A one-off added day needs no recurrence.
+      if (sessions.length > 1) {
+        for (let date = first; date <= GOAL_DATE; date = addDays(date, 7)) {
+          if (!dates.has(date)) excluded.push(date)
+        }
+      }
       const meta = TYPE_META[type]
       // With fewer than five days, sessions take more sets: the event lasts as long as they do.
       const sets = scaledSession(sessionSlots(state.templates[type].exercises)).reduce((a, n) => a + n, 0)
@@ -109,8 +120,9 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
           `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
           `${meta.fr !== meta.label ? `${meta.fr}. ` : ''}The rotation shifts if a workout is missed: open Lift for today’s workout.`,
         ),
-        `FREQ=WEEKLY;BYDAY=${BYDAY[dow]};UNTIL=${until}`,
+        sessions.length > 1 ? `FREQ=WEEKLY;BYDAY=${BYDAY[dow]};UNTIL=${until}` : null,
         30,
+        excluded,
       ))
     }
   }
@@ -172,11 +184,7 @@ export function icsEventCount(ics: string): number {
 }
 
 export const firstTrainingDate = (state: AppState, from: ISODate = todayISO()): ISODate | null => {
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(from < PROGRAM_START ? PROGRAM_START : from, i)
-    if (state.schedule[weekday(d)]) return d
-  }
-  return null
+  return projectSessions(state, GOAL_DATE, from).find(session => !session.tentative)?.date ?? null
 }
 
 export const _test = { fold, escapeText, parseISO }

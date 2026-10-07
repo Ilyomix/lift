@@ -5,7 +5,7 @@ import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
 import {
-  contextAt, GOAL_DATE, isRestDay, pauseDays, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META,
+  contextAt, GOAL_DATE, isRestDay, pauseDays, prescribeSession, projectSessions, PROGRAM_START, sessionMinutes, sessionPlan, trainingDays, TYPE_META, weekSchedule,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
@@ -175,7 +175,7 @@ export function Home() {
         </Card>
       </Section>
 
-      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {perWeek} {L('séances', 'workouts')}</span>}>
+      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {weekSchedule(state, today).target} {L('séances', 'workouts')}</span>}>
         <WeekStrip days={week} onSelect={setDay} />
       </Section>
 

@@ -1,13 +1,13 @@
 import { isNative } from '../lib/native/bridge'
 import { useMemo, useState } from 'react'
-import { BellRing, BookOpen, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, CirclePause, ClipboardList, Flag, HelpCircle, NotebookPen, Play, RotateCcw } from 'lucide-react'
-import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, monthKey, monthName, todayISO } from '../lib/date'
+import { BellRing, BookOpen, CalendarDays, CalendarPlus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CirclePause, ClipboardList, Flag, HelpCircle, NotebookPen, Play, RotateCcw } from 'lucide-react'
+import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, monthKey, monthName, mondayOf, todayISO } from '../lib/date'
 import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
 import {
   calendarMonth, GOAL_DATE, MAINTENANCE, PERIODS, projectSessions, reentryForGap, TYPE_META,
-  gapSinceLastSession, sessionPlan, type Milestone,
+  gapSinceLastSession, weekSchedule, type Milestone,
 } from '../lib/program'
 import { navigate } from '../lib/router'
 import { calendarMilestonesAt } from '../lib/programTimeline'
@@ -15,6 +15,7 @@ import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
 import type { ISODate, PauseReason } from '../lib/types'
 import { Button, Card, cx, DateInput, Disclosure, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, TimeInput, Toggle } from '../components/ui'
+import { canEditWeekSchedule, WeekScheduleSheet } from '../components/WeekScheduleSheet'
 import { CalendarDaySheet } from '../components/CalendarDaySheet'
 import { ProgramContent } from './ProgramScreen'
 import { useSessionStart } from '../components/useSessionStart'
@@ -27,18 +28,37 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
     const saved = window.history.state?.liftCalendarMonth
     return typeof saved === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(saved) ? saved : monthKey(today)
   })
-  const setMonth = (value: string) => {
-    window.history.replaceState({ ...window.history.state, liftCalendarMonth: value }, '')
-    updateMonth(value)
+  const [expanded, updateExpanded] = useState(() => window.history.state?.liftCalendarExpanded === true)
+  const [anchor, updateAnchor] = useState<ISODate>(() => {
+    const saved = window.history.state?.liftCalendarWeek
+    if (typeof saved === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved) && addDays(saved, 0) === saved) return mondayOf(saved)
+    return mondayOf(month === monthKey(today) ? today : `${month}-01`)
+  })
+  const setView = (nextMonth: string, nextWeek: ISODate, showMonth = expanded) => {
+    window.history.replaceState({ ...window.history.state, liftCalendarMonth: nextMonth, liftCalendarWeek: nextWeek, liftCalendarExpanded: showMonth }, '')
+    updateMonth(nextMonth)
+    updateAnchor(nextWeek)
+    updateExpanded(showMonth)
   }
+  const move = (direction: number) => {
+    if (expanded) {
+      const nextMonth = addMonths(month, direction)
+      setView(nextMonth, mondayOf(`${nextMonth}-01`))
+    } else {
+      const nextWeek = addDays(anchor, direction * 7)
+      setView(monthKey(nextWeek), nextWeek)
+    }
+  }
+  const [editingWeek, setEditingWeek] = useState<ISODate | null>(null)
+  const thisWeek = weekSchedule(state, anchor, today)
   const [day, setDay] = useState<ISODate | null>(null)
   const [milestone, setMilestone] = useState<Milestone | null>(null)
   const planned = useMemo(() => projectSessions(state, GOAL_DATE, today), [state, today])
-  const weeks = useMemo(() => calendarMonth(state, month, planned, today), [state, month, planned, today])
+  const gridMonth = expanded ? month : monthKey(anchor)
+  const weeks = useMemo(() => calendarMonth(state, gridMonth, planned, today), [state, gridMonth, planned, today])
+  const visibleWeeks = expanded ? weeks : weeks.filter(w => w.monday === anchor)
   const [y, m] = month.split('-').map(Number)
   const next = calendarMilestonesAt(today)
-  const plan = useMemo(() => sessionPlan(state, today), [state, today])
-  const cycle = plan.cycle
   const milestonePeriod = milestone?.kind !== 'goal' ? PERIODS.find(period => period.start === milestone?.date) : undefined
 
   return (
@@ -56,19 +76,12 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       />
       <div className="mt-4">
       {tab === 'programme' ? <ProgramContent /> : <>
-      <div className="mb-5 text-text-2">
-        <p className="text-[13px] leading-[1.4]">{cycle ? L('Mode entretien · sans date de fin', 'Maintenance mode · no end date') : L(`Programme jusqu’au ${fmtDate(GOAL_DATE, { long: true })}`, `Program through ${fmtDate(GOAL_DATE, { long: true })}`)}</p>
-        <p className="mt-2 text-[15px] leading-[1.45]">{cycle
-          ? L(`${cycle.label} : ${plural(plan.done, 'séance terminée', 'séances terminées')}, ${plural(plan.planned, 'séance prévue', 'séances prévues')} jusqu’au ${fmtDate(cycle.end, { long: true })}. Les séances manquées sont reportées.`, `${cycle.label}: ${plural(plan.done, 'completed workout', 'completed workouts')}, ${plural(plan.planned, 'planned workout', 'planned workouts')} until ${fmtDate(cycle.end, { long: true })}. Missed workouts are rescheduled.`)
-          : L(`${plural(plan.done, 'séance terminée', 'séances terminées')}, ${plural(plan.planned, 'séance prévue', 'séances prévues')}. Les séances manquées sont reportées.`, `${plural(plan.done, 'completed workout', 'completed workouts')}, ${plural(plan.planned, 'planned workout', 'planned workouts')}. Missed workouts are rescheduled.`)}</p>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <SectionHeading>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></SectionHeading>
+        <SectionHeading>{expanded ? <>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></> : `${fmtDate(anchor)} – ${fmtDate(addDays(anchor, 6))}`}</SectionHeading>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          {month !== monthKey(today) && <Button size="sm" variant="outline" onClick={() => setMonth(monthKey(today))}>{L('Aujourd’hui', 'Today')}</Button>}
-          <IconButton label={L('Mois précédent', 'Previous month')} onClick={() => setMonth(addMonths(month, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
-          <IconButton label={L('Mois suivant', 'Next month')} onClick={() => setMonth(addMonths(month, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
+          {(expanded ? month !== monthKey(today) : anchor !== mondayOf(today)) && <Button size="sm" onClick={() => setView(monthKey(today), mondayOf(today))}>{L('Aujourd’hui', 'Today')}</Button>}
+          <IconButton label={expanded ? L('Mois précédent', 'Previous month') : L('Semaine précédente', 'Previous week')} onClick={() => move(-1)} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
+          <IconButton label={expanded ? L('Mois suivant', 'Next month') : L('Semaine suivante', 'Next week')} onClick={() => move(1)} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
         </div>
       </div>
 
@@ -76,17 +89,17 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         {[1, 2, 3, 4, 5, 6, 0].map((d) => <span key={d}>{dayLetter(d)}</span>)}
       </div>
       <div className="mt-1 space-y-1.5">
-        {weeks.map((w) => (
+        {visibleWeeks.map((w) => (
           <div key={w.monday}>
             <div className={cx('mt-2 mb-1 flex items-center gap-2 text-[11px] font-semibold tracking-[0.04em]', w.kind === 'deload' ? 'text-text' : 'text-muted')}>
               {w.kind === 'deload' && <span className="hatch h-2.5 w-4 rounded-[2px] border border-line-strong" aria-hidden />}
-              {w.caption}
+              <span className="min-w-0 flex-1">{w.caption}</span>
             </div>
             <div className="grid grid-cols-7 gap-1">
               {w.cells.map((c) => {
                 const done = c.done[0]
                 const active = c.active ? state.activeWorkout : null
-                const code = done ? TYPE_META[done.type].code : active ? TYPE_META[active.type].code : c.planned ? TYPE_META[c.planned.type].code : null
+                const workoutName = done ? TYPE_META[done.type].label : active ? TYPE_META[active.type].label : c.planned ? TYPE_META[c.planned.type].label : null
                 const label = done ? L(`${TYPE_META[done.type].label} faite`, `${TYPE_META[done.type].label} done`) : active ? L(`${TYPE_META[active.type].label} en cours`, `${TYPE_META[active.type].label} in progress`) : c.planned ? L(`${TYPE_META[c.planned.type].label} prévue`, `${TYPE_META[c.planned.type].label} planned`) : c.paused ? L('Pause', 'Paused') : c.rest ? L('Repos', 'Rest') : L('Aucune séance', 'No workout')
                 return (
                   <button
@@ -95,8 +108,9 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
                     onClick={() => setDay(c.date)}
                     aria-label={`${fmtDate(c.date, { weekday: true, long: true })} : ${label}${c.isGoal ? L(', objectif', ', goal') : ''}`}
                     className={cx(
-                      'pressable relative flex min-h-[52px] min-w-0 aspect-[0.86] flex-col items-center justify-between rounded-[9px] border py-1.5',
-                      !c.inMonth && 'opacity-35',
+                      'pressable relative flex min-w-0 flex-col items-center justify-between rounded-[9px] border py-2',
+                      expanded ? 'min-h-[52px] aspect-[0.86]' : 'min-h-[72px]',
+                      expanded && !c.inMonth && 'opacity-35',
                       w.kind === 'deload' && !done ? 'border-line-strong' : 'border-line',
                       c.paused && !done && 'hatch',
                       c.rest && 'border-dashed bg-surface',
@@ -104,9 +118,9 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
                     )}
                   >
                     <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
-                    {code ? (
-                      <span className={cx('flex h-[22px] min-w-[30px] items-center justify-center gap-0.5 rounded-[5px] px-1 text-[10px] font-bold tracking-[0.03em]', done ? 'bg-text text-bg' : active ? 'border border-signal bg-signal-soft text-signal-text' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
-                        {active && !done && <Play size={10} aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : code}
+                    {workoutName ? (
+                      <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center gap-0.5 rounded-[5px] px-1 text-[10px] font-semibold', done ? 'bg-text text-bg' : active ? 'border border-signal bg-signal-soft text-signal-text' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
+                        {active && !done && <Play size={10} aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : workoutName}
                       </span>
                     ) : c.paused || c.rest ? (
                       <span className="flex h-[22px] items-center text-[10px] font-medium text-text-2">{c.paused ? L('Pause', 'Pause') : L('Repos', 'Rest')}</span>
@@ -121,14 +135,21 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-text-2">
-        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] bg-text" />} label={L('Terminée', 'Completed')} />
-        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-line-strong" />} label={L('Prévue', 'Planned')} />
-        <Legend swatch={<span className="flex h-3.5 w-5 items-center justify-center rounded-[3px] bg-signal-soft text-signal-text"><Play size={10} aria-hidden /></span>} label={L('En cours', 'In progress')} />
-        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-dashed border-line bg-surface" />} label={L('Repos', 'Rest')} />
-        <Legend swatch={<span className="hatch h-3.5 w-5 rounded-[3px] border border-line" />} label={L('Pause', 'Paused')} />
-        <Legend swatch={<span className="h-3.5 w-5 rounded-[3px] border border-signal" />} label={L('Aujourd’hui', 'Today')} />
-        <span className="text-muted">UP Upper · LO Lower · PS Push · PL Pull · LG Legs</span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-text-2" aria-label={L('Légende du calendrier', 'Calendar legend')}>
+        <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] bg-text" />} label={L('Terminée', 'Completed')} />
+        <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] border border-line-strong" />} label={L('Prévue', 'Planned')} />
+        <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] border border-dashed border-line-strong" />} label={L('Repos', 'Rest')} />
+        {visibleWeeks.some(w => w.cells.some(c => c.active)) && <Legend swatch={<Play size={11} className="text-signal-text" />} label={L('En cours', 'In progress')} />}
+        {visibleWeeks.some(w => w.cells.some(c => c.paused)) && <Legend swatch={<span className="hatch h-2.5 w-3.5 rounded-[3px] border border-line" />} label={L('Pause', 'Paused')} />}
+      </div>
+
+      {!expanded && <div className="mt-3">
+        <p className="text-[13px] text-text-2">{L(`${thisWeek.completed} terminées · ${thisWeek.planned.length} à venir`, `${thisWeek.completed} done · ${thisWeek.planned.length} upcoming`)} <span className="text-muted">· {L(`Objectif : ${thisWeek.target}`, `Target: ${thisWeek.target}`)}</span></p>
+        {thisWeek.adaptedRest.length > 0 && <p className="mt-2 text-[13px] text-text-2">{L('Une séance supplémentaire est prévue. Déplace ton repos ou conserve-la.', 'An extra workout is planned. Move your rest day or keep it.')}</p>}
+      </div>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!expanded && canEditWeekSchedule(anchor, today) && <Button className="flex-1" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setEditingWeek(anchor)}>{L('Séances et repos', 'Training & rest')}</Button>}
+        <Button className="flex-1" aria-expanded={expanded} onClick={() => setView(month, anchor, !expanded)} icon={expanded ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}>{expanded ? L('Réduire à la semaine', 'Show week') : L('Afficher le mois', 'Show month')}</Button>
       </div>
 
       {next.length > 0 && (
@@ -165,6 +186,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         <Button variant="outline" size="lg" full icon={<CirclePause size={18} aria-hidden />} onClick={() => navigate('plus/pause')}>{state.programPause.active ? L('Gérer la pause', 'Manage the pause') : L('Mettre le programme en pause', 'Pause the program')}</Button>
       </div>
 
+      {editingWeek && <WeekScheduleSheet key={editingWeek} weekDate={editingWeek} onClose={() => setEditingWeek(null)} />}
       {day && <CalendarDaySheet key={day} date={day} onClose={() => setDay(null)} planned={planned} onStart={start} />}
       {milestone && <Sheet open onClose={() => setMilestone(null)} title={milestone.title} icon={<Flag size={18} aria-hidden />}>
         <p className="text-[13px] text-text-2">{fmtDate(milestone.date, { long: true, year: true })}{milestonePeriod && ` – ${fmtDate(milestonePeriod.end, { long: true, year: true })}`}</p>

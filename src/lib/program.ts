@@ -1135,12 +1135,68 @@ export function isPausedDay(state: Pick<AppState, 'programPause'>, date: ISODate
     && (!pause.plannedEnd || date <= pause.plannedEnd || date === today)
 }
 
-/** A scheduled recovery day, not an unlogged past workout or a day outside the plan. */
+export interface WeekSchedule {
+  monday: ISODate
+  target: number
+  completed: number
+  active: number
+  /** Actual future slots from the saved schedule, never changed silently by the suggestion. */
+  planned: ISODate[]
+  rest: ISODate[]
+  /** Future slots suggested to stay within the weekly target, pending the user's choice. */
+  suggested: ISODate[]
+  /** Planned dates the suggestion would free for recovery; not yet actual rest days. */
+  adaptedRest: ISODate[]
+  customized: boolean
+}
+
+/** A correction already counts in history; only an additional session consumes another slot. */
+function additionalActive(state: Pick<AppState, 'activeWorkout' | 'workouts'>): AppState['activeWorkout'] {
+  const active = state.activeWorkout
+  return active && !active.reopened && !state.workouts.some((w) => w.id === active.id) ? active : null
+}
+
+function scheduledWeek(state: AppState, weekDate: ISODate, today: ISODate, end: ISODate | null, projectTentativePause = false): WeekSchedule {
+  const monday = mondayOf(weekDate)
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+  const sunday = dates[6]
+  const override = state.weekSchedules?.[monday]
+  const customized = !!override && Array.isArray(override.days)
+  const days = customized
+    ? [...new Set(override.days.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))]
+    : trainingDays(state)
+  const target = customized && Number.isInteger(override.target) && override.target >= 0 ? override.target : days.length
+  const workouts = state.workouts.filter((w) => w.date >= monday && w.date <= sunday)
+  const completed = new Set(workouts.map((w) => w.id)).size
+  const running = additionalActive(state)
+  const active = running && running.date >= monday && running.date <= sunday ? 1 : 0
+  const occupied = new Set(workouts.map((w) => w.date))
+  if (running) occupied.add(running.date)
+  const eligible = dates.filter((date) => {
+    if (date < today || date < PROGRAM_START || (end && date > end) || occupied.has(date)) return false
+    if (!isPausedDay(state, date, today)) return true
+    // Keep the existing tentative outlook during an open-ended pause. These are
+    // projections only: the public week summary never labels paused days as rest.
+    return projectTentativePause && state.programPause.active && !state.programPause.plannedEnd && date > today
+  })
+  const planned = eligible.filter((date) => days.includes(weekday(date)))
+  const rest = eligible.filter((date) => !days.includes(weekday(date)))
+  const remaining = Math.max(0, target - completed - active)
+  const excess = Math.max(0, planned.length - remaining)
+  return {
+    monday, target, completed, active, planned, rest,
+    suggested: planned.slice(excess), adaptedRest: planned.slice(0, excess), customized,
+  }
+}
+
+/** This week's saved choices and optional recovery suggestion. Past days and the program itself never move. */
+export function weekSchedule(state: AppState, weekDate: ISODate, today: ISODate = todayISO()): WeekSchedule {
+  return scheduledWeek(state, weekDate, today, MAINTENANCE ? null : GOAL_DATE)
+}
+
+/** A scheduled recovery day, not a suggestion, unlogged past workout or day outside the plan. */
 export function isRestDay(state: AppState, date: ISODate, today: ISODate = todayISO()): boolean {
-  if (date < today || date < PROGRAM_START || (!MAINTENANCE && date > GOAL_DATE)) return false
-  if (trainingDays(state).includes(weekday(date))) return false
-  if (state.workouts.some((w) => w.date === date) || state.activeWorkout?.date === date) return false
-  return !isPausedDay(state, date, today)
+  return weekSchedule(state, date, today).rest.includes(date)
 }
 
 export interface PlannedSession {
@@ -1152,24 +1208,19 @@ export interface PlannedSession {
 /** Rotation laid on the weekly schedule. A missed session shifts the rotation, it is never skipped. */
 export function projectSessions(state: AppState, to: ISODate = GOAL_DATE, from: ISODate = todayISO()): PlannedSession[] {
   const out: PlannedSession[] = []
-  let start = from < PROGRAM_START ? PROGRAM_START : from
-  if (state.workouts.some((w) => w.date === start) || state.activeWorkout?.date === start) start = addDays(start, 1)
-  let tentative = false
-  const pause = state.programPause
-  if (pause.active) {
-    if (pause.plannedEnd && pause.plannedEnd >= start) start = addDays(pause.plannedEnd, 1)
-    else if (!pause.plannedEnd) {
-      tentative = true
-      if (start <= from) start = addDays(from, 1)
-    }
-  }
+  const start = from < PROGRAM_START ? PROGRAM_START : from
   let type = state.nextWorkoutType
-  if (state.activeWorkout) type = nextInRotation(state.activeWorkout.type)
-  const training = Object.values(state.schedule).some(Boolean) ? state.schedule : DEFAULT_SCHEDULE
-  for (let d = start, i = 0; d <= to && i < 500; d = addDays(d, 1), i++) {
-    if (!training[weekday(d)]) continue
-    out.push({ date: d, type, tentative })
-    type = nextInRotation(type)
+  const active = additionalActive(state)
+  if (active) type = nextInRotation(active.type)
+  // `to` is also used to preview a new goal date in GoalSheet. Keep that explicit
+  // horizon while ordinary calendar callers pass the current plan's GOAL_DATE.
+  for (let monday = mondayOf(start), i = 0; monday <= to && i < 72; monday = addDays(monday, 7), i++) {
+    const week = scheduledWeek(state, monday, start, to, true)
+    for (const date of week.planned) {
+      const tentative = state.programPause.active && !state.programPause.plannedEnd && isPausedDay(state, date, from)
+      out.push({ date, type, tentative })
+      type = nextInRotation(type)
+    }
   }
   return out
 }

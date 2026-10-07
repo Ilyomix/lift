@@ -8,16 +8,19 @@ import { contextAt, isPausedDay, isRestDay, prescribeSession, projectSessions, T
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
 import type { ISODate, WorkoutType } from '../lib/types'
+import { canEditWeekSchedule, WeekScheduleSheet } from './WeekScheduleSheet'
 import { ExerciseSheet } from './ExerciseSheet'
 import { reserveLabel } from './EffortGuidance'
 import { Button, Empty, Sheet, Tag } from './ui'
 
 export function CalendarDaySheet({ date, onClose, planned: projection, onStart }: { date: ISODate; onClose: () => void; planned: ReturnType<typeof projectSessions>; onStart: (type: WorkoutType) => void }) {
   const state = useStore((s) => s.state)
+  const [weekOpen, setWeekOpen] = useState(false)
   const [exercise, setExercise] = useState<number | null>(null)
   const planned = projection.find(item => item.date === date)
   const exercises = planned ? scheduledExercises(state, planned.type, date, projection) : []
   const prescriptions = prescribeSession(exercises, date, state.reentry, state.gymId, state.workouts)
+  if (weekOpen) return <WeekScheduleSheet weekDate={date} onClose={() => setWeekOpen(false)} />
   if (exercise !== null && exercises[exercise]) return <ExerciseSheet open exerciseId={exercises[exercise].exerciseId} name={exercises[exercise].name} prescription={prescriptions[exercise]} onClose={() => setExercise(null)} />
   const today = todayISO()
   const done = state.workouts.filter((w) => w.date === date)
@@ -79,7 +82,7 @@ export function CalendarDaySheet({ date, onClose, planned: projection, onStart }
           {rest ? L('Ce jour est réservé à la récupération dans ton rythme de la semaine.', 'This is a recovery day in your weekly schedule.') : date < today ? L('Aucune séance n’a été enregistrée à cette date.', 'No workout was recorded on this date.') : L('Aucune séance n’est prévue à cette date.', 'No workout is planned for this date.')}
         </Empty>
       )}
+      {canEditWeekSchedule(date, today) && <Button full variant="outline" className="mt-4" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setWeekOpen(true)}>{L('Déplacer un repos / une séance', 'Move a rest day / workout')}</Button>}
     </Sheet>
   )
 }
-

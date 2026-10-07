@@ -7,7 +7,7 @@ import {
   ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SlidersHorizontal, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
-import { capitalize, fmtDate, todayISO } from '../lib/date'
+import { capitalize, fmtDate, mondayOf, todayISO } from '../lib/date'
 import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
@@ -26,6 +26,7 @@ import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
 import { workoutArt } from '../components/SportArt'
+import { WeekScheduleSheet } from '../components/WeekScheduleSheet'
 import { useSessionStart } from '../components/useSessionStart'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
@@ -658,6 +659,15 @@ export function SessionSummary() {
   const state = useStore((s) => s.state)
   const { applyChanges, revertChange, bringDeloadForward, cancelEarlyDeload } = useStore.getState()
   const w = lastFinish?.workout ?? state.workouts.find((x) => x.id === state.lastCompletedWorkoutId) ?? null
+  const [weekOpen, setWeekOpen] = useState(false)
+  useEffect(() => {
+    if (lastFinish?.trainedOnRestDay && mondayOf(lastFinish.workout.date) >= mondayOf(todayISO())) setWeekOpen(true)
+  }, [lastFinish])
+  const closeWeek = () => {
+    const finish = useStore.getState().lastFinish
+    if (finish && finish.workout.id === w?.id) useStore.setState({ lastFinish: { ...finish, trainedOnRestDay: false } })
+    setWeekOpen(false)
+  }
   if (!w) {
     return (
       <Screen>
@@ -788,6 +798,7 @@ export function SessionSummary() {
       <div className="mt-8 grid gap-2">
         <Button variant="primary" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
       </div>
+      {weekOpen && <WeekScheduleSheet weekDate={w.date} afterRestWorkout onClose={closeWeek} />}
     </Screen>
   )
 }

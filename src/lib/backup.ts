@@ -147,6 +147,21 @@ function normGyms(raw: any): Gym[] {
 }
 
 const isISO = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)
+
+/** One-week exceptions: real Mondays and explicit weekdays only, including an empty week. */
+export function normalizeWeekSchedules(raw: unknown): AppState['weekSchedules'] {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const valid = Object.entries(raw).filter(([week, value]) => {
+    if (!isISO(week) || !value || typeof value !== 'object' || Array.isArray(value)) return false
+    const { days, target } = value
+    if (!Array.isArray(days) || days.some(day => !Number.isInteger(day) || day < 0 || day > 6)
+      || !Number.isInteger(target) || target < new Set(days).size || target > 100) return false
+    const date = new Date(`${week}T12:00:00Z`)
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === week && date.getUTCDay() === 1
+  }).sort(([a], [b]) => b.localeCompare(a)).slice(0, 260)
+  return valid.length ? Object.fromEntries(valid.map(([week, value]) => [week, { days: [1, 2, 3, 4, 5, 6, 0].filter(day => value.days.includes(day)), target: value.target }])) : undefined
+}
+
 const EQUIPMENT: Equipment[] = ['dumbbells', 'bench', 'pullupBar', 'bands']
 
 function normSetup(raw: any): TrainingSetup {
@@ -340,7 +355,8 @@ export function normalizeState(raw: any): AppState {
       importedAt: typeof raw.meta?.importedAt === 'string' ? raw.meta.importedAt : null,
     },
   })
-  return { ...state, sessionReplacements: normalizeSessionReplacements(raw.sessionReplacements, state.templates) }
+  const weekSchedules = normalizeWeekSchedules(raw.weekSchedules)
+  return { ...state, ...(weekSchedules ? { weekSchedules } : {}), sessionReplacements: normalizeSessionReplacements(raw.sessionReplacements, state.templates) }
 }
 
 /**
