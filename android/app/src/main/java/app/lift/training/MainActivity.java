@@ -10,6 +10,9 @@ public class MainActivity extends BridgeActivity {
     private boolean pageLoaded;
     private boolean openSession;
     @Override public void onCreate(Bundle savedInstanceState) {
+        // A notification can create the activity instead of calling onNewIntent.
+        Intent initialIntent = getIntent();
+        openSession = initialIntent != null && "seance".equals(initialIntent.getStringExtra("liftRoute"));
         registerPlugin(WorkoutActivityPlugin.class);
         bridgeBuilder.addWebViewListener(new WebViewListener() {
             @Override public void onPageLoaded(WebView view) {

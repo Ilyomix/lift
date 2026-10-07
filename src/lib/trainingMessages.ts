@@ -36,6 +36,8 @@ const STORED_MESSAGES: readonly Translation[] = [
   ['MOINS DE REPS, PLUS DE MARGE', 'FEWER REPS, MORE IN RESERVE'],
   ['CONDITIONS DIFFÉRENTES', 'DIFFERENT CONDITIONS'],
   ['COMPARAISON À VÉRIFIER', 'COMPARISON TO CHECK'],
+  ['COMPARAISON INDISPONIBLE', 'COMPARISON UNAVAILABLE'],
+  ['Charge manquante sur une série de cette séance ou de la précédente.', 'A load is missing from a set in this workout or the previous one.'],
   ['NOMBRE DE SÉRIES DIFFÉRENT', 'DIFFERENT NUMBER OF SETS'],
   ['CHARGE SUPÉRIEURE', 'HEAVIER LOAD'],
   ['RÉPARTITION DES CHARGES MODIFIÉE', 'LOAD PATTERN CHANGED'],

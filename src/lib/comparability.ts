@@ -1,11 +1,10 @@
-import { infoFor } from './library'
 import type { Workout, WorkoutExercise, WorkoutType } from './types'
 
 import type { ContextReason } from './trainingMessages'
 export type { ContextReason } from './trainingMessages'
 type Range = { minReps: number; maxReps: number }
 const complete = (ex: WorkoutExercise) => !ex.skipped && ex.sets.some((s) => s.completed && (s.reps ?? 0) > 0)
-const context = (ex: WorkoutExercise) => ex.comparisonContext?.trim().toLowerCase() ?? ''
+export const comparisonContext = (ex: Pick<WorkoutExercise, 'comparisonContext'>) => ex.comparisonContext?.trim().toLowerCase() ?? ''
 const sameRange = (a: Range, b: Range) => a.minReps === b.minReps && a.maxReps === b.maxReps
 
 /** Chronological copies: imported arrays and backdated edits need not be in date order. */
@@ -13,8 +12,9 @@ export function chronological(workouts: Workout[]): Workout[] {
   return [...workouts].sort((a, b) => a.date.localeCompare(b.date) || a.sessionNumber - b.sessionNumber)
 }
 
-export function workoutsBefore(workouts: Workout[], current: Pick<Workout, 'id' | 'date' | 'sessionNumber'>): Workout[] {
-  return workouts.filter((w) => w.id !== current.id && (w.date < current.date || (w.date === current.date && w.sessionNumber < current.sessionNumber)))
+export function workoutsBefore(workouts: Workout[], current: Pick<Workout, 'id' | 'date'> & Partial<Pick<Workout, 'sessionNumber'>>): Workout[] {
+  const number = current.sessionNumber ?? workouts.find(w => w.id === current.id)?.sessionNumber ?? Infinity
+  return workouts.filter((w) => w.id !== current.id && (w.date < current.date || (w.date === current.date && w.sessionNumber < number)))
 }
 
 /**
@@ -35,7 +35,7 @@ export function previousComparablePerformance(
     const workout = ordered[i]
     const exercise = workout.exercises.find((ex) => ex.exerciseId === exerciseId && complete(ex))
     if (!exercise || !accept(workout, exercise)) continue
-    if (latest && (exercise.unit !== latest.exercise.unit || context(exercise) !== context(latest.exercise))) return sameRangeFallback ?? latest
+    if (latest && (exercise.unit !== latest.exercise.unit || comparisonContext(exercise) !== comparisonContext(latest.exercise))) return sameRangeFallback ?? latest
     latest ??= { workout, exercise }
     if (!like || sameRange(exercise.prescription ?? exercise.target, like)) {
       if (!preferredType || workout.type === preferredType) return { workout, exercise }
@@ -48,8 +48,8 @@ export function previousComparablePerformance(
 /** Different measurements must not become a physiological fatigue diagnosis. */
 export function exerciseContextReason(now: WorkoutExercise, before: WorkoutExercise): ContextReason | null {
   if (now.unit !== before.unit) return 'unit-changed'
-  const currentContext = context(now)
-  const oldContext = context(before)
+  const currentContext = comparisonContext(now)
+  const oldContext = comparisonContext(before)
   if (currentContext !== oldContext) {
     return 'conditions-changed'
   }
@@ -62,20 +62,6 @@ export function exerciseContextReason(now: WorkoutExercise, before: WorkoutExerc
   return null
 }
 
-/** Work performed before this exercise on muscles it uses, including optional extra sets. */
-function precedingWork(workout: Workout, exercise: WorkoutExercise): string {
-  const own = infoFor(exercise.exerciseId, exercise).groups
-  const index = workout.exercises.indexOf(exercise)
-  if (index < 0) return ''
-  return workout.exercises.slice(0, index).filter(complete).flatMap((ex) => {
-    const groups = infoFor(ex.exerciseId, ex).groups
-    const overlap = Object.keys(own).some((muscle) => (groups[muscle as keyof typeof groups] ?? 0) > 0)
-    if (!overlap) return []
-    const sets = ex.sets.filter((s) => s.completed && (s.reps ?? 0) > 0).length
-    return [`${ex.exerciseId}:${sets}`]
-  }).join('|')
-}
-
 export function workoutContextReason(now: Workout, exercise: WorkoutExercise, before: Workout, previous: WorkoutExercise): ContextReason | null {
   const reason = exerciseContextReason(exercise, previous)
   // An equipment change must not be hidden by the order of exercises in a split.
@@ -84,7 +70,8 @@ export function workoutContextReason(now: Workout, exercise: WorkoutExercise, be
     return 'program-changed'
   }
   if (reason === 'rep-range-changed') return reason
-  const precedingChanged = precedingWork(now, exercise) !== precedingWork(before, previous)
-  if (now.type !== before.type && (reason === 'rest-changed' || precedingChanged)) return 'workout-type-changed'
-  return reason ?? (precedingChanged ? 'preceding-work-changed' : null)
+  if (now.type !== before.type) return 'workout-type-changed'
+  // The sheet order is not execution order: users can jump between exercises.
+  // Only recorded conditions can establish a change; other rows cannot prove prior fatigue.
+  return reason
 }

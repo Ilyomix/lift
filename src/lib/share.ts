@@ -44,7 +44,7 @@ export async function copyText(text: string): Promise<void> {
     document.body.appendChild(ta)
     ta.select()
     try {
-      document.execCommand('copy')
+      if (!document.execCommand('copy')) throw new Error('Clipboard write refused')
       useStore.getState().notify(copied(), 'good')
     } catch {
       useStore.getState().notify(L('Copie impossible. Réessaie depuis cette page.', 'Could not copy. Try again from this page.'), 'bad')

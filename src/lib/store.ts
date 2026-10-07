@@ -1,7 +1,8 @@
 import { upgradeTrainingDiagnostics } from './trainingMigration'
 import { currentExerciseIndex, hasPendingSets, nextPendingExerciseIndex } from './activeExercise'
+import { workoutsBefore } from './comparability'
 import { create } from 'zustand'
-import { clear, createStore, del, entries, get as idbGet, set as idbSet } from 'idb-keyval'
+import { clear, createStore, del, entries, get as idbGet, promisifyRequest, set as idbSet } from 'idb-keyval'
 import { defaultState, makeBackup, normalizeState, normalizeWeekSchedules, upgradeToResearchProgram, type ParsedBackup, type ProgramChange } from './backup'
 import { applyPlanUpdate, type PlanUpdate } from './coach'
 import { addDays, diffDays, fmtDate, isoFromTimestamp, mondayOf, todayISO, weekday } from './date'
@@ -16,7 +17,7 @@ import { cancelRestPush, scheduleRestPush } from './push'
 import {
   appliedState, beforeCorrection, finishedState, intraSessionAdjust, knownLoads, previousPerformance, reopenedState, revertedState, withoutWorkout, type FinishResult,
 } from './training'
-import { L, resolveLang, setLang } from './i18n'
+import { L, lang, resolveLang, setLang } from './i18n'
 import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
 import { weightStatus } from './stats'
@@ -60,9 +61,9 @@ interface Store {
   completeOnboarding: (a: OnboardingAnswers) => void
   /** Gym or home (and home equipment): the sessions are rebuilt, known loads kept. */
   setSetup: (setup: TrainingSetup) => void
-  importBackup: (parsed: ParsedBackup, opts: { upgrade: boolean }) => Promise<void>
+  importBackup: (parsed: ParsedBackup, opts: { upgrade: boolean }) => Promise<boolean>
   exportBackup: () => Backup
-  resetAll: () => Promise<void>
+  resetAll: () => Promise<boolean>
 
   startSession: (type?: WorkoutType) => void
   focusExercise: (ex: number) => void
@@ -140,6 +141,26 @@ interface Store {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saveInFlight: Promise<void> | null = null
+let replacingData = false
+
+/** One photo transaction: neither clear nor a partial set survives a failed write. */
+function replacePhotos(photos: Photo[]): Promise<void> {
+  return photoDb('readwrite', store => {
+    const saved = promisifyRequest(store.transaction)
+    try {
+      store.clear()
+      for (const photo of photos) store.put(photo, photo.id)
+    } catch {
+      store.transaction.abort()
+    }
+    return saved
+  })
+}
+
+function cancelScheduledSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+}
 const storageUnavailableMessages = [
   'Enregistrement indisponible. Exporte une sauvegarde avant de fermer Lift.',
   'Saving is unavailable. Export a backup before closing Lift.',
@@ -166,7 +187,7 @@ function emptySet(weight: number | null): WorkoutSet {
 function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadFactor: number, historyFallback = true): { weight: number | null; trial: WorkoutExercise['gymTrial'] } {
   const scale = (w: number) => {
     const inc = incrementFor(t)
-    return loadFactor < 1 && inc > 0 ? Math.max(inc, roundTo(w * loadFactor, inc)) : w
+    return loadFactor < 1 && inc > 0 ? Math.min(w, Math.max(inc, roundTo(w * loadFactor, inc))) : w
   }
   // Bodyweight work: the added load, if any; never a trial session.
   if (t.unit === 'PDC') return { weight: takesLest(t) && t.target.weight ? scale(t.target.weight) : null, trial: undefined }
@@ -323,6 +344,8 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   flush: async () => {
+    // Keep a deferred edit marked as pending while import/reset owns storage.
+    if (replacingData) return
     if (saveTimer) {
       clearTimeout(saveTimer)
       saveTimer = null
@@ -397,35 +420,73 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   importBackup: async (parsed, { upgrade }) => {
-    let state: AppState = { ...parsed.state, meta: { ...parsed.state.meta, importedAt: new Date().toISOString() } }
-    let changes: ProgramChange[] = []
-    if (upgrade && parsed.legacy) ({ state, changes } = upgradeToResearchProgram(state))
+    if (replacingData) return false
+    replacingData = true
+    cancelScheduledSave()
+    await saveInFlight
+    const previous = get()
+    let photosChanged = false
     try {
-      await clear(photoDb)
-      for (const p of parsed.photos) await idbSet(p.id, p, photoDb)
+      let state: AppState = { ...parsed.state, meta: { ...parsed.state.meta, importedAt: new Date().toISOString() } }
+      let changes: ProgramChange[] = []
+      // Validate/migrate before replacing photos. Restore the live locale/calendar
+      // until persistence succeeds; imported preferences must not leak on failure.
+      const previousLang = lang()
+      try {
+        setLang(resolveLang(state.prefs.lang))
+        if (upgrade && parsed.legacy) ({ state, changes } = upgradeToResearchProgram(state))
+        syncPlan(state)
+        state = localizeState(upgradeTrainingDiagnostics(state))
+      } finally {
+        setLang(previousLang)
+        syncPlan(previous.state)
+      }
+      await replacePhotos(parsed.photos)
+      photosChanged = true
+      await idbSet('state', state, kv)
+      applyPrefs(state.prefs)
+      syncPlan(state)
+      set({ hasData: true, state, photos: parsed.photos, storage: 'idb', lastImport: { changes }, lastFinish: null, toast: null })
+      return true
     } catch {
-      /* photos stay in memory */
+      let restored = true
+      if (photosChanged) {
+        try { await replacePhotos(previous.photos) } catch { restored = false }
+      }
+      get().notify(restored
+        ? L('Import impossible. Tes données actuelles sont conservées. Libère de l’espace puis réessaie.', 'Import failed. Your existing data is unchanged. Free up space and try again.')
+        : L('Import impossible et restauration des photos indisponible. Tes données restent en mémoire : exporte une sauvegarde avant de fermer Lift.', 'Import failed and photos could not be restored. Your data remains in memory: export a backup before closing Lift.'), 'bad')
+      return false
+    } finally {
+      replacingData = false
+      // A UI edit made while the databases were busy remains eligible for saving.
+      if (saveTimer) void get().flush()
     }
-    applyPrefs(state.prefs)
-    syncPlan(state)
-    state = localizeState(upgradeTrainingDiagnostics(state))
-    syncPlan(state)
-    set({ hasData: true, state, photos: parsed.photos, lastImport: { changes } })
-    await get().flush()
   },
 
   exportBackup: () => makeBackup(get().state, get().photos),
 
   resetAll: async () => {
+    if (replacingData) return false
+    replacingData = true
+    cancelScheduledSave()
+    await saveInFlight
     try {
-      await clear(kv)
       await clear(photoDb)
+      await clear(kv)
+      const state = defaultState()
+      syncPlan(state)
+      set({ hasData: false, state, photos: [], storage: 'idb', lastFinish: null, lastImport: null, toast: null })
+      cancelRestPush()
+      return true
     } catch {
-      /* ignore */
+      get().notify(L('Suppression incomplète. Réessaie avant de fermer Lift.', 'Deletion incomplete. Try again before closing Lift.'), 'bad')
+      return false
+    } finally {
+      replacingData = false
+      if (get().hasData && saveTimer) void get().flush()
+      else cancelScheduledSave()
     }
-    const state = defaultState()
-    syncPlan(state)
-    set({ hasData: false, state, photos: [], lastFinish: null, lastImport: null })
   },
 
   // ───────────────────────── Session ─────────────────────────
@@ -517,6 +578,8 @@ export const useStore = create<Store>((set, get) => ({
     const st = exercise?.sets[i]
     if (!st) return
     if (st.completed) {
+      // Only the source set can invalidate this adjustment; preserve manual loads.
+      if (exercise.hint?.sourceSet === i) get().undoHint(ex)
       get().updateSet(ex, i, { completed: false })
       get().focusExercise(ex)
       return
@@ -537,14 +600,14 @@ export const useStore = create<Store>((set, get) => ({
         // Loads follow the set just done: far above the range → heavier, far below → lighter.
         if (s.prefs.autoLoad) {
           const cur = next.exercises[ex]
-          const adj = intraSessionAdjust(cur, i, knownLoads([...s.workouts, next], cur.exerciseId, isGymBound(cur) ? (next.gymId ?? HOME_GYM) : undefined))
+          const adj = intraSessionAdjust(cur, i, knownLoads([...workoutsBefore(s.workouts, next), next], cur.exerciseId, isGymBound(cur) ? (next.gymId ?? HOME_GYM) : undefined, cur))
           if (adj && typeof weight === 'number') {
             const idx = cur.sets.map((x, j) => (j > i && !x.completed && (x.weight === weight || x.weight === null) ? j : -1)).filter((j) => j >= 0)
             if (idx.length) {
               next = mapExercise(next, ex, (e) => ({
                 ...e,
                 sets: e.sets.map((x, j) => (idx.includes(j) ? { ...x, weight: adj.weight } : x)),
-                hint: { text: adj.text, from: weight, to: adj.weight, sets: idx },
+                hint: { text: adj.text, from: weight, to: adj.weight, sets: idx, sourceSet: i },
               }))
             }
           }
@@ -799,7 +862,8 @@ export const useStore = create<Store>((set, get) => ({
       const next = withoutWorkout(s, id)
       return next.activeWorkout?.reopened && next.activeWorkout.id === id ? { ...next, activeWorkout: null } : next
     })
-    if (get().lastFinish?.workout.id === id) set({ lastFinish: null })
+    // Removing an earlier session can also change the latest workout's diagnostics.
+    set({ lastFinish: null })
   },
 
   // ───────────────────────── Body & nutrition ─────────────────────────
@@ -1121,11 +1185,11 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   deletePhoto: async (id) => {
-    set((st) => ({ photos: st.photos.filter((p) => p.id !== id) }))
     try {
       await del(id, photoDb)
+      set((st) => ({ photos: st.photos.filter((p) => p.id !== id) }))
     } catch {
-      /* ignore */
+      get().notify(L('La photo n’a pas pu être supprimée. Réessaie avant de fermer Lift.', 'The photo could not be deleted. Try again before closing Lift.'), 'bad')
     }
   },
 }))

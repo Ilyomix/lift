@@ -12,7 +12,7 @@ import { RestDock, SessionEffects } from './components/RestTimer'
 import { TabBar } from './components/TabBar'
 import { SwipeNavigation } from './components/SwipeNavigation'
 import { RouteFocus } from './components/RouteFocus'
-import { Button, Toaster } from './components/ui'
+import { Button, Header, Screen, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
 import { Home } from './screens/Home'
 import { AboutScreen, CoachScreen, DataScreen, MoreScreen, NutritionScreen, NutritionTargetsScreen } from './screens/More'
@@ -92,6 +92,7 @@ function UpdatePrompt() {
 export default function App() {
   const ready = useStore((s) => s.ready)
   const hasData = useStore((s) => s.hasData)
+  const storage = useStore((s) => s.storage)
   // Strings are read at render: a language change remounts the whole tree.
   const langKey = useStore((s) => resolveLang(s.state.prefs.lang))
   const path = useRoute()
@@ -119,6 +120,16 @@ export default function App() {
         <AppIcon size={48} />
       </div>
     )
+  }
+
+  if (!hasData && storage === 'memory') {
+    return <Screen>
+      <Header art="backup" title={L('Données temporairement inaccessibles', 'Data temporarily unavailable')} />
+      <p className="text-[15px] leading-[1.5] text-text-2">
+        {L('Lift n’a pas pu ouvrir le stockage de cet appareil. Aucune donnée n’a été effacée. Réessaie ou ferme puis rouvre l’app.', 'Lift could not open this device’s storage. No data was erased. Retry or close and reopen the app.')}
+      </p>
+      <Button full variant="primary" className="mt-5" onClick={() => void useStore.getState().init()}>{L('Réessayer', 'Retry')}</Button>
+    </Screen>
   }
 
   if (!hasData) {

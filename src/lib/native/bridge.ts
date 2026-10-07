@@ -16,12 +16,27 @@ export const WorkoutActivity = registerPlugin<{
   addListener(event: 'actionPerformed', listener: () => void): Promise<PluginListenerHandle>
 }>('WorkoutActivity')
 
+// Effective device permission is separate from the user's desired alert setting.
+let notificationPermission: boolean | null = null
+const permissionListeners = new Set<() => void>()
+export const nativeNotificationPermissionSnapshot = () => notificationPermission
+export function subscribeNativeNotificationPermission(listener: () => void) {
+  permissionListeners.add(listener)
+  return () => { permissionListeners.delete(listener) }
+}
+
 /** Checking never prompts. Requests are reserved for an explicit user action. */
 export async function nativeNotificationPermissionStatus(request = false) {
   if (!isNative()) return 'unsupported' as const
   const current = await LocalNotifications.checkPermissions()
-  if (!request || (current.display !== 'prompt' && current.display !== 'prompt-with-rationale')) return current.display
-  return (await LocalNotifications.requestPermissions()).display
+  const status = request && (current.display === 'prompt' || current.display === 'prompt-with-rationale')
+    ? (await LocalNotifications.requestPermissions()).display : current.display
+  const allowed = status === 'granted'
+  if (allowed !== notificationPermission) {
+    notificationPermission = allowed
+    permissionListeners.forEach(listener => listener())
+  }
+  return status
 }
 
 export async function nativeNotificationPermission(request = false): Promise<boolean> {
@@ -32,12 +47,22 @@ const REST_ID = 7401
 export async function syncRestAlert(state: WorkoutActivityState | null, enabled: boolean, sound: boolean): Promise<void> {
   await LocalNotifications.cancel({ notifications: [{ id: REST_ID }] })
   await LocalNotifications.removeDeliveredNotificationsById({ ids: [REST_ID] })
-  if (!enabled || !state?.restEndAt || state.restEndAt <= Date.now() || !await nativeNotificationPermission()) return
+  // Refresh even after expiry: permission may have changed while the app was hidden.
+  if (!enabled || !state?.restEndAt || !await nativeNotificationPermission()) return
+  // Capacitor's default exact schedule can open Android Settings. Only use an
+  // existing grant here; permission requests belong to the explicit Settings button.
+  const isExactNotification = Capacitor.getPlatform() === 'android'
+    ? await LocalNotifications.checkExactNotificationSetting().then(status => status.exact_alarm === 'granted').catch(() => false)
+    : undefined
+  if (state.restEndAt <= Date.now()) return
   await LocalNotifications.schedule({ notifications: [{
     id: REST_ID, title: state.restLabel === 'Repos' ? 'Repos terminé' : 'Rest over',
     body: `${state.exercise} · ${state.setLabel}${state.detail ? ` · ${state.detail}` : ''}`,
     schedule: { at: new Date(state.restEndAt), allowWhileIdle: true },
-    sound: sound ? 'default' : undefined,
+    isExactNotification,
+    // Android 7 has no silent channel and Capacitor defaults a missing sound
+    // to the system alert. A bundled silent sample preserves the user's choice.
+    sound: sound ? 'default' : Capacitor.getPlatform() === 'android' ? 'lift_silence.wav' : undefined,
     channelId: sound ? 'lift-rest-sound' : 'lift-rest-silent',
     actionTypeId: state.restLabel === 'Repos' ? 'lift-rest-fr' : 'lift-rest-en',
     extra: { route: 'seance', workoutId: state.workoutId, restEndAt: state.restEndAt },

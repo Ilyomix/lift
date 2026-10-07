@@ -201,6 +201,7 @@ function normVisualGoal(raw: any): VisualGoal | null {
 
 function normPrefs(raw: any, d: Prefs): Prefs {
   const p = { ...d, ...(raw && typeof raw === 'object' ? raw : {}) }
+  const time = (value: unknown, fallback: string) => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : fallback
   return {
     ...p,
     theme: p.theme === 'light' || p.theme === 'auto' ? p.theme : 'dark',
@@ -209,6 +210,11 @@ function normPrefs(raw: any, d: Prefs): Prefs {
     autoLoad: p.autoLoad !== false,
     keepWeeklyVolume: p.keepWeeklyVolume !== false,
     push: p.push === true,
+    notifications: p.notifications === true,
+    sound: typeof p.sound === 'boolean' ? p.sound : d.sound,
+    wakeLock: typeof p.wakeLock === 'boolean' ? p.wakeLock : d.wakeLock,
+    trainingTime: time(p.trainingTime, d.trainingTime),
+    weighInTime: time(p.weighInTime, d.weighInTime),
   }
 }
 
@@ -278,7 +284,8 @@ export function normalizeState(raw: any): AppState {
   // A rest still running when the app was closed survives the reload.
   const t = raw.activeWorkout?.timer
   const timer =
-    t && typeof t.endAt === 'number' && typeof t.total === 'number' && t.endAt > Date.now() - 60_000
+    t && Number.isFinite(t.endAt) && Number.isFinite(t.total) && t.total > 0
+      && t.endAt > Date.now() - 60_000 && Number.isFinite(new Date(t.endAt).getTime())
       ? { endAt: t.endAt, total: t.total, label: str(t.label), next: typeof t.next === 'string' ? t.next : undefined }
       : null
   const active = raw.activeWorkout && isType(raw.activeWorkout.type)
@@ -347,7 +354,8 @@ export function normalizeState(raw: any): AppState {
     },
     prefs: normPrefs(raw.prefs, d.prefs),
     schedule: raw.schedule && typeof raw.schedule === 'object' ? { ...d.schedule, ...raw.schedule } : d.schedule,
-    exerciseVideos: raw.exerciseVideos && typeof raw.exerciseVideos === 'object' ? raw.exerciseVideos : {},
+    exerciseVideos: raw.exerciseVideos && typeof raw.exerciseVideos === 'object' && !Array.isArray(raw.exerciseVideos)
+      ? Object.fromEntries(Object.entries(raw.exerciseVideos).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) : {},
     archive: raw.archive,
     meta: {
       createdAt: str(raw.meta?.createdAt, d.meta.createdAt),
@@ -471,11 +479,25 @@ export function parseBackup(text: string): ParsedBackup {
     .map((p: any, i: number) => ({ id: str(p.id, `photo-${i}`), date: str(p.date, todayISO()).slice(0, 10), dataUrl: p.dataUrl, name: str(p.name, `photo-${i}.jpg`) }))
   const seen = new Set<string>()
   const unique = photos.filter((p) => {
-    const key = `${p.date}-${p.dataUrl.length}-${p.dataUrl.slice(-64)}`
+    const key = `${p.date}-${p.dataUrl}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
   })
+  // Imported files can reuse an ID for distinct images. IndexedDB is keyed by
+  // ID, so preserve the first reference and give later images collision-free keys.
+  const reservedIds = new Set(unique.map(photo => photo.id))
+  const usedIds = new Set<string>()
+  for (const [index, photo] of unique.entries()) {
+    if (!photo.id || usedIds.has(photo.id)) {
+      let suffix = index
+      let id: string
+      do { id = `${photo.id || 'photo'}-import-${suffix++}` } while (reservedIds.has(id))
+      photo.id = id
+      reservedIds.add(id)
+    }
+    usedIds.add(photo.id)
+  }
   return {
     state,
     photos: unique,

@@ -166,8 +166,13 @@ export function NativeSessionEffects() {
     }
     document.addEventListener('visibilitychange', onVisible)
     // A native inactive → active transition need not hide the WebView (e.g. a
-    // system dialog). Retry a deferred icon change when UIKit is active again.
-    void App.addListener('appStateChange', ({ isActive }) => { if (isActive) sync() }).then(retain)
+    // system dialog). Refresh permission and retry deferred work on return too.
+    void App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) return
+      alertKey = ''
+      void handleActions()
+      sync()
+    }).then(retain)
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
     const onSystemTheme = () => { if (useStore.getState().state.prefs.theme === 'auto') sync() }
     systemTheme.addEventListener('change', onSystemTheme)

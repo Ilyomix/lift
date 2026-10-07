@@ -1,5 +1,5 @@
-import { isNative } from '../lib/native/bridge'
-import { useEffect, useRef, useState } from 'react'
+import { isNative, nativeNotificationPermissionSnapshot, subscribeNativeNotificationPermission } from '../lib/native/bridge'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ChevronDown, Minus, Plus, SkipForward, Timer, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
@@ -38,6 +38,7 @@ function useSessionEffects() {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
   const hasSession = useStore((s) => !!s.state.activeWorkout)
   const prefs = useStore((s) => s.state.prefs)
+  const notificationAllowed = useSyncExternalStore(subscribeNativeNotificationPermission, nativeNotificationPermissionSnapshot, () => null)
   const alerted = useRef<number | null>(null)
   const now = useNow(!!timer)
 
@@ -52,10 +53,13 @@ function useSessionEffects() {
   useEffect(() => {
     if (!timer || alerted.current === timer.endAt) return
     if (now >= timer.endAt) {
+      // Leave this eligible while the system owns alerts or permission is still
+      // being checked. A fresh denial on return can enable the foreground fallback.
+      if (isNative() && prefs.notifications && notificationAllowed !== false) return
       alerted.current = timer.endAt
       // Native notifications own their sound/haptics. Never replay an expired
       // rest alert when the WebView resumes after the lock-screen notification.
-      const inAppAlert = !isNative() || (!prefs.notifications && document.visibilityState === 'visible' && now - timer.endAt < 2000)
+      const inAppAlert = !isNative() || ((!prefs.notifications || notificationAllowed === false) && document.visibilityState === 'visible' && now - timer.endAt < 2000)
       if (inAppAlert) {
         if (prefs.sound) chime()
         vibrate([220, 90, 220])
@@ -66,7 +70,7 @@ function useSessionEffects() {
         void systemNotify(L('Repos terminé', 'Rest over'), timer.next ? L(`Ensuite : ${timer.next}`, `Next: ${timer.next}`) : L('Série suivante.', 'Next set.'))
       }
     }
-  }, [now, timer, prefs.sound, prefs.notifications, prefs.push])
+  }, [now, timer, prefs.sound, prefs.notifications, prefs.push, notificationAllowed])
 }
 
 /**

@@ -45,6 +45,19 @@ test('bodyweight labels and completed workouts follow the selected language', ()
   assert.equal(workoutActivityState(a, 'en')!.exercise, 'Workout complete')
 })
 
+test('clearing added load shows bodyweight even when the prescription still suggests a weight', () => {
+  const a = fixture()
+  a.exercises[0].unit = 'PDC'
+  a.exercises[0].sets[1].weight = null
+  assert.equal(workoutActivityState(a, 'fr')!.detail, 'PDC · 10–15 rép. · réserve 2')
+  assert.equal(workoutActivityState(a, 'en')!.detail, 'BW · 10–15 reps · 2 in reserve')
+  a.exercises[0].sets[1].weight = 7.5
+  assert.match(workoutActivityState(a, 'fr')!.detail, /^PDC \+ 7,5 kg/)
+  a.exercises[0].unit = 'kg'
+  a.exercises[0].sets[1].weight = null
+  assert.match(workoutActivityState(a, 'en')!.detail, /^40 kg/, 'empty machine weights still use the suggested load')
+})
+
 test('native activity follows explicit and automatic appearance without changing the workout', () => {
   const a = fixture()
   const baseline = workoutActivityState(a, 'fr', 1000)!

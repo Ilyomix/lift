@@ -858,12 +858,12 @@ test('an exercise two sessions have: followed like for like, one load per rep ra
   // Sheets that were not at the same load each keep their own.
   const apart = sheets({ LOWER: { 'leg-curl': 40 }, LEGS: { 'leg-curl': 45 } })
   assert.equal(play(apart, [['LOWER', 'leg-curl', 40, [15, 15, 15]]]).out[0].changes[0].also, undefined)
-  // A trial session sets the starting load of both sheets; two sessions in a row are compared with each other.
+  // A trial session sets the starting load of both sheets; each split establishes its own performance baseline.
   const trial = play(base, [['LOWER', 'leg-curl', 40, [12, 12, 11]], ['LEGS', 'leg-curl', 40, [12, 11, 11]]])
   const start = trial.out[0].changes[0]
   assert.deepEqual([start.kind, start.to, start.also], ['baseline', 40, ['LEGS']])
   assert.equal(of(applyChange(base, start), 'LEGS', 'leg-curl').target.weight, 40)
-  assert.deepEqual([verdict(trial.out[1]).status, verdict(trial.out[1]).deltaCleanReps], ['down', -1])
+  assert.deepEqual([verdict(trial.out[1]).status, verdict(trial.out[1]).deltaCleanReps, verdict(trial.out[1]).contextReason], ['new-baseline', null, 'workout-type-changed'])
   // At a second gym the machine's load there moves in both sheets, and the first gym's stays.
   const there = Object.fromEntries(Object.entries(same).map(([type, t]) => [type, { ...t, exercises: t.exercises.map((e) => (e.exerciseId === 'leg-curl' ? { ...e, gymLoads: { basic: 30 } } : e)) }])) as typeof base
   const away = play(there, [['LOWER', 'leg-curl', 30, [15, 15, 15]]], 'basic').out[0].changes[0]

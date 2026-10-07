@@ -58,7 +58,7 @@ export function Home() {
   // The cut was sized when the goal was applied: say so when today's weight asks for another length.
   const drift = useMemo(() => cutDrift(state, today), [state, today])
   const lastWorkout = state.workouts[state.workouts.length - 1]
-  const drops = !state.prefs.autoLoad && lastWorkout ? lastWorkout.exercises.filter((e) => !e.skipped).map((e) => dropAlert(state.workouts, e.exerciseId, isGymBound(e) ? gymOf(lastWorkout) : undefined, e.target)).filter((x): x is string => !!x) : []
+  const drops = !state.prefs.autoLoad && lastWorkout ? lastWorkout.exercises.filter((e) => !e.skipped).map((e) => dropAlert(state.workouts, e.exerciseId, isGymBound(e) ? gymOf(lastWorkout) : undefined, e.target, lastWorkout.type)).filter((x): x is string => !!x) : []
   const earlyDeload = state.manualDeload && today <= state.manualDeload.end ? state.manualDeload : null
   const lastPhoto = photos[photos.length - 1]
   const daysSinceBackup = state.meta.lastBackupAt ? Math.floor((Date.now() - new Date(state.meta.lastBackupAt).getTime()) / 86_400_000) : null

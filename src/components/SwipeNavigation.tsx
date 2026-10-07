@@ -19,12 +19,14 @@ export function SwipeNavigation({ path }: { path: string[] }) {
   return null
 }
 
-function createPageMotion(screen: HTMLElement, initialRoute: string) {
+export function createPageMotion(screen: HTMLElement, initialRoute: string) {
   const viewport = screen.closest<HTMLElement>('.route-viewport')!
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
   const scrollRestoration = window.history.scrollRestoration
   window.history.scrollRestoration = 'manual'
-  const cache = new Map<string, PageSnapshot>()
+  // Back belongs to a history entry; tab previews use the last visit to a route.
+  const historyCache = new Map<number, { route: string; snapshot: PageSnapshot }>()
+  const routeCache = new Map<string, PageSnapshot>()
   let route = initialRoute, index = navigationPosition(), offset = 0, settling = false
   let preview: HTMLElement | undefined, outgoing: HTMLElement | undefined
   let animations: Animation[] = []
@@ -64,8 +66,10 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
     return a
   }
   const remember = (name: string, snapshot: PageSnapshot) => {
-    cache.delete(name); cache.set(name, snapshot)
-    if (cache.size > 8) cache.delete(cache.keys().next().value!)
+    historyCache.delete(index); historyCache.set(index, { route: name, snapshot })
+    routeCache.delete(name); routeCache.set(name, snapshot)
+    if (historyCache.size > 8) historyCache.delete(historyCache.keys().next().value!)
+    if (routeCache.size > 8) routeCache.delete(routeCache.keys().next().value!)
   }
   const capture = (event: Event) => {
     const target = decodeRouteHash(window.location.hash).join('/')
@@ -75,7 +79,8 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
     remember(route, snapshot)
     const direction = releasedDirection ?? routeDirection(route, target, index, navigationPosition())
     const back = navigationPosition() < index
-    const saved = cache.get(target)
+    const previous = historyCache.get(navigationPosition())
+    const saved = previous?.route === target ? previous.snapshot : undefined
     const scrollY = back && saved?.width === bounds.width ? saved.scrollY : 0
     const start = offset
     clean()
@@ -101,7 +106,10 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
       || !!window.getSelection()?.toString(),
     drag: (next, action) => {
       const target = action.type === 'navigate' ? action.path : previousRoute()
-      const saved = target === undefined ? undefined : cache.get(target)
+      const previous = historyCache.get(index - 1)
+      const saved = action.type === 'back'
+        ? previous && previous.route === target ? previous.snapshot : undefined
+        : target === undefined ? undefined : routeCache.get(target)
       const width = viewport.clientWidth
       if (reduced.matches) return
       // On a first visit there is no previous view to reveal. Keep this page
@@ -132,7 +140,7 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
       else navigate(action.path)
     },
   })
-  const invalidate = () => { cache.clear(); if (!pending) clean() }
+  const invalidate = () => { historyCache.clear(); routeCache.clear(); if (!pending) clean() }
   window.addEventListener('resize', invalidate)
   reduced.addEventListener('change', invalidate)
   const appearance = new MutationObserver(invalidate)
@@ -154,7 +162,7 @@ function createPageMotion(screen: HTMLElement, initialRoute: string) {
       animate(screen, positions.incoming, 0, 240).onfinish = clean
     },
     dispose() {
-      unbind(); clean(); cache.clear(); appearance.disconnect(); unsubscribe()
+      unbind(); clean(); historyCache.clear(); routeCache.clear(); appearance.disconnect(); unsubscribe()
       window.removeEventListener('hashchange', capture, true)
       window.removeEventListener('resize', invalidate)
       reduced.removeEventListener('change', invalidate)

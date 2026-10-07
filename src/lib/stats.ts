@@ -241,9 +241,7 @@ export function proteinTargetFor(state: AppState, date: ISODate): ProteinTarget 
   const ctx = contextAt(date)
   const cut = !!ctx.phase && CUT_PHASES.has(ctx.phase.id)
   const fixed = (): ProteinTarget =>
-    cut && ctx.phase
-      ? { min: Math.max(state.nutritionTargets.proteinMin, ctx.phase.proteinMin), max: Math.max(state.nutritionTargets.proteinMax, ctx.phase.proteinMax), weight: null, perKg: null }
-      : { min: state.nutritionTargets.proteinMin, max: state.nutritionTargets.proteinMax, weight: null, perKg: null }
+    ({ min: state.nutritionTargets.proteinMin, max: state.nutritionTargets.proteinMax, weight: null, perKg: null })
   if (state.nutritionTargets.adaptive === false) return fixed()
   const w = weightAt(state, date)
   if (!w) return fixed()

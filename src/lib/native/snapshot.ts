@@ -27,7 +27,7 @@ export function workoutActivityState(a: ActiveWorkout | null, lang: 'fr' | 'en',
   const exercise = a.exercises[currentExerciseIndex(a)]
   const i = exercise?.sets.findIndex(s => !s.completed) ?? -1
   const prescription = exercise?.prescription ?? exercise?.target
-  const weight = i >= 0 ? (exercise!.sets[i].weight ?? prescription?.weight) : null
+  const weight = i >= 0 ? (exercise!.unit === 'PDC' ? exercise!.sets[i].weight : (exercise!.sets[i].weight ?? prescription?.weight)) : null
   const displayWeight = weight == null ? '' : new Intl.NumberFormat(lang, { maximumFractionDigits: 2 }).format(weight)
   const completedSets = exercises.reduce((n, e) => n + e.sets.filter(s => s.completed).length, 0)
   const totalSets = exercises.reduce((n, e) => n + e.sets.length, 0)

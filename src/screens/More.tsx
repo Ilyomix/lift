@@ -90,7 +90,8 @@ export function NutritionScreen() {
   const protein = proteinTargetFor(state, date)
   const ctx = contextAt(date)
   const days = nutritionDays(state, 14, today)
-  const hit = days.filter((d) => d.protein >= protein.min).length
+  const chartProtein = proteinTargetFor(state, today)
+  const hit = days.filter((d) => d.protein >= chartProtein.min).length
   const nutritionDates = Object.keys(state.nutritionEntries)
   const hasRecentNutrition = nutritionDates.some((entryDate) => entryDate >= addDays(today, -13) && entryDate <= today)
   const add = (k: 'calories' | 'protein', n: number) => setNutrition(date, { [k]: Math.max(0, (e[k] ?? 0) + n) })
@@ -109,12 +110,12 @@ export function NutritionScreen() {
         <Toggle label={L('Créatine', 'Creatine')} hint={L(`${state.nutritionTargets.creatine} g par jour · fait retenir 1–2 kg d’eau`, `${state.nutritionTargets.creatine} g per day · makes you retain 1–2 kg of water`)} checked={e.creatine > 0} onChange={(v) => setNutrition(date, { creatine: v ? state.nutritionTargets.creatine : 0 })} />
       </Card>
 
-      <Section art="chart" title={L('Protéines, 14 jours', 'Protein, 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${protein.min} g`, `${hit}/14 days ≥ ${protein.min} g`)}</span> : undefined}>
+      <Section art="chart" title={L('Protéines, 14 derniers jours', 'Protein, last 14 days')} action={hasRecentNutrition ? <span className="text-[13px] text-text-2 tnum">{L(`${hit}/14 jours ≥ ${chartProtein.min} g`, `${hit}/14 days ≥ ${chartProtein.min} g`)}</span> : undefined}>
         {hasRecentNutrition ? <Card className="p-4">
           <Columns
             ariaLabel={L('Protéines par jour sur 14 jours', 'Protein per day over 14 days')}
             bars={days.map((d) => ({ key: d.date, label: String(Number(d.date.slice(8))), value: d.protein, tooltip: <span>{fmtDate(d.date)}{L(' : ', ': ')}{fmtNum(d.protein, 0)} g</span> }))}
-            target={{ value: protein.min, label: `${protein.min} g` }}
+            target={{ value: chartProtein.min, label: `${chartProtein.min} g` }}
             format={(v) => fmtNum(v, 0)}
           />
         </Card> : <Empty icon={<Utensils size={32} aria-hidden />}
@@ -461,8 +462,8 @@ export function DataScreen() {
         <Button variant="danger" full onClick={() => setReset(true)}>{L('Effacer les données de Lift', 'Erase Lift data')}</Button>
       </Section>
 
-      <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={async () => { await importBackup(parsed!, { upgrade }); setParsed(null); navigate('') }} />
-      <Sheet icon={<Trash size={18} aria-hidden />} open={reset} onClose={() => setReset(false)} title={L('Effacer les données de Lift ?', 'Erase Lift data?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { await resetAll(); navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
+      <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={async () => { if (await importBackup(parsed!, { upgrade })) { setParsed(null); navigate('') } }} />
+      <Sheet icon={<Trash size={18} aria-hidden />} open={reset} onClose={() => setReset(false)} title={L('Effacer les données de Lift ?', 'Erase Lift data?')} footer={<div className="flex gap-2"><Button variant="outline" size="lg" className="flex-1" onClick={() => setReset(false)}>{L('Annuler', 'Cancel')}</Button><Button variant="danger" size="lg" className="flex-1" onClick={async () => { if (await resetAll()) navigate('') }}>{L('Effacer', 'Erase')}</Button></div>}>
         <p className="text-[15px] leading-[1.5] text-text-2">{L('Séances, mesures, données nutritionnelles, photos et réglages seront supprimés de cet appareil. Exporte une sauvegarde avant si tu veux les garder.', 'Workouts, measurements, nutrition data, photos and settings will be deleted from this device. Export a backup first if you want to keep them.')}</p>
       </Sheet>
     </Screen>

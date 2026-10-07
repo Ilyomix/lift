@@ -459,7 +459,7 @@ function noteDeloads(out: Period[]) {
 
 /** A goal at least 8 weeks and at most 5 years after the program start. */
 export function isValidGoal(goal: unknown, start: ISODate = PROGRAM_START): goal is ISODate {
-  return typeof goal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal) && goal >= addDays(start, MIN_PLAN_WEEKS * 7) && goal <= addDays(start, 5 * 365)
+  return typeof goal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal) && addDays(goal, 0) === goal && goal >= addDays(start, MIN_PLAN_WEEKS * 7) && goal <= addDays(start, 5 * 365)
 }
 
 // Live plan: rebuilt when the goal date or the cut length changes (ES module live bindings).
@@ -737,7 +737,7 @@ export function prescribeSession(exercises: TemplateExercise[], date: ISODate, r
       base === null
         ? null
         : loadFactor < 1 && inc > 0
-          ? Math.max(inc, roundTo(base * loadFactor, inc))
+          ? Math.min(base, Math.max(inc, roundTo(base * loadFactor, inc)))
           : base
     return {
       sets, minReps: ex.target.minReps, maxReps: ex.target.maxReps, rir,
@@ -1363,7 +1363,8 @@ export function sessionPlan(state: AppState, today: ISODate = todayISO()): Sessi
   const segs = new Map<string, PlanSegment>(periods.map((p) => [p.id, { id: p.id, label: p.label, kind: p.kind, phase: p.phase, done: 0, planned: 0 }]))
   const bucket = (date: ISODate) => segs.get((periodAt(date) ?? (date < periods[0].start ? periods[0] : periods[periods.length - 1])).id)!
   const workouts = state.workouts.filter((w) => inPlan(w.date))
-  const active = state.activeWorkout && inPlan(state.activeWorkout.date) ? state.activeWorkout : null
+  const running = additionalActive(state)
+  const active = running && inPlan(running.date) ? running : null
   for (const w of workouts) bucket(w.date).done++
   for (const p of planned) bucket(p.date).planned++
   if (active) bucket(active.date).planned++

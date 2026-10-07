@@ -54,9 +54,8 @@ test('business rules return language-independent IDs, not translated sentences',
     setLang(language)
     for (const [now, key] of pairs) assert.equal(exerciseContextReason(now, before), key)
     assert.equal(workoutContextReason({ ...workout(before), periodId: 'b1' }, before, workout(before), before), 'program-changed')
-    const ahead = exercise({ exerciseId: 'chest-press' })
-    const now = { ...workout(before), exercises: [ahead, before] }
-    assert.equal(workoutContextReason(now, before, workout(before), before), 'preceding-work-changed')
+    const now = { ...workout(before), type: 'UPPER' as const }
+    assert.equal(workoutContextReason(now, before, workout(before), before), 'workout-type-changed')
   }
   const source = readFileSync(new URL('../src/lib/comparability.ts', import.meta.url), 'utf8')
   assert.ok(!/nouvelle référence|Different unit|ne pas conclure|do not infer/u.test(source), 'user-facing wording belongs to the translation module')

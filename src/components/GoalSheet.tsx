@@ -81,7 +81,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
           <MaintenancePreview active={current === 'maintenance'} />
         ) : (
           <>
-            <DateInput label={L('Date objectif', 'Goal date')} value={draft} min={min} max="2030-12-31" onChange={setDraft} />
+            <DateInput label={L('Date objectif', 'Goal date')} value={draft} min={min} max={addDays(PROGRAM_START, 5 * 365)} onChange={setDraft} />
             <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4" role="group" aria-label={L('Décaler la date', 'Shift the date')}>
               {STEPS.map((step) => {
                 const to = step.apply(draft)

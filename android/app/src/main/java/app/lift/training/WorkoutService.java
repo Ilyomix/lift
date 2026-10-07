@@ -77,7 +77,11 @@ public class WorkoutService extends Service {
         open.putExtra("liftRoute", "seance");
         open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent content = PendingIntent.getActivity(this, 7400, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        String title = "Lift · " + state.optString("workoutType") + " · " + state.optString(resting ? "restLabel" : "readyLabel");
+        String status = state.optString(resting ? "restLabel" : "readyLabel");
+        if (!resting && !state.isNull("restEndAt")) {
+            status = "Repos".equals(state.optString("restLabel")) ? "Repos terminé" : "Rest over";
+        }
+        String title = "Lift · " + state.optString("workoutType") + " · " + status;
         String text = state.optString("exercise") + " · " + state.optString("setLabel");
         String detail = state.optString("detail");
         String progress = state.optInt("completedSets") + "/" + state.optInt("totalSets") + " " + state.optString("progressLabel");

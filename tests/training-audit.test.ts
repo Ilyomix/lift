@@ -90,14 +90,44 @@ test('identical named machine context can be compared; changed rest or range can
   assert.equal(compareExercise(now, before, [], false).contextReason, 'rep-range-changed')
 })
 
-test('fatigue after additional overlapping exercises is contextual, not an automatic deload', () => {
-  const a = workout(1, [exercise('triceps-rope')])
-  const b = workout(2, [exercise('triceps-overhead-rope'), exercise('triceps-rope', [7, 7, 7])])
+test('sheet order and other rows cannot invent different execution conditions for Dips', () => {
+  const a = workout(1, [exercise('chest-press', [10, 10]), exercise('triceps-rope', [10, 10]), exercise('dips', [8, 8])])
+  a.type = 'UPPER'
+  const b = structuredClone(a)
+  b.id = 'reordered'; b.date = addDays(a.date, 7); b.sessionNumber++
+  for (const order of [[1, 0, 2], [2, 0, 1]]) {
+    b.exercises = order.map(i => structuredClone(a.exercises[i]))
+    const c = finalizeWorkout([a], b).workout.exercises.find(ex => ex.exerciseId === 'dips')!.comparison!
+    assert.equal(c.status, 'stable')
+    assert.equal(c.contextReason, undefined)
+    assert.equal(c.deltaCleanReps, 0)
+  }
+  b.exercises.push(exercise('triceps-overhead-rope'))
   const result = finalizeWorkout([a], b)
-  const c = result.workout.exercises[1].comparison!
-  assert.equal(c.contextReason, 'preceding-work-changed')
-  assert.equal(c.marked, false)
-  assert.equal(result.generalDrop, false)
+  assert.equal(result.workout.exercises[0].comparison!.status, 'stable', 'other rows do not establish when work happened')
+  assert.equal(result.changes.some(change => change.kind === 'sets'), false)
+
+  const state = defaultState()
+  state.progressRevision = 3
+  b.exercises[0].comparison = { ...result.workout.exercises[0].comparison!, status: 'different-context', headline: 'CONDITIONS DIFFÉRENTES', contextReason: 'preceding-work-changed', detail: 'Le travail précédent sur ces muscles a changé : ne pas conclure à une baisse de niveau.' }
+  state.workouts = [a, b]
+  const original = structuredClone(state)
+  const migrated = upgradeTrainingDiagnostics(state)
+  assert.equal(migrated.workouts[1].exercises[0].comparison!.status, 'stable', 'build 30 history is regraded too')
+  assert.equal(migrated.workouts[1].exercises[0].comparison!.contextReason, undefined)
+  assert.deepEqual(migrated.workouts.map(w => w.exercises.map(({ comparison: _, ...ex }) => ex)), original.workouts.map(w => w.exercises.map(({ comparison: _, ...ex }) => ex)))
+  assert.deepEqual(migrated.templates, original.templates)
+  assert.deepEqual(state, original, 'migration never mutates its input')
+  assert.equal(upgradeTrainingDiagnostics(migrated), migrated)
+})
+
+test('the first different workout type establishes its own baseline even with identical rows', () => {
+  const a = workout(1, [exercise('triceps-rope')])
+  const b = { ...workout(2, [exercise('triceps-rope', [7, 7, 7])]), type: 'UPPER' as const }
+  const comparison = finalizeWorkout([a], b).workout.exercises[0].comparison!
+  assert.equal(comparison.contextReason, 'workout-type-changed')
+  assert.equal(comparison.status, 'new-baseline')
+  assert.equal(comparison.marked, false)
 })
 
 test('programmed two-set reminders follow their own split without hiding changed conditions', async () => {
@@ -129,7 +159,7 @@ test('programmed two-set reminders follow their own split without hiding changed
   const reordered = structuredClone(reminder)
   const index = reordered.exercises.indexOf(item(reordered))
   reordered.exercises.splice(index, 0, exercise('triceps-rope'))
-  assert.equal(item(finalizeWorkout([upper, push], reordered).workout).comparison!.contextReason, 'preceding-work-changed', 'changed workload within the same split still matters')
+  assert.equal(item(finalizeWorkout([upper, push], reordered).workout).comparison!.status, 'progress', 'the sheet cannot prove execution order')
   const otherMachine = structuredClone(push)
   item(otherMachine).comparisonContext = 'Machine B'
   const changed = item(finalizeWorkout([upper, otherMachine], reminder).workout).comparison!

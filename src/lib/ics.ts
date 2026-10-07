@@ -92,8 +92,14 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
   const from = today < PROGRAM_START ? PROGRAM_START : today
   const until = `${compact(GOAL_DATE)}T235959`
   const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lift//Programme hypertrophie//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Lift']
+  if (from > GOAL_DATE) return [...lines, 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n'
+  const firstSunday = firstOnOrAfter(from, 0)
   if (o.training) {
     const projection = projectSessions(state, GOAL_DATE, today).filter(session => !session.tentative)
+    const minutesByType = new Map([...new Set(projection.map(session => session.type))].map(type => {
+      const sets = scaledSession(sessionSlots(state.templates[type].exercises)).reduce((sum, count) => sum + count, 0)
+      return [type, sessionMinutes(type, sets, sessionPace(state.workouts, type))]
+    }))
     for (let dow = 0; dow < 7; dow++) {
       const sessions = projection.filter(session => weekday(session.date) === dow)
       if (!sessions.length) continue
@@ -108,15 +114,22 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
         }
       }
       const meta = TYPE_META[type]
-      // With fewer than five days, sessions take more sets: the event lasts as long as they do.
-      const sets = scaledSession(sessionSlots(state.templates[type].exercises)).reduce((a, n) => a + n, 0)
+      const mixed = sessions.some(session => session.type !== type)
+      // A weekday need not keep the same workout in a rotating or customized schedule.
+      // Preserve its UID/exclusions and reserve an explicitly estimated average slot.
+      const minutes = mixed
+        ? Math.round(sessions.reduce((sum, session) => sum + minutesByType.get(session.type)!, 0) / sessions.length / 5) * 5
+        : minutesByType.get(type)!
       lines.push(...timed(
         `golgoth-training-${BYDAY[dow]}@golgoth`,
         first,
         state.prefs.trainingTime,
-        sessionMinutes(type, sets, sessionPace(state.workouts, type)),
-        L(`Séance ${meta.label} · Lift`, `${meta.label} workout · Lift`),
-        L(
+        minutes,
+        mixed ? L('Séance · Lift', 'Workout · Lift') : L(`Séance ${meta.label} · Lift`, `${meta.label} workout · Lift`),
+        mixed ? L(
+          `Le type de séance varie avec la rotation : ouvre Lift pour la séance du jour. Durée estimée : ${minutes} min, variable selon la séance.`,
+          `The workout type varies with the rotation: open Lift for today’s workout. Estimated duration: ${minutes} min; it varies by workout.`,
+        ) : L(
           `${meta.fr}. La rotation se décale si une séance est manquée : ouvre Lift pour la séance du jour.`,
           `${meta.fr !== meta.label ? `${meta.fr}. ` : ''}The rotation shifts if a workout is missed: open Lift for today’s workout.`,
         ),
@@ -138,10 +151,10 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
       0,
     ))
   }
-  if (o.waist) {
+  if (o.waist && firstSunday <= GOAL_DATE) {
     lines.push(...timed(
       'golgoth-waist@golgoth',
-      firstOnOrAfter(from, 0),
+      firstSunday,
       state.prefs.weighInTime,
       5,
       L('Tour de taille · Lift', 'Waist measurement · Lift'),
@@ -150,10 +163,10 @@ export function buildIcs(state: AppState, o: IcsOptions, today: ISODate = todayI
       0,
     ))
   }
-  if (o.photos) {
+  if (o.photos && firstSunday <= GOAL_DATE) {
     lines.push(...timed(
       'golgoth-photos@golgoth',
-      firstOnOrAfter(from, 0),
+      firstSunday,
       state.prefs.weighInTime,
       10,
       L('Photos de progression · Lift', 'Progress photos · Lift'),

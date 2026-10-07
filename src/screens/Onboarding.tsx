@@ -6,7 +6,6 @@ import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L, lang, setLang, type Lang } from '../lib/i18n'
 import { onboardingPreview, onboardingSession, type OnboardingAnswers } from '../lib/onboarding'
 import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
-import { studyCount } from '../lib/research'
 import { useStore } from '../lib/store'
 import { navigate } from '../lib/router'
 import { isNative, nativeNotificationPermissionStatus } from '../lib/native/bridge'
@@ -220,8 +219,6 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
   const [parsed, setParsed] = useState<ParsedBackup | null>(null)
   const [upgrade, setUpgrade] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Studies only: general health guidance is listed with the sources, not counted as one.
-  const studies = studyCount()
   const onFile = async (f: File | undefined) => {
     if (!f) return
     try {
@@ -270,7 +267,7 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
         {error && <p className="mt-3 text-center text-[13px] text-bad">{error}</p>}
         <p className="mt-4 text-center text-[12px] leading-[1.5] text-muted">
-          {L(`${studies} publications citées · données stockées sur cet appareil`, `${studies} studies cited · data stored on this device`)}
+          {L('Tes données restent sur cet appareil.', 'Your data stays on this device.')}
         </p>
       </div>
       <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={() => void importBackup(parsed!, { upgrade })} />

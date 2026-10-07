@@ -122,7 +122,7 @@ export interface WorkoutExercise extends TemplateExercise {
   replacement?: { fromId: string; fromName: string }
   prescription?: Prescription
   /** In-session load change on the following sets, with what is needed to undo it. */
-  hint?: { text: string; from: number; to: number; sets: number[] }
+  hint?: { text: string; from: number; to: number; sets: number[]; sourceSet?: number }
   /** First time at this gym on a gym-bound exercise: load of another gym offered as a starting point. */
   gymTrial?: { fromGym: string; weight: number | null }
 }

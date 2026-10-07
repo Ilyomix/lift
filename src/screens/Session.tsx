@@ -1,6 +1,6 @@
 import { EffortGuidance, EffortReport, reserveLabel } from '../components/EffortGuidance'
 import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
-import { exerciseContextReason } from '../lib/comparability'
+import { exerciseContextReason, workoutsBefore } from '../lib/comparability'
 import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -356,7 +356,9 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   // (A session reopened to be corrected is still in the history: it is not its own reference.)
   const self = useStore((s) => s.state.activeWorkout?.id)
   const workoutType = useStore((s) => s.state.activeWorkout?.type)
-  const prevPerf = useMemo(() => previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined, { minReps, maxReps }, workoutType), [workouts, ex.exerciseId, self, bound, gymId, minReps, maxReps, workoutType])
+  const workoutDate = useStore((s) => s.state.activeWorkout?.date)
+  const earlier = useMemo(() => self && workoutDate ? workoutsBefore(workouts, { id: self, date: workoutDate }) : [], [workouts, self, workoutDate])
+  const prevPerf = useMemo(() => previousPerformance(earlier, ex.exerciseId, self, bound ? gymId : undefined, { minReps, maxReps }, workoutType), [earlier, ex.exerciseId, self, bound, gymId, minReps, maxReps, workoutType])
   const prev = prevPerf?.exercise ?? null
   const prevDate = prevPerf?.workout.date ?? null
   const p = ex.prescription
@@ -367,7 +369,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   const prevClean = prevSets.reduce((a, s) => a + cleanOf(s), 0)
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   // The next load is one the equipment has: the loads already used on it, today's included.
-  const known = useMemo(() => knownLoads([...workouts, { exercises: [ex], gymId }], ex.exerciseId, bound ? gymId : undefined), [workouts, ex, bound, gymId])
+  const known = useMemo(() => knownLoads([...earlier, { exercises: [ex], gymId }], ex.exerciseId, bound ? gymId : undefined, ex), [earlier, ex, bound, gymId])
   // Announced as it will be applied: a heavier load held during the session can beat the standard step.
   const next = allDone && progressionFor(ex, known) ? loadDecision(ex, known) : null
   const validated = next?.kind === 'up' && { text: L(`${fmtLoad(next.weight, ex.unit)} la prochaine fois`, `${fmtLoad(next.weight, ex.unit)} next time`) }
@@ -375,7 +377,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   const lest = takesLest(ex)
   const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? (lest ? L('Lest', '+ kg') : L('Charge', 'Load')) : 'kg'
   // Pain is about the exercise, whatever the range: the last time it was done at all.
-  const hurtLastTime = useMemo(() => !!previousPerformance(workouts, ex.exerciseId, self, bound ? gymId : undefined)?.exercise.sets.some((s) => s.completed && s.flags.includes('pain')), [workouts, ex.exerciseId, self, bound, gymId])
+  const hurtLastTime = useMemo(() => !!previousPerformance(earlier, ex.exerciseId, self, bound ? gymId : undefined)?.exercise.sets.some((s) => s.completed && s.flags.includes('pain')), [earlier, ex.exerciseId, self, bound, gymId])
   const currentSet = current ? ex.sets.findIndex((s) => !s.completed) : -1
 
   if (ex.skipped) {

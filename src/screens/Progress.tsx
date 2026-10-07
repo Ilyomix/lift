@@ -2,7 +2,7 @@ import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
 import { BookOpen, Camera, ChevronLeft, ChevronRight, Columns2, Gauge, Plus, Ruler, Trash } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
-import { fmtNum, fmtSigned, parseNumber, plural, uid } from '../lib/format'
+import { fmtNum, fmtSigned, parseNumber, plural, uid, unitLabel } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
 import { infoFor, MUSCLES } from '../lib/library'
 import { GOAL_DATE, MAINTENANCE, PERIODS, PROGRAM_START, trainingDays, TYPE_META } from '../lib/program'
@@ -56,6 +56,15 @@ export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
 
 // ───────────────────────── Force ─────────────────────────
 
+function historyGym(history: ReturnType<typeof exerciseHistory>, current: string): string {
+  return history.some(point => point.gymId === current) ? current : history.at(-1)?.gymId ?? current
+}
+
+function latestComparableHistory(history: ReturnType<typeof exerciseHistory>) {
+  const latest = history.at(-1)
+  return history.filter(point => point.bestSet !== null && point.unit === latest?.unit && point.comparisonContext === latest.comparisonContext)
+}
+
 function ForceTab() {
   const state = useStore((s) => s.state)
   const rows = useMemo(() => {
@@ -63,18 +72,21 @@ function ForceTab() {
     for (const t of Object.values(state.templates)) for (const e of t.exercises) if (!ids.includes(e.exerciseId)) ids.push(e.exerciseId)
     for (const w of state.workouts) for (const e of w.exercises) if (!ids.includes(e.exerciseId)) ids.push(e.exerciseId)
     return ids.map((id) => {
-      const h = exerciseHistory(state.workouts, id)
+      const all = exerciseHistory(state.workouts, id)
       const tpl = Object.values(state.templates).flatMap((t) => t.exercises).find((e) => e.exerciseId === id)
       const prevName = state.workouts.flatMap((w) => w.exercises).find((e) => e.exerciseId === id)?.name
       const info = infoFor(id, { name: tpl?.name ?? prevName })
+      const bound = isGymBound({ exerciseId: id, unit: all.at(-1)?.unit ?? tpl?.unit ?? info.unit })
+      const gym = bound ? historyGym(all, state.gymId) : null
+      const h = latestComparableHistory(gym !== null ? all.filter(point => point.gymId === gym) : all)
       const first = h[0]?.best ?? 0
       const last = h[h.length - 1]?.best ?? 0
-      return { id, name: tpl?.name ?? info.name, muscle: info.muscle, inProgram: !!tpl, h, delta: h.length > 1 && first > 0 ? (last - first) / first : null }
+      return { id, name: tpl?.name ?? info.name, muscle: info.muscle, inProgram: !!tpl, h, lastLogged: (gym !== null ? all.filter(point => point.gymId === gym) : all).at(-1), gymLabel: gym !== null && h.length ? gymName(state, gym) : null, delta: h.length > 1 && first > 0 ? (last - first) / first : null }
     })
-  }, [state.templates, state.workouts])
+  }, [state.templates, state.workouts, state.gymId, state.gyms])
   const active = rows.filter((r) => r.inProgram)
-  const archived = rows.filter((r) => !r.inProgram && r.h.length)
-  if (!rows.some((row) => row.h.length)) return (
+  const archived = rows.filter((r) => !r.inProgram && r.lastLogged)
+  if (!rows.some((row) => row.lastLogged)) return (
     <Empty art="logbook" title={L('Aucune performance enregistrée', 'No performance recorded yet')} action={<SessionLink />}>
       {L('Termine une séance en notant tes séries. Tu retrouveras ici tes charges, tes répétitions et leur évolution.', 'Finish a workout and log your sets. Your loads, reps and how they change will appear here.')}
     </Empty>
@@ -88,17 +100,17 @@ function ForceTab() {
   )
 }
 
-function ExerciseList({ title, rows }: { title: string; rows: { id: string; name: string; muscle: string; h: ReturnType<typeof exerciseHistory>; delta: number | null }[] }) {
+function ExerciseList({ title, rows }: { title: string; rows: { id: string; name: string; muscle: string; h: ReturnType<typeof exerciseHistory>; lastLogged?: ReturnType<typeof exerciseHistory>[number]; gymLabel: string | null; delta: number | null }[] }) {
   return (
     <Section art="dumbbell" title={title}>
       <Card className="divide-y divide-line">
         {rows.map((r) => {
-          const last = r.h[r.h.length - 1]
+          const last = r.lastLogged
           return (
             <button key={r.id} type="button" onClick={() => navigate(`progres/exercice/${r.id}`)} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-medium">{r.name}</span>
-                <span className="mt-0.5 block truncate text-[13px] text-text-2 tnum">{last ? setsSummary(last.sets, last.unit) : L('Pas encore réalisé', 'Not done yet')}</span>
+                <span className="mt-0.5 block truncate text-[13px] text-text-2 tnum">{r.gymLabel && `${r.gymLabel} · `}{last ? setsSummary(last.sets, last.unit) : L('Pas encore réalisé', 'Not done yet')}</span>
               </span>
               {r.h.length > 1 && <Sparkline values={r.h.map((x) => x.best)} width={64} />}
               <span className={cx('w-14 shrink-0 text-right text-[13px] font-semibold tnum', r.delta === null ? 'text-muted' : r.delta > 0 ? 'text-good' : r.delta < 0 ? 'text-bad' : 'text-text-2')}>
@@ -121,10 +133,12 @@ export function ExerciseDetail({ id }: { id: string }) {
   const historical = [...state.workouts].reverse().flatMap(workout => workout.exercises).find(exercise => exercise.exerciseId === id)
   const info = infoFor(id, tpl ?? historical)
   // Machines: one curve per gym (the same machine elsewhere is another machine).
-  const bound = isGymBound({ exerciseId: id, unit: all[0]?.unit ?? tpl?.unit ?? info.unit })
+  const bound = isGymBound({ exerciseId: id, unit: all.at(-1)?.unit ?? tpl?.unit ?? info.unit })
   const gymsUsed = bound ? [...new Set(all.map((x) => x.gymId))] : []
-  const [gym, setGym] = useState<string>(() => (gymsUsed.includes(state.gymId) ? state.gymId : gymsUsed[gymsUsed.length - 1] ?? state.gymId))
-  const h = bound && gymsUsed.length > 1 ? all.filter((x) => x.gymId === gym) : all
+  const [gym, setGym] = useState<string>(() => historyGym(all, state.gymId))
+  const history = bound && gymsUsed.length > 1 ? all.filter((x) => x.gymId === gym) : all
+  const h = latestComparableHistory(history)
+  const differentConditions = h.length !== history.length
   const unit = h[0]?.unit ?? tpl?.unit ?? info.unit
   const loaded = unit !== 'PDC'
   const series: ChartSeries[] = [{ id: 'best', label: loaded ? L('1RM estimé', 'Estimated 1RM') : L('Meilleure série', 'Best set'), points: h.map((x) => ({ x: dayNumber(x.date), y: x.best })), kind: 'line', color: 'var(--chart-1)' }]
@@ -132,14 +146,16 @@ export function ExerciseDetail({ id }: { id: string }) {
   const last = h[h.length - 1]
   return (
     <Screen>
-      <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={h.length ? `${plural(h.length, L('séance', 'workout'), L('séances', 'workouts'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
+      <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={history.length ? `${plural(history.length, L('séance', 'workout'), L('séances', 'workouts'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
       {gymsUsed.length > 1 && (
         <Segmented className="mb-4" label={L('Salle', 'Gym')} value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
       )}
-      {h.length > 0 ? (
+      {differentConditions && <p className="mb-4 text-[13px] leading-[1.45] text-text-2">{L('Les courbes utilisent les séries dont la charge est renseignée, avec la même unité et les mêmes conditions que la dernière séance. Toutes les séances restent dans l’historique ci-dessous.', 'Charts use sets with a logged load, in the same unit and conditions as your latest workout. All workouts remain in the history below.')}</p>}
+      {history.length > 0 ? (
         <>
+          {h.length > 0 ? <>
           <Card className="p-4">
-            <p className="text-[13px] font-medium text-text-2">{loaded ? L('1RM estimé (kg)', 'Estimated 1RM (kg)') : L('Meilleure série (reps)', 'Best set (reps)')}</p>
+            <p className="text-[13px] font-medium text-text-2">{loaded ? L(`1RM estimé (${unitLabel(unit)})`, `Estimated 1RM (${unitLabel(unit)})`) : L('Meilleure série (reps)', 'Best set (reps)')}</p>
             <div className="mt-3">
               <LineChart series={series} ariaLabel={L(`Évolution de ${info.name}`, `${info.name} over time`)} yFormat={(v) => fmtNum(v, loaded ? 0 : 0)} height={200} />
             </div>
@@ -155,13 +171,15 @@ export function ExerciseDetail({ id }: { id: string }) {
               />
             </div>
           </Card>
+          </> : <p className="text-[14px] leading-[1.5] text-text-2">{L('Renseigne la charge dans une séance pour afficher son évolution. Tes séries restent consultables ci-dessous.', 'Log a load in a workout to see its trend. Your sets remain available below.')}</p>}
           <Section art="logbook" title={L('Historique', 'History')}>
             <Card className="divide-y divide-line">
-              {[...h].reverse().map((x) => (
+              {[...history].reverse().map((x) => (
                 <button key={x.workoutId} type="button" onClick={() => navigate(`seance/${x.workoutId}`)} className="pressable flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2">
                   <span className="min-w-0">
                     <span className="block text-[14px] text-text-2">{fmtDate(x.date)} · {L('n°', '#')}{x.sessionNumber}</span>
                     <span className="block text-[15px] font-medium tnum">{setsSummary(x.sets, x.unit)}</span>
+                    {differentConditions && <span className="block text-[12px] text-text-2">{unitLabel(x.unit)} · {x.comparisonContext || L('Conditions non précisées', 'Conditions not specified')}</span>}
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <StatusTag c={x.comparison} />
