@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Infinity as InfinityIcon, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
-import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, mondayOf, monthKey, todayISO } from '../lib/date'
+import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, isoFromTimestamp, mondayOf, monthKey, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
@@ -124,7 +124,7 @@ export function Home() {
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold">{L('Programme en pause', 'Program paused')}</p>
             <p className="text-[13px] text-text-2">
-              {L('Depuis', 'Started')} {state.programPause.startedAt ? fmtRelativeDay(state.programPause.startedAt.slice(0, 10), today) : '—'}
+              {L('Depuis', 'Started')} {state.programPause.startedAt ? fmtRelativeDay(isoFromTimestamp(state.programPause.startedAt), today) : '—'}
               {state.programPause.plannedEnd ? L(` · reprise ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`, ` · back ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`) : ''}
             </p>
           </div>

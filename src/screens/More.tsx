@@ -429,7 +429,7 @@ export function CoachScreen() {
           <Card className="divide-y divide-line">
             {[...state.appliedPlanUpdates].reverse().slice(0, 12).map((u) => (
               <div key={u.updateId + u.appliedAt} className="px-4 py-3">
-                <p className="text-[12px] text-muted">{fmtDate(u.appliedAt.slice(0, 10), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'coach' ? L('aide IA', 'AI assistance') : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
+                <p className="text-[12px] text-muted">{fmtDate(isoFromTimestamp(u.appliedAt), { year: true })} · {plural(u.changeCount, L('changement', 'change'), L('changements', 'changes'))}{u.source ? ` · ${u.source === 'coach' ? L('aide IA', 'AI assistance') : u.source === 'program' ? L('programme', 'program') : 'progression'}` : ''}</p>
                 <p className="mt-0.5 text-[14px] leading-[1.45]">{u.summary}</p>
               </div>
             ))}
@@ -487,7 +487,7 @@ export function DataScreen() {
         <Row label={L('Séances', 'Workouts')} value={<span className="tnum">{state.workouts.length}</span>} />
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{state.bodyEntries.length}</span>} />
         <Row label="Photos" value={<span className="tnum">{photos.length}</span>} />
-        <Row label={L('Dernier export', 'Last export')} value={state.meta.lastBackupAt ? fmtRelativeDay(state.meta.lastBackupAt.slice(0, 10)) : L('jamais', 'never')} />
+        <Row label={L('Dernier export', 'Last export')} value={state.meta.lastBackupAt ? fmtRelativeDay(isoFromTimestamp(state.meta.lastBackupAt)) : L('jamais', 'never')} />
       </Card>
       <div className="mt-4 grid gap-2">
         <Button variant="primary" size="lg" full icon={<Download size={18} aria-hidden />} disabled={exporting} onClick={() => void doExport()}>{L('Exporter la sauvegarde', 'Export backup')}</Button>
@@ -518,7 +518,7 @@ export function ImportSheet({ parsed, upgrade, setUpgrade, onClose, onConfirm }:
         <Row label={L('Mesures', 'Measurements')} value={<span className="tnum">{s.bodyEntries}</span>} />
         <Row label={L('Jours de nutrition saisis', 'Days of nutrition logged')} value={<span className="tnum">{s.nutritionDays}</span>} />
         <Row label="Photos" value={<span className="tnum">{s.photos}</span>} />
-        {s.exportedAt && <Row label={L('Exportée', 'Exported')} value={fmtDate(s.exportedAt.slice(0, 10), { year: true })} />}
+        {s.exportedAt && <Row label={L('Exportée', 'Exported')} value={fmtDate(isoFromTimestamp(s.exportedAt), { year: true })} />}
       </Card>
       {parsed.legacy && (
         <Card className="mt-4">

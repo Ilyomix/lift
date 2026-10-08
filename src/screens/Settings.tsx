@@ -8,7 +8,7 @@ import { SetupSheet, setupLabel } from '../components/Setup'
 import { Button, Card, cx, Disclosure, Field, Header, IconButton, inputClass, PageActions, Row, Screen, Section, Segmented, Toggle } from '../components/ui'
 import { type SportArtKind } from '../components/SportArt'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
-import { dayLetter, dayName, fmtDate } from '../lib/date'
+import { dayLetter, dayName, fmtDate, isoFromTimestamp } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { HOME_GYM } from '../lib/gyms'
 import { L } from '../lib/i18n'
@@ -79,7 +79,7 @@ function DataSettings() {
   return <Screen>
     <Header art="backup" backTo="plus/reglages" title={L('Données et confidentialité', 'Data and privacy')} sub={L('Tes données restent sur cet appareil.', 'Your data stays on this device.')} />
     <Card className="divide-y divide-line">
-      <SettingsMenuRow to="plus/donnees" art="backup" label={L('Sauvegarde et restauration', 'Backup and restore')} hint={last ? L(`Dernier export : ${fmtDate(last.slice(0,10))}`, `Last export: ${fmtDate(last.slice(0,10))}`) : L('Aucune sauvegarde exportée', 'No backup exported yet')} />
+      <SettingsMenuRow to="plus/donnees" art="backup" label={L('Sauvegarde et restauration', 'Backup and restore')} hint={last ? L(`Dernier export : ${fmtDate(isoFromTimestamp(last))}`, `Last export: ${fmtDate(isoFromTimestamp(last))}`) : L('Aucune sauvegarde exportée', 'No backup exported yet')} />
       <SettingsMenuRow to="plus/confidentialite" art="privacy" label={L('Confidentialité', 'Privacy')} hint={L('Stockage local et services externes', 'Local storage and external services')} />
     </Card>
   </Screen>

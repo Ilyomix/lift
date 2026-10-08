@@ -1,7 +1,7 @@
 import { isNative } from '../lib/native/bridge'
 import { useMemo, useState } from 'react'
 import { BellRing, BookOpen, CalendarDays, CalendarPlus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CirclePause, ClipboardList, Flag, HelpCircle, Play } from 'lucide-react'
-import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, monthKey, monthName, mondayOf, todayISO } from '../lib/date'
+import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, isoFromTimestamp, monthKey, monthName, mondayOf, todayISO } from '../lib/date'
 import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { buildIcs, icsEventCount, type IcsOptions } from '../lib/ics'
@@ -227,7 +227,7 @@ export function PauseScreen() {
   const [note, setNote] = useState('')
   const { discard } = useUnsavedChanges(!p.active && (reason !== 'vacances' || !!end || !!note.trim()))
   const today = todayISO()
-  const sinceDays = p.active && p.startedAt ? diffDays(p.startedAt.slice(0, 10), today) : 0
+  const sinceDays = p.active && p.startedAt ? diffDays(isoFromTimestamp(p.startedAt), today) : 0
   const gap = Math.max(sinceDays, gapSinceLastSession(state, today))
   const preview = reentryForGap(gap)
   const plannedGap = end ? Math.max(diffDays(today, end) + 1, 0) + gapSinceLastSession(state, today) : null
@@ -240,7 +240,7 @@ export function PauseScreen() {
           <Card className="p-4">
             <div className="flex items-center gap-2">
               <CirclePause size={18} className="text-muted" aria-hidden />
-              <p className="text-[15px] font-semibold">{L('Depuis', 'Started')} {fmtRelativeDay(p.startedAt!.slice(0, 10), today)}{p.reason ? ` · ${REASONS.find((r) => r.id === p.reason)?.label}` : ''}</p>
+              <p className="text-[15px] font-semibold">{L('Depuis', 'Started')} {fmtRelativeDay(isoFromTimestamp(p.startedAt!), today)}{p.reason ? ` · ${REASONS.find((r) => r.id === p.reason)?.label}` : ''}</p>
             </div>
             {p.plannedEnd && <p className="mt-1 text-[13px] text-text-2">{L('Reprise prévue le', 'Planned return:')} {fmtDate(addDays(p.plannedEnd, 1), { weekday: true, long: true })}</p>}
             {p.note && <p className="mt-1 text-[13px] text-text-2">{p.note}</p>}
