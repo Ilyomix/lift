@@ -18,7 +18,7 @@ import { ProgramProgress } from '../components/ProgramProgress'
 import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SortableExerciseList } from '../components/SortableExerciseList'
 import { SportArt, workoutArt } from '../components/SportArt'
-import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, SectionHeading, Sheet, Tag } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, SectionHeading, Sheet, SheetAction, Tag } from '../components/ui'
 
 export function ProgramContent() {
   const state = useStore((s) => s.state)
@@ -284,7 +284,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
 }
 
 function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: TemplateExercise; replacement: ExerciseReplacementTarget; onClose: () => void; onSave: (p: Partial<TemplateExercise>) => void; onRemove: () => void }) {
-  const [v, setV] = useState({
+  const [initial] = useState({
     weight: ex.target.weight === null ? '' : L(String(ex.target.weight).replace('.', ','), String(ex.target.weight)),
     sets: String(ex.target.sets),
     minReps: String(ex.target.minReps),
@@ -293,6 +293,8 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
     rir: ex.target.rir ?? '',
     technique: ex.technique ?? '',
   })
+  const [v, setV] = useState(initial)
+  const dirty = JSON.stringify(v) !== JSON.stringify(initial)
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV((x) => ({ ...x, [k]: e.target.value }))
   const sets = parseNumber(v.sets)
   const minReps = parseNumber(v.minReps)
@@ -326,9 +328,9 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
     })
   }
   return (
-    <Sheet open onClose={onClose} icon={<Dumbbell size={18} aria-hidden />} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" closeSheet onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
+    <Sheet open dirty={dirty} onClose={onClose} icon={<Dumbbell size={18} aria-hidden />} title={ex.name} footer={<SheetAction>{(_close, confirmDiscard) => <div className="flex gap-2"><Button variant="danger" size="lg" closeSheet={confirmDiscard} onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet={() => valid} onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}</SheetAction>}>
       {alternativesFor(ex.exerciseId).length > 0 && <Disclosure className="mb-4" icon={<Repeat2 size={18} aria-hidden />} title={L('Alternatives à cet exercice', 'Exercise alternatives')}>
-        <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} onReplaced={onClose} />
+        <SheetAction>{(_close, confirmDiscard) => <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} beforeReplace={confirmDiscard} onReplaced={onClose} />}</SheetAction>
       </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
         {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} error={errors.weight} className="col-span-2"><MeasurementPicker label={L('Charge', 'Load')} unit={unitLabel(ex.unit)} value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={500} step={0.1} defaultValue={20} invalid={!!errors.weight} placeholder={L('À définir', 'Not set')} /></Field>}

@@ -12,7 +12,7 @@ import { RestDock, SessionEffects } from './components/RestTimer'
 import { TabBar } from './components/TabBar'
 import { SwipeNavigation } from './components/SwipeNavigation'
 import { RouteFocus } from './components/RouteFocus'
-import { Button, Header, Screen, Toaster } from './components/ui'
+import { Button, DiscardChanges, Header, Screen, Toaster } from './components/ui'
 import { CalendarScreen, PauseScreen, RemindersScreen } from './screens/Calendar'
 import { Home } from './screens/Home'
 import { AboutScreen, CoachScreen, DataScreen, MoreScreen, NutritionScreen, NutritionTargetsScreen } from './screens/More'
@@ -137,6 +137,7 @@ export default function App() {
       <>
         {effects}
         <Onboarding />
+        <DiscardChanges />
         <Toaster />
         {!isNative() && <UpdatePrompt />}
       </>
@@ -157,6 +158,7 @@ export default function App() {
       <RestDock />
       <TabBar current={path[0] ?? ''} />
       <ImportResultSheet />
+      <DiscardChanges />
       <Toaster />
       {!isNative() && <UpdatePrompt />}
     </Fragment>

@@ -50,6 +50,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
 
   const changed = mode !== current || (mode === 'goal' && draft !== GOAL_DATE)
   const save = () => {
+    if (!changed || (mode === 'goal' && !valid)) return
     if (mode === 'maintenance') {
       enterMaintenance()
       notify(L('Programme sans date limite enregistré.', 'Program saved with no deadline.'), 'good')
@@ -63,10 +64,11 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet
       open
+      dirty={changed}
       onClose={onClose}
       icon={<Flag size={18} aria-hidden />}
       title={L('Durée du programme', 'Program duration')}
-      footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!changed || (mode === 'goal' && !valid)} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button>}
+      footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!changed || (mode === 'goal' && !valid)} closeSheet={() => mode === 'maintenance' || valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}
     >
       <PlanModePicker value={mode} onChange={setMode} />
       <div className="mt-5">

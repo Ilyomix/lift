@@ -22,15 +22,17 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
   const dates = Array.from({ length: 7 }, (_, i) => addDays(week.monday, i))
   const occupied = new Set(state.workouts.map(w => w.date))
   if (state.activeWorkout && !state.activeWorkout.reopened) occupied.add(state.activeWorkout.date)
-  const [selected, setSelected] = useState<ISODate[]>(() => week.planned)
+  const [initialSelected] = useState<ISODate[]>(() => week.planned)
+  const [selected, setSelected] = useState<ISODate[]>(initialSelected)
   const [error, setError] = useState(false)
+  const dirty = selected.join() !== initialSelected.join()
   const total = week.completed + week.active + selected.length
   const save = (days: number[] | null) => {
     if (!useStore.getState().setWeekSchedule(week.monday, days)) { setError(true); return false }
     useStore.getState().notify(days === null ? L('Jours habituels rétablis.', 'Usual days restored.') : L('Planning de la semaine enregistré.', 'Weekly schedule saved.'))
     return true
   }
-  return <Sheet open onClose={onClose} title={afterRestWorkout ? L('Où placer ton repos ?', 'When would you like to rest?') : L('Organiser la semaine', 'Plan your week')} icon={<SportArt kind="calendar" size="title" />}
+  return <Sheet open dirty={dirty} onClose={onClose} title={afterRestWorkout ? L('Où placer ton repos ?', 'When would you like to rest?') : L('Organiser la semaine', 'Plan your week')} icon={<SportArt kind="calendar" size="title" />}
     footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} closeSheet={() => save(selected.map(weekday))} onClick={onClose}>{L('Enregistrer cette semaine', 'Save this week')}</Button>}>
     <p className="text-[13px] text-text-2">{fmtDate(week.monday)} – {fmtDate(addDays(week.monday, 6))}</p>
     <p className="mt-3 text-[15px] leading-relaxed">{afterRestWorkout

@@ -477,10 +477,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
           </div>
         )}
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
-          <button type="button" aria-label={L('Ajouter une série', 'Add a set')} onClick={() => {
-            if (ex.sets.length >= prescribedSets(ex) && !window.confirm(L('Ajouter une série non prévue ? Elle comptera dans le volume, mais elle n’est pas nécessaire pour valider la charge.', 'Add an unplanned set? It will count towards volume, but it is not needed to validate the load.'))) return
-            addSet(index)
-          }} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
+          <button type="button" aria-label={L('Ajouter une série', 'Add a set')} onClick={() => addSet(index)} className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-[9px] px-2 text-[13px] font-semibold text-text-2 hover:bg-surface-2 hover:text-text">
             <Plus size={16} aria-hidden /> {L('Ajouter', 'Add set')}
           </button>
           {ex.sets.length > 1 && !ex.sets[ex.sets.length - 1].completed && (

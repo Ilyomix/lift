@@ -1,5 +1,5 @@
 import { isNative, nativeNotificationPermissionSnapshot, subscribeNativeNotificationPermission } from '../lib/native/bridge'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ChevronDown, ChevronUp, Minus, Plus, SkipForward, Timer, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
@@ -125,12 +125,22 @@ function StopwatchDigits({ endAt, done }: { endAt: number; done: boolean }) {
 
 export function RestDock() {
   const timer = useStore((s) => s.state.activeWorkout?.timer ?? null)
+  const dock = useRef<HTMLDivElement>(null)
   const { adjustRest, stopRest } = useStore.getState()
   const [expanded, setExpanded] = useState(false)
   const now = useNow(!!timer)
   useEffect(() => {
     if (!timer) setExpanded(false)
   }, [timer])
+  useLayoutEffect(() => {
+    const element = dock.current
+    if (!element) return
+    const measure = () => document.documentElement.style.setProperty('--rest-dock-height', `${element.getBoundingClientRect().height}px`)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty('--rest-dock-height') }
+  }, [!!timer])
   if (!timer) return null
   const remaining = Math.max(0, (timer.endAt - now) / 1000)
   const done = remaining <= 0
@@ -139,7 +149,7 @@ export function RestDock() {
   const next = splitNext(timer.next)
 
   return (
-    <><div aria-hidden={expanded || undefined} className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
+    <><div ref={dock} aria-hidden={expanded || undefined} className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
       <div
         role="timer"
         aria-live={done ? 'assertive' : 'off'}

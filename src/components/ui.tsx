@@ -1,6 +1,6 @@
-import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type AriaAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
+import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type AnchorHTMLAttributes, type AriaAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Undo2, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Pencil, Undo2, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { addMonths, capitalize, dayLetter, fmtDate, monthName, todayISO } from '../lib/date'
 import { L, locale } from '../lib/i18n'
@@ -8,6 +8,7 @@ import { back } from '../lib/router'
 import { useStore } from '../lib/store'
 import { SportArt, type SportArtKind } from './SportArt'
 import { useDismissGesture } from './useDismissGesture'
+import { useDiscardConfirmation, useUnsavedChanges } from '../lib/unsavedChanges'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -24,10 +25,11 @@ const SheetCloseContext = createContext<SheetClose>((action, validate) => {
   if (allowed instanceof Promise) void allowed.then(ok => { if (ok) void action() })
   else if (allowed) void action()
 })
+const SheetDiscardContext = createContext<() => Promise<boolean>>(async () => true)
 
 /** Defer only an action that has already passed validation and will close this sheet. */
-export function SheetAction({ children }: { children: (close: SheetClose) => ReactNode }) {
-  return children(useContext(SheetCloseContext))
+export function SheetAction({ children }: { children: (close: SheetClose, confirmDiscard: () => Promise<boolean>) => ReactNode }) {
+  return children(useContext(SheetCloseContext), useContext(SheetDiscardContext))
 }
 
 const VARIANTS: Record<Variant, string> = {
@@ -132,7 +134,28 @@ export function Num({ value, digits = 1, className, suffix, prefix, signed }: { 
 // ───────────── Layout ─────────────
 
 export function Screen({ children, className }: { children: ReactNode; className?: string }) {
-  return <main className={cx('screen-in mx-auto w-full max-w-[640px] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] safe-top', className)}>{children}</main>
+  return <main className={cx('screen-in mx-auto w-full max-w-[640px] px-4 pb-[calc(96px+env(safe-area-inset-bottom)+var(--page-actions-height,0px)+var(--rest-dock-height,0px))] safe-top', className)}>{children}</main>
+}
+
+/** Keep draft actions reachable without covering the page or its rest timer. */
+export function PageActions({ visible, children }: { visible: boolean; children: ReactNode }) {
+  const anchor = useRef<HTMLSpanElement>(null)
+  const bar = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const screen = anchor.current?.closest<HTMLElement>('main')
+    const element = bar.current
+    if (!visible || !screen || !element) return
+    const measure = () => screen.style.setProperty('--page-actions-height', `${element.getBoundingClientRect().height}px`)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => { observer.disconnect(); screen.style.removeProperty('--page-actions-height') }
+  }, [visible])
+  return <><span ref={anchor} hidden />{visible && createPortal(
+    <div ref={bar} data-page-actions className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom)+var(--rest-dock-height,0px))] z-40 border-t border-line bg-bg px-4 py-3">
+      <div className="mx-auto grid max-w-[608px] gap-2">{children}</div>
+    </div>, document.body,
+  )}</>
 }
 
 export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'illustration' }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind; artSize?: 'title' | 'illustration' }) {
@@ -231,7 +254,7 @@ export function Disclosure({ title, icon, children, className, contentClassName,
 
 export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'fit' }: { value: T | undefined; options: { value: T; label: ReactNode; icon?: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
   return (
-    <div role="group" aria-label={label} className={cx('@container flex gap-2', layout === 'fit' ? 'w-full min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
+    <div role="group" aria-label={label} className={cx('flex w-full min-w-0 gap-1 overflow-x-auto no-scrollbar', layout === 'scroll' && '-mx-4 px-4', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -243,11 +266,11 @@ export function Segmented<T extends string>({ value, options, onChange, classNam
             onClick={() => onChange(o.value)}
             className={cx(
               'pressable rounded-full border text-[13px] font-semibold leading-5 disabled:opacity-40 disabled:pointer-events-none',
-              layout === 'fit' ? 'min-h-11 min-w-0 flex-auto px-2 py-2 whitespace-normal' : 'h-11 shrink-0 px-4 whitespace-nowrap',
+              layout === 'fit' ? 'min-h-11 min-w-max flex-1 px-1.5 py-2 whitespace-nowrap' : 'h-11 shrink-0 px-4 whitespace-nowrap',
               active ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2 hover:text-text',
             )}
           >
-            {o.icon ? <span className={cx('inline-flex max-w-full items-center justify-center gap-1.5', layout === 'fit' && options.length >= 4 && 'flex-col @min-[400px]:flex-row')}>
+            {o.icon ? <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
               <span className="inline-flex size-4 shrink-0 [&>svg]:size-4" aria-hidden>{o.icon}</span>
               <span className="min-w-0">{o.label}</span>
             </span> : o.label}
@@ -450,7 +473,8 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 const sheetPanels: HTMLElement[] = []
 let beforeSheetsOverflow = ''
 
-export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
+export function Sheet({ open, onClose, title, icon, children, footer, tall, dirty = false }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean; dirty?: boolean }) {
+  const guard = useUnsavedChanges(open && dirty)
   const ref = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
   const [present, setPresent] = useState(open)
@@ -469,23 +493,28 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
     if (!action) { if (openRef.current) onClose(); return }
     // The action owns the parent's state/navigation. If an asynchronous action
     // refuses to close, restore the live panel rather than leaving it offscreen.
-    void Promise.resolve().then(action).finally(() => requestAnimationFrame(() => {
+    void Promise.resolve().then(action).catch(() => {
+      useStore.getState().notify(L('Impossible d’enregistrer. Tes modifications sont conservées.', 'Could not save. Your changes are kept.'), 'bad')
+    }).finally(() => requestAnimationFrame(() => {
       // Let React commit the action's parent state before deciding whether the
       // operation stayed open. Otherwise a successful save can exit twice.
-      if (openRef.current) { closing.current = false; setPresent(true); setRevision(value => value + 1) }
+      if (openRef.current) { guard.rearm(); closing.current = false; setPresent(true); setRevision(value => value + 1) }
     }))
-  }, backdrop, revision)
+  }, backdrop, revision, () => !openRef.current || !!pendingAction.current || guard.confirm())
   const closeAfter: SheetClose = (action, validate) => {
     if (closing.current) return
     closing.current = true
     const proceed = (allowed: boolean) => {
-      if (!allowed) { closing.current = false; return }
+      if (!allowed) { guard.rearm(); closing.current = false; return }
+      guard.discard()
       pendingAction.current = action
       dismiss()
     }
-    const allowed = validate ? validate() : true
-    if (allowed instanceof Promise) void allowed.then(proceed)
-    else proceed(allowed)
+    try {
+      const allowed = validate ? validate() : true
+      if (allowed instanceof Promise) void allowed.then(proceed).catch(() => proceed(false))
+      else proceed(allowed)
+    } catch { proceed(false) }
   }
   useEffect(() => {
     openRef.current = open
@@ -548,7 +577,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
   if (!visible) return null
   const content = open ? { title, icon, children, footer, tall } : snapshot.current
   return createPortal(
-    <SheetCloseContext value={closeAfter}>
+    <SheetCloseContext value={closeAfter}><SheetDiscardContext value={async () => { const allowed = await guard.confirm(); guard.rearm(); return allowed }}>
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={dismiss} aria-hidden />
       <div
@@ -578,9 +607,20 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
         {content.footer && <div className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{content.footer}</div>}
       </div>
     </div>
-    </SheetCloseContext>,
+    </SheetDiscardContext></SheetCloseContext>,
     document.body,
   )
+}
+
+export function DiscardChanges() {
+  const { open, resolve } = useDiscardConfirmation()
+  return <Sheet open={open} onClose={() => resolve(false)} icon={<Pencil size={18} aria-hidden />} title={L('Modifications non enregistrées', 'Unsaved changes')}
+    footer={<div className="grid gap-2">
+      <Button full variant="primary" icon={<Pencil size={18} aria-hidden />} closeSheet onClick={() => resolve(false)}>{L('Continuer la modification', 'Keep editing')}</Button>
+      <Button full variant="outline" icon={<X size={18} aria-hidden />} closeSheet onClick={() => resolve(true)}>{L('Quitter sans enregistrer', 'Leave without saving')}</Button>
+    </div>}>
+    <p className="text-[14px] leading-[1.5] text-text-2">{L('En quittant, les modifications de ce formulaire seront perdues.', 'Leaving will discard the changes to this form.')}</p>
+  </Sheet>
 }
 
 export function Toaster() {

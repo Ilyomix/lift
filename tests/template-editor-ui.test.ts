@@ -3,7 +3,7 @@ import { afterEach, beforeEach, test } from 'node:test'
 import React, { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { MeasurementPicker } from '../src/components/MeasurementPicker'
 import { SortableExerciseList } from '../src/components/SortableExerciseList'
-import { Button } from '../src/components/ui'
+import { Button, SheetAction } from '../src/components/ui'
 import { defaultState, makeBackup, parseBackup } from '../src/lib/backup'
 import { lang, setLang } from '../src/lib/i18n'
 import { configurePlan, DEFAULT_GOAL, takesLest } from '../src/lib/program'
@@ -45,7 +45,18 @@ function find(node: ReactNode, predicate: (element: Element) => boolean): Elemen
 }
 const field = (node: ReactNode, label: string) => find(node, e => e.type === MeasurementPicker && e.props.label === label)!
 const editSheet = (node: ReactNode) => find(node, e => typeof e.type === 'function' && e.type.name === 'EditSheet')
-const save = (sheet: Element) => find(sheet.props.footer, e => e.type === Button && e.props.variant === 'primary')!
+const close = (action: () => void, validate?: () => boolean) => { if (!validate || validate()) action() }
+const save = (sheet: Element) => {
+  const footer = sheet.props.footer as Element
+  const contents = footer.type === SheetAction ? footer.props.children(close, () => true) : footer
+  return find(contents, e => e.type === Button && e.props.variant === 'primary')!
+}
+const submit = (sheet: Element) => {
+  const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+  const previous = internals.H
+  internals.H = { useContext: () => close }
+  try { Button(save(sheet).props).props.onClick?.({ preventDefault() {} } as any) } finally { internals.H = previous }
+}
 
 function openEditor(index: number) {
   const route = mount(() => TemplateEditor({ type: 'UPPER' }))
@@ -79,7 +90,7 @@ test('template exercise editor rejects invalid load/rest drafts and persists val
     field(render(), 'Charge').props.onChange(invalid)
     assert.equal(field(render(), 'Charge').props.invalid, true)
     assert.equal(save(render()).props.disabled, true)
-    save(render()).props.onClick()
+    submit(render())
     assert.equal(state(), before, 'even a forced save cannot persist an invalid load')
     assert.ok(editSheet(route()), 'failed save leaves the editor open')
   }
@@ -88,12 +99,12 @@ test('template exercise editor rejects invalid load/rest drafts and persists val
     field(render(), 'Repos').props.onChange(invalid)
     assert.equal(field(render(), 'Repos').props.invalid, true)
     assert.equal(save(render()).props.disabled, true)
-    save(render()).props.onClick()
+    submit(render())
     assert.equal(state(), before, 'invalid rest cannot modify the exercise or other state')
   }
   field(render(), 'Repos').props.onChange('135')
   assert.equal(save(render()).props.disabled, false)
-  save(render()).props.onClick()
+  submit(render())
   assert.equal(editSheet(route()), undefined, 'successful save closes the selected exercise')
   assert.deepEqual(state().templates.UPPER.exercises[weightedIndex].target, {
     ...original.target, weight: 22.5, restSeconds: 135,
@@ -112,11 +123,11 @@ test('template exercise editor rejects invalid load/rest drafts and persists val
   assert.equal(field(bodyweight.render(), 'Lest').props.unit, 'kg')
   field(bodyweight.render(), 'Lest').props.onChange('-2')
   assert.equal(save(bodyweight.render()).props.disabled, true)
-  save(bodyweight.render()).props.onClick()
+  submit(bodyweight.render())
   assert.equal(state(), bodyweightBefore)
   field(bodyweight.render(), 'Lest').props.onChange('7,5')
   assert.equal(save(bodyweight.render()).props.disabled, false)
-  save(bodyweight.render()).props.onClick()
+  submit(bodyweight.render())
   assert.equal(editSheet(bodyweight.route()), undefined)
   const saved = state().templates.UPPER.exercises[bodyweightIndex]
   assert.equal(saved.unit, 'PDC')

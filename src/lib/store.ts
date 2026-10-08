@@ -1009,7 +1009,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   saveVisualPreferences: (g) => {
-    if (!get().state.settings.maintenance || !LOOKS.some(look => look.id === g.look)
+    if (!LOOKS.some(look => look.id === g.look)
       || !Array.isArray(g.zones) || g.zones.some(zone => !ZONES.some(item => item.id === zone))
       || new Set(g.zones).size > MAX_ZONES || (g.sex !== 'm' && g.sex !== 'f')
       || !Number.isFinite(g.heightCm) || (g.heightCm !== 0 && (g.heightCm < 120 || g.heightCm > 230))
@@ -1018,7 +1018,7 @@ export const useStore = create<Store>((set, get) => ({
     get().update(s => ({
       ...s,
       profile: { ...s.profile, heightCm: g.heightCm, sex: g.sex },
-      visualGoal: { look: g.look, zones, bodyFat: g.bodyFat, photoId: s.visualGoal?.photoId },
+      visualGoal: { ...s.visualGoal, look: g.look, zones, bodyFat: g.bodyFat, photoId: s.visualGoal?.photoId },
       templates: tagPriorities(s.templates, zones),
     }))
     void get().flush()

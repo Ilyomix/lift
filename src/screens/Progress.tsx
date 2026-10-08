@@ -334,23 +334,30 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
   )
 }
 
-function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const saveBody = useStore((s) => s.saveBody)
   const bodyEntries = useStore((s) => s.state.bodyEntries)
-  const [date, setDate] = useState(todayISO())
+  const [initialDate, setInitialDate] = useState(todayISO())
+  const [date, setDate] = useState(initialDate)
   const [v, setV] = useState({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
+  const dirty = date !== initialDate || Object.values(v).some(value => value !== '')
+  const close = () => {
+    const today = todayISO()
+    setInitialDate(today); setDate(today)
+    setV({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
+    onClose()
+  }
   const invalid = (key: keyof typeof v) => v[key].trim() !== '' && (parseNumber(v[key]) === null || parseNumber(v[key])! <= 0)
   const valid = Object.values(v).some(x => parseNumber(x) !== null) && !(Object.keys(v) as (keyof typeof v)[]).some(invalid)
   const error = L('Saisis une valeur supérieure à zéro.', 'Enter a value greater than zero.')
   const save = () => {
     if (!valid) return
     saveBody({ date, weight: parseNumber(v.weight), waist: parseNumber(v.waist), arm: parseNumber(v.arm), chest: parseNumber(v.chest), shoulders: parseNumber(v.shoulders) })
-    setV({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
     useStore.getState().notify(L('Mesures enregistrées.', 'Measurements saved.'), 'good')
-    onClose()
+    close()
   }
   return (
-    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Ajouter des mesures', 'Add measurements')} footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
+    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} dirty={dirty} onClose={close} title={L('Ajouter des mesures', 'Add measurements')} footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet={() => valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
 import React, { isValidElement, type ReactNode } from 'react'
 import { Button, Sheet } from '../src/components/ui'
+import { useDiscardConfirmation } from '../src/lib/unsavedChanges'
 
 const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
 const originals = { document: globalThis.document, window: globalThis.window, Element: globalThis.Element, requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame }
@@ -24,6 +25,7 @@ class Node extends EventTarget {
   querySelector(selector: string) { return this.selectors.get(selector) ?? null }
   querySelectorAll() { return this.focusables }
   matches() { return false }
+  closest(selector: string) { return selector === '[data-sheet-handle]' ? this : null }
   getClientRects() { return [{}] }
 }
 let body: Node
@@ -31,13 +33,18 @@ beforeEach(() => {
   body = new Node()
   Object.assign(globalThis, {
     document: Object.assign(new EventTarget(), { body, activeElement: new Node() }),
-    window: { matchMedia: () => ({ matches: false }) },
+    window: Object.assign(new EventTarget(), { matchMedia: () => ({ matches: false }), confirm: () => { throw Error('Native confirmation is forbidden') } }),
     Element: Node,
     requestAnimationFrame: (fn: () => void) => { fn(); return 1 },
     cancelAnimationFrame() {},
   })
 })
-afterEach(() => Object.assign(globalThis, originals))
+afterEach(() => { dialog().resolve(false); Object.assign(globalThis, originals) })
+function dialog() {
+  const previous = internals.H
+  internals.H = { useSyncExternalStore: (_subscribe: unknown, snapshot: () => boolean) => snapshot() }
+  try { return useDiscardConfirmation() } finally { internals.H = previous }
+}
 
 function host() {
   const values: any[] = [], effects: { deps: unknown[] | undefined; cleanup?: () => void; run: () => (() => void) | undefined }[] = []
@@ -135,7 +142,7 @@ test('failed validation does not start closing or execute the action', () => {
 
 test('an asynchronous save refusal restores the same live sheet', async () => {
   const h = host(); let callbacks = 0, resolve!: () => void
-  const p = { open: true, onClose: () => callbacks++, title: 'Import', children: 'preview' }
+  const p = { open: true, dirty: true, onClose: () => callbacks++, title: 'Import', children: 'preview' }
   h.render(p)
   click(button(h.context(), { closeSheet: true, onClick: () => new Promise<void>(done => { resolve = done }) }))
   h.finish(); await tick()
@@ -143,6 +150,14 @@ test('an asynchronous save refusal restores the same live sheet', async () => {
   resolve(); await tick()
   assert.ok(h.render(p))
   assert.equal(h.panel.style.transform, '', 'motion cleanup restores the panel if the parent stayed open')
+  assert.equal(callbacks, 0)
+  assert.equal(dialog().open, false, 'saving is not treated as abandoning the draft')
+  const escape = new Event('keydown', { cancelable: true })
+  Object.defineProperty(escape, 'key', { value: 'Escape' })
+  document.dispatchEvent(escape)
+  assert.equal(dialog().open, true, 'an asynchronous refusal rearms the same dirty draft')
+  dialog().resolve(false); await tick()
+  h.finish()
   assert.equal(callbacks, 0)
   h.unmount()
 })
@@ -189,7 +204,7 @@ test('repeated taps execute validation and its persistence only once', async () 
   h.unmount()
 })
 
-test('Escape and scroll lock belong to the top sheet until its exit has completed', () => {
+test('Escape and scroll lock belong to the top sheet until its exit has completed', async () => {
   body.style.overflow = 'auto'
   const parent = host(), child = host()
   let parentClosed = 0, childClosed = 0
@@ -197,15 +212,15 @@ test('Escape and scroll lock belong to the top sheet until its exit has complete
   const c = { open: true, onClose: () => childClosed++, title: 'Picker', children: 'wheel' }
   const escape = () => { const event = new Event('keydown', { cancelable: true }); Object.defineProperty(event, 'key', { value: 'Escape' }); document.dispatchEvent(event) }
   parent.render(p); child.render(c)
-  escape()
+  escape(); await tick()
   assert.equal(parent.panel.animations.length, 0)
-  assert.equal(child.panel.animations.length, 1)
+  assert.equal(child.panel.animations.at(-1)?.frames.at(-1)?.transform, 'translate3d(0, 400px, 0)')
   child.finish(); child.render({ ...c, open: false })
   assert.equal(childClosed, 1)
   assert.equal(parentClosed, 0)
   assert.equal(body.style.overflow, 'hidden')
-  escape()
-  assert.equal(parent.panel.animations.length, 1)
+  escape(); await tick()
+  assert.equal(parent.panel.animations.at(-1)?.frames.at(-1)?.transform, 'translate3d(0, 400px, 0)')
   child.unmount(); parent.unmount()
   assert.equal(body.style.overflow, 'auto')
 })
@@ -251,14 +266,66 @@ test('initial focus prefers explicit autofocus then the close control, preservin
   assert.equal(body.style.overflow, '')
 })
 
-test('StrictMode effect replay keeps the parent close callback connected', () => {
+test('StrictMode effect replay keeps the parent close callback connected', async () => {
   const h = host(); let closed = 0
   h.render({ open: true, onClose: () => closed++, title: 'Sheet', children: 'content' })
   h.replay()
   const event = new Event('keydown', { cancelable: true })
   Object.defineProperty(event, 'key', { value: 'Escape' })
-  document.dispatchEvent(event)
+  document.dispatchEvent(event); await tick()
   h.finish()
   assert.equal(closed, 1)
   h.unmount()
+})
+
+test('a dirty sheet asks only for a completed dismissal and keeps its draft after a refused pull or failed validation', async () => {
+  const h = host()
+  let closed = 0, saves = 0
+  const props = { open: true, dirty: false, title: 'Measures', children: '72.5 kg', onClose: () => closed++ }
+  const pull = (distance: number) => {
+    const point = (y: number) => ({ identifier: 1, clientX: 100, clientY: y })
+    const send = (type: string, touches: ReturnType<typeof point>[], changedTouches = touches) => {
+      const event = new Event(type, { cancelable: true })
+      Object.defineProperties(event, { touches: { value: touches }, changedTouches: { value: changedTouches } })
+      h.panel.dispatchEvent(event)
+    }
+    send('touchstart', [point(100)])
+    send('touchmove', [point(100 + distance)])
+    send('touchend', [], [point(100 + distance)])
+  }
+  try {
+    h.render(props)
+    props.dirty = true
+    h.render(props)
+    pull(40)
+    assert.equal(dialog().open, false, 'a small pull is a canceled gesture, not a request to abandon edits')
+    h.finish()
+
+    pull(160)
+    assert.equal(dialog().open, true, 'the gesture reads the latest dirty render')
+    dialog().resolve(false); await tick()
+    assert.deepEqual(h.panel.animations.at(-1)!.frames.at(-1), { transform: 'translate3d(0, 0px, 0)' })
+    h.finish()
+    assert.equal(closed, 0)
+    assert.match(text(h.render(props).children), /72\.5 kg/, 'refusing dismissal keeps the same live draft')
+
+    click(button(h.context(), { closeSheet: () => false, onClick: () => saves++ }))
+    assert.equal(saves, 0)
+    pull(160)
+    assert.equal(dialog().open, true, 'a refused save does not acknowledge or disable the draft guard')
+    dialog().resolve(false); await tick()
+    h.finish()
+    assert.equal(closed, 0)
+
+    pull(160)
+    assert.equal(dialog().open, true)
+    dialog().resolve(true); await tick()
+    assert.deepEqual(h.panel.animations.at(-1)!.frames.at(-1), { transform: 'translate3d(0, 400px, 0)' })
+    assert.equal(closed, 0, 'confirmation still waits for the downward exit to finish')
+    h.finish()
+    h.render({ ...props, open: false })
+    assert.equal(closed, 1)
+    assert.equal(dialog().open, false, 'the controlled close does not ask a second time')
+    assert.equal(body.style.overflow, '')
+  } finally { h.unmount() }
 })

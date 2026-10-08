@@ -5,6 +5,7 @@ import { ZonePicker } from '../src/components/ZonePicker'
 import { defaultState, makeBackup, parseBackup } from '../src/lib/backup'
 import { lang, setLang } from '../src/lib/i18n'
 import { configurePlan, DEFAULT_GOAL } from '../src/lib/program'
+import { navigate } from '../src/lib/router'
 import { GOAL_PHOTO_ID, useStore } from '../src/lib/store'
 import { tagPriorities } from '../src/lib/visual'
 import { VisualGoalScreen } from '../src/screens/Goal'
@@ -31,7 +32,8 @@ function mount() {
     internals.H = {
       useCallback: (callback: unknown) => callback,
       useMemo: (callback: () => unknown) => callback(),
-      useRef: (current: unknown) => ({ current }),
+      useRef(value: unknown) { const i = cursor++; return slots[i] ??= { current: value } },
+      useEffect() {},
       useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
       useDebugValue() {},
       useState(value: unknown) {
@@ -55,15 +57,15 @@ function find(node: ReactNode, predicate: (element: Element) => boolean): Elemen
 const action = (tree: ReactNode, label: string) => find(tree, e => e.props.onClick && e.props.children === label)!
 const field = (tree: ReactNode, label: string) => find(find(tree, e => e.props.label === label)?.props.children, e => typeof e.props.onChange === 'function')!
 
-beforeEach(t => {
+beforeEach(async t => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-08T12:00:00Z') })
   setLang('fr')
   const base = defaultState()
   useStore.setState({ state: { ...base, settings: { ...base.settings, maintenance: true }, bodyEntries: [], visualGoal: null }, hasData: false, storage: 'memory', ready: true, photos: [] })
   configurePlan(DEFAULT_GOAL, null, null, null, { maintenance: true, today: '2026-10-08' })
-  location.hash = '#/objectif'
   Object.defineProperty(globalThis, 'window', { configurable: true, value: host })
   Object.defineProperty(globalThis, 'HashChangeEvent', { configurable: true, value: Event })
+  await navigate('objectif')
 })
 afterEach(async () => {
   await useStore.getState().flush()
@@ -76,7 +78,7 @@ afterEach(async () => {
   else Reflect.deleteProperty(globalThis, 'HashChangeEvent')
 })
 
-test('maintenance screen saves priorities without weight, height or a dated plan and restores them on reopening', () => {
+test('maintenance screen saves priorities without weight, height or a dated plan and restores them on reopening', async () => {
   const render = mount(), before = useStore.getState().state
   find(render(), element => element.type === ZonePicker)!.props.onChange(['bras', 'jambes'])
   const save = action(render(), 'Enregistrer les préférences')
@@ -84,7 +86,7 @@ test('maintenance screen saves priorities without weight, height or a dated plan
   assert.equal(save.props.disabled, false, 'missing measurements must not block visual preferences')
   assert.equal(action(render(), 'Appliquer ce plan'), undefined)
   assert.equal(useStore.getState().state, before, 'editing a draft alone does not persist anything')
-  save.props.onClick()
+  await save.props.onClick()
   const saved = useStore.getState().state
   assert.equal(saved.settings.maintenance, true)
   assert.equal(saved.settings, before.settings)
@@ -101,7 +103,7 @@ test('maintenance screen saves priorities without weight, height or a dated plan
   assert.equal(action(reopened, 'Enregistrer les préférences').props.disabled, false)
 })
 
-test('cancelling or rejecting a maintenance draft leaves saved criteria and the reference photo untouched', () => {
+test('cancelling or rejecting a maintenance draft leaves saved criteria and the reference photo untouched', async () => {
   const before = { ...useStore.getState().state,
     profile: { heightCm: 178, age: 32, sex: 'm' as const },
     visualGoal: { look: 'sec' as const, zones: ['dos'] as ['dos'], bodyFat: 18, photoId: GOAL_PHOTO_ID },
@@ -111,7 +113,7 @@ test('cancelling or rejecting a maintenance draft leaves saved criteria and the 
   field(render(), 'Taille (cm)').props.onChange('231')
   const save = action(render(), 'Enregistrer les préférences')
   assert.equal(save.props.disabled, true)
-  save.props.onClick()
+  await save.props.onClick()
   assert.equal(useStore.getState().state, before)
   const reopened = mount()()
   assert.equal(field(reopened, 'Taille (cm)').props.value, '178', 'discarding the old component abandons its draft')
@@ -119,7 +121,7 @@ test('cancelling or rejecting a maintenance draft leaves saved criteria and the 
   assert.equal(find(reopened, e => e.type === 'img')!.props.src, 'data:image/png;base64,test')
 })
 
-test('resetting preferences leaves the old draft screen before reopening with cleared priorities', () => {
+test('resetting preferences leaves the old draft screen before reopening with cleared priorities', async () => {
   const base = useStore.getState().state
   const before = { ...base,
     goals: { ...base.goals, targetWeightMin: 70, targetWeightMax: 72 },
@@ -128,7 +130,7 @@ test('resetting preferences leaves the old draft screen before reopening with cl
   useStore.setState({ state: before })
   const reset = action(mount()(), 'Réinitialiser les préférences')
   assert.ok(reset)
-  reset.props.onClick()
+  await reset.props.onClick()
   assert.equal(location.hash, '#/plus/reglages/objectifs', 'reset leaves the component holding the old unsaved selections')
   assert.equal(useStore.getState().state.goals, before.goals)
   assert.equal(useStore.getState().state.visualGoal?.photoId, GOAL_PHOTO_ID)
@@ -136,7 +138,7 @@ test('resetting preferences leaves the old draft screen before reopening with cl
   const reopened = mount()()
   assert.deepEqual(find(reopened, element => element.type === ZonePicker)!.props.value, [])
   assert.equal(field(reopened, 'Taux de gras mesuré (%), facultatif').props.value, '')
-  action(reopened, 'Enregistrer les préférences').props.onClick()
+  await action(reopened, 'Enregistrer les préférences').props.onClick()
   assert.deepEqual(useStore.getState().state.visualGoal?.zones, [], 'a subsequent save does not resurrect the cleared criteria')
   assert.equal(useStore.getState().state.visualGoal?.bodyFat, null)
   assert.equal(useStore.getState().state.visualGoal?.look, 'taille', 'saving the reopened screen keeps the default physique, not the removed one')

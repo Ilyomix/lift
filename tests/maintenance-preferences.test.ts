@@ -91,10 +91,20 @@ test('invalid maintenance criteria are rejected without losing previously saved 
   assert.equal(actions().saveVisualPreferences({ ...valid, heightCm: 0, bodyFat: null, zones: ['bras', 'bras'] }), true)
   assert.equal(state().profile.heightCm, 0, 'unknown height does not block choosing priorities')
   assert.deepEqual(state().visualGoal?.zones, ['bras'])
-  useStore.setState({ state: { ...state(), settings: { ...state().settings, maintenance: false } } })
+})
+
+test('dated preferences can save without enough measurements and never recalculate an applied plan', () => {
+  useStore.setState({ state: { ...state(), settings: { ...state().settings, maintenance: false }, visualGoal: { ...state().visualGoal!, cutWeeks: 12 }, bodyEntries: [] } })
   const before = state()
-  assert.equal(actions().saveVisualPreferences(valid), false, 'a stale maintenance action cannot replace an active dated plan')
-  assert.equal(state(), before)
+  assert.equal(actions().saveVisualPreferences({ ...preferences, zones: [...preferences.zones], heightCm: 0, bodyFat: null }), true)
+  assert.equal(state().visualGoal?.look, preferences.look)
+  assert.deepEqual(state().visualGoal?.zones, preferences.zones)
+  assert.equal(state().visualGoal?.cutWeeks, 12)
+  assert.equal(state().visualGoal?.photoId, 'goal-reference')
+  assert.equal(state().profile.heightCm, 0)
+  for (const key of ['settings', 'goals', 'nutritionTargets', 'bodyEntries', 'workouts', 'activeWorkout', 'schedule', 'nextWorkoutType', 'appliedPlanUpdates'] as const) {
+    assert.equal(state()[key], before[key], `${key} remains untouched`)
+  }
 })
 
 test('clearing maintenance preferences preserves manual physical targets, calories and reference photo', () => {

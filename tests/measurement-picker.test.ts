@@ -282,7 +282,7 @@ test('desktop focus callbacks reach the input without affecting mobile draft edi
 
 test('inline toggle, outside press and focus exit commit once while internal focus stays open', () => {
   for (const closeWith of ['toggle', 'click', 'focusin']) {
-    const changes: string[] = [], render = mount(MeasurementPicker, props(value => changes.push(value)))
+    const changes: string[] = [], render = mount(MeasurementPicker, { ...props(value => changes.push(value)), presentation: 'inline' as const })
     const inside = {}, tree = render() as ReactElement<any>
     tree.props.ref.current = { contains: (target: object) => target === inside }
     const wheel = openWheel(render)
@@ -301,8 +301,8 @@ test('inline toggle, outside press and focus exit commit once while internal foc
 
 test('opening a second inline wheel applies the first value without filling the untouched second field', () => {
   const firstChanges: string[] = [], secondChanges: string[] = []
-  const first = mount(MeasurementPicker, props(value => firstChanges.push(value)))
-  const second = mount(MeasurementPicker, { ...props(value => secondChanges.push(value)), label: 'Waist', unit: 'cm' })
+  const first = mount(MeasurementPicker, { ...props(value => firstChanges.push(value)), presentation: 'inline' as const })
+  const second = mount(MeasurementPicker, { ...props(value => secondChanges.push(value)), label: 'Waist', unit: 'cm', presentation: 'inline' as const })
   const firstInside = {}, secondInside = {}
   ;(first() as ReactElement<any>).props.ref.current = { contains: (target: object) => target === firstInside }
   ;(second() as ReactElement<any>).props.ref.current = { contains: (target: object) => target === secondInside }
@@ -366,4 +366,18 @@ test('strict linked bounds keep optional empty inputs empty and preserve valid e
     closeWheel(wheel)
     assert.deepEqual(changes, [])
   }
+})
+
+
+test('measurement wheels open in a portal sheet by default without inserting the wheel into the page', () => {
+  const changes: string[] = [], render = mount(MeasurementPicker, props(value => changes.push(value)))
+  const wheel = openWheel(render)
+  const sheet = find(render(), item => typeof item.type === 'function' && item.props.title === 'Weight' && 'open' in item.props)
+  assert.equal(sheet.props.open, true)
+  assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-haspopup'], 'dialog')
+  spin(column(wheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (82 - 35) * 44 } })
+  emit('lift:commit-measurements')
+  assert.deepEqual(changes, ['82'], 'navigation first commits the open wheel so the parent draft is guarded')
+  emit('lift:commit-measurements')
+  assert.deepEqual(changes, ['82'])
 })

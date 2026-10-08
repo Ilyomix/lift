@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { BellRing, Check, ChevronRight, MapPin, Pencil, Plus, Ruler, Trash } from 'lucide-react'
 import { NativeActivitySettings } from '../components/NativeActivitySettings'
 import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SettingsMenuRow } from '../components/SettingsMenu'
 import { GoalSheet } from '../components/GoalSheet'
 import { SetupSheet, setupLabel } from '../components/Setup'
-import { Button, Card, cx, Disclosure, Field, Header, IconButton, inputClass, Row, Screen, Section, Segmented, Toggle } from '../components/ui'
+import { Button, Card, cx, Disclosure, Field, Header, IconButton, inputClass, PageActions, Row, Screen, Section, Segmented, Toggle } from '../components/ui'
 import { type SportArtKind } from '../components/SportArt'
 import { requestNotifications, notificationsSupported } from '../lib/alerts'
 import { dayLetter, dayName, fmtDate } from '../lib/date'
@@ -19,6 +19,8 @@ import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
 import { goalWeightRange } from '../lib/stats'
 import { useStore } from '../lib/store'
+import { confirmUnsavedChanges, useUnsavedChanges } from '../lib/unsavedChanges'
+import { MeasureSheet } from './Progress'
 import { lookInfo } from '../lib/visual'
 
 export function SettingsScreen({ section }: { section?: string }) {
@@ -57,7 +59,6 @@ function TrainingSettings() {
     <Header art="dumbbell" backTo="plus/reglages" title={L('Séances et matériel', 'Workouts and equipment')} />
     <Card className="divide-y divide-line">
       <SettingsMenuRow to="plus/reglages/jours" art="calendar" label={L('Jours et fréquence', 'Days and frequency')} hint={L(`${trainingDays(state).length} séances par semaine`, `${trainingDays(state).length} workouts per week`)} />
-      <SettingsMenuRow to="calendrier/programme" art="program" label={L('Séances du programme', 'Program workouts')} hint={L('Exercices, séries et ordre', 'Exercises, sets and order')} />
       <SettingsMenuRow to="plus/reglages/materiel" art="kit" label={L('Matériel et salles', 'Equipment and gyms')} hint={setupLabel(state.settings.setup)} />
       <SettingsMenuRow to="plus/pause" art="pause" label={L('Pause du programme', 'Program pause')} hint={state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie ou blessure', 'Vacation, illness or injury')} />
       <SettingsMenuRow to="plus/rappels" art="reminders" label={L('Rappels calendrier', 'Calendar reminders')} hint={L('Exporter les rappels de séance et de pesée', 'Export workout and weigh-in reminders')} />
@@ -87,6 +88,7 @@ function DataSettings() {
 function GoalSettings() {
   const state = useStore(s => s.state)
   const [goalOpen, setGoalOpen] = useState(false)
+  const [targetsRevision, setTargetsRevision] = useState(0)
   return <Screen>
     <Header art="trophy" backTo="plus/reglages" title={L('Objectifs', 'Goals')} />
         <Card className="divide-y divide-line">
@@ -94,7 +96,7 @@ function GoalSettings() {
             label={L('Durée du programme', 'Program duration')}
             hint={MAINTENANCE ? L('Sans date limite · poids stable', 'No deadline · stable weight') : L(`Date cible : ${fmtDate(GOAL_DATE, { long: true, year: true })}`, `Target date: ${fmtDate(GOAL_DATE, { long: true, year: true })}`)}
             right={<Pencil size={14} className="text-muted" aria-hidden />}
-            onClick={() => setGoalOpen(true)}
+            onClick={async () => { if (!await confirmUnsavedChanges()) return; setTargetsRevision(value => value + 1); setGoalOpen(true) }}
           />
           <Row
             label={L('Physique et priorités', 'Physique and priorities')}
@@ -103,7 +105,7 @@ function GoalSettings() {
             onClick={() => navigate('plus/objectif')}
           />
         </Card>
-    <TargetMeasurements key={`${state.goals.targetWeightMin}:${state.goals.targetWeightMax}:${state.goals.targetWaist}`} />
+    <TargetMeasurements key={`${targetsRevision}:${state.goals.targetWeightMin}:${state.goals.targetWeightMax}:${state.goals.targetWaist}`} />
 
     {goalOpen && <GoalSheet onClose={() => setGoalOpen(false)} />}
   </Screen>
@@ -306,6 +308,8 @@ function GymManager() {
   const [edit, setEdit] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [adding, setAdding] = useState('')
+  const renameDraft = useUnsavedChanges(!!edit && name.trim() !== gyms.find(g => g.id === edit)?.name)
+  const addDraft = useUnsavedChanges(!!adding.trim())
   return (
     <div className="mt-3">
       <Card className="divide-y divide-line">
@@ -313,9 +317,9 @@ function GymManager() {
           <div key={g.id} className="flex items-center gap-3 px-4 py-2.5">
             <MapPin size={17} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
             {edit === g.id ? (
-              <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
+              <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; renameGym(g.id, name); renameDraft.discard(); setEdit(null) }}>
                 <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
-                <Button type="submit" variant="ink" icon={<Pencil size={16} aria-hidden />}>{L('Renommer', 'Rename')}</Button>
+                <Button type="submit" variant="ink" disabled={!name.trim()} icon={<Pencil size={16} aria-hidden />}>{L('Renommer', 'Rename')}</Button>
               </form>
             ) : (
               <>
@@ -323,7 +327,7 @@ function GymManager() {
                   <span className="block truncate text-[15px]">{g.name}</span>
                   <span className="block text-[12px] text-muted">{g.id === current ? L('Prochaine séance ici', 'Next workout here') : g.id === HOME_GYM ? L('Salle principale', 'Main gym') : L('Choisir cette salle', 'Choose this gym')}</span>
                 </button>
-                <IconButton onClick={() => { setEdit(g.id); setName(g.name) }} label={L(`Renommer ${g.name}`, `Rename ${g.name}`)}><Pencil size={16} aria-hidden /></IconButton>
+                <IconButton onClick={async () => { if (!await renameDraft.confirm()) return; setEdit(g.id); setName(g.name) }} label={L(`Renommer ${g.name}`, `Rename ${g.name}`)}><Pencil size={16} aria-hidden /></IconButton>
                 {g.id !== HOME_GYM && (
                   <IconButton onClick={() => removeGym(g.id)} label={L(`Supprimer la salle ${g.name}`, `Delete gym ${g.name}`)} className="hover:text-bad"><Trash size={16} aria-hidden /></IconButton>
                 )}
@@ -332,7 +336,7 @@ function GymManager() {
           </div>
         ))}
       </Card>
-      <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
+      <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); addDraft.discard(); setAdding('') } }}>
         <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ex. : salle du centre', 'E.g. Downtown gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
         <Button type="submit" variant="ink" size="lg" icon={<Plus size={18} aria-hidden />} disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
       </form>
@@ -344,6 +348,8 @@ function GymManager() {
 function TargetMeasurements() {
   const state = useStore(s => s.state)
   const goals = state.goals
+  const formId = useId()
+  const [measureOpen, setMeasureOpen] = useState(false)
   const estimate = goalWeightRange({ ...state, goals: { ...goals, targetWeightMin: 0, targetWeightMax: 0 } })
   const [weightMode, setWeightMode] = useState<'program' | 'custom'>(goals.targetWeightMin > 0 && goals.targetWeightMax > 0 ? 'custom' : 'program')
   const [waistEnabled, setWaistEnabled] = useState(!!goals.targetWaist)
@@ -363,12 +369,15 @@ function TargetMeasurements() {
     targetWaist: waistEnabled ? values.waist : null,
   }
   const changed = next.targetWeightMin !== goals.targetWeightMin || next.targetWeightMax !== goals.targetWeightMax || next.targetWaist !== goals.targetWaist
+  const dirty = changed || weightMode !== (goals.targetWeightMin > 0 && goals.targetWeightMax > 0 ? 'custom' : 'program') || waistEnabled !== !!goals.targetWaist
+  const { discard } = useUnsavedChanges(dirty)
   const set = (key: keyof typeof draft, value: string) => setDraft(current => ({ ...current, [key]: value }))
   return <Section art="measuring-tape" title={L('Mesures cibles', 'Target measurements')}>
-    <form onSubmit={event => {
+    <form id={formId} onSubmit={event => {
       event.preventDefault()
       if (!valid || !changed) return
       useStore.getState().setGoals(next)
+      discard()
       useStore.getState().notify(L('Cibles enregistrées.', 'Targets saved.'), 'good')
     }}>
       <Segmented label={L('Cible de poids', 'Weight target')} layout="fit" value={weightMode} onChange={mode => {
@@ -382,7 +391,7 @@ function TargetMeasurements() {
         {estimate ? <>
           <p className="text-[20px] font-semibold tnum">{fmtNum(estimate.min, 1)}–{fmtNum(estimate.max, 1)} <span className="text-[14px] text-text-2">kg</span></p>
           <p className="mt-1 text-[13px] text-text-2">{L('Calculée avec ton programme et tes dernières mesures.', 'Calculated from your program and latest measurements.')}</p>
-        </> : <Button full icon={<Ruler size={18} aria-hidden />} onClick={() => navigate('progres/corps/mesure')}>{L('Ajouter une pesée pour estimer la cible', 'Add a weigh-in to estimate the target')}</Button>}
+        </> : <Button full icon={<Ruler size={18} aria-hidden />} onClick={() => setMeasureOpen(true)}>{L('Compléter mes mesures', 'Complete my measurements')}</Button>}
       </div> : <div className="mt-3 grid grid-cols-2 gap-3">
         <Field label={L('Poids minimum', 'Minimum weight')} error={draft.min.trim() && invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : undefined}>
           <MeasurementPicker label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={invalid('max') ? 250 : values.max!} strictBounds step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
@@ -398,8 +407,9 @@ function TargetMeasurements() {
           {draft.waist.trim() && invalid('waist') && <p className="mt-1 text-[13px] text-bad">{L('Choisis un tour de taille entre 50 et 200 cm.', 'Choose a waist size between 50 and 200 cm.')}</p>}
         </div>}
       </Card>
-      <Button type="submit" variant="primary" full icon={<Check size={18} aria-hidden />} className="mt-3" disabled={!changed || !valid}>{L('Enregistrer les cibles', 'Save targets')}</Button>
+      <PageActions visible={dirty}><Button type="submit" form={formId} variant="primary" full icon={<Check size={18} aria-hidden />} disabled={!changed || !valid}>{L('Enregistrer les cibles', 'Save targets')}</Button></PageActions>
     </form>
+    <MeasureSheet open={measureOpen} onClose={() => setMeasureOpen(false)} />
     <Disclosure title={L('Comprendre mes cibles', 'Understanding my targets')} bordered={false} className="mt-3" contentClassName="text-[13px] leading-relaxed text-text-2">
       {MAINTENANCE ? L('L’estimation suit ton poids actuel à ± 1 kg. Une cible personnalisée remplace cette estimation.', 'The estimate follows your current weight within 1 kg. A custom target replaces this estimate.') : L('L’estimation suit la trajectoire du programme. Une cible personnalisée remplace cette estimation.', 'The estimate follows the program trajectory. A custom target replaces this estimate.')}
     </Disclosure>

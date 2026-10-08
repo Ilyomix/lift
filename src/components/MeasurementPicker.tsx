@@ -38,7 +38,7 @@ function subscribePointer(change: () => void) {
 }
 
 /** Closing a changed wheel applies its draft; manual input retains the parent's validation and precision. */
-export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlur, min, max, strictBounds = false, step = 1, defaultValue, placeholder = '—', required, invalid, disabled, presentation = 'inline', inputClassName, className, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid }: MeasurementPickerProps) {
+export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlur, min, max, strictBounds = false, step = 1, defaultValue, placeholder = '—', required, invalid, disabled, presentation = 'sheet', inputClassName, className, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid }: MeasurementPickerProps) {
   const wheelAvailable = useSyncExternalStore(subscribePointer, canUseWheel, () => false)
   const [open, setOpen] = useState(false)
   const container = useRef<HTMLDivElement>(null)
@@ -58,6 +58,12 @@ export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlu
   useEffect(() => {
     if (!wheelAvailable || disabled) { draft.current = null; setOpen(false) }
   }, [wheelAvailable, disabled])
+  useEffect(() => {
+    if (!open) return
+    const commit = () => flushSync(close)
+    document.addEventListener('lift:commit-measurements', commit)
+    return () => document.removeEventListener('lift:commit-measurements', commit)
+  }, [open, onChange])
   useEffect(() => {
     // A sheet owns its portal, focus trap and dismiss gesture. Only inline
     // wheels close when another control receives a press or keyboard focus.

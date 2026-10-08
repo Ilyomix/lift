@@ -32,8 +32,8 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
     pick(id)
   }
   if (placeOpen || (home && !session)) return <SetupSheet onClose={onClose} />
-  const place = (close: (action: () => void) => void) => !session && (
-    <button type="button" onClick={() => close(() => setPlaceOpen(true))} className="pressable mt-4 flex w-full items-center gap-3 rounded-[12px] border border-line px-4 py-3.5 text-left hover:bg-surface-2">
+  const place = (close: (action: () => void, validate?: () => boolean | Promise<boolean>) => void, confirmDiscard: () => Promise<boolean>) => !session && (
+    <button type="button" onClick={() => close(() => setPlaceOpen(true), confirmDiscard)} className="pressable mt-4 flex w-full items-center gap-3 rounded-[12px] border border-line px-4 py-3.5 text-left hover:bg-surface-2">
       <House size={18} className="shrink-0 text-muted" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-medium">{L('S’entraîner à la maison', 'Train at home')}</span>
@@ -45,11 +45,11 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
     </button>
   )
   return (
-    <Sheet open onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this workout') : L('Lieu d’entraînement', 'Where you train')}>
-      <SheetAction>{close => <>
+    <Sheet open dirty={name !== ''} onClose={onClose} icon={<MapPin size={18} aria-hidden />} title={session ? L('Salle de cette séance', 'Gym for this workout') : L('Lieu d’entraînement', 'Where you train')}>
+      <SheetAction>{(close, confirmDiscard) => <>
       <div className="divide-y divide-line overflow-hidden rounded-[12px] border border-line">
         {gyms.map((g) => (
-          <button key={g.id} type="button" onClick={() => close(() => pick(g.id))} aria-pressed={g.id === current} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
+          <button key={g.id} type="button" onClick={() => close(() => pick(g.id), confirmDiscard)} aria-pressed={g.id === current} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
             <MapPin size={18} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{g.name}</span>
             {g.id === current && <Check size={18} className="shrink-0 text-signal-text" aria-hidden />}
@@ -66,7 +66,7 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
           'Machines, cables and Smith: loads and history are kept per gym. Dumbbells, barbells and bodyweight: shared. First time on a machine at a gym: the load known elsewhere is the starting point, then the app learns the real one.',
         )}
       </p>
-      {place(close)}
+      {place(close, confirmDiscard)}
       </>}</SheetAction>
     </Sheet>
   )

@@ -23,6 +23,9 @@ function mount(render: () => Element) {
     const previous = internals.H
     internals.H = {
       useCallback: (callback: unknown) => callback,
+      useEffect() {},
+      useId: () => "target-form-test",
+      useRef(value: unknown) { const i = cursor++; return slots[i] ??= { current: value } },
       useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
       useDebugValue() {},
       useState(value: unknown) {

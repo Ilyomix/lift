@@ -5,6 +5,7 @@ import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
+import { useUnsavedChanges } from '../lib/unsavedChanges'
 import { weightStatus } from '../lib/stats'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
@@ -14,7 +15,8 @@ import { RefList } from '../components/Evidence'
 import { ZonePicker } from '../components/ZonePicker'
 import { SportArt } from '../components/SportArt'
 import { MeasurementPicker } from '../components/MeasurementPicker'
-import { Disclosure, Button, Card, cx, Field, Header, Screen, Section, Segmented } from '../components/ui'
+import { Disclosure, Button, Card, cx, Field, Header, PageActions, Screen, Section, Segmented } from '../components/ui'
+import { MeasureSheet } from './Progress'
 
 const kg = (x: number) => `${fmtNum(x, 1)} kg`
 const pct = (x: number) => L(`${fmtNum(x, 0)} %`, `${fmtNum(x, 0)}%`)
@@ -35,6 +37,15 @@ export function VisualGoalScreen() {
   const [height, setHeight] = useState(state.profile.heightCm ? String(state.profile.heightCm) : '')
   const [sex, setSex] = useState<'m' | 'f'>(state.profile.sex ?? 'm')
   const [measured, setMeasured] = useState(saved?.bodyFat ? L(String(saved.bodyFat).replace('.', ','), String(saved.bodyFat)) : '')
+  const [measureOpen, setMeasureOpen] = useState(false)
+  const [measurementsChanged, setMeasurementsChanged] = useState(false)
+  const measurementsBefore = useRef(state.bodyEntries)
+  const initial = useRef({ look, zones: [...zones], height, sex, measured })
+  const numeric = (value: string) => parseNumber(value) ?? value.trim()
+  const dirty = look !== initial.current.look || sex !== initial.current.sex
+    || numeric(height) !== numeric(initial.current.height) || numeric(measured) !== numeric(initial.current.measured)
+    || JSON.stringify([...zones].sort()) !== JSON.stringify([...initial.current.zones].sort()) || measurementsChanged
+  const { discard, confirm } = useUnsavedChanges(dirty)
   const file = useRef<HTMLInputElement>(null)
   const today = todayISO()
   const heightCm = parseNumber(height) ?? 0
@@ -67,19 +78,19 @@ export function VisualGoalScreen() {
   const apply = (goal?: string) => {
     if (!validHeight || !validBodyFat) return
     const preferences = { look, zones, bodyFat: override ?? null, heightCm, sex }
-    if (MAINTENANCE) {
+    if (MAINTENANCE || !plan) {
       if (!saveVisualPreferences(preferences)) {
         notify(L('Vérifie tes mesures avant d’enregistrer.', 'Check your measurements before saving.'), 'bad')
         return
       }
       notify(L('Préférences enregistrées.', 'Preferences saved.'), 'good')
-      navigate('plus/reglages/objectifs')
-      return
+      discard()
+      return navigate('plus/reglages/objectifs')
     }
-    if (!plan) return
     applyVisualGoal(preferences, { cutWeeks: plan.cutWeeks, target: plan.target, goal })
     notify(L(`Objectif « ${lookInfo(look).label} » appliqué : plan recalculé.`, `Goal “${lookInfo(look).label}” applied: plan recalculated.`), 'good')
-    navigate('')
+    discard()
+    return navigate('')
   }
   const onPhoto = async (f: File | undefined) => {
     if (!f) return
@@ -108,8 +119,8 @@ export function VisualGoalScreen() {
             {drift && (
               <p className="mt-1 text-[13px] leading-[1.45] text-warn">
                 {drift.needed === 0
-                  ? L('Ton dernier tour de taille te place déjà dans cet objectif : mets le plan à jour plus bas.', 'Your latest waist measurement already puts you at this goal: update the plan below.')
-                  : L(`Ton dernier tour de taille demande ${plural(drift.needed, 'semaine', 'semaines')} de sèche : mets le plan à jour plus bas.`, `Your latest waist measurement calls for a cut of ${drift.needed} weeks: update the plan below.`)}
+                  ? L('Ton dernier tour de taille te place déjà dans cet objectif : applique les modifications du plan.', 'Your latest waist measurement already puts you at this goal: apply the plan changes.')
+                  : L(`Ton dernier tour de taille demande ${plural(drift.needed, 'semaine', 'semaines')} de sèche : applique les modifications du plan.`, `Your latest waist measurement calls for a cut of ${drift.needed} weeks: apply the plan changes.`)}
               </p>
             )}
           </div>
@@ -211,17 +222,17 @@ export function VisualGoalScreen() {
             {L('Tour de taille mesuré il y a', 'Waist measured')} {plural(Math.round(waistAge / 7), L('semaine', 'week'), L('semaines', 'weeks'))}{L(' : remesure-le (au nombril, à jeun) pour une estimation à jour.', ' ago: measure it again (at the navel, fasted) for an up-to-date estimate.')}
           </p>
         )}
-        {(waistMissing || noWeight || waistStale) && (
-          <Button variant="outline" full className="mt-2" icon={<Ruler size={16} aria-hidden />} onClick={() => navigate('progres/corps/mesure')}>
-            {noWeight ? L('Ajouter une pesée', 'Add a weigh-in') : L('Mesurer mon tour de taille', 'Measure my waist')}
+        {!MAINTENANCE && (waistMissing || noWeight || waistStale) && (
+          <Button variant="outline" full className="mt-2" icon={<Ruler size={16} aria-hidden />} onClick={() => { measurementsBefore.current = state.bodyEntries; setMeasureOpen(true) }}>
+            {L('Compléter mes mesures', 'Complete my measurements')}
           </Button>
         )}
       </Section>
 
-      {MAINTENANCE && <div className="mt-5 grid gap-2">
-        <Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{L('Enregistrer les préférences', 'Save preferences')}</Button>
-        {saved && <Button variant="outline" full icon={<RotateCcw size={18} aria-hidden />} onClick={() => { clearVisualGoal(); notify(L('Préférences physiques réinitialisées.', 'Physique preferences reset.')); navigate('plus/reglages/objectifs') }}>{L('Réinitialiser les préférences', 'Reset preferences')}</Button>}
-      </div>}
+      {(MAINTENANCE || !plan) && <>
+        <PageActions visible={dirty}><Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{L('Enregistrer les préférences', 'Save preferences')}</Button></PageActions>
+        {MAINTENANCE && saved && <Button variant="outline" full className="mt-5" icon={<RotateCcw size={18} aria-hidden />} onClick={async () => { if (!await confirm()) return; clearVisualGoal(); discard(); notify(L('Préférences physiques réinitialisées.', 'Physique preferences reset.')); return navigate('plus/reglages/objectifs') }}>{L('Réinitialiser les préférences', 'Reset preferences')}</Button>}
+      </>}
 
       {plan && (
         <Section art="program" title={L('Le plan', 'The plan')}>
@@ -246,7 +257,7 @@ export function VisualGoalScreen() {
                 : L('Trop loin pour un seul plan : choisis un physique moins sec pour commencer.', 'Too far for a single plan: choose a less lean physique to start with.')}
             </p>
           )}
-          <div className="mt-4 grid gap-2">
+          <PageActions visible={dirty}>
             {plan.fits ? (
               <Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{applied ? L('Mettre à jour le plan', 'Update the plan') : L('Appliquer ce plan', 'Apply this plan')}</Button>
             ) : (
@@ -255,8 +266,8 @@ export function VisualGoalScreen() {
                 <Button variant="outline" size="lg" full icon={<Flag size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(goalDate, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
               </>
             )}
-            {applied && <Button variant="outline" full icon={<RotateCcw size={18} aria-hidden />} onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')); navigate('plus/reglages/objectifs') }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
-          </div>
+          </PageActions>
+          {applied && <Button variant="outline" full className="mt-4" icon={<RotateCcw size={18} aria-hidden />} onClick={async () => { if (!await confirm()) return; clearVisualGoal(); discard(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')); return navigate('plus/reglages/objectifs') }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
             {L('Appliquer fixe ton poids cible, la durée de la sèche (le calendrier est recalculé) et les zones prioritaires dans tes séances. Ton poids ne change jamais tes charges.', 'Applying sets your target weight, the length of the cut (the calendar is recalculated) and the priority areas in your workouts. Your weight never changes your loads.')}
           </p>
@@ -295,6 +306,10 @@ export function VisualGoalScreen() {
         </ul>
         <RefList refs={MAINTENANCE ? ['woolcott2018'] : ['woolcott2018', 'garthe2011', 'helms2014']} compact />
       </Disclosure>
+      <MeasureSheet open={measureOpen} onClose={() => {
+        if (!MAINTENANCE && useStore.getState().state.bodyEntries !== measurementsBefore.current) setMeasurementsChanged(true)
+        setMeasureOpen(false)
+      }} />
     </Screen>
   )
 }

@@ -9,6 +9,8 @@ import { useStore } from '../src/lib/store'
 import { NutritionScreen, NutritionTargetsScreen } from '../src/screens/More'
 
 type Element = ReactElement<Record<string, any>>
+const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+const cleanups: (() => void)[] = []
 const originalStore = useStore.getState(), originalLanguage = lang()
 
 function mount<P>(component: (props: P) => ReactNode, props: () => P) {
@@ -19,6 +21,7 @@ function mount<P>(component: (props: P) => ReactNode, props: () => P) {
     const effects: (() => void)[] = [], previous = internals.H
     internals.H = {
       useCallback: (callback: unknown) => callback,
+      useId: () => "nutrition-form-test",
       useMemo: (callback: () => unknown) => callback(),
       useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
       useDebugValue() {},
@@ -36,7 +39,7 @@ function mount<P>(component: (props: P) => ReactNode, props: () => P) {
     }
     let result: ReactNode
     try { result = component(props()) } finally { internals.H = previous }
-    effects.forEach(effect => effect())
+    effects.forEach(effect => { const cleanup = effect() as unknown; if (typeof cleanup === "function") cleanups.push(cleanup as () => void) })
     return result
   }
 }
@@ -53,11 +56,15 @@ const picker = (tree: ReactNode, label: string) => find(tree, element => element
 
 beforeEach(t => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-08T12:00:00Z') })
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: new EventTarget() })
   setLang('fr')
   configurePlan(DEFAULT_GOAL)
   useStore.setState({ state: defaultState(), ready: true, hasData: false, storage: 'memory' })
 })
 afterEach(async () => {
+  cleanups.splice(0).forEach(cleanup => cleanup())
+  if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow)
+  else Reflect.deleteProperty(globalThis, "window")
   await useStore.getState().flush()
   useStore.setState(originalStore, true)
   setLang(originalLanguage)

@@ -15,140 +15,142 @@ function fixture(initial = '#/', previousExternal = false) {
     get state() { return entries[position].state },
     replaceState(state: unknown, _unused: string, hash?: string) { entries[position] = { hash: hash ?? location.hash, state } },
     pushState(state: unknown, _unused: string, hash: string) { entries.splice(position + 1); entries.push({ hash, state }); position++ },
-    back() { if (position > 0) { position--; changed(true) } },
+    go(delta: number) { const next = position + delta; if (next >= 0 && next < entries.length) { position = next; changed(true) } },
+    back() { this.go(-1) },
     forward() { if (position < entries.length - 1) { position++; changed(true) } },
   }
   const host = Object.assign(target, { history, location }) as unknown as Window
   const tracker = createNavigationHistory(host)
-  const link = (hash: string) => { history.pushState(null, '', hash); changed() }
-  return { tracker, history, host, location, link, entries }
+  const settle = async () => { for (let n = 0; n < 5; n++) await Promise.resolve() }
+  const link = async (hash: string) => { history.pushState(null, '', hash); changed(); await settle() }
+  return { tracker, history, host, location, link, entries, settle }
 }
 
-test('an external previous site is not a Lift back destination', () => {
+test('an external previous site is not a Lift back destination', async () => {
   const f = fixture('#/plus/reglages', true)
   assert.equal(f.tracker.canGoBack(), false)
-  assert.equal(f.tracker.goBack(), false)
+  assert.equal(await f.tracker.goBack(), false)
   assert.equal(f.location.hash, '#/plus/reglages')
   assert.equal((f.history.state as { other: string }).other, 'preserved')
   f.tracker.dispose()
 })
 
-test('normal hash links are recorded and return to the actual previous page', () => {
+test('normal hash links are recorded and return to the actual previous page', async () => {
   const f = fixture('#/calendrier')
-  f.link('#/seance/workout-id')
+  await f.link('#/seance/workout-id')
   assert.equal(f.tracker.canGoBack(), true)
-  assert.equal(f.tracker.goBack(), true)
+  assert.equal(await f.tracker.goBack(), true)
   assert.equal(f.location.hash, '#/calendrier')
   assert.equal(f.tracker.canGoBack(), false)
   f.tracker.dispose()
 })
 
-test('replace preserves the earlier page instead of adding an entry', () => {
+test('replace preserves the earlier page instead of adding an entry', async () => {
   const f = fixture('#/')
-  f.tracker.navigate('#/progres')
-  f.tracker.navigate('#/progres/corps', true)
+  await f.tracker.navigate('#/progres')
+  await f.tracker.navigate('#/progres/corps', true)
   assert.equal(f.entries.length, 2)
-  f.tracker.goBack()
+  await f.tracker.goBack()
   assert.equal(f.location.hash, '#/')
-  f.history.forward()
+  f.history.forward(); await f.settle()
   assert.equal(f.location.hash, '#/progres/corps')
   assert.equal(f.tracker.canGoBack(), true)
   f.tracker.dispose()
 })
 
-test('back/forward traversal and branching preserve actual history', () => {
+test('back/forward traversal and branching preserve actual history', async () => {
   const f = fixture('#/')
-  f.tracker.navigate('#/calendrier'); f.tracker.navigate('#/plus')
-  f.tracker.goBack(); assert.equal(f.location.hash, '#/calendrier')
-  f.history.forward(); assert.equal(f.location.hash, '#/plus')
-  f.tracker.goBack(); f.tracker.navigate('#/seance')
-  f.history.forward(); assert.equal(f.location.hash, '#/seance')
-  f.tracker.goBack(); assert.equal(f.location.hash, '#/calendrier')
-  f.tracker.goBack(); assert.equal(f.location.hash, '#/')
-  assert.equal(f.tracker.goBack(), false)
+  await f.tracker.navigate('#/calendrier'); await f.tracker.navigate('#/plus')
+  await f.tracker.goBack(); assert.equal(f.location.hash, '#/calendrier')
+  f.history.forward(); await f.settle(); assert.equal(f.location.hash, '#/plus')
+  await f.tracker.goBack(); await f.tracker.navigate('#/seance')
+  f.history.forward(); await f.settle(); assert.equal(f.location.hash, '#/seance')
+  await f.tracker.goBack(); assert.equal(f.location.hash, '#/calendrier')
+  await f.tracker.goBack(); assert.equal(f.location.hash, '#/')
+  assert.equal(await f.tracker.goBack(), false)
   f.tracker.dispose()
 })
 
-test('same route does not duplicate entries, and reload retains internal history', () => {
+test('same route does not duplicate entries, and reload retains internal history', async () => {
   const f = fixture('#/')
-  assert.equal(f.tracker.navigate('#/'), false)
-  f.link('#/plus'); f.tracker.dispose()
+  assert.equal(await f.tracker.navigate('#/'), false)
+  await f.link('#/plus'); f.tracker.dispose()
   const resumed = createNavigationHistory(f.host)
   assert.equal(resumed.canGoBack(), true)
-  resumed.goBack(); assert.equal(f.location.hash, '#/')
+  await resumed.goBack(); assert.equal(f.location.hash, '#/')
   assert.equal(resumed.canGoBack(), false)
   resumed.dispose()
 })
 
-test('replacing a direct-entry route still cannot go back to an external page', () => {
+test('replacing a direct-entry route still cannot go back to an external page', async () => {
   const f = fixture('#/progres', true)
-  f.tracker.navigate('#/progres/volume', true)
-  assert.equal(f.tracker.goBack(), false)
+  await f.tracker.navigate('#/progres/volume', true)
+  assert.equal(await f.tracker.goBack(), false)
   assert.equal(f.entries.length, 2)
   f.tracker.dispose()
 })
 
-test('previousHash previews the real destination through normal links, replacement and traversal', () => {
+test('previousHash previews the real destination through normal links, replacement and traversal', async () => {
   const f = fixture('#/')
   assert.equal(f.tracker.previousHash(), undefined)
-  f.tracker.navigate('#/calendrier')
+  await f.tracker.navigate('#/calendrier')
   assert.equal(f.tracker.previousHash(), '#/')
-  f.tracker.navigate('#/calendrier/programme', true)
+  await f.tracker.navigate('#/calendrier/programme', true)
   assert.equal(f.tracker.previousHash(), '#/', 'replacing a tab does not invent a back destination')
-  f.link('#/calendrier/programme/PUSH')
+  await f.link('#/calendrier/programme/PUSH')
   assert.equal(f.tracker.previousHash(), '#/calendrier/programme')
   assert.equal(f.tracker.position(), 2)
-  f.tracker.goBack()
+  await f.tracker.goBack()
   assert.equal(f.tracker.previousHash(), '#/')
   assert.equal(f.tracker.position(), 1)
-  f.history.forward()
+  f.history.forward(); await f.settle()
   assert.equal(f.tracker.previousHash(), '#/calendrier/programme')
   f.tracker.dispose()
 })
 
-test('previousHash survives reload and a new branch drops the old forward destination', () => {
+test('previousHash survives reload and a new branch drops the old forward destination', async () => {
   const f = fixture('#/')
-  f.tracker.navigate('#/plus')
-  f.link('#/plus/reglages')
+  await f.tracker.navigate('#/plus')
+  await f.link('#/plus/reglages')
   f.tracker.dispose()
   const resumed = createNavigationHistory(f.host)
   assert.equal(resumed.previousHash(), '#/plus')
-  resumed.goBack()
-  resumed.navigate('#/plus/preuves')
+  await resumed.goBack()
+  await resumed.navigate('#/plus/preuves')
   assert.equal(resumed.previousHash(), '#/plus')
-  f.history.forward()
+  f.history.forward(); await f.settle()
   assert.equal(f.location.hash, '#/plus/preuves')
-  resumed.goBack()
+  await resumed.goBack()
   assert.equal(f.location.hash, '#/plus')
   assert.equal(resumed.previousHash(), '#/')
   resumed.dispose()
 })
 
-test('replacing a previous tab updates the preview destination of an existing forward entry', () => {
+test('replacing a previous tab updates the preview destination of an existing forward entry', async () => {
   const f = fixture('#/')
-  f.tracker.navigate('#/progres')
-  f.tracker.navigate('#/progres/exercice/chest-press')
-  f.tracker.goBack()
-  f.tracker.navigate('#/progres/corps', true)
-  f.history.forward()
+  await f.tracker.navigate('#/progres')
+  await f.tracker.navigate('#/progres/exercice/chest-press')
+  await f.tracker.goBack()
+  await f.tracker.navigate('#/progres/corps', true)
+  f.history.forward(); await f.settle()
   assert.equal(f.location.hash, '#/progres/exercice/chest-press')
   assert.equal(f.tracker.previousHash(), '#/progres/corps', 'the preview must match the route history.back will open')
-  f.tracker.goBack()
+  await f.tracker.goBack()
   assert.equal(f.location.hash, '#/progres/corps')
   f.tracker.dispose()
 })
 
-test('a replaced calendar tab remains the back preview after forward traversal and reload', () => {
+test('a replaced calendar tab remains the back preview after forward traversal and reload', async () => {
   const f = fixture('#/calendrier')
-  f.tracker.navigate('#/seance/workout-id')
-  f.tracker.goBack()
-  f.tracker.navigate('#/calendrier/programme', true)
-  f.history.forward()
+  await f.tracker.navigate('#/seance/workout-id')
+  await f.tracker.goBack()
+  await f.tracker.navigate('#/calendrier/programme', true)
+  f.history.forward(); await f.settle()
   f.tracker.dispose()
 
   const resumed = createNavigationHistory(f.host)
   assert.equal(resumed.previousHash(), '#/calendrier/programme')
-  resumed.goBack()
+  await resumed.goBack()
   assert.equal(f.location.hash, '#/calendrier/programme')
   resumed.dispose()
 })

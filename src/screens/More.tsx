@@ -11,12 +11,13 @@ import { navigate } from '../lib/router'
 import { isAndroid, isIOS, isStandalone, saveFile, shareText } from '../lib/share'
 import { calorieAdvice, calorieStepPatch, nutritionDays, nutritionFor, proteinTargetFor } from '../lib/stats'
 import { useStore } from '../lib/store'
+import { confirmUnsavedChanges, useUnsavedChanges } from '../lib/unsavedChanges'
 import { Columns } from '../components/charts'
 import { RefList } from '../components/Evidence'
 import { SettingsMenuRow } from '../components/SettingsMenu'
 import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SportArt } from '../components/SportArt'
-import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, ProgressBar, Row, Screen, Section, Sheet, Tag, Toggle } from '../components/ui'
+import { Button, Card, cx, Disclosure, Empty, Field, Header, IconButton, inputClass, PageActions, ProgressBar, Row, Screen, Section, Sheet, Tag, Toggle } from '../components/ui'
 
 export function MoreScreen() {
   return (
@@ -27,13 +28,11 @@ export function MoreScreen() {
         <Card className="divide-y divide-line">
           <SettingsMenuRow to="plus/nutrition" art="nutrition" label="Nutrition" />
           <SettingsMenuRow to="plus/reglages/objectifs" art="trophy" label={L('Objectifs', 'Goals')} />
-          <SettingsMenuRow to="progres/corps/mesure" art="measuring-tape" label={L('Ajouter des mesures', 'Add measurements')} />
         </Card>
       </section>
       <section aria-labelledby="more-training" className="mt-4">
         <h2 id="more-training" className="mb-2 text-[13px] font-semibold text-text-2">{L('Entraînement', 'Training')}</h2>
         <Card className="divide-y divide-line">
-          <SettingsMenuRow to="calendrier/programme" art="program" label={L('Programme', 'Program')} />
           <SettingsMenuRow to="plus/reglages/materiel" art="kit" label={L('Salles et matériel', 'Gyms and equipment')} />
         </Card>
       </section>
@@ -98,6 +97,11 @@ export function NutritionScreen() {
   const { setNutrition } = useStore.getState()
   const today = todayISO()
   const [date, setDate] = useState(today)
+  const changeDate = async (next: string) => {
+    if (next !== date && !await confirmUnsavedChanges()) return false
+    setDate(next)
+    return true
+  }
   const proteinInput = useRef<HTMLDivElement>(null)
   const e = nutritionFor(state, date)
   const protein = proteinTargetFor(state, date)
@@ -112,9 +116,9 @@ export function NutritionScreen() {
     <Screen>
       <Header art="nutrition" backTo="plus" eyebrow={ctx.phase?.label} title="Nutrition" sub={ctx.phase?.nutrition} />
       <div className="flex items-center justify-between gap-2">
-        <IconButton label={L('Jour précédent', 'Previous day')} onClick={() => setDate(addDays(date, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
+        <IconButton label={L('Jour précédent', 'Previous day')} onClick={() => changeDate(addDays(date, -1))} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
         <p className="min-w-0 text-center text-[15px] font-semibold">{capitalize(fmtRelativeDay(date, today))}</p>
-        <IconButton label={L('Jour suivant', 'Next day')} disabled={date >= today} onClick={() => setDate(addDays(date, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
+        <IconButton label={L('Jour suivant', 'Next day')} disabled={date >= today} onClick={() => changeDate(addDays(date, 1))} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
       </div>
 
       <Card className="mt-4 divide-y divide-line">
@@ -133,7 +137,7 @@ export function NutritionScreen() {
           />
         </Card> : <Empty
           title={nutritionDates.length ? L('Pas de relevé sur ces 14 jours', 'No entries in these 14 days') : L('Ton suivi nutritionnel commence ici', 'Your nutrition log starts here')}
-          action={<Button variant="outline" icon={<Pencil size={16} aria-hidden />} onClick={() => { setDate(today); requestAnimationFrame(() => proteinInput.current?.querySelector<HTMLElement>('input, button')?.focus()) }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
+          action={<Button variant="outline" icon={<Pencil size={16} aria-hidden />} onClick={async () => { if (!await changeDate(today)) return; requestAnimationFrame(() => proteinInput.current?.querySelector<HTMLElement>('input, button')?.focus()) }}>{L('Renseigner aujourd’hui', 'Log today')}</Button>}
         >{L('Renseigne tes totaux quotidiens dans les compteurs. Tu verras ensuite leur évolution par rapport à ta cible.', 'Enter your daily totals in the counters. You will then see how they compare with your target.')}</Empty>}
       </Section>
 
@@ -167,7 +171,7 @@ export function NutritionTargetsScreen() {
             {step && <Tag tone="warn">{`−${Math.abs(step.delta)} kcal`}</Tag>}
           </div>
           {(advice.status === 'lower' || advice.status === 'raise') && (
-            <Button variant="primary" full className="mt-3" icon={<SlidersHorizontal size={16} aria-hidden />} onClick={() => { setNutritionTargets({ calories: advice.target }); notify(L(`Cible : ${advice.target} kcal. Prochain point dans 2 semaines.`, `Target: ${advice.target} kcal. Next check-in in 2 weeks.`), 'good') }}>
+            <Button variant="primary" full className="mt-3" icon={<SlidersHorizontal size={16} aria-hidden />} onClick={async () => { if (!await confirmUnsavedChanges()) return; setNutritionTargets({ calories: advice.target }); notify(L(`Cible : ${advice.target} kcal. Prochain point dans 2 semaines.`, `Target: ${advice.target} kcal. Next check-in in 2 weeks.`), 'good') }}>
               {L(`Passer à ${advice.target} kcal`, `Switch to ${advice.target} kcal`)}
             </Button>
           )}
@@ -189,15 +193,16 @@ export function NutritionTargetsScreen() {
                 icon={<SlidersHorizontal size={16} aria-hidden />}
                 full
                 className="mt-3"
-                onClick={() => {
+                onClick={async () => {
                   // The sized step is kept with its day: there is one a cut, and part of it goes back if it overshot.
                   // It can be taken back on the spot: the targets return to what they were, record included.
+                  if (!await confirmUnsavedChanges()) return
                   const before = state.nutritionTargets
                   setNutritionTargets(calorieStepPatch(before, step.target, step.sized, today))
                   setNormal(null)
                   notify(
                     L(`Cible : ${step.target} kcal. Prochain point dans 2 semaines.`, `Target: ${step.target} kcal. Next check-in in 2 weeks.`), 'good',
-                    { label: L('Annuler', 'Undo'), run: () => useStore.getState().update((s) => ({ ...s, nutritionTargets: before })) },
+                    { label: L('Annuler', 'Undo'), run: async () => { if (await confirmUnsavedChanges()) useStore.getState().update((s) => ({ ...s, nutritionTargets: before })) } },
                   )
                 }}
               >
@@ -224,6 +229,7 @@ type NutritionDraft = { calories: string; creatine: string; proteinMin: string; 
 type NutritionField = Exclude<keyof NutritionDraft, 'adaptive'>
 
 function NutritionTargetForm() {
+  const formId = useId()
   const state = useStore((s) => s.state)
   const targets = state.nutritionTargets
   const protein = proteinTargetFor(state, todayISO())
@@ -237,6 +243,7 @@ function NutritionTargetForm() {
     setErrors({})
   }, [targets.calories, targets.creatine, targets.proteinMin, targets.proteinMax, targets.adaptive])
   const dirty = (Object.keys(values) as (keyof NutritionDraft)[]).some(key => draft[key] !== values[key])
+  const { discard } = useUnsavedChanges(dirty)
   const save = (event: React.FormEvent) => {
     event.preventDefault()
     const calories = parseNumber(draft.calories)
@@ -253,6 +260,7 @@ function NutritionTargetForm() {
     if (Object.keys(next).length) return
     setDraft({ calories: String(calories), creatine: String(creatine), proteinMin: String(proteinMin), proteinMax: String(proteinMax), adaptive: draft.adaptive })
     useStore.getState().setNutritionTargets({ calories: calories!, creatine: creatine!, proteinMin: proteinMin!, proteinMax: proteinMax!, adaptive: draft.adaptive })
+    discard()
     useStore.getState().notify(L('Cibles nutritionnelles enregistrées.', 'Nutrition targets saved.'), 'good')
   }
   const proteinMin = parseNumber(draft.proteinMin), proteinMax = parseNumber(draft.proteinMax)
@@ -268,7 +276,7 @@ function NutritionTargetForm() {
     </Field>
   )
   return (
-    <form onSubmit={save} noValidate>
+    <form id={formId} onSubmit={save} noValidate>
       <div className="grid grid-cols-2 gap-3">
         {field('calories', 'Calories')}
         {field('creatine', L('Créatine', 'Creatine'))}
@@ -291,7 +299,7 @@ function NutritionTargetForm() {
           {field('proteinMax', L('Protéines max.', 'Max. protein'))}
         </div>
       )}
-      <Button type="submit" variant="primary" full className="mt-4" icon={<Check size={16} aria-hidden />} disabled={!dirty}>{L('Enregistrer les cibles', 'Save targets')}</Button>
+      <PageActions visible={dirty}><Button type="submit" form={formId} variant="primary" full icon={<Check size={16} aria-hidden />} disabled={!dirty}>{L('Enregistrer les cibles', 'Save targets')}</Button></PageActions>
     </form>
   )
 }
@@ -304,6 +312,7 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
   }, [value])
   const parsed = parseNumber(draft)
   const invalid = draft.trim() !== '' && (parsed === null || parsed < 0)
+  useUnsavedChanges(invalid)
   const hasTarget = Number.isFinite(targetValue) && targetValue > 0
   const current = Number.isFinite(value) ? Math.max(0, value) : 0
   const upper = typeof targetMax === 'number' && Number.isFinite(targetMax) && targetMax >= targetValue ? targetMax : targetValue
@@ -347,6 +356,7 @@ export function CoachScreen() {
   const [update, setUpdate] = useState<PlanUpdate | null>(null)
   const [error, setError] = useState<string | null>(null)
   const errorId = useId()
+  const draft = useUnsavedChanges(!!text.trim() || !!update)
   const last = state.workouts[state.workouts.length - 1]
   const analyze = () => {
     try {
@@ -359,7 +369,10 @@ export function CoachScreen() {
   }
   const paste = async () => {
     try {
-      setText(await navigator.clipboard.readText())
+      const pasted = await navigator.clipboard.readText()
+      if (pasted !== text && !await draft.confirm()) return
+      setText(pasted)
+      draft.rearm()
       setUpdate(null)
       setError(null)
     } catch {
@@ -405,9 +418,9 @@ export function CoachScreen() {
             ))}
             {Object.keys(nutritionFigures(update.nutritionTargets)).length > 0 && <div className="px-4 py-3 text-[13px] text-text-2">{L('Nutrition : ', 'Nutrition: ')}{Object.entries(nutritionFigures(update.nutritionTargets)).map(([k, v]) => `${nutritionLabels[k]} : ${fmtNum(Number(v))}`).join(' · ')}</div>}
           </Card>
-          <Button variant="primary" size="lg" full className="mt-3" icon={<Check size={18} aria-hidden />} onClick={() => { applyPlan(update); setUpdate(null); setText(''); useStore.getState().notify(L('Modifications appliquées.', 'Changes applied.'), 'good') }}>
+          <PageActions visible><Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} onClick={() => { applyPlan(update); draft.discard(); setUpdate(null); setText(''); useStore.getState().notify(L('Modifications appliquées.', 'Changes applied.'), 'good') }}>
             {L('Appliquer cette mise à jour', 'Apply update')}
-          </Button>
+          </Button></PageActions>
         </Section>
       )}
 

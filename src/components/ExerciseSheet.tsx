@@ -14,7 +14,7 @@ import { reserveLabel } from './EffortGuidance'
 import { ExerciseDemo } from './ExerciseDemo'
 import { ExerciseAlternatives, type ExerciseReplacementTarget } from './ExerciseAlternatives'
 import { SportArt } from './SportArt'
-import { Button, Disclosure, Field, inputClass, LinkButton, SectionHeading, Sheet, Tag } from './ui'
+import { Button, Disclosure, Field, inputClass, LinkButton, SectionHeading, Sheet, SheetAction, Tag } from './ui'
 
 // Retain the public export used by exercise detail/session screens.
 export const DemoFrames = ExerciseDemo
@@ -45,7 +45,7 @@ export function ExerciseSheet({
   }, [exerciseId, open, video])
 
   return (
-    <Sheet open={open} onClose={() => { setPlay(false); onClose() }} title={name ?? info.name} icon={<Dumbbell size={18} aria-hidden />} tall>
+    <Sheet open={open} dirty={draft !== video} onClose={() => { setDraft(video); setVideoError(false); setPlay(false); onClose() }} title={name ?? info.name} icon={<Dumbbell size={18} aria-hidden />} tall>
       <div className="flex flex-wrap items-center gap-2">
         <Tag tone="outline">{info.muscle || L('Exercice', 'Exercise')}</Tag>
         <Tag tone="muted">{info.role === 'compound' ? L('Polyarticulaire', 'Compound') : 'Isolation'}</Tag>
@@ -109,7 +109,7 @@ export function ExerciseSheet({
           <form className="space-y-3" onSubmit={event => {
             event.preventDefault()
             if (!youtubeId(draft)) { setVideoError(true); return }
-            setVideo(exerciseId, draft.trim()); setPlay(false); setVideoError(false)
+            setVideo(exerciseId, draft.trim()); setDraft(draft.trim()); setPlay(false); setVideoError(false)
             useStore.getState().notify(L('Vidéo enregistrée pour cet exercice.', 'Video saved for this exercise.'), 'good')
           }}>
             <Field label={L('Lien YouTube', 'YouTube link')}>
@@ -117,15 +117,16 @@ export function ExerciseSheet({
             </Field>
             {videoError && <p id={errorId} role="alert" className="text-[13px] leading-5 text-bad">{L('Lien non reconnu. Copie le lien d’une vidéo YouTube, puis réessaie.', 'Link not recognized. Copy a YouTube video link, then try again.')}</p>}
             <Button type="submit" full variant="ink" icon={<Check size={18} aria-hidden />} disabled={!draft.trim()}>{L('Enregistrer la vidéo', 'Save video')}</Button>
-            {video && <Button full variant="ghost" icon={<Trash size={18} aria-hidden />} onClick={() => {
+            {video && <SheetAction>{(_close, confirmDiscard) => <Button full variant="ghost" icon={<Trash size={18} aria-hidden />} onClick={async () => {
+              if (!await confirmDiscard()) return
               setVideo(exerciseId, ''); setDraft(''); setVideoError(false); setPlay(false)
               useStore.getState().notify(L('Vidéo retirée de cet exercice.', 'Video removed from this exercise.'))
-            }}>{L('Retirer la vidéo', 'Remove video')}</Button>}
+            }}>{L('Retirer la vidéo', 'Remove video')}</Button>}</SheetAction>}
           </form>
         </Disclosure>
 
         {alternatives.length > 0 && <Disclosure key={exerciseId} bordered={false} title={`Alternatives (${alternatives.length})`} icon={<Replace size={18} aria-hidden />}>
-          <ExerciseAlternatives exerciseId={exerciseId} replacement={replacement} onReplaced={onClose} showHeading={false} />
+          <SheetAction>{(_close, confirmDiscard) => <ExerciseAlternatives exerciseId={exerciseId} replacement={replacement} beforeReplace={confirmDiscard} onReplaced={onClose} showHeading={false} />}</SheetAction>
         </Disclosure>}
       </div>
 

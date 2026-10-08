@@ -136,8 +136,8 @@ export function createPageMotion(screen: HTMLElement, initialRoute: string) {
       settling = true
       releasedDirection = Math.sign(release.offset)
       fallback = setTimeout(() => { if (!pending) clean() }, 600)
-      if (action.type === 'back') { if (!goBack()) clean() }
-      else navigate(action.path)
+      const result = action.type === 'back' ? goBack() : navigate(action.path)
+      void result.then(changed => { if (!changed && !pending) clean() })
     },
   })
   const invalidate = () => { historyCache.clear(); routeCache.clear(); if (!pending) clean() }

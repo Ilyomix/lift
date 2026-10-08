@@ -13,6 +13,7 @@ import { navigate } from '../lib/router'
 import { calendarMilestonesAt } from '../lib/programTimeline'
 import { isIOS, saveFile } from '../lib/share'
 import { useStore } from '../lib/store'
+import { useUnsavedChanges } from '../lib/unsavedChanges'
 import type { ISODate, PauseReason } from '../lib/types'
 import { Button, Card, cx, DateInput, Disclosure, Header, IconButton, inputClass, Screen, Section, SectionHeading, Segmented, Sheet, TimeInput, Toggle } from '../components/ui'
 import { canEditWeekSchedule, WeekScheduleSheet } from '../components/WeekScheduleSheet'
@@ -224,6 +225,7 @@ export function PauseScreen() {
   const [reason, setReason] = useState<PauseReason>('vacances')
   const [end, setEnd] = useState<string>('')
   const [note, setNote] = useState('')
+  const { discard } = useUnsavedChanges(!p.active && (reason !== 'vacances' || !!end || !!note.trim()))
   const today = todayISO()
   const sinceDays = p.active && p.startedAt ? diffDays(p.startedAt.slice(0, 10), today) : 0
   const gap = Math.max(sinceDays, gapSinceLastSession(state, today))
@@ -279,7 +281,7 @@ export function PauseScreen() {
           <Section art="logbook" title="Note">
             <input aria-label={L('Note de pause', 'Pause note')} className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('Ex. : épaule gauche à surveiller', 'E.g. keep an eye on left shoulder')} />
           </Section>
-          <Button variant="ink" size="lg" full className="mt-6" icon={<CirclePause size={18} aria-hidden />} onClick={() => { startPause({ reason, plannedEnd: end || null, note: note || undefined }); navigate('') }}>
+          <Button variant="ink" size="lg" full className="mt-6" icon={<CirclePause size={18} aria-hidden />} onClick={() => { startPause({ reason, plannedEnd: end || null, note: note || undefined }); discard(); navigate('') }}>
             {L('Démarrer la pause', 'Start the pause')}
           </Button>
         </>
@@ -310,6 +312,8 @@ export function RemindersScreen() {
   const state = useStore((s) => s.state)
   const setPrefs = useStore((s) => s.setPrefs)
   const [o, setO] = useState<IcsOptions>({ training: true, weighIn: true, waist: true, photos: true, deloads: true, phases: true })
+  const [exportedOptions, setExportedOptions] = useState(o)
+  useUnsavedChanges(JSON.stringify(o) !== JSON.stringify(exportedOptions))
   const ics = useMemo(() => buildIcs(state, o), [state, o])
   const n = icsEventCount(ics)
   const set = (k: keyof IcsOptions) => (v: boolean) => setO((x) => ({ ...x, [k]: v }))
@@ -334,7 +338,7 @@ export function RemindersScreen() {
           <TimeInput label={L('Heure de la pesée', 'Weigh-in time')} value={state.prefs.weighInTime} onChange={(v) => setPrefs({ weighInTime: v })} />
         </div>
       </div>
-      <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={() => void saveFile(L('lift-rappels.ics', 'lift-reminders.ics'), ics, 'text/calendar')}>
+      <Button variant="primary" size="lg" full className="mt-6" icon={<BellRing size={18} aria-hidden />} disabled={n === 0} onClick={async () => { if (await saveFile(L('lift-rappels.ics', 'lift-reminders.ics'), ics, 'text/calendar')) setExportedOptions(o) }}>
         {L('Exporter', 'Export')} {plural(n, L('rappel', 'reminder'), L('rappels', 'reminders'))}
       </Button>
       <Disclosure icon={<HelpCircle size={18} aria-hidden />} title={L('Comment ajouter les rappels', 'How to add reminders')} className="mt-4">

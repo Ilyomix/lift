@@ -4,9 +4,24 @@ import { bindDismissGesture, createDismissMotion } from '../lib/dismissGesture'
 const CONTROLS = 'button, a, input, textarea, select, summary, label, canvas, video, iframe, [contenteditable], [role="button"], [role="slider"], [role="tab"], [draggable="true"], [data-swipe-ignore]'
 
 /** Shared by bottom sheets and the rest panel. Closing never stops the rest. */
-export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: boolean, onClose: () => void, backdrop?: RefObject<HTMLDivElement | null>, revision = 0) {
+export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: boolean, onClose: () => void, backdrop?: RefObject<HTMLDivElement | null>, revision = 0, canDismiss?: () => boolean | Promise<boolean>) {
   const close = useRef(onClose)
+  const allow = useRef(canDismiss)
+  allow.current = canDismiss
   const motionRef = useRef<ReturnType<typeof createDismissMotion> | null>(null)
+  const asking = useRef(false)
+  const release = useCallback((dismiss: boolean) => {
+    const motion = motionRef.current
+    if (!motion || asking.current) return
+    if (!dismiss) { motion.release(false); return }
+    const allowed = allow.current?.() ?? true
+    if (!(allowed instanceof Promise)) { motion.release(allowed); return }
+    asking.current = true
+    motion.release(false)
+    void allowed.then(ok => {
+      if (ok && motionRef.current === motion) motion.release(true)
+    }).finally(() => { asking.current = false })
+  }, [])
   useEffect(() => { close.current = onClose })
   useEffect(() => {
     const panel = ref.current
@@ -29,7 +44,7 @@ export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: b
         return true
       },
       drag: motion.drag,
-      release: motion.release,
+      release,
     })
     return () => {
       unbind()
@@ -38,5 +53,5 @@ export function useDismissGesture(ref: RefObject<HTMLDivElement | null>, open: b
     }
   }, [open, ref, backdrop, revision])
   // Buttons, backdrop and Escape share the same completion as a confirmed pull.
-  return useCallback(() => motionRef.current?.release(true), [])
+  return useCallback(() => release(true), [release])
 }

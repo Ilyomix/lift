@@ -16,10 +16,11 @@ export type ExerciseReplacementTarget =
 type Scope = 'session' | 'program'
 const targetKey = (target: ExerciseReplacementTarget) => `${target.kind}:${target.kind === 'active' ? '' : target.type}:${target.index}`
 
-export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, showHeading = true }: {
+export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, beforeReplace, showHeading = true }: {
   exerciseId: string
   replacement?: ExerciseReplacementTarget
   onReplaced?: () => void
+  beforeReplace?: () => boolean | Promise<boolean>
   showHeading?: boolean
 }) {
   const state = useStore(s => s.state)
@@ -59,7 +60,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
     return `${item.kind === 'active' ? L('Séance en cours', 'Current workout') : L('Programme', 'Program')} · ${TYPE_META[type].label} · ${String(item.index + 1).padStart(2, '0')}`
   }
   const choose = (id: string) => {
-    if (!target || locked) return
+    if (!target || locked) return false
     const actions = useStore.getState()
     const changed = target.kind === 'planned'
       ? actions.replacePlannedExercise(target.type, target.index, id, chosenScope)
@@ -68,11 +69,16 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
         : hasLoggedSets && chosenScope === 'program' && activeType
           ? actions.replaceTemplateExercise(activeType, target.index, id)
           : actions.replaceExercise(target.index, id, chosenScope)
-    if (!changed) return
+    if (!changed) return false
     actions.notify(chosenScope === 'session'
       ? L('Exercice remplacé pour cette séance.', 'Exercise replaced for this workout.')
       : L('Exercice remplacé dans le programme.', 'Exercise replaced in the program.'), 'good')
     onReplaced?.()
+    return true
+  }
+  const confirmAndChoose = async (id: string) => {
+    if (beforeReplace && !await beforeReplace()) return false
+    return choose(id)
   }
   if (!all.length) return null
 
@@ -118,7 +124,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
               </span>
               <ChevronDown size={16} className={cx('shrink-0 text-text-2', open && 'rotate-180')} aria-hidden />
             </button>
-            {target && <Button size="sm" variant="outline" className="shrink-0" disabled={locked || duplicate} aria-label={L(`Remplacer par ${choice.name}`, `Replace with ${choice.name}`)} icon={<Replace size={15} aria-hidden />} closeSheet={!!onReplaced} onClick={() => choose(choice.id)}>{L('Remplacer', 'Replace')}</Button>}
+            {target && <Button size="sm" variant="outline" className="shrink-0" disabled={locked || duplicate} aria-label={L(`Remplacer par ${choice.name}`, `Replace with ${choice.name}`)} icon={<Replace size={15} aria-hidden />} closeSheet={onReplaced ? (beforeReplace ?? true) : false} onClick={onReplaced ? () => choose(choice.id) : () => { void confirmAndChoose(choice.id) }}>{L('Remplacer', 'Replace')}</Button>}
           </div>
           <div id={panelId} hidden={!open}>
             {open && <div className="pb-4">

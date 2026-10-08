@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createPageMotion } from '../src/components/SwipeNavigation'
 import { navigate } from '../src/lib/router'
 
-test('page motion restores each Back entry and keeps tab previews through push, replace and Forward', () => {
+test('page motion restores each Back entry and keeps tab previews through push, replace and Forward', async () => {
   const names = ['window', 'document', 'Element', 'getComputedStyle', 'MutationObserver', 'HashChangeEvent'] as const
   const globals = new Map(names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]))
   type AnimationStub = { onfinish: (() => void) | null; cancelled: boolean; cancel(): void }
@@ -70,8 +70,9 @@ test('page motion restores each Back entry and keeps tab previews through push, 
   const motion = createPageMotion(screen as unknown as HTMLElement, '')
   const finish = () => { for (const animation of animations.splice(0)) if (!animation.cancelled) animation.onfinish?.() }
   const arrive = (marker = location.hash) => { screen.marker = marker; motion.arrive(location.hash.slice(2)); finish() }
-  const push = (path: string, marker?: string) => { navigate(path); arrive(marker) }
-  const back = () => { history.back(); arrive() }
+  const settle = async () => { for (let n = 0; n < 8; n++) await Promise.resolve() }
+  const push = async (path: string, marker?: string) => { await navigate(path); arrive(marker) }
+  const back = async () => { history.back(); await settle(); arrive() }
   const touch = (type: string, x: number) => {
     const event = new Event(type, { cancelable: true })
     const point = { identifier: 1, clientX: x, clientY: 100 }
@@ -81,42 +82,42 @@ test('page motion restores each Back entry and keeps tab previews through push, 
   try {
     screen.marker = 'first-home'
     win.scrollY = 120
-    push('plus/reglages'); win.scrollY = 240
-    push('', 'second-home'); win.scrollY = 900
-    push('progres'); win.scrollY = 360
-    back(); assert.equal(win.scrollY, 900)
-    back(); assert.equal(win.scrollY, 240)
+    await push('plus/reglages'); win.scrollY = 240
+    await push('', 'second-home'); win.scrollY = 900
+    await push('progres'); win.scrollY = 360
+    await back(); assert.equal(win.scrollY, 900)
+    await back(); assert.equal(win.scrollY, 240)
     touch('touchstart', 100); touch('touchmove', 200)
     assert.equal(copies.at(-1)?.children[0].marker, 'first-home', 'Back previews its exact earlier visit')
     assert.equal(copies.at(-1)?.scrollTop, 120)
     touch('touchcancel', 200); finish()
-    back(); assert.equal(win.scrollY, 120, 'Back cannot reuse the scroll of a later Home visit')
+    await back(); assert.equal(win.scrollY, 120, 'Back cannot reuse the scroll of a later Home visit')
 
-    history.go(1); arrive()
+    history.go(1); await settle(); arrive()
     win.scrollY = 260
-    push('', 'branched-home')
+    await push('', 'branched-home')
     assert.equal(win.scrollY, 0, 'a new push starts at the top despite an old entry at the same position')
     win.scrollY = 450
-    push('progres'); back()
+    await push('progres'); await back()
     assert.equal(win.scrollY, 450, 'a branch replaces the discarded entry snapshot')
-    back(); assert.equal(win.scrollY, 260)
-    back(); assert.equal(win.scrollY, 120)
+    await back(); assert.equal(win.scrollY, 260)
+    await back(); assert.equal(win.scrollY, 120)
 
-    push('calendrier'); win.scrollY = 180
+    await push('calendrier'); win.scrollY = 180
     const count = entries.length
-    navigate('calendrier/programme', { replace: true, transition: 'none' }); arrive()
+    await navigate('calendrier/programme', { replace: true, transition: 'none' }); arrive()
     assert.equal(entries.length, count)
     win.scrollY = 340
-    push('seance/workout-id'); back()
+    await push('seance/workout-id'); await back()
     assert.equal(win.scrollY, 340)
-    navigate('calendrier', { replace: true, transition: 'none' }); arrive('replaced-calendar')
+    await navigate('calendrier', { replace: true, transition: 'none' }); arrive('replaced-calendar')
     win.scrollY = 520
-    history.go(1); arrive()
+    history.go(1); await settle(); arrive()
     touch('touchstart', 100); touch('touchmove', 200)
     assert.equal(copies.at(-1)?.children[0].marker, 'replaced-calendar', 'Forward keeps the replaced entry as its Back destination')
     assert.equal(copies.at(-1)?.scrollTop, 520)
     touch('touchcancel', 200); finish()
-    back(); assert.equal(win.scrollY, 520)
+    await back(); assert.equal(win.scrollY, 520)
     touch('touchstart', 240); touch('touchmove', 140)
     assert.equal(copies.at(-1)?.children[0].marker, '#/progres', 'adjacent tabs still preview the last visit to that route')
     assert.equal(copies.at(-1)?.scrollTop, 0, 'a tab swipe previews the same top position it opens')

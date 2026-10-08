@@ -8,6 +8,7 @@ import { onboardingPreview, onboardingSession, type OnboardingAnswers } from '..
 import { defaultGoalFor, isValidGoal, MIN_PLAN_WEEKS, PLAN_DAYS, planSets, programStartFor, ROTATION, sharePhrase, TYPE_META, weekShape } from '../lib/program'
 import { useStore } from '../lib/store'
 import { navigate } from '../lib/router'
+import { useUnsavedChanges } from '../lib/unsavedChanges'
 import { isNative, nativeNotificationPermissionStatus } from '../lib/native/bridge'
 import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
@@ -63,7 +64,7 @@ export function Onboarding() {
   }, [step])
   const today = todayISO()
   const start = programStartFor(today)
-  const [d, setD] = useState<Draft>(() => ({
+  const [initial] = useState<Draft>(() => ({
     setup: { place: 'gym', equipment: [] },
     days: [1, 2, 4, 5, 6],
     sex: 'm',
@@ -76,6 +77,8 @@ export function Onboarding() {
     goalDate: defaultGoalFor(start),
     maintenance: false,
   }))
+  const [d, setD] = useState(initial)
+  const guard = useUnsavedChanges(JSON.stringify(d) !== JSON.stringify(initial) || notifications)
   const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }))
   const chooseLang = (l: Lang) => {
     setLang(l)
@@ -101,6 +104,7 @@ export function Onboarding() {
     useStore.getState().completeOnboarding(answers)
     // completeOnboarding creates fresh prefs; apply only the choice made on this screen.
     if (isNative()) useStore.getState().setPrefs({ notifications })
+    guard.discard()
     navigate('seance')
   }
 
@@ -557,18 +561,19 @@ export function ImportResultSheet() {
   const [w, setW] = useState('')
   const invalidWeight = w.trim() !== '' && (parseNumber(w) === null || parseNumber(w)! <= 0)
   if (!lastImport) return null
-  const close = () => useStore.setState({ lastImport: null })
+  const close = () => { setW(''); useStore.setState({ lastImport: null }) }
   const added = lastImport.changes.filter((c) => c.kind === 'added')
   const removed = lastImport.changes.filter((c) => c.kind === 'removed')
   const stale = !lastWeigh || lastWeigh.date < todayISO()
   return (
     <Sheet
       open
+      dirty={w !== ''}
       onClose={close}
       icon={<Upload size={18} aria-hidden />}
       title={L('Import terminé', 'Import complete')}
       footer={
-        <Button variant="primary" size="lg" full icon={<ArrowRight size={18} aria-hidden />} closeSheet disabled={invalidWeight} onClick={() => {
+        <Button variant="primary" size="lg" full icon={<ArrowRight size={18} aria-hidden />} closeSheet={() => !invalidWeight} disabled={invalidWeight} onClick={() => {
           if (invalidWeight) return
           const n = parseNumber(w)
           if (n) saveBody({ date: todayISO(), weight: n, waist: null, arm: null, chest: null, shoulders: null })

@@ -110,6 +110,7 @@ export function SetupSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet
       open
+      dirty={changed}
       onClose={onClose}
       icon={<MapPin size={18} aria-hidden />}
       title={L('Lieu d’entraînement', 'Where you train')}
