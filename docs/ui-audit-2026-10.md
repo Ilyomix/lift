@@ -4,7 +4,7 @@
 
 Inventaire du code de travail pendant la préparation du build 33, complément de [ui-harmonization-plan.md](ui-harmonization-plan.md). Les routes viennent de `src/App.tsx`, les options des composants effectivement rendus. L’arborescence ci-dessous décrit l’interface disponible ; elle ne vaut pas validation visuelle. Les libellés peuvent encore évoluer pendant cette passe.
 
-Lecture effectuée : App, écrans Home/Session/Calendar/ProgramScreen/Progress/More/Settings/Goal/Onboarding/Privacy, composants de réglage et volets, infrastructure Sheet/navigation et présentations natives. Aucun contrôle CUA ou appareil réalisé par l’auteur de cet inventaire. Les captures de travail du responsable sont dans `.local-release/build33/qa` ; les premières captures précèdent les dernières modifications et doivent être renouvelées.
+Lecture effectuée : App, écrans Home/Session/Calendar/ProgramScreen/Progress/More/Settings/Goal/Onboarding/Privacy, composants de réglage et volets, infrastructure Sheet/navigation et présentations natives. Aucun contrôle CUA ou appareil réalisé par l’auteur de cet inventaire. Les observations visuelles ci-dessous sont celles du responsable de la QA ; les fichiers sont dans `.local-release/build33/qa`. La passe web finale porte sur le code `5f5e31e26a7c03f5a922867f244877fc060a2162`. La QA native utilisait un candidat Debug affichant encore le numéro 32 : elle ne constitue pas une validation physique du build Release 33 distribué.
 
 ## Routes et accès
 
@@ -150,28 +150,28 @@ Android possède sa propre notification persistante (`WorkoutService.java`) et l
 | P2 | Réinitialiser les préférences en conservant une photo gardait l’ancienne silhouette, contrairement au reset annoncé. | Corrigé : silhouette par défaut, zones/masse grasse réinitialisées, photo conservée. Tests de reset puis réouverture/sauvegarde. |
 | P2 | Cibles automatiques/personnalisées ambiguës ; une ancienne cible pouvait contaminer l’aperçu d’estimation. | Nouveau choix explicite ; tests `target-measurements-ui.test.ts` : estimation indépendante, brouillon annulé, sauvegarde 0/0, taille facultative, invalidité min/max, rechargement. |
 | P2 | Les bornes du sélecteur de cibles (35–250 kg, 50–200 cm) doivent aussi être appliquées par la validation parent : la saisie manuelle n’est volontairement pas tronquée par le rouleau. | Correction parent intégrée ; régression hors bornes et limites exactes réussie dans `target-measurements-ui.test.ts`. Ne pas remplacer silencieusement une saisie invalide par une valeur bornée. |
-| P2 | Une fermeture pilotée par `open=false` peut démonter un `Sheet` avant sa sortie vers le bas, contrairement aux fermetures déclenchées par le volet. | Corrigé : présence et contenu retenus pendant la sortie ; actions fermantes des parents conditionnels différées explicitement. `sheet-presence.test.ts` : 9 cas, dont StrictMode, réouverture, échec asynchrone, validation unique, absence de seconde sortie, Escape/focus/scroll du volet supérieur. Geste et rendu final sur appareil restent à vérifier. |
+| P2 | Une fermeture pilotée par `open=false` peut démonter un `Sheet` avant sa sortie vers le bas, contrairement aux fermetures déclenchées par le volet. | Corrigé : présence et contenu retenus pendant la sortie ; actions fermantes des parents conditionnels différées explicitement. `sheet-presence.test.ts` : 9 cas, dont StrictMode, réouverture, échec asynchrone, validation unique, absence de seconde sortie, Escape/focus/scroll du volet supérieur. QA native Debug ciblée : petit glissement de 30 px revient en place, grand glissement de 383 px ferme ; mesure enregistrée conservée. |
 | P3 | Les actions de confirmation doivent avoir les mêmes icônes Annuler/Confirmer que les autres actions. | Les confirmations sont des `Sheet` spécifiques (aucun composant `ConfirmDialog`). Icônes raccordées par le responsable, icône de l’action du toast ajoutée ; contrôle visuel restant. |
-| P2 | `Field` enveloppait un sélecteur composite dans `<label>` : toucher une valeur non labelable de la roue activait implicitement le premier bouton et refermait le sélecteur. | Reproduit en QA native par le responsable. Corrigé : label implicite réservé aux contrôles natifs directs ; composite avec son nom accessible hors label. `field-accessibility.test.ts` couvre les deux structures. La saisie tactile après correction reste à revalider. |
+| P2 | `Field` enveloppait un sélecteur composite dans `<label>` : toucher une valeur non labelable de la roue activait implicitement le premier bouton et refermait le sélecteur. | Reproduit en QA native par le responsable. Corrigé : label implicite réservé aux contrôles natifs directs ; composite avec son nom accessible hors label. `field-accessibility.test.ts` couvre les deux structures. QA native Debug après correction : toucher le centre permet la saisie manuelle de 81, unité kg fixe ; Valider transmet au brouillon. |
 
 Ne pas interpréter les différences propres aux filtres de salles, notifications système ou vues natives comme des défauts de style sans vérifier leur fonction. Aucun autre bug métier n’a été déclaré sur la seule apparence du code.
 
 ## Matrice de validation visuelle à compléter
 
-Toutes les cases ci-dessous restent **à valider sur la source finale**. Les tests de composants sont une preuve de comportement, pas d’alignement, contraste ou geste physique.
+La couverture est **partielle**. Une mention de langue, largeur ou thème ne valide que cette combinaison et les écrans cités dans les preuves ci-dessous ; elle ne vaut pas validation de toute la famille. Les tests de composants sont une preuve de comportement, pas d’alignement, contraste ou geste physique. Les cellules « À faire » restent ouvertes.
 
 | Famille | FR/EN | Clair/sombre + orange/bleu | 320/393 px | Tablette/desktop | Vide/erreur/rempli | Clavier/focus/reduced motion | Natif/gestes |
 |---|---|---|---|---|---|---|---|
 | Onboarding, import, permissions | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Home, repos, semaine, tâches | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Séance aperçu/active/bilan/historique | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
+| Home, repos, semaine, tâches | EN ciblé | Clair web ; sombre natif ciblés | 320 EN clair | Home iPad natif EN sombre | États supplémentaires à faire | À faire | Home Debug inspecté ; autres gestes à faire |
+| Séance aperçu/active/bilan/historique | EN ciblé | Clair ciblé | 320 EN clair | À faire | Charge -5 refusée ; 22,5 × 8 valide, sans enregistrement | À faire | À faire |
 | Exercice, 3D, technique, alternatives | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Calendrier semaine/mois/jour/programme | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
+| Calendrier semaine/mois/jour/programme | FR/EN ciblés | Clair/sombre ciblés ; bleu à faire | 320 EN clair ; 393 FR sombre | 1024 px : onglets sans débordement | Autres états à faire | À faire | À faire |
 | Éditeur programme et salles | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Progrès : quatre onglets, mesures/photos | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Plus, réglages, objectifs et critères | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Nutrition/cibles, sauvegarde, IA, sources | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
-| Tous sélecteurs de valeurs et volets | À faire | À faire | À faire | À faire | À faire | À faire | À faire |
+| Progrès : quatre onglets, mesures/photos | EN ciblé | Clair ciblé | Quatre onglets 320 EN clair | 1024 px : onglets sans débordement | Mesure -12 refusée ; photos/autres états à faire | À faire | Sélecteur de poids Debug ciblé |
+| Plus, réglages, objectifs et critères | FR/EN ciblés | Clair/sombre ciblés ; bleu à faire | 320 EN clair ; Plus/cibles 393 FR sombre | À faire | Estimation/personnalisé ciblés ; autres états à faire | À faire | À faire |
+| Nutrition/cibles, sauvegarde, IA, sources | Nutrition EN ciblé ; reste à faire | Nutrition claire ciblée | Nutrition/cibles 320 EN clair | À faire | 1444 kcal conservées après rechargement direct | À faire | À faire |
+| Tous sélecteurs de valeurs et volets | Poids natif ciblé | Combinaisons restantes à faire | Sélecteur natif ciblé | À faire | Saisie/validation/annulation du poids ciblées | Saisie manuelle ciblée ; reste à faire | Debug : petit/grand swipe ; autres volets à faire |
 | Repos web, Live Activity, Dynamic Island | À faire | À faire | Selon surface | Selon surface | À faire | À faire | Appareil requis |
 | Notification Android et permissions | À faire | Système + accent | Appareil | Sans objet | À faire | À faire | Android requis |
 
@@ -179,14 +179,20 @@ Critères de chaque case : titres/sous-titres alignés, icônes adaptées, actio
 
 ## Limites et prochaine preuve
 
-Validation automatisée de cette passe : suite ciblée de 72 tests réussie avant le dernier correctif Field/StrictMode ; dernière passe 26 tests réussis (5 accessibilité, 12 sélecteur, 9 présence Sheet) et typecheck réussi. Cela ne remplace pas le contrôle natif tactile.
+Validation automatisée de cette passe : suite ciblée de 72 tests réussie avant le dernier correctif Field/StrictMode ; puis 26 tests réussis (5 accessibilité, 12 sélecteur, 9 présence Sheet) et typecheck réussi. La dernière suite intégrée, exécutée par le responsable sur la source finale, compte **445 tests réussis et 1 ignoré**. Cela ne remplace pas le contrôle natif tactile.
 
 Cet inventaire couvre les routes et familles de contrôles présentes dans le code. Il ne certifie ni toutes les combinaisons de données historiques, ni les rendus des notifications/permissions du système, ni les moteurs 3D de chaque appareil. Les comptes rendus Apple/builds précédents ne valident pas le build 33. La preuve finale doit indiquer source/build, appareil ou navigateur, langue/thème, chemin, état et capture ; les défauts résolus doivent être revérifiés après les dernières modifications communes.
 
-## Complément de QA native transmis par le responsable
+## Preuves finales transmises par le responsable
 
-Le 8 octobre, après correction du `Field`, le responsable a constaté dans l’interface native : toucher la valeur centrale laisse le sélecteur ouvert et permet la saisie manuelle ; l’unité kg reste fixe ; Valider transmet `81` au brouillon ; après défilement, Annuler conserve `81`. Cette observation valide ce parcours précis, pas toutes les unités ni tous les appareils. Un geste rapide automatisé a fait passer la roue de `81` à son plafond `250` : l’inertie système est active, mais la finesse du geste et la vitesse sur appareil physique ne sont pas certifiées.
+Le 8 octobre, après correction du `Field`, le responsable a constaté dans l’interface native Debug : toucher la valeur centrale laisse le sélecteur ouvert et permet la saisie manuelle ; l’unité kg reste fixe ; Valider transmet `81` au brouillon ; après défilement, Annuler conserve ce brouillon `81`. Un petit glissement du volet de 30 px revient en place ; un glissement de 383 px le ferme. Après abandon du brouillon, la mesure enregistrée reste `80,1` et `81` n’est pas sauvegardé. Ces observations valident ces parcours précis, pas toutes les unités ni tous les appareils. Un geste rapide automatisé a fait passer la roue de `81` à son plafond `250` : l’inertie système est active, mais la finesse du geste et la vitesse sur appareil physique ne sont pas certifiées.
 
-Les captures Chrome supposées en thème clair sont invalidées pour juger la palette : Dark Reader injectait un fond sombre. Cette contamination extérieure ne constitue pas un défaut CSS de Lift. La palette claire doit être contrôlée dans la version native ou un navigateur sans cette injection. Les cases « clair » de la matrice ne sont donc pas marquées comme réussies.
+Les premières captures Chrome, y compris la première passe 393 px FR sombre sur douze familles, sont conservées pour le cadrage seulement : Dark Reader injectait ses styles. Elles sont invalidées pour juger la palette ; cette contamination ne constitue pas un défaut CSS de Lift. Dark Reader a ensuite été désactivé **uniquement pour `127.0.0.1:5185`**. L’absence de styles Dark Reader a été contrôlée (`0`) avant les nouvelles captures préfixées `clean-` ; les surfaces CSS Lift étaient correctes.
+
+La planche `clean-light-contact.jpg`, inspectée par le responsable, présente la passe 320 px EN clair : accueil, séance, calendrier/programme, quatre onglets Progrès, Plus, réglages, objectifs/critères et nutrition. Les captures `clean-plus-393-fr-dark.jpg`, `clean-calendrier-393-fr-dark.jpg`, `clean-targets-393-fr-dark.jpg` et `clean-targets-custom-393-fr-dark.jpg` documentent les contrôles propres en 393 px FR sombre. Elles ne valident pas toutes les permutations FR/EN, clair/sombre et orange/bleu.
+
+À 1024 px, Calendrier et Progrès ont été contrôlés sans débordement : barre d’onglets de 608 px dans une zone de contenu de 640 px (`clean-calendar-desktop-fr-dark.jpg`, `clean-progress-desktop-fr-dark.jpg`). L’accueil iPad natif EN sombre a été inspecté et enregistré dans `native-ipad-home.jpg` ; les autres pages iPad restent à parcourir.
+
+Contrôles fonctionnels web ciblés : une mesure corporelle `-12` empêche Enregistrer ; une saisie nutritionnelle de `1444` kcal reste présente après rechargement direct ; une charge `-5` empêche la validation d’une série, puis `22,5` kg et `8` répétitions rendent le bouton actif sans enregistrer la série. Ces cas ne constituent pas un audit exhaustif de tous les champs.
 
 Passe source supplémentaire sur les boutons d’action : les lignes de choix d’un exercice à ajouter portent désormais une icône Plus et un nom accessible « Ajouter [exercice] ». Les jours, onglets et choix purement textuels ne reçoivent pas d’icône artificielle. Les autres actions inspectées possèdent déjà une icône ou un chevron de destination. Le bouton Voir le programme du volet d’étape utilise aussi la fermeture animée commune avant de naviguer.

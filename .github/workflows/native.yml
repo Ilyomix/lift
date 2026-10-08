@@ -37,7 +37,9 @@ jobs:
           name: lift-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
   ios:
-    runs-on: macos-latest
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Test native rest timing
