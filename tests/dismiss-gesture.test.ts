@@ -80,6 +80,20 @@ test('upward and horizontal scroll never turn into dismissal later', () => {
   }
 })
 
+test('subpixel downward jitter does not capture a following upward or horizontal scroll', () => {
+  for (const next of [point(100, 80), point(160, 100)]) {
+    const f = fixture()
+    f.send('touchstart', [point(100, 100)], 0)
+    assert.equal(f.send('touchmove', [point(100, 100.5)], 8), false)
+    assert.equal(f.send('touchmove', [next], 24), false)
+    assert.equal(f.send('touchmove', [point(100, 250)], 80), false, 'native scrolling is never reclaimed after direction is established')
+    assert.equal(f.send('touchend', [], 100, [point(100, 250)]), false)
+    assert.deepEqual(f.drags, [])
+    assert.deepEqual(f.releases, [])
+    f.cleanup()
+  }
+})
+
 test('multi-touch, cancellation and reversal reset the panel without closing', () => {
   const f = fixture()
   f.send('touchstart', [point(100, 100)], 0)
@@ -105,9 +119,10 @@ test('cleanup stops events and cannot dismiss', () => {
   assert.deepEqual(f.releases, [])
 })
 
-test('the first small downward move is owned before Safari can start scrolling', () => {
+test('a deliberate small downward move is owned after initial touch jitter', () => {
   const f = fixture()
   f.send('touchstart', [point(100, 100)], 0, undefined, false)
+  assert.equal(f.send('touchmove', [point(100, 99.5)], 8), false)
   assert.equal(f.send('touchmove', [point(101, 104)], 16), true)
   assert.deepEqual(f.drags, [4], 'the sheet already follows the finger below the old 12px threshold')
   assert.equal(f.send('touchmove', [point(101, 168)], 64), true)

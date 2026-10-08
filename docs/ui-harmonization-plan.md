@@ -23,14 +23,35 @@ Conserver le design system Lift (Geologica, surfaces neutres, accent orange par 
 - Les cibles automatiques se choisissent explicitement, sans exiger de vider deux champs.
 - Les confirmations protègent les données ou une action réelle ; pas de texte d’avertissement redondant sur le mode sans date.
 
-## État au démarrage de cette reprise
+## État confirmé au 8 octobre 2026, 22 h 03 Paris
 
-- Calendrier/restauration des jours : commit fe99a1b, web publié, build 32 traité et distribué au groupe interne TestFlight. Pas soumis à App Review.
-- App Review : dernière soumission confirmée = 1.0 (31), dossier 103f5133-84df-4c3b-9274-af5095566b7c. Ne pas retirer avant préparation du remplacement.
-- Corrections locales en cours : maintenance, cibles, mesures, en-têtes, Plus, cadres et onglets.
-- Premiers contrôles navigateur : onboarding sans date conserve physique et priorités ; cibles personnalisées persistées ; retour à l’estimation indépendant des anciennes cibles ; ordre min/max invalide bloqué ; en-têtes Plus/Réglages/Séance inspectés à 393 px et séance active à 320 px sans débordement.
-- Ces captures précèdent l’extension à toutes les unités et le dernier audit ; ne pas les présenter comme validation finale.
-- iPhone 14 Pro connecté, iOS 27.0.1 visible dans Device Hub. Nouveau build pas encore installé/validé.
+- **TestFlight : 1.0 (35)**, source figée `07ad65b42bd0771e5f9e42d7a66625331ce2e630`. Apple l’a traité (« Prêt à soumettre ») ; groupe **Validation appareil physique — Internes — 1 testeur** et note bilingue de **3 195 caractères** vérifiés après rechargement. Une seule note FR/EN dans le champ Français, pas deux locales. [Build Apple](https://appstoreconnect.apple.com/teams/f5a57efb-52e9-4de5-88d0-461395d02c61/apps/6818697874/testflight/ios/39e98dc7-9ec7-4df5-aebc-2048cae07824).
+- **Web : la même source `07ad65b` est publiée**. Index, bundle `index-C59iQota.js`, service worker/précache et manifeste contrôlés en HTTP à 21 h 44 Paris. L’activation de cette mise à jour dans une ancienne PWA installée reste distincte.
+- **App Review : 1.0 (31) reste « En attente de vérification »**, soumis le 7 octobre à 14 h 09 Paris. [Dossier conservé](https://appstoreconnect.apple.com/apps/6818697874/distribution/reviewsubmissions/details/103f5133-84df-4c3b-9274-af5095566b7c), aucun retrait ni remplacement par 35. Distribution TestFlight, notes sauvegardées et soumission sont des actions différentes.
+- **Appareil : validation physique 35 non réalisée.** iPhone 14 Pro/iOS 27.0.1 connecté mais verrouillé au dernier constat ; aucune preuve d’installation 35 ni vidéo 35. La vidéo 31 ne valide pas35. L’accès App Store Connect est rétabli.
+- **Diffs postérieurs au build 35 : locaux, non livrés.** Tolérance du premier mouvement tactile, bouton de saisie clavier visible au focus, focus de comparaison photo, unité de cible et explication/erreurs nutrition-IA sont encore en QA. Ils ne font partie ni du 35 TestFlight ni du web `07ad65b`.
+
+Reçus : `.local-release/build35/asc/upload-receipt.json`, `asc/testflight35-notes-group-confirmed.{txt,png}`, `web-deployment.json` et `DELIVERY-STATUS.md`. 22 h 03 est l’heure de consignation de ces constats, pas une heure de traitement Apple déduite.
+
+## Couverture acquise et provenance
+
+35 reprend les corrections calendrier/repos, rétablissement des jours habituels, accès direct depuis Cette semaine, mesures/charges/nutrition, persistance, préférences physiques sans date, cibles automatiques/personnalisées, Plus, titres, onglets et fermeture des volets. Il inclut les unités par haltère insécables et le chevron du dock issus de 34, puis le pictogramme de zoom photo. Aucun essai temporaire du diagnostic de défilement n’a été intégré à ce binaire.
+
+La dernière suite complète reste celle de 34 : **446 réussites, 1 ignoré, 0 échec** (447 tests). Elle n’a pas été réexécutée intégralement pour 35 ; typecheck, build natif, archive/export et signature 35 ont été vérifiés. Les preuves de paquet sont dans `build35/packaging-receipt.json`, celles des tests dans `build34/tests-final.log`.
+
+Les contrôles visuels restent ciblés : IAB FR/EN clair/sombre à 320/393 px, calendrier et onglets à 1024 px, accueil iPad natif, onboarding sans date, erreurs de champs, sauvegarde et quelques volets/roues en Debug. Les captures `iab-icons-*` rangées dans `build33/qa` proviennent du code local préparant34, pas du binaire 33. Le profil fictif IAB a été restauré à 0 séance, 1 mesure et 0 photo avant les changements volontaires de langue/thème pour la matrice. La matrice de `ui-audit-2026-10.md` garde les états et combinaisons non parcourus ouverts.
+
+Le focus initial sur Fermer, avec priorité au `data-autofocus`, et le confinement du défilement font partie de 35. Focus, piège clavier, Escape et restitution au déclencheur ont été contrôlés dans l’IAB ; cela n’établit pas la résolution du défilement natif.
+
+## Défaut natif encore ouvert
+
+Dans le **simulateur iOS 26.5, binaire original 35**, la fiche exercice défile au premier geste lors d’une ouverture directe depuis Séance. Après fermeture et réouverture par le même chemin, **le premier et le deuxième glissement peuvent rester sans effet**. Le deuxième geste réussi sur un cas 34 n’est donc pas un contournement fiable. L’échec n’exige pas de remplacer un volet Calendrier. Preuve : `.local-release/build35/qa/scroll-observations.json` et ses trois captures.
+
+Les essais isolés de focus différé, animation d’entrée, écouteurs et rendu 3D statique n’ont pas établi de correction stable. Ne pas généraliser ce défaut au volet Mesures, qui dispose d’un cas séparé réussi, ni transformer un test de logique ou un succès IAB en validation tactile native. La cause reste à confirmer ; les nouveaux essais postérieurs au build 35 ne sont pas livrés.
+
+## Suite et critères restant ouverts
+
+Valider les correctifs locaux puis compiler le candidat retenu ; installer le build effectivement distribué sur iPhone et relever sa version/iOS. Vérifier les ouvertures répétées et le défilement, les roues et le clavier, puis Live Activity/Dynamic Island/paysage. Les cases restantes de la matrice, Android et VoiceOver restent à couvrir selon leur périmètre. Préparer la vidéo physique vérifiée et les médias nécessaires avant de remplacer la soumission 31. Le goal reste actif.
 
 ## Références de navigation consultées
 
@@ -40,24 +61,9 @@ Conserver le design system Lift (Geologica, surfaces neutres, accent orange par 
 
 Application à Lift : rapprocher les actions fréquentes de Plus, sans ajouter les fonctions sociales ou commerciales de ces apps.
 
-## Preuves et limites
 
-Captures et reçus : `.local-release/build33/qa`, journal de reprise `evidence-log.json`. Les tests du code figé33 comptent 445 réussites et 1 test ignoré ; web publié et upload Xcode 33 confirmés. Traitement Apple, distribution TestFlight et nouvelle soumission non confirmés. Les anciens reçus Apple ne prouvent pas l’état d’une nouvelle soumission.
+## Complément de validation du code postérieur au build 35
 
-Couverture ajoutée : simulateur Debug33, volet jour Pull prévu, fiche exercice 3D/Technique et titre/salle de Séance ; IAB isolé 393 px EN sombre, cinq étapes d’onboarding dont maintien sans date, vidéo invalide et alternatives. L’onboarding finit sur Séance sans entraînement actif ; les options physiques restent présentes en maintien. Le défilement de la fiche fonctionne dans l’IAB, mais reste bloqué par glissement dans le simulateur natif33 (cause non démontrée). Le retour à la ligne de `kg/main` a un correctif local : nouveau build 34 requis, pas encore numéroté ni livré.
+Le profil fictif IAB a été contrôlé en anglais, clair/bleu à 1024 px puis 320 px : Apparence, Repos et alertes, cibles nutritionnelles, sources et assistance IA. Après correction, l’erreur IA est annoncée et associée au champ ; elle disparaît à la modification. Le comparateur photo conserve un contour visible au focus et répond à la flèche droite (50 → 51). Les deux photos de test sont des icônes publiques du dépôt. Le profil a ensuite été restauré par l’interface depuis `QA-baseline33-iab.json` : 0 séance, 1 mesure, 0 photo, préférences EN/sombre/orange. Cible de poids avec unité, À propos, Confidentialité et explication nutritionnelle inspectés à 320 px. Provenance, états avant/après et hashes dans `.local-release/build35/qa/continued/manifest.json` ; ces captures ne proviennent pas du binaire TestFlight35.
 
-Restent la validation physique du build réellement installé, Live Activity/Dynamic Island/paysage, Android, les familles et états encore ouverts dans la matrice de l’audit, puis les médias et la soumission. Les gestes/roues natifs Debug ciblés déjà observés ne couvrent pas tous les contrôles ni la release distribuée.
-
-
-Complément du code local destiné au build34 : icônes ajoutées aux vues du modèle, aux onglets Progrès et Calendrier/Programme, et aux cinq aperçus de séance. Captures `iab-icons-*` : quatre groupes vérifiés à 320 px EN sombre, Progrès/modèle à 320 px FR clair, Progrès à 1024 px FR clair. Leur dossier `build33/qa` ne change pas cette provenance locale34. Le profil fictif IAB a été restauré (0 séance, 1 mesure, 0 photo), puis langue/thème changés volontairement pour la matrice.
-
-Le focus initial est placé sur le contrôle Fermer, avec priorité au `data-autofocus` explicite ; `overscroll-contain` reste présent. Cette adaptation ne corrige pas le blocage natif à elle seule. La variante isolée a rétabli le défilement du volet Mesures ; 31 tests ciblés Sheet/gestes/Field et typecheck passent. Revalidation native du code intégré, physique et livraison restent distinctes et non acquises par ces preuves.
-
-Contrôle final intégré local34 : 446 tests réussis et 1 ignoré (447 au total). Focus/trap/Escape/restauration vérifiés dans l’IAB réel ; aucune extension de cette preuve au natif physique. À 21 h 06 Paris, authentification App Store Connect et iPhone verrouillé empêchent de confirmer la suite de la livraison.
-
-
-## État après compilation 34
-
-Le build 34 figé (`4245a32`) est archivé et signé ; le site public sert cette source. **La fiche exercice native ne défile pas toujours au premier geste**, même après réouverture et attente. Le deuxième geste fonctionne. Les essais isolés de focus différé, animation d’entrée, attachement des écouteurs et animation 3D statique n’apportent pas de correction reproductible ; aucun de ces essais n’est intégré au code. Le simulateur est restauré sur le binaire 34 original. La cause exacte reste ouverte et le build 34 n’a pas été envoyé à Apple.
-
-L’ultime contrôle des actions a ajouté un pictogramme de zoom aux vignettes de photos de progression : elles ouvrent un aperçu et ne sont pas de simples choix de valeur. Les boutons d’action et onglets examinés ont leur icône. Typecheck réussi ; pas de nouveau test logique pour cet ajout décoratif. La validation physique et la livraison Apple restent à faire, avec reconnexion App Store Connect et appareil disponible. Le goal reste actif.
+Suite complète locale : **447 tests réussis, 1 ignoré**, typecheck et diff-check réussis. Le seuil de 4 px évite qu’un tremblement initial capture un geste ascendant ; il ne résout pas le défaut natif observé. Le candidat simulateur post35 compile mais sa fiche exercice ignore encore deux gestes ascendants dans le cas contrôlé (`qa/post35/base-open1-drag*.png`). Aucun succès physique ni nouvelle soumission Apple n’est déduit de cette passe.

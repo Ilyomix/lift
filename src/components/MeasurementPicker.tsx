@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type AriaAttributes, type FocusEventHandler } from 'react'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, Keyboard, X } from 'lucide-react'
 import { fmtNum, parseNumber } from '../lib/format'
 import { L } from '../lib/i18n'
 import { isNative } from '../lib/native/bridge'
@@ -107,7 +107,7 @@ function MeasurementWheel({ id, label, unit, value, min, max, step, closeSheet, 
       </div>}
     </div>
     <p className="mt-1 text-center text-[12px] text-text-2">{L('Touche la valeur pour la saisir.', 'Tap the selected value to type it.')}</p>
-    {manual === null && <button type="button" className="sr-only" onClick={() => setManual(String(draft))}>{L('Saisir au clavier', 'Type a value')}</button>}
+    {manual === null && <Button size="sm" variant="ghost" className="sr-only focus:not-sr-only focus:px-3 focus:py-2" icon={<Keyboard size={14} aria-hidden />} onClick={() => setManual(String(draft))}>{L('Saisir au clavier', 'Type a value')}</Button>}
     <div className="mt-2 flex flex-wrap gap-2">
       <Button size="sm" closeSheet={closeSheet} className="min-w-[92px] flex-1" icon={<X size={14} aria-hidden />} onClick={onCancel}>{L('Annuler', 'Cancel')}</Button>
       <Button size="sm" closeSheet={closeSheet} className="min-w-[92px] flex-1" icon={<Check size={14} aria-hidden />} variant="primary" onClick={confirm}>{L('Valider', 'Confirm')}</Button>

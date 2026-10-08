@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, Minus, Pencil, Plus, Share2, SlidersHorizontal, Smartphone, Sparkles, Trash, TriangleAlert, Upload, X } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
@@ -211,9 +211,9 @@ export function NutritionTargetsScreen() {
 
       <Disclosure icon={<SportArt kind="nutrition" size="title" />} title={L('Comment les cibles sont calculées', 'How targets are calculated')} className="mt-6" contentClassName="text-[13px] leading-[1.5] text-text-2">
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
-            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Pas de 150 kcal (un par sèche prend le déficit du plan en une fois), puis 2 semaines pour que le poids réagisse.', 'Steps of 150 kcal (one per cut takes the plan’s deficit at once), then 2 weeks for your weight to respond.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
+            {L('Tendance de ta moyenne de poids sur 7 jours (3 dernières semaines)', 'Trend of your 7-day average weight (last 3 weeks)')}{advice.waist ? L(`, tour de taille ${advice.waist === 'down' ? 'en baisse' : advice.waist === 'up' ? 'en hausse' : 'stable'} sur un mois`, `, waist ${advice.waist === 'down' ? 'down' : advice.waist === 'up' ? 'up' : 'stable'} over a month`) : ''}. {L('Les ajustements se font généralement par paliers de 150 kcal. Une fois par sèche, une baisse plus importante peut être proposée pour atteindre le déficit prévu. Le conseil attend ensuite au moins 2 semaines avant un nouvel ajustement.', 'Adjustments are usually made in steps of 150 kcal. Once per cut, a larger reduction may be suggested to reach the planned deficit. The advice then waits at least 2 weeks before another adjustment.')}{advice.floorIs === 'rest' ? L(` Jamais sous ta dépense au repos estimée (${advice.floor} kcal).`, ` Never under your estimated energy at rest (${advice.floor} kcal).`) : L(` Jamais sous ${advice.floor} kcal, le minimum conseillé sans suivi médical.`, ` Never under ${advice.floor} kcal, the minimum advised without medical supervision.`)} {L('Le poids ne change jamais les charges.', 'Your weight never changes your loads.')}
           </p>
-        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">{L('Aucune étude ne donne ta maintenance : les calories se règlent sur ta moyenne de poids. Protéines : ≈ 2 g/kg, un peu plus en sèche, jamais en baisse pendant la sèche.', 'No study can tell you your maintenance: calories are set from your weight average. Protein: ≈ 2 g/kg, a little more during a cut, never lowered during the cut.')}</p>
+        <p className="mt-3 text-[13px] leading-[1.45] text-text-2">{L('L’apport calorique qui maintient ton poids s’ajuste en suivant ta moyenne de poids. Protéines : ≈ 2 g/kg, un peu plus en sèche, jamais en baisse pendant la sèche.', 'The calorie intake that keeps your weight stable is adjusted by tracking your average weight. Protein: ≈ 2 g/kg, a little more during a cut, never lowered during the cut.')}</p>
         <RefList refs={['morton2018', 'helms2014', 'murphy2022', 'garthe2011', 'burke2023']} compact />
       </Disclosure>
     </Screen>
@@ -339,6 +339,7 @@ export function CoachScreen() {
   const [text, setText] = useState('')
   const [update, setUpdate] = useState<PlanUpdate | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const errorId = useId()
   const last = state.workouts[state.workouts.length - 1]
   const analyze = () => {
     try {
@@ -377,8 +378,8 @@ export function CoachScreen() {
       </div>
 
       <Section art="coach" title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="outline" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
-        <textarea aria-label={L('Réponse de l’IA', 'AI reply')} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
-        {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
+        <textarea aria-label={L('Réponse de l’IA', 'AI reply')} aria-invalid={!!error} aria-describedby={error ? errorId : undefined} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
+        {error && <p id={errorId} role="alert" className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" icon={<Eye size={16} aria-hidden />} disabled={!text.trim()} onClick={analyze}>{L('Prévisualiser les modifications', 'Preview changes')}</Button>
       </Section>
 

@@ -244,7 +244,7 @@ function BodyTab({ openMeasure }: { openMeasure: boolean }) {
       <div className="grid grid-cols-3 gap-3">
         <Figure label={ws.isAverage && !ws.stale ? L('Moyenne 7 j', '7-day avg') : L('Dernière pesée', 'Last weigh-in')} value={ws.current !== null ? `${fmtNum(ws.current)} kg` : '—'} />
         <Figure label={L('Tendance', 'Trend')} value={ws.weeklyChangePct !== null ? L(`${fmtSigned(ws.weeklyChangePct, 2)} %`, `${fmtSigned(ws.weeklyChangePct, 2)}%`) : '—'} hint={L('par semaine', 'per week')} />
-        <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)}` : '—'} hint={goal?.computed ? L('estimé · kg', 'estimated · kg') : 'kg'} />
+          <Figure label={L('Cible', 'Target')} value={goal ? `${fmtNum(goal.min, 0)}–${fmtNum(goal.max, 0)} kg` : '—'} hint={goal?.computed ? L('estimé', 'estimated') : undefined} />
       </div>
       <p className="mt-3 text-[13px] leading-[1.45] text-text-2">
         {currentRate ? <>{L('Rythme visé maintenant : ', 'Target pace now: ')}<span className="font-semibold text-text">{currentRate}</span>.</>
@@ -446,7 +446,7 @@ function CompareSheet({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       {pa && pb && (
-        <div className="relative mt-4 aspect-[3/4] w-full overflow-hidden rounded-[12px] bg-surface-2">
+        <div className="relative mt-4 aspect-[3/4] w-full overflow-hidden rounded-[12px] bg-surface-2 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-signal">
           <img src={pb.dataUrl} alt={L(`Photo de droite, ${fmtDate(pb.date)}`, `Right photo, ${fmtDate(pb.date)}`)} className="absolute inset-0 h-full w-full object-cover" />
           <img src={pa.dataUrl} alt={L(`Photo de gauche, ${fmtDate(pa.date)}`, `Left photo, ${fmtDate(pa.date)}`)} className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} />
           <div className="pointer-events-none absolute inset-y-0 w-[2px] bg-white shadow-[0_0_0_1px_rgb(0_0_0/0.2)]" style={{ left: `${pos}%` }} />

@@ -27,9 +27,9 @@ export function bindDismissGesture(element: HTMLElement, options: {
     if (touch.identifier !== pull.id) { cancel(); return }
     const dx = touch.clientX - pull.x, dy = touch.clientY - pull.y
     if (!pull.claimed) {
-      // Do not let the first small downward move begin native scrolling. Once
-      // Safari has claimed that scroll, later touchmoves may not be cancelable.
-      if (dx === 0 && dy === 0) return
+      // Ignore contact jitter before choosing a direction. Keep this small so
+      // a deliberate downward pull is claimed while moves are still cancelable.
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) return
       if (dy <= 0 || dy < Math.abs(dx) * 1.5) { cancel(); return }
       pull.claimed = true
     }
