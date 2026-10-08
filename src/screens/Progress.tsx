@@ -158,7 +158,7 @@ export function ExerciseDetail({ id }: { id: string }) {
           <Card className="p-4">
             <p className="text-[13px] font-medium text-text-2">{loaded ? L(`1RM estimé (${unitLabel(unit)})`, `Estimated 1RM (${unitLabel(unit)})`) : L('Meilleure série (reps)', 'Best set (reps)')}</p>
             <div className="mt-3">
-              <LineChart series={series} ariaLabel={L(`Évolution de ${info.name}`, `${info.name} over time`)} yFormat={(v) => fmtNum(v, loaded ? 0 : 0)} height={200} />
+              <LineChart series={series} ariaLabel={L(`Évolution de ${info.name}`, `${info.name} over time`)} yFormat={(v) => fmtNum(v, 0)} yTickStep={1} height={200} />
             </div>
           </Card>
           <Card className="mt-3 p-4">

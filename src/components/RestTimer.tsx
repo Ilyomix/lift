@@ -77,10 +77,10 @@ function useSessionEffects() {
  * "Série 2/3 · Chest press machine" → ["Série 2/3", "Chest press machine"]; an exercise name stays whole.
  * The store writes "Set 2/3 · …" in English; either form is read and the step is shown in the current language.
  */
-function splitNext(next: string | undefined): { step: string; name: string } | null {
+function splitNext(next: string | undefined): { step?: string; name: string } | null {
   if (!next) return null
   const m = next.match(/^(?:Série|Set) (\d+(?:\/\d+)?) · (.+)$/)
-  return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { step: L('Exercice suivant', 'Next exercise'), name: next }
+  return m ? { step: L(`Série ${m[1]}`, `Set ${m[1]}`), name: m[2] } : { name: next }
 }
 
 /** Stable digits during the countdown; only the complete expired readout pulses. */
@@ -146,20 +146,20 @@ export function RestDock() {
         aria-label={done ? L('Repos terminé', 'Rest over') : L(`Repos restant : ${clock}`, `Rest: ${clock} left`)}
         className={cx('relative mx-auto max-w-[620px] overflow-hidden rounded-[14px] border bg-inst-bg px-3 pt-2.5 pb-3 text-inst-text shadow-[0_18px_50px_rgb(0_0_0/0.35)]', done ? 'border-signal' : 'border-inst-border')}
       >
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
-            <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done rest-expired-pulse' : 'text-white')} />
-            <span className="min-w-0">
-              <span className="flex items-center gap-1 text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}<ChevronUp size={14} className="shrink-0" aria-hidden /></span>
-              <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
-            </span>
+        <div className="flex items-center gap-2 min-[360px]:gap-3">
+          <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left min-[360px]:gap-3" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
+            <SegDigits value={clock} className={cx('shrink-0 leading-none', clock.length > 5 ? 'text-[18px] min-[360px]:text-[22px]' : 'text-[26px] min-[360px]:text-[30px]', done ? 'text-inst-done rest-expired-pulse' : 'text-white')} />
+            <span className="flex items-center gap-1 text-[11px] font-semibold tracking-[0.08em] whitespace-nowrap text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : L('Repos', 'Rest')}<ChevronUp size={14} className="shrink-0" aria-hidden /></span>
           </button>
           {!done && <DockButton label={L('Ajouter 15 secondes', 'Add 15 seconds')} onClick={() => adjustRest(15)}><Plus size={16} /></DockButton>}
           <DockButton label={done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')} onClick={stopRest} accent={done}>
             {done ? <X size={16} /> : <SkipForward size={16} />}
           </DockButton>
         </div>
-        {next && <p className="mt-1.5 truncate text-[13px] leading-[18px] text-inst-label">{next.name}</p>}
+        {next ? <p className="mt-1.5 flex min-w-0 gap-1 text-[13px] leading-[18px] text-inst-label">
+          <span className="shrink-0">{next.step ? `${next.step} ·` : L('Ensuite :', 'Next:')}</span>
+          <span className="min-w-0 truncate">{next.name}</span>
+        </p> : <p className="mt-1.5 truncate text-[13px] leading-[18px] text-inst-label">{timer.label}</p>}
         {/* Progress along the bottom edge, inside the card. */}
         <div className="absolute inset-x-0 bottom-0 h-[3px] bg-inst-btn" aria-hidden>
           <div className="h-full bg-signal transition-[width] duration-200 ease-linear" style={{ width: `${progress * 100}%` }} />
@@ -281,7 +281,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
             <>
               <p className="text-[13px] text-muted">{L('Ensuite', 'Next')}</p>
               <p className="mt-1 line-clamp-2 text-[20px] leading-[1.25] font-semibold [overflow-wrap:anywhere]">{next.name}</p>
-              <p className="mt-0.5 text-[15px] text-text-2">{next.step}</p>
+              {next.step && <p className="mt-0.5 text-[15px] text-text-2">{next.step}</p>}
             </>
           ) : (
             <p className="truncate text-[17px] font-semibold">{timer.label}</p>

@@ -21,13 +21,14 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w]
 }
 
-function niceTicks(min: number, max: number, count = 4): number[] {
+function niceTicks(min: number, max: number, count = 4, minimumStep = 0.1): number[] {
   if (!(max > min)) return [min]
   const span = max - min
   const step0 = span / Math.max(1, count - 1)
   const mag = 10 ** Math.floor(Math.log10(step0))
   const norm = step0 / mag
-  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag
+  const niceStep = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag
+  const step = Math.max(minimumStep, Math.ceil(niceStep / minimumStep) * minimumStep)
   const start = Math.ceil(min / step) * step
   const out: number[] = []
   for (let v = start; v <= max + step * 1e-6; v += step) out.push(Number(v.toFixed(6)))
@@ -49,7 +50,7 @@ export interface ChartSeries {
 }
 
 export function LineChart({
-  series, height = 188, yFormat = (v) => fmtNum(v), xFormat = (x) => fmtDate(fromDayNumber(x)), band, refLine, yPad = 0.08, ariaLabel, xDomain, legend,
+  series, height = 188, yFormat = (v) => fmtNum(v), xFormat = (x) => fmtDate(fromDayNumber(x)), band, refLine, yPad = 0.08, yTickStep = 0.1, ariaLabel, xDomain, legend,
 }: {
   series: ChartSeries[]
   height?: number
@@ -58,6 +59,8 @@ export function LineChart({
   band?: { y0: number; y1: number; label: string }
   refLine?: { y: number; label: string }
   yPad?: number
+  /** Axis graduations use multiples of this precision; data values stay unchanged. */
+  yTickStep?: number
   ariaLabel: string
   xDomain?: [number, number]
   legend?: boolean
@@ -80,10 +83,10 @@ export function LineChart({
     const ys = [...all.map((p) => p.y), ...(band ? [band.y0, band.y1] : []), ...(refLine ? [refLine.y] : [])]
     let y0 = Math.min(...ys)
     let y1 = Math.max(...ys)
-    const pad = (y1 - y0 || Math.abs(y1) * 0.1 || 1) * yPad
-    y0 -= pad
+    const pad = Math.max(yTickStep, (y1 - y0 || Math.abs(y1) * 0.1 || 1) * yPad)
+    y0 = y0 >= 0 ? Math.max(0, y0 - pad) : y0 - pad
     y1 += pad
-    const ticks = niceTicks(y0, y1, 4)
+    const ticks = niceTicks(y0, y1, 4, yTickStep)
     y0 = Math.min(y0, ticks[0])
     y1 = Math.max(y1, ticks[ticks.length - 1])
     return {
@@ -91,7 +94,7 @@ export function LineChart({
       y: (v: number) => m.t + (1 - (v - y0) / (y1 - y0)) * ih,
       ticks, x0, x1,
     }
-  }, [all, band, refLine, iw, ih, xDomain, yPad, m.l, m.t])
+  }, [all, band, refLine, iw, ih, xDomain, yPad, yTickStep, m.l, m.t])
 
   if (!all.length) return <div ref={ref}><Empty art="chart" title={L('Aucune donnée à afficher', 'No data to display')}>{L('Ajoute une première valeur pour commencer ce graphique.', 'Log your first value to start this chart.')}</Empty></div>
 
