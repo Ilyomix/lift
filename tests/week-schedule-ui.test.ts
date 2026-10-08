@@ -95,3 +95,19 @@ test('restoring usual days reopens the sheet on saved training days, not a new r
   assert.doesNotMatch(html, /Rester à|Garder \d+ séances/)
   assert.equal(findAction(reopened.props.children, 'Rétablir les jours habituels'), undefined)
 })
+
+test('week editor agrees completed-workout summaries for zero, one and several workouts', () => {
+  const history = useStore.getState().state.workouts
+  for (const [language, labels] of [
+    ['fr', ['0\u00a0terminée', '1\u00a0terminée', '2\u00a0terminées']],
+    ['en', ['0 done', '1 done', '2 done']],
+  ] as const) {
+    setLang(language)
+    labels.forEach((label, count) => {
+      useStore.setState({ state: { ...useStore.getState().state, workouts: history.slice(0, count) } })
+      const sheet = mountSheet(() => {})()
+      const html = renderToStaticMarkup(createElement(Fragment, null, sheet.props.children))
+      assert.ok(html.includes(`${label} · `), `${language}: ${count} completed workouts`)
+    })
+  }
+})

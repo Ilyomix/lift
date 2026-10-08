@@ -57,7 +57,7 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1">
       <p className="text-[15px] font-semibold" aria-live="polite">{L(`${plural(total, 'séance', 'séances')} cette semaine`, `${plural(total, 'workout', 'workouts')} this week`)}</p>
-      <p className="text-[13px] text-text-2">{[L(`${week.completed} terminées`, `${week.completed} done`), ...(week.active ? [L(`${week.active} en cours`, `${week.active} in progress`)] : []), L(`${selected.length} à venir`, `${selected.length} upcoming`)].join(' · ')}</p>
+      <p className="text-[13px] text-text-2">{[L(plural(week.completed, 'terminée', 'terminées'), `${week.completed} done`), ...(week.active ? [L(`${week.active} en cours`, `${week.active} in progress`)] : []), L(`${selected.length} à venir`, `${selected.length} upcoming`)].join(' · ')}</p>
     </div>
     <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Les séances terminées restent en place. Les dates des blocs et de ton objectif ne changent pas.', 'Completed workouts stay in place. Your program blocks and goal date stay unchanged.')}</p>
     {week.customized && <Button full variant="outline" className="mt-4" icon={<RotateCcw size={16} aria-hidden />} closeSheet={() => save(null)} onClick={onClose}>{L('Rétablir les jours habituels', 'Restore usual days')}</Button>}

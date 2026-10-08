@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict'
-import { after, beforeEach, test } from 'node:test'
+import { after, afterEach, beforeEach, test } from 'node:test'
 import React, { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MeasurementPicker } from '../src/components/MeasurementPicker'
 import { lang, setLang } from '../src/lib/i18n'
 
-const originalLanguage = lang(), originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+const originalLanguage = lang(), originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window'), originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+const listeners = new Map<string, Set<(event: any) => void>>()
+const cleanups: (() => void)[] = []
+const emit = (type: string, target: object = {}) => { for (const listener of [...(listeners.get(type) ?? [])]) listener({ target }) }
+Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+  documentElement: { lang: 'en' },
+  addEventListener(type: string, listener: (event: any) => void) { const set = listeners.get(type) ?? new Set(); set.add(listener); listeners.set(type, set) },
+  removeEventListener(type: string, listener: (event: any) => void) { listeners.get(type)?.delete(listener) },
+} })
 let touch = true, pointerListener: (() => void) | undefined, subscribe: ((change: () => void) => () => void) | undefined
 setLang('en')
 Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({
@@ -13,21 +21,33 @@ Object.defineProperty(globalThis, 'window', { configurable: true, value: { match
   removeEventListener: () => { pointerListener = undefined },
 }) } })
 beforeEach(() => { touch = true })
+afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()); listeners.clear() })
 after(() => {
   setLang(originalLanguage)
   if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
   else Reflect.deleteProperty(globalThis, 'window')
+  if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument)
+  else Reflect.deleteProperty(globalThis, 'document')
 })
 
 // Exercise actual draft/event handlers without adding a browser DOM dependency.
 function mount<P,>(component: (props: P) => ReactNode, props: P | (() => P)) {
   const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
   const slots: unknown[] = []
+  const effects = new Map<number, { deps: unknown[]; cleanup?: () => void }>()
+  cleanups.push(() => effects.forEach(effect => effect.cleanup?.()))
   return () => {
     let cursor = 0
+    const pendingEffects: (() => void)[] = []
     const previous = internals.H
     internals.H = {
-      useId: () => 'measurement-test', useEffect() {}, useLayoutEffect() {},
+      useId: () => 'measurement-test', useLayoutEffect() {},
+      useEffect(effect: () => void | (() => void), deps: unknown[]) {
+        const i = cursor++, prior = effects.get(i)
+        if (!prior || deps.some((value, index) => !Object.is(value, prior.deps[index]))) pendingEffects.push(() => {
+          prior?.cleanup?.(); effects.set(i, { deps, cleanup: effect() || undefined })
+        })
+      },
       useSyncExternalStore(listen: typeof subscribe, snapshot: () => unknown) { subscribe = listen; return snapshot() },
       useState(initial: unknown) {
         const i = cursor++
@@ -45,7 +65,10 @@ function mount<P,>(component: (props: P) => ReactNode, props: P | (() => P)) {
         return slots[i]
       },
     }
-    try { return component(typeof props === 'function' ? (props as () => P)() : props) } finally { internals.H = previous }
+    let tree: ReactNode
+    try { tree = component(typeof props === 'function' ? (props as () => P)() : props) } finally { internals.H = previous }
+    pendingEffects.forEach(effect => effect())
+    return tree
   }
 }
 
@@ -58,11 +81,11 @@ function find(node: ReactNode, match: (element: ReactElement<any>) => boolean): 
   throw new Error('Control not found')
 }
 const props = (onChange: (value: string) => void) => ({ label: 'Weight', unit: 'kg' as const, value: '', onChange, min: 35, max: 250, step: .1, defaultValue: 78 })
-const action = (render: () => ReactNode, text: string) => find(render(), item => item.props.children === text).props.onClick()
+const closeWheel = (wheel: (() => ReactNode) & { close: () => void }) => wheel.close()
 function openWheel(render: () => ReactNode) {
   find(render(), item => item.type === 'button' && 'aria-expanded' in item.props).props.onClick()
-  const wheel = find(render(), item => typeof item.type === 'function' && 'onPick' in item.props)
-  return mount(wheel.type as any, wheel.props)
+  const wheel = find(render(), item => typeof item.type === 'function' && 'onDraft' in item.props)
+  return Object.assign(mount(wheel.type as any, wheel.props), { close: () => wheel.props.onClose() })
 }
 function column(wheel: () => ReactNode, label: string) {
   const element = () => find(wheel(), item => typeof item.type === 'function' && item.props.label === label)
@@ -89,13 +112,12 @@ test('desktop uses direct input and reacts to touch pointer availability', () =>
   cleanup(); assert.equal(pointerListener, undefined)
 })
 
-test('opening or cancelling a wheel never fills an optional empty measurement', () => {
+test('opening and closing an untouched wheel never fills an optional empty measurement', () => {
   const changes: string[] = [], render = mount(MeasurementPicker, props(value => changes.push(value)))
   assert.doesNotMatch(renderToStaticMarkup(render()), /spinbutton/)
-  const wheel = openWheel(render), whole = column(wheel, 'Weight: whole number')
-  spin(whole).props.onScroll({ currentTarget: { scrollTop: (83 - 35) * 44 } })
+  const wheel = openWheel(render)
   assert.deepEqual(changes, [])
-  action(wheel, 'Cancel')
+  closeWheel(wheel)
   assert.deepEqual(changes, [])
   assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-expanded'], false)
 })
@@ -111,7 +133,7 @@ test('whole units and tenths scroll independently, retain stable rows and confir
   assert.equal([...renderToStaticMarkup(tenths()).matchAll(/snap-center/g)].length, 10)
   assert.doesNotMatch(renderToStaticMarkup(whole()), />kg</)
   assert.equal([...renderToStaticMarkup(wheel()).matchAll(/>kg</g)].length, 1, 'unit is fixed beside both columns')
-  action(wheel, 'Confirm')
+  closeWheel(wheel)
   assert.deepEqual(changes, ['83.2'])
 })
 
@@ -124,11 +146,11 @@ test('the maximum whole unit constrains decimal values and keyboard input respec
   assert.equal(spin(whole).props['aria-valuenow'], 250)
   assert.equal(spin(tenths).props['aria-valuemax'], 0)
   assert.equal(spin(tenths).props['aria-valuenow'], 0)
-  action(wheel, 'Confirm')
+  closeWheel(wheel)
   assert.deepEqual(changes, ['250'])
 })
 
-test('tapping the selected value types within the wheel; cancel, precision and empty input are preserved', () => {
+test('closing manual entry preserves exact raw input, empty values and parent validation', () => {
   const changes: string[] = [], render = mount(MeasurementPicker, props(value => changes.push(value)))
   const type = (value: string) => {
     const wheel = openWheel(render), whole = column(wheel, 'Weight: whole number')
@@ -143,10 +165,10 @@ test('tapping the selected value types within the wheel; cancel, precision and e
     assert.deepEqual(changes, [])
     return wheel
   }
-  action(type('80'), 'Cancel'); assert.deepEqual(changes, [])
-  action(type('78,25'), 'Confirm'); assert.deepEqual(changes, ['78,25'])
-  changes.length = 0
-  action(type(''), 'Confirm'); assert.deepEqual(changes, [''])
+  for (const value of ['80', '78,25', '', '-5', 'abc']) {
+    changes.length = 0
+    closeWheel(type(value)); assert.deepEqual(changes, [value])
+  }
 })
 
 test('whole-centimetre inputs use one column and expose parent error descriptions', () => {
@@ -161,16 +183,18 @@ test('whole-centimetre inputs use one column and expose parent error description
 })
 
 
-test('Enter on Cancel does not commit the draft; Enter on a spinbutton does', () => {
-  const changes: string[] = [], wheel = openWheel(mount(MeasurementPicker, props(value => changes.push(value))))
-  const panel = find(wheel(), item => item.props.id === 'measurement-test')
-  let prevented = false
-  panel.props.onKeyDown({ key: 'Enter', target: { getAttribute: () => null }, preventDefault() { prevented = true } })
-  assert.equal(prevented, false, 'button activation is left to the focused button')
-  assert.deepEqual(changes, [])
-  panel.props.onKeyDown({ key: 'Enter', target: { getAttribute: () => 'spinbutton' }, preventDefault() { prevented = true } })
-  assert.equal(prevented, true)
-  assert.deepEqual(changes, ['78'])
+test('Enter on a wheel and Escape apply only a changed draft and do not submit the parent form', () => {
+  for (const key of ['Enter', 'Escape']) {
+    const changes: string[] = [], wheel = openWheel(mount(MeasurementPicker, props(value => changes.push(value))))
+    spin(column(wheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (81 - 35) * 44 } })
+    const panel = find(wheel(), item => item.props.id === 'measurement-test')
+    let prevented = false
+    panel.props.onKeyDown({ key, target: { getAttribute: () => 'spinbutton' }, preventDefault() { prevented = true }, stopPropagation() {} })
+    assert.equal(prevented, true)
+    assert.deepEqual(changes, ['81'])
+    closeWheel(wheel)
+    assert.deepEqual(changes, ['81'], 'a second close cannot repeat persistence')
+  }
 })
 
 
@@ -183,10 +207,12 @@ test('large nutrition ranges keep a bounded stable list and never round the exis
     assert.ok(rows().length <= 502)
     assert.ok(rows().some((row: ReactElement<any>) => row.props.children === '1,234'))
     const count = rows().length
-    action(wheel, 'Confirm')
-    assert.deepEqual(changes, ['1234'])
+    assert.deepEqual(changes, [])
     spin(calories).props.onScroll({ currentTarget: { scrollTop: 4 * 44 } })
     assert.equal(rows().length, count, 'scrolling must not add, remove or rebase rows')
+    const chosen = spin(calories).props['aria-valuenow']
+    closeWheel(wheel)
+    assert.deepEqual(changes, [String(chosen)])
   }
 })
 
@@ -196,8 +222,8 @@ test('opening decimal measurements keeps their exact precision with a narrow fra
   assert.equal(spin(fractions).props['aria-valuenow'], .25)
   assert.match(spin(fractions).props.className, /w-11 flex-none/)
   assert.ok(spin(fractions).props.children.some((row: ReactElement<any>) => row.props.children === '25'))
-  action(wheel, 'Confirm')
-  assert.deepEqual(changes, ['78.25'])
+  closeWheel(wheel)
+  assert.deepEqual(changes, [], 'closing without editing preserves the exact original value and formatting')
 })
 
 test('compact workout fields omit the chevron, use a sheet and respect disabled state', () => {
@@ -224,8 +250,8 @@ test('reopening a manually entered value outside the suggested wheel range never
   const changes: string[] = [], wheel = openWheel(mount(MeasurementPicker, { ...props(value => changes.push(value)), value: '300,25' }))
   assert.equal(spin(column(wheel, 'Weight: whole number')).props['aria-valuemax'], 300)
   assert.equal(spin(column(wheel, 'Weight: decimals')).props['aria-valuemax'], .25)
-  action(wheel, 'Confirm')
-  assert.deepEqual(changes, ['300.25'])
+  closeWheel(wheel)
+  assert.deepEqual(changes, [], 'suggested ranges never silently clamp or rewrite an existing manual value')
 })
 
 
@@ -235,7 +261,7 @@ test('weight and protein wheels retain one-unit steps through 500', () => {
     const whole = column(wheel, step < 1 ? `${label}: whole number` : `${label} (${unit})`)
     assert.equal(spin(whole).props.children.length, 501)
     spin(whole).props.onScroll({ currentTarget: { scrollTop: 48 * 44 } })
-    action(wheel, 'Confirm')
+    closeWheel(wheel)
     assert.deepEqual(changes, [step < 1 ? '48.3' : '48'])
   }
 })
@@ -252,4 +278,92 @@ test('desktop focus callbacks reach the input without affecting mobile draft edi
   const trigger = find(render(), item => 'aria-expanded' in item.props)
   assert.equal(trigger.props.onFocus, undefined)
   assert.equal(trigger.props.onBlur, undefined)
+})
+
+test('inline toggle, outside press and focus exit commit once while internal focus stays open', () => {
+  for (const closeWith of ['toggle', 'click', 'focusin']) {
+    const changes: string[] = [], render = mount(MeasurementPicker, props(value => changes.push(value)))
+    const inside = {}, tree = render() as ReactElement<any>
+    tree.props.ref.current = { contains: (target: object) => target === inside }
+    const wheel = openWheel(render)
+    spin(column(wheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (82 - 35) * 44 } })
+    emit('pointerdown', inside); emit('focusin', inside); emit('pointerup', inside); emit('click', inside)
+    assert.deepEqual(changes, [])
+    assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-expanded'], true)
+    if (closeWith === 'toggle') find(render(), item => 'aria-expanded' in item.props).props.onClick()
+    else emit(closeWith)
+    assert.deepEqual(changes, ['82'])
+    emit('focusin'); closeWheel(wheel)
+    assert.deepEqual(changes, ['82'])
+    assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-expanded'], false)
+  }
+})
+
+test('opening a second inline wheel applies the first value without filling the untouched second field', () => {
+  const firstChanges: string[] = [], secondChanges: string[] = []
+  const first = mount(MeasurementPicker, props(value => firstChanges.push(value)))
+  const second = mount(MeasurementPicker, { ...props(value => secondChanges.push(value)), label: 'Waist', unit: 'cm' })
+  const firstInside = {}, secondInside = {}
+  ;(first() as ReactElement<any>).props.ref.current = { contains: (target: object) => target === firstInside }
+  ;(second() as ReactElement<any>).props.ref.current = { contains: (target: object) => target === secondInside }
+  const firstWheel = openWheel(first)
+  spin(column(firstWheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (84 - 35) * 44 } })
+  emit('pointerdown', secondInside); emit('focusin', secondInside)
+  assert.deepEqual(firstChanges, [], 'pressing another field must not move its click target before release')
+  emit('pointerup', secondInside); emit('click', secondInside)
+  assert.deepEqual(firstChanges, ['84'])
+  assert.equal(find(first(), item => 'aria-expanded' in item.props).props['aria-expanded'], false)
+  const secondWheel = openWheel(second)
+  closeWheel(secondWheel)
+  assert.deepEqual(secondChanges, [])
+})
+
+test('a sheet ignores outside focus and presses until its own dismissal applies the draft once', () => {
+  const changes: string[] = [], render = mount(MeasurementPicker, { ...props(value => changes.push(value)), presentation: 'sheet' as const })
+  ;(render() as ReactElement<any>).props.ref.current = { contains: () => false }
+  const wheel = openWheel(render)
+  spin(column(wheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (85 - 35) * 44 } })
+  emit('focusin'); emit('pointerdown'); emit('pointerup'); emit('click')
+  assert.deepEqual(changes, [], 'portal header and backdrop belong to Sheet, not the inline outside handler')
+  assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-expanded'], true)
+  const sheet = find(render(), item => typeof item.type === 'function' && item.props.title === 'Weight' && 'open' in item.props)
+  sheet.props.onClose(); sheet.props.onClose()
+  assert.deepEqual(changes, ['85'], 'close button, backdrop and swipe share one idempotent commit')
+})
+
+test('closing when disabled discards the pending wheel without updating a completed or removed field', () => {
+  const changes: string[] = [], p = props(value => changes.push(value)) as ReturnType<typeof props> & { disabled?: boolean }
+  const render = mount(MeasurementPicker, () => p)
+  const wheel = openWheel(render)
+  spin(column(wheel, 'Weight: whole number')).props.onScroll({ currentTarget: { scrollTop: (86 - 35) * 44 } })
+  p.disabled = true
+  render(); render()
+  closeWheel(wheel)
+  assert.deepEqual(changes, [])
+  assert.equal(find(render(), item => 'aria-expanded' in item.props).props['aria-expanded'], false)
+})
+
+test('strict linked bounds exclude the invalid old value and apply the displayed correction on close', () => {
+  for (const [value, min, max, expected] of [['96', 35, 93, '93'], ['80', 82.5, 250, '82.5']] as const) {
+    const changes: string[] = [], render = mount(MeasurementPicker, { ...props(next => changes.push(next)), value, min, max, strictBounds: true })
+    assert.equal(find(render(), item => 'aria-expanded' in item.props).props.children[0].props.children, value)
+    const wheel = openWheel(render)
+    const whole = spin(column(wheel, 'Weight: whole number'))
+    const fraction = spin(column(wheel, 'Weight: decimals'))
+    assert.equal(whole.props['aria-valuenow'] + fraction.props['aria-valuenow'], Number(expected))
+    assert.ok(whole.props.children.every((row: ReactElement<any>) => row.key !== String(Math.floor(Number(value)))))
+    assert.deepEqual(changes, [], 'opening alone leaves the parent draft unchanged')
+    closeWheel(wheel)
+    assert.deepEqual(changes, [expected])
+  }
+})
+
+test('strict linked bounds keep optional empty inputs empty and preserve valid exact decimals', () => {
+  for (const value of ['', '82,25']) {
+    const changes: string[] = [], render = mount(MeasurementPicker, { ...props(next => changes.push(next)), value, min: 80, max: 93, strictBounds: true })
+    const wheel = openWheel(render)
+    if (value) assert.equal(spin(column(wheel, 'Weight: decimals')).props['aria-valuenow'], .25)
+    closeWheel(wheel)
+    assert.deepEqual(changes, [])
+  }
 })

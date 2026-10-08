@@ -148,3 +148,33 @@ test('manual target values outside the displayed ranges stay invalid and never c
   submit(render())
   assert.deepEqual(state().goals, { ...before.goals, targetWeightMin: 35, targetWeightMax: 250, targetWaist: 200 })
 })
+
+test('target weight wheels follow the other draft bound without hiding or saving invalid manual values', () => {
+  const render = mountTargets(), before = state()
+  const minimum = () => field(render(), 'Poids minimum').props
+  const maximum = () => field(render(), 'Poids maximum').props
+  assert.deepEqual([minimum().min, minimum().max, maximum().min, maximum().max], [35, 66, 64, 250])
+  assert.equal(minimum().strictBounds, true)
+  assert.equal(maximum().strictBounds, true)
+
+  minimum().onChange('96')
+  maximum().onChange('93')
+  assert.deepEqual([minimum().max, maximum().min], [93, 96], 'each wheel offers a way to restore the order')
+  assert.equal(maximum().value, '93', 'the existing invalid value stays visible for correction')
+  assert.equal(maximum().invalid, true)
+  assert.equal(save(render()).props.disabled, true)
+  submit(render())
+  assert.equal(state(), before)
+
+  minimum().onChange('bad')
+  assert.equal(maximum().min, 35, 'an invalid companion cannot make the other wheel invalid')
+  minimum().onChange('96,25')
+  maximum().onChange('250.1')
+  assert.equal(minimum().max, 250, 'an out-of-range companion does not widen the valid range')
+  maximum().onChange('96,25')
+  assert.deepEqual([minimum().max, maximum().min], [96.25, 96.25])
+  assert.equal(maximum().value, '96,25', 'exact manual precision is retained')
+  assert.equal(save(render()).props.disabled, false)
+  submit(render())
+  assert.deepEqual([state().goals.targetWeightMin, state().goals.targetWeightMax], [96.25, 96.25])
+})

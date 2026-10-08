@@ -106,3 +106,30 @@ test('nutrition target wheels keep explicit units and save exact manual amounts 
   const saved = useStore.getState().state.nutritionTargets
   assert.deepEqual([saved.calories, saved.creatine, saved.proteinMin, saved.proteinMax], [2345, 3.5, 190, 195.5])
 })
+
+test('protein target wheels follow the paired draft while preserving exact manual amounts and zero', () => {
+  const screen = mount(NutritionTargetsScreen, () => ({}))
+  const element = find(screen(), item => typeof item.type === 'function' && item.type.name === 'NutritionTargetForm')!
+  const render = mount(element.type as (props: any) => ReactNode, () => element.props)
+  const minimum = () => picker(render(), 'Protéines min.').props
+  const maximum = () => picker(render(), 'Protéines max.').props
+  const before = useStore.getState().state.nutritionTargets
+  assert.equal(minimum().strictBounds, true)
+  assert.equal(maximum().strictBounds, true)
+  minimum().onChange('190,25')
+  maximum().onChange('180')
+  assert.deepEqual([minimum().max, maximum().min], [180, 190.25])
+  assert.equal(maximum().value, '180', 'an invalid pair is not silently rewritten')
+  assert.equal(useStore.getState().state.nutritionTargets, before)
+  maximum().onChange('bad')
+  assert.equal(minimum().max, 500)
+  minimum().onChange('700,25')
+  maximum().onChange('710,5')
+  assert.deepEqual([minimum().max, maximum().min, maximum().max], [710.5, 700.25, 710.5], '500 g is a suggested range, not a new validation cap')
+  assert.equal(maximum().value, '710,5')
+  minimum().onChange('0')
+  maximum().onChange('0')
+  assert.deepEqual([minimum().min, minimum().max, maximum().min], [0, 0, 0])
+  find(render(), item => item.type === 'form')!.props.onSubmit({ preventDefault() {} })
+  assert.deepEqual([useStore.getState().state.nutritionTargets.proteinMin, useStore.getState().state.nutritionTargets.proteinMax], [0, 0])
+})

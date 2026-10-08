@@ -255,9 +255,16 @@ function NutritionTargetForm() {
     useStore.getState().setNutritionTargets({ calories: calories!, creatine: creatine!, proteinMin: proteinMin!, proteinMax: proteinMax!, adaptive: draft.adaptive })
     useStore.getState().notify(L('Cibles nutritionnelles enregistrées.', 'Nutrition targets saved.'), 'good')
   }
+  const proteinMin = parseNumber(draft.proteinMin), proteinMax = parseNumber(draft.proteinMax)
+  const validProteinMin = proteinMin !== null && proteinMin >= 0
+  const validProteinMax = proteinMax !== null && proteinMax >= 0
   const field = (key: NutritionField, label: string) => (
     <Field label={label} error={errors[key]}>
-      <MeasurementPicker label={label} unit={key === 'calories' ? 'kcal' : 'g'} value={draft[key]} onChange={value => setDraft(current => ({ ...current, [key]: value }))} min={key === 'calories' ? 50 : 0} max={key === 'calories' ? 10000 : key === 'creatine' ? 20 : 500} step={key === 'calories' ? 50 : key === 'creatine' ? 0.1 : 1} defaultValue={Number(values[key])} required invalid={!!errors[key]} />
+      <MeasurementPicker label={label} unit={key === 'calories' ? 'kcal' : 'g'} value={draft[key]} onChange={value => setDraft(current => ({ ...current, [key]: value }))}
+        min={key === 'calories' ? 50 : key === 'proteinMax' && validProteinMin ? proteinMin : 0}
+        max={key === 'calories' ? 10000 : key === 'creatine' ? 20 : key === 'proteinMin' && validProteinMax ? proteinMax : Math.max(500, validProteinMin ? proteinMin : 0, validProteinMax ? proteinMax : 0)}
+        strictBounds={key === 'proteinMin' || key === 'proteinMax'}
+        step={key === 'calories' ? 50 : key === 'creatine' ? 0.1 : 1} defaultValue={Number(values[key])} required invalid={!!errors[key]} />
     </Field>
   )
   return (

@@ -79,3 +79,20 @@ test('week summary includes an active workout and gives the exact total above th
   assert.match(html, /3 done · 1 in progress · 3 upcoming/)
   assert.match(html, /7 workouts this week instead of 5/)
 })
+
+test('calendar agrees completed-workout summaries for zero, one and several workouts', () => {
+  const history = ['2026-10-05', '2026-10-06'].map((date, i) => ({
+    id: `done-${i}`, date, type: 'UPPER' as const, sessionNumber: i + 1, startedAt: `${date}T10:00:00Z`,
+    completedAt: `${date}T11:00:00Z`, exercises: [], notes: '',
+  }))
+  for (const [language, labels] of [
+    ['fr', ['0\u00a0terminée', '1\u00a0terminée', '2\u00a0terminées']],
+    ['en', ['0 done', '1 done', '2 done']],
+  ] as const) {
+    setLang(language)
+    labels.forEach((label, count) => {
+      useStore.getInitialState().state.workouts = history.slice(0, count)
+      assert.ok(render().includes(`${label} · `), `${language}: ${count} completed workouts`)
+    })
+  }
+})

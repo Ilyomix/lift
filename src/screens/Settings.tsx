@@ -385,10 +385,10 @@ function TargetMeasurements() {
         </> : <Button full icon={<Ruler size={18} aria-hidden />} onClick={() => navigate('progres/corps/mesure')}>{L('Ajouter une pesée pour estimer la cible', 'Add a weigh-in to estimate the target')}</Button>}
       </div> : <div className="mt-3 grid grid-cols-2 gap-3">
         <Field label={L('Poids minimum', 'Minimum weight')} error={draft.min.trim() && invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : undefined}>
-          <MeasurementPicker label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={250} step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
+          <MeasurementPicker label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={invalid('max') ? 250 : values.max!} strictBounds step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
         </Field>
-        <Field label={L('Poids maximum', 'Maximum weight')} error={draft.max.trim() && invalid('max') ? error : undefined}>
-          <MeasurementPicker label={L('Poids maximum', 'Maximum weight')} unit="kg" value={draft.max} onChange={value => set('max', value)} min={35} max={250} step={0.1} defaultValue={estimate?.max ?? 77} required invalid={!!draft.max.trim() && invalid('max')} />
+        <Field label={L('Poids maximum', 'Maximum weight')} error={draft.max.trim() && invalid('max') ? error : reversed ? L('Le maximum doit être supérieur ou égal au minimum.', 'The maximum must be at least the minimum.') : undefined}>
+          <MeasurementPicker label={L('Poids maximum', 'Maximum weight')} unit="kg" value={draft.max} onChange={value => set('max', value)} min={invalid('min') ? 35 : values.min!} max={250} strictBounds step={0.1} defaultValue={estimate?.max ?? 77} required invalid={!!draft.max.trim() && (invalid('max') || reversed)} />
         </Field>
       </div>}
       <Card className="mt-4">
