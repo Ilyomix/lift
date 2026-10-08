@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Columns2, History, MapPin, Play, Plus, Ruler, Trash, X } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, ChartColumn, Check, ChevronLeft, ChevronRight, Columns2, Dumbbell, History, MapPin, Play, Plus, Ruler, Trash, X } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid, unitLabel } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -39,10 +39,10 @@ export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
         value={tab}
         onChange={(t) => navigate(t === 'force' ? 'progres' : `progres/${t}`, { replace: true, transition: 'none' })}
         options={[
-          { value: 'force', label: L('Force', 'Strength') },
-          { value: 'corps', label: L('Corps', 'Body') },
-          { value: 'volume', label: 'Volume' },
-          { value: 'seances', label: L('Séances', 'Workouts') },
+          { value: 'force', label: L('Force', 'Strength'), icon: <Dumbbell size={16} aria-hidden /> },
+          { value: 'corps', label: L('Corps', 'Body'), icon: <Ruler size={16} aria-hidden /> },
+          { value: 'volume', label: 'Volume', icon: <ChartColumn size={16} aria-hidden /> },
+          { value: 'seances', label: L('Séances', 'Workouts'), icon: <History size={16} aria-hidden /> },
         ]}
       />
       <div className="mt-4">

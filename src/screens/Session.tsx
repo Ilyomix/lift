@@ -4,7 +4,7 @@ import { exerciseContextReason, workoutsBefore } from '../lib/comparability'
 import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, HeartPulse, House, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowDownLeft, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Footprints, HeartPulse, House, Info, Link as LinkIcon, List, MapPin, Pencil, PersonStanding, Play, Plus, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, mondayOf, todayISO } from '../lib/date'
@@ -35,6 +35,8 @@ import {
 } from '../components/ui'
 
 // ───────────────────────── Entry ─────────────────────────
+
+const workoutIcons = { UPPER: Dumbbell, LOWER: Footprints, PUSH: ArrowUpRight, PULL: ArrowDownLeft, LEGS: PersonStanding }
 
 export function SessionScreen() {
   const active = useStore((s) => !!s.state.activeWorkout)
@@ -77,7 +79,10 @@ function SessionPreview() {
         sub={`${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
-      <Segmented label={L('Type de séance', 'Workout type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
+      <Segmented label={L('Type de séance', 'Workout type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => {
+        const Icon = workoutIcons[t]
+        return { value: t, label: TYPE_META[t].label, icon: <Icon size={16} aria-hidden /> }
+      })} />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Tag tone="outline">{ctx.before ? L('Bloc 1 · S1', 'Block 1 · W1') : ctx.title}</Tag>
@@ -102,7 +107,7 @@ function SessionPreview() {
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
                 <span className="mt-0.5 block text-[13px] text-text-2 tnum">
-                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · {reserveLabel(rx[i].rir)} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : fmtLoad(rx[i].weight, e.unit)}
+                  {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · {reserveLabel(rx[i].rir)} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : <span className="whitespace-nowrap">{fmtLoad(rx[i].weight, e.unit)}</span>}
                 </span>
                 {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('À enchaîner avec l’exercice suivant', 'Follow immediately with the next exercise')}</span>}
                 {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this workout')}</span>}
@@ -373,7 +378,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   const known = useMemo(() => knownLoads([...earlier, { exercises: [ex], gymId }], ex.exerciseId, bound ? gymId : undefined, ex), [earlier, ex, bound, gymId])
   // Announced as it will be applied: a heavier load held during the session can beat the standard step.
   const next = allDone && progressionFor(ex, known) ? loadDecision(ex, known) : null
-  const validated = next?.kind === 'up' && { text: L(`${fmtLoad(next.weight, ex.unit)} la prochaine fois`, `${fmtLoad(next.weight, ex.unit)} next time`) }
+  const validated = next?.kind === 'up' && { text: <><span className="whitespace-nowrap">{fmtLoad(next.weight, ex.unit)}</span> {L('la prochaine fois', 'next time')}</> }
   const noLoadLeft = allDone && toppedOut(ex)
   const lest = takesLest(ex)
   const unitLabel = ex.unit === 'kg/main' ? L('kg/main', 'kg/hand') : ex.unit === 'PDC' ? (lest ? L('Lest', '+ kg') : L('Charge', 'Load')) : 'kg'
@@ -430,7 +435,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
       <div className="space-y-1 border-t border-line px-4 pt-3 text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
-            <span className="font-semibold text-text">{L('Première fois dans cette salle.', 'First time at this gym.')}</span> {L(`Charge de ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}) comme départ : ajuste si la machine est différente, l’app retiendra la tienne.`, `Starting from your load at ${localizeGymName(ex.gymTrial.fromGym)} (${fmtLoad(ex.gymTrial.weight, ex.unit)}): adjust if the machine is different, the app will remember yours.`)}
+            <span className="font-semibold text-text">{L('Première fois dans cette salle.', 'First time at this gym.')}</span> {L(`Charge de ${localizeGymName(ex.gymTrial.fromGym)}`, `Starting from your load at ${localizeGymName(ex.gymTrial.fromGym)}`)} <span className="whitespace-nowrap">({fmtLoad(ex.gymTrial.weight, ex.unit)})</span>{L(' comme départ : ajuste si la machine est différente, l’app retiendra la tienne.', ': adjust if the machine is different, the app will remember yours.')}
           </p>
         )}
         {prevSets.length > 0 ? (

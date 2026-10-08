@@ -229,9 +229,9 @@ export function Disclosure({ title, icon, children, className, contentClassName,
   </details>
 }
 
-export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'fit' }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
+export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'fit' }: { value: T | undefined; options: { value: T; label: ReactNode; icon?: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
   return (
-    <div role="group" aria-label={label} className={cx('flex gap-2', layout === 'fit' ? 'w-full min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
+    <div role="group" aria-label={label} className={cx('@container flex gap-2', layout === 'fit' ? 'w-full min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -247,7 +247,10 @@ export function Segmented<T extends string>({ value, options, onChange, classNam
               active ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2 hover:text-text',
             )}
           >
-            {o.label}
+            {o.icon ? <span className={cx('inline-flex max-w-full items-center justify-center gap-1.5', layout === 'fit' && options.length >= 4 && 'flex-col @min-[400px]:flex-row')}>
+              <span className="inline-flex size-4 shrink-0 [&>svg]:size-4" aria-hidden>{o.icon}</span>
+              <span className="min-w-0">{o.label}</span>
+            </span> : o.label}
           </button>
         )
       })}
@@ -530,7 +533,8 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    const focusFrame = requestAnimationFrame(() => { if (sheetPanels.at(-1) === panel) (panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel).focus({ preventScroll: true }) })
+    // Focusing the panel itself can block WKWebView touch scrolling; keep focus on a control.
+    const focusFrame = requestAnimationFrame(() => { if (sheetPanels.at(-1) === panel) (panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel.querySelector<HTMLElement>('[data-sheet-handle] button') ?? panel).focus({ preventScroll: true }) })
     return () => {
       cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKey)

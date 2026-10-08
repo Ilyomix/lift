@@ -1,6 +1,6 @@
 import { isNative, nativeNotificationPermissionSnapshot, subscribeNativeNotificationPermission } from '../lib/native/bridge'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { ChevronDown, Minus, Plus, SkipForward, Timer, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Minus, Plus, SkipForward, Timer, X } from 'lucide-react'
 import { chime, keepAwake, systemNotify, vibrate } from '../lib/alerts'
 import { fmtClock } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -150,7 +150,7 @@ export function RestDock() {
           <button type="button" onClick={() => setExpanded(true)} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={L('Agrandir le minuteur', 'Expand timer')}>
             <SegDigits value={clock} className={cx('leading-none', clock.length > 5 ? 'text-[22px]' : 'text-[30px]', done ? 'text-inst-done rest-expired-pulse' : 'text-white')} />
             <span className="min-w-0">
-              <span className="block text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}</span>
+              <span className="flex items-center gap-1 text-[11px] font-semibold tracking-[0.08em] text-inst-label uppercase">{done ? L('Repos terminé', 'Rest over') : next ? L('Ensuite', 'Next') : L('Repos', 'Rest')}<ChevronUp size={14} className="shrink-0" aria-hidden /></span>
               <span className="block truncate text-[15px] leading-5 font-semibold">{next?.step ?? timer.label}</span>
             </span>
           </button>

@@ -70,8 +70,8 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         layout="fit"
         onChange={(value) => navigate(value === 'programme' ? 'calendrier/programme' : 'calendrier', { replace: true, transition: 'none' })}
         options={[
-          { value: 'calendrier', label: L('Calendrier', 'Calendar') },
-          { value: 'programme', label: L('Programme', 'Program') },
+          { value: 'calendrier', label: L('Calendrier', 'Calendar'), icon: <CalendarDays size={16} aria-hidden /> },
+          { value: 'programme', label: L('Programme', 'Program'), icon: <ClipboardList size={16} aria-hidden /> },
         ]}
       />
       <div className="mt-4">

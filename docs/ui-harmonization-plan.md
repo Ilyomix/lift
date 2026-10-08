@@ -15,7 +15,7 @@ Conserver le design system Lift (Geologica, surfaces neutres, accent orange par 
 
 ## Règles communes retenues
 
-- Les onglets de navigation à nombre fixe occupent la largeur disponible. Les filtres de salles de longueur/nombre variable peuvent défiler.
+- Les onglets de navigation à nombre fixe occupent la largeur disponible et portent une icône cohérente avec leur vue. Les groupes de quatre ou cinq options empilent icône/libellé sur petite largeur, puis les alignent horizontalement. Les filtres de salles de longueur/nombre variable peuvent défiler ; les choix de durée, langue et valeur restent textuels.
 - Les titres et leurs sous-titres partagent un alignement, les explications longues restent dans leur section.
 - Les cadres regroupent une tâche (calendrier et commandes, liste de réglages), sans empiler de cartes décoratives.
 - Un réglage quotidien ne doit pas imposer deux sous-menus : Objectifs, Nutrition et Mesures accessibles depuis Plus.
@@ -42,4 +42,15 @@ Application à Lift : rapprocher les actions fréquentes de Plus, sans ajouter l
 
 ## Preuves et limites
 
-Captures et reçus de travail : `.local-release/build33/qa`. Les contrôles natifs (roulette tactile, gestes, Live Activity/Dynamic Island, paysage) et la livraison 33 restent à effectuer. Les anciens reçus Apple ne prouvent pas l’état d’une nouvelle soumission.
+Captures et reçus : `.local-release/build33/qa`, journal de reprise `evidence-log.json`. Les tests du code figé33 comptent 445 réussites et 1 test ignoré ; web publié et upload Xcode 33 confirmés. Traitement Apple, distribution TestFlight et nouvelle soumission non confirmés. Les anciens reçus Apple ne prouvent pas l’état d’une nouvelle soumission.
+
+Couverture ajoutée : simulateur Debug33, volet jour Pull prévu, fiche exercice 3D/Technique et titre/salle de Séance ; IAB isolé 393 px EN sombre, cinq étapes d’onboarding dont maintien sans date, vidéo invalide et alternatives. L’onboarding finit sur Séance sans entraînement actif ; les options physiques restent présentes en maintien. Le défilement de la fiche fonctionne dans l’IAB, mais reste bloqué par glissement dans le simulateur natif33 (cause non démontrée). Le retour à la ligne de `kg/main` a un correctif local : nouveau build 34 requis, pas encore numéroté ni livré.
+
+Restent la validation physique du build réellement installé, Live Activity/Dynamic Island/paysage, Android, les familles et états encore ouverts dans la matrice de l’audit, puis les médias et la soumission. Les gestes/roues natifs Debug ciblés déjà observés ne couvrent pas tous les contrôles ni la release distribuée.
+
+
+Complément du code local destiné au build34 : icônes ajoutées aux vues du modèle, aux onglets Progrès et Calendrier/Programme, et aux cinq aperçus de séance. Captures `iab-icons-*` : quatre groupes vérifiés à 320 px EN sombre, Progrès/modèle à 320 px FR clair, Progrès à 1024 px FR clair. Leur dossier `build33/qa` ne change pas cette provenance locale34. Le profil fictif IAB a été restauré (0 séance, 1 mesure, 0 photo), puis langue/thème changés volontairement pour la matrice.
+
+Le correctif de défilement retenu garde `overscroll-contain` et donne le focus initial au contrôle Fermer, avec priorité au `data-autofocus` explicite. La variante isolée a rétabli le défilement du volet Mesures ; 31 tests ciblés Sheet/gestes/Field et typecheck passent. Revalidation native du code intégré, physique et livraison restent distinctes et non acquises par ces preuves.
+
+Contrôle final intégré local34 : 446 tests réussis et 1 ignoré (447 au total). Focus/trap/Escape/restauration vérifiés dans l’IAB réel ; aucune extension de cette preuve au natif physique. À 21 h 06 Paris, authentification App Store Connect et iPhone verrouillé empêchent de confirmer la suite de la livraison.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { Hand, MousePointer2, Pause, Play, RotateCcw } from 'lucide-react'
+import { Activity, Hand, MousePointer2, Pause, Play, Rotate3D, RotateCcw, UserRound } from 'lucide-react'
 import { L } from '../lib/i18n'
 import { ANIMATED_EXERCISES, anatomicalLabel, exerciseMuscles, type AnatomicalRegion } from '../lib/exerciseModelCatalog'
 import type { ExerciseOrbit, ExerciseView } from '../lib/exerciseModels'
@@ -140,9 +140,9 @@ export function ExerciseDemo({ id, name, className, compact = false }: { id: str
           disabled={!ready}
           onChange={resetView}
           options={[
-            ...(animated ? [{ value: 'technique' as const, label: L('Mouvement', 'Movement') }] : []),
-            { value: 'front', label: L('Face', 'Front') },
-            { value: 'back', label: L('Dos', 'Back') },
+            ...(animated ? [{ value: 'technique' as const, label: L('Mouvement', 'Movement'), icon: <Activity size={16} aria-hidden /> }] : []),
+            { value: 'front', label: L('Face', 'Front'), icon: <UserRound size={16} aria-hidden /> },
+            { value: 'back', label: L('Dos', 'Back'), icon: <Rotate3D size={16} aria-hidden /> },
           ]}
         />}
         <p className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-muted">

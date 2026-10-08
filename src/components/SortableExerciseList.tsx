@@ -96,6 +96,6 @@ function ExerciseSummary({ exercise: e, sets }: { exercise: TemplateExercise; se
       {e.name}{' '}
       {(e.volumeTag === 'priority' || e.focus) && <span className="ml-1 inline-block border border-signal/50 bg-signal-soft px-1.5 align-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap text-signal-text">{L('Prioritaire', 'Priority')}</span>}
     </span>
-    <span className="block text-[13px] text-text-2 tnum">{e.target.sets}{sets !== e.target.sets ? L(` (${sets} en séance)`, ` (${sets} in workout)`) : ''} × {e.target.minReps}–{e.target.maxReps} · <span>{L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}</span> · {fmtRest(e.target.restSeconds)} · {fmtLoad(e.target.weight, e.unit)}</span>
+    <span className="block text-[13px] text-text-2 tnum">{e.target.sets}{sets !== e.target.sets ? L(` (${sets} en séance)`, ` (${sets} in workout)`) : ''} × {e.target.minReps}–{e.target.maxReps} · <span>{L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}</span> · {fmtRest(e.target.restSeconds)} · <span className="whitespace-nowrap">{fmtLoad(e.target.weight, e.unit)}</span></span>
   </>
 }

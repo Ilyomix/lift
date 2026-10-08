@@ -7,7 +7,11 @@ const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THE
 const originals = { document: globalThis.document, window: globalThis.window, Element: globalThis.Element, requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame }
 class Node extends EventTarget {
   nodeType = 1
+  isConnected = true
   style = { animation: '', transform: '', transition: '', opacity: '', willChange: '', overflow: '' }
+  focusCalls: (FocusOptions | undefined)[] = []
+  selectors = new Map<string, Node>()
+  focusables: Node[] = []
   animations: { onfinish: (() => void) | null; cancel(): void; frames: Keyframe[] }[] = []
   ownerDocument = { defaultView: { getComputedStyle: () => ({ transform: this.style.transform || 'none', opacity: this.style.opacity || '1' }) } }
   getBoundingClientRect() { return { height: 400 } }
@@ -16,9 +20,11 @@ class Node extends EventTarget {
     this.animations.push(animation)
     return animation
   }
-  focus() {}
-  querySelector() { return null }
-  querySelectorAll() { return [] }
+  focus(options?: FocusOptions) { this.focusCalls.push(options); Object.defineProperty(document, 'activeElement', { configurable: true, value: this }) }
+  querySelector(selector: string) { return this.selectors.get(selector) ?? null }
+  querySelectorAll() { return this.focusables }
+  matches() { return false }
+  getClientRects() { return [{}] }
 }
 let body: Node
 beforeEach(() => {
@@ -202,6 +208,47 @@ test('Escape and scroll lock belong to the top sheet until its exit has complete
   assert.equal(parent.panel.animations.length, 1)
   child.unmount(); parent.unmount()
   assert.equal(body.style.overflow, 'auto')
+})
+
+test('initial focus prefers explicit autofocus then the close control, preserving nested trapping and restoration', () => {
+  const trigger = document.activeElement
+  const parent = host(), child = host()
+  const parentClose = new Node(), childClose = new Node(), childInput = new Node()
+  parent.panel.selectors.set('[data-sheet-handle] button', parentClose)
+  parent.panel.focusables = [parentClose]
+  child.panel.selectors.set('[data-sheet-handle] button', childClose)
+  child.panel.selectors.set('[data-autofocus]', childInput)
+  child.panel.focusables = [childClose, childInput]
+  const tab = (shiftKey = false) => {
+    const event = new Event('keydown', { cancelable: true })
+    Object.defineProperties(event, { key: { value: 'Tab' }, shiftKey: { value: shiftKey } })
+    document.dispatchEvent(event)
+    assert.equal(event.defaultPrevented, true)
+  }
+  try {
+    parent.render({ open: true, onClose() {}, title: 'Parent', children: 'content' })
+    assert.equal(document.activeElement, parentClose)
+    assert.deepEqual(parentClose.focusCalls, [{ preventScroll: true }])
+    assert.equal(parent.panel.focusCalls.length, 0, 'the dialog container is not the default focus target')
+
+    child.render({ open: true, onClose() {}, title: 'Child', children: 'field' })
+    assert.equal(document.activeElement, childInput, 'explicit autofocus takes precedence over the close control')
+    assert.deepEqual(childInput.focusCalls, [{ preventScroll: true }])
+    assert.equal(childClose.focusCalls.length, 0)
+    assert.equal(child.panel.focusCalls.length, 0)
+    tab()
+    assert.equal(document.activeElement, childClose)
+    tab(true)
+    assert.equal(document.activeElement, childInput)
+    assert.equal(parentClose.focusCalls.length, 1, 'the covered parent does not intercept the child keyboard trap')
+  } finally {
+    child.unmount()
+    assert.equal(document.activeElement, parentClose)
+    assert.equal(body.style.overflow, 'hidden')
+    parent.unmount()
+  }
+  assert.equal(document.activeElement, trigger)
+  assert.equal(body.style.overflow, '')
 })
 
 test('StrictMode effect replay keeps the parent close callback connected', () => {
