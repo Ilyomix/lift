@@ -13,6 +13,7 @@ let failures = 0
 let failureName = 'InvalidStateError'
 let persisted: unknown
 let beforeComplete: (() => void) | undefined
+let afterComplete: (() => void) | undefined
 const connections: Array<{ onclose?: () => void }> = []
 
 beforeEach(() => {
@@ -22,6 +23,7 @@ beforeEach(() => {
   failureName = 'InvalidStateError'
   persisted = undefined
   beforeComplete = undefined
+  afterComplete = undefined
   setLang('en')
   useStore.setState({ ready: true, hasData: true, storage: 'idb', state: defaultState(), toast: null })
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: {
@@ -44,6 +46,7 @@ beforeEach(() => {
                   beforeComplete?.()
                   persisted = snapshot
                   transaction.oncomplete?.()
+                  afterComplete?.()
                 })
               } }
             },
@@ -118,4 +121,42 @@ test('an edit during an in-flight write is saved before concurrent flush callers
   await Promise.all([useStore.getState().flush(), useStore.getState().flush()])
   assert.equal(writes, 2)
   assert.deepEqual(persisted, latest)
+})
+
+
+test('nutrition edits start saving immediately, without a debounce or foreground flush', async () => {
+  useStore.getState().setNutrition('2026-10-08', { calories: 1234 })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal((persisted as any)?.nutritionEntries['2026-10-08']?.calories, 1234)
+  assert.equal(writes, 1)
+})
+
+test('immediate updates coalesce into the in-flight save without losing the final value', async () => {
+  beforeComplete = () => {
+    beforeComplete = undefined
+    useStore.getState().setNutrition('2026-10-08', { calories: 2345 })
+    useStore.getState().setNutrition('2026-10-08', { protein: 151 })
+  }
+  useStore.getState().setNutrition('2026-10-08', { calories: 1234 })
+  await new Promise(resolve => setImmediate(resolve))
+  const nutrition = (persisted as any)?.nutritionEntries['2026-10-08']
+  assert.equal(nutrition?.calories, 2345)
+  assert.equal(nutrition?.protein, 151)
+  assert.equal(writes, 2, 'burst edits share the second write rather than racing separate transactions')
+})
+
+
+test('an edit queued between transaction completion and writer cleanup is not lost', async () => {
+  afterComplete = () => {
+    afterComplete = undefined
+    let remaining = 2
+    const hop = () => remaining-- > 0 ? queueMicrotask(hop)
+      : useStore.getState().setNutrition('2026-10-08', { calories: 2345 })
+    queueMicrotask(hop)
+  }
+  useStore.getState().setNutrition('2026-10-08', { calories: 1234 })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(useStore.getState().state.nutritionEntries['2026-10-08'].calories, 2345)
+  assert.equal((persisted as any)?.nutritionEntries['2026-10-08']?.calories, 2345)
+  assert.equal(writes, 2)
 })

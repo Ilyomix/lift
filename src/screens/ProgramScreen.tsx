@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, CalendarDays, ChartNoAxesColumn, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, RotateCcw, SlidersHorizontal, Trash, TriangleAlert } from 'lucide-react'
+import { BookOpen, Check, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, RotateCcw, Trash, TriangleAlert } from 'lucide-react'
 import { dayName } from '../lib/date'
 import { fmtNum, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -15,6 +15,7 @@ import { LevelTag, RefList } from '../components/Evidence'
 import { ExerciseAlternatives, type ExerciseReplacementTarget } from '../components/ExerciseAlternatives'
 import { alternativesFor } from '../lib/exerciseAlternatives'
 import { ProgramProgress } from '../components/ProgramProgress'
+import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SortableExerciseList } from '../components/SortableExerciseList'
 import { SportArt, workoutArt } from '../components/SportArt'
 import { Button, Card, cx, Disclosure, Empty, Field, Header, inputClass, Screen, Section, SectionHeading, Sheet, Tag } from '../components/ui'
@@ -72,7 +73,7 @@ export function ProgramContent() {
       </Section>
 
       <div className="mt-6 divide-y divide-line border-y border-line">
-        <Disclosure bordered={false} icon={<CalendarDays size={18} aria-hidden />} title={L('Semaine type', 'Typical week')}>
+        <Disclosure bordered={false} icon={<SportArt kind="calendar" size="title" />} title={L('Semaine type', 'Typical week')}>
           <Card className="divide-y divide-line">
             {[1, 2, 3, 4, 5, 6, 0].map((d) => (
               <div key={d} className="grid items-center gap-2 px-4 py-3 min-[380px]:grid-cols-[6rem_minmax(0,1fr)]">
@@ -98,14 +99,14 @@ export function ProgramContent() {
           </p>
         </Disclosure>
 
-        <Disclosure bordered={false} icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
+        <Disclosure bordered={false} icon={<SportArt kind="chart" size="title" />} title={L('Séries par muscle et par semaine', 'Sets per muscle per week')}>
           <p className="mb-4 text-[13px] leading-[1.45] text-text-2">{L(`Volume prévu par le programme pour ${plural(weekly, 'séance', 'séances')} par semaine, en moyenne sur la rotation (comptage fractionnaire). Zone visée : 10–20.`, `Volume planned by the program for ${plural(weekly, 'workout', 'workouts')} a week, on average over the rotation (fractional counting). Target zone: 10–20.`)}</p>
           <Card className="p-4">
             <RangeBars rows={MUSCLES.map((m) => ({ key: m.id, label: m.label, value: planned[m.id] }))} />
           </Card>
         </Disclosure>
 
-        <Disclosure bordered={false} icon={<SlidersHorizontal size={18} aria-hidden />} title={L('Progression et ajustements', 'Progression and adjustments')}>
+        <Disclosure bordered={false} icon={<SportArt kind="settings" size="title" />} title={L('Progression et ajustements', 'Progression and adjustments')}>
           <Card className="divide-y divide-line text-[14px] leading-[1.45]">
             <RuleRow title={L('Augmenter les répétitions puis la charge', 'Increase reps, then load')} text={L('Toutes les séries au haut de la fourchette, avec les répétitions en réserve prévues, technique propre : +2,5 % environ (plus petit incrément), puis retour au bas de la fourchette.', 'Every set at the top of the rep range, with the planned reps in reserve, with clean technique: about +2.5% (smallest increment), then back to the bottom of the range.') + (week.factor > 1 ? L(' Avec moins de 5 séances par semaine, ce sont les séries de la fiche qui comptent : celles ajoutées en séance viennent après, avec moins de reps.', ' With fewer than 5 workouts a week, the template’s sets are the ones that count: those added in the workout come after, with fewer reps.') : '')} />
             <RuleRow title={L('Effort au fil des semaines', 'Effort across the weeks')} text={L('Répétitions en réserve : S1 3 · S2 2 · S3–S4 1–2 (polyarticulaire) et 0–1 (isolation) · S5 0–1, dernière série d’isolation à l’échec technique.', 'Reps in reserve: W1 3 · W2 2 · W3–W4 1–2 (compound) and 0–1 (isolation) · W5 0–1, last isolation set to technical failure.')} />
@@ -151,9 +152,9 @@ export function SourcesScreen() {
         sub={L('Les études derrière les recommandations de Lift, leurs conclusions et leurs limites.', 'The research behind Lift’s recommendations, its findings and limitations.')}
       />
       <Card className="p-4">
-        <SectionHeading icon={<CalendarDays size={18} aria-hidden />}>{VERDICT_FREQUENCY.title}</SectionHeading>
+        <SectionHeading icon={<SportArt kind="calendar" size="title" />}>{VERDICT_FREQUENCY.title}</SectionHeading>
         <p className="mt-3 text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.answer}</p>
-        <Disclosure bordered={false} className="mt-2" icon={<BookOpen size={18} aria-hidden />} title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
+        <Disclosure bordered={false} className="mt-2" icon={<SportArt kind="evidence" size="title" />} title={L('Pourquoi ce rythme de séances ?', 'Why this training schedule?')}>
           <p className="text-[14px] leading-[1.55] text-text-2">{VERDICT_FREQUENCY.keep}</p>
           <RefList refs={VERDICT_FREQUENCY.refs} compact />
         </Disclosure>
@@ -183,7 +184,7 @@ export function SourcesScreen() {
           </ul>
         </Disclosure>
 
-        <Disclosure bordered={false} icon={<BookOpen size={18} aria-hidden />} title={L(`Études et recommandations (${Object.keys(SOURCES).length})`, `Studies and guidelines (${Object.keys(SOURCES).length})`)}>
+        <Disclosure bordered={false} icon={<SportArt kind="evidence" size="title" />} title={L(`Études et recommandations (${Object.keys(SOURCES).length})`, `Studies and guidelines (${Object.keys(SOURCES).length})`)}>
           <p className="mb-4 text-[13px] leading-[1.5] text-text-2">{L(
             `${reported} publications vérifiées dans le rapport de recherche${added ? `, ${added} ajoutée${added > 1 ? 's' : ''} depuis` : ''}${guidance ? `, et ${guidance} recommandation${guidance > 1 ? 's' : ''} de santé` : ''}. Méta-analyses et essais randomisés en priorité.`,
             `${reported} publications checked in the research report${added ? `, ${added} added since` : ''}${guidance ? `, and ${guidance} piece${guidance > 1 ? 's' : ''} of health guidance` : ''}. Meta-analyses and randomized trials first.`,
@@ -218,7 +219,7 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
   const [adding, setAdding] = useState(false)
   // The plan's live values: set from the training days on every change of the state.
   const factor = daysFactor()
-  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Workout not found')} action={<Button onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available workout.')}</Empty></Screen>
+  if (!tpl) return <Screen><Empty art="calendar" title={L('Séance introuvable', 'Workout not found')} action={<Button icon={<BookOpen size={18} aria-hidden />} onClick={() => navigate('calendrier/programme')}>{L('Voir le programme', 'View program')}</Button>}>{L('Reviens au programme pour choisir une fiche disponible.', 'Return to the program to choose an available workout.')}</Empty></Screen>
   const inSession = scaledSession(sessionSlots(tpl.exercises), factor)
   const canResetOrder = defaultExerciseOrder(type, tpl.exercises, setup).some((index, position) => index !== position)
   const meta = TYPE_META[type]
@@ -268,12 +269,12 @@ export function TemplateEditor({ type }: { type: WorkoutType }) {
       <Sheet open={adding} onClose={() => setAdding(false)} icon={<Plus size={18} aria-hidden />} title={L('Ajouter un exercice', 'Add exercise')} tall>
         <div className="divide-y divide-line">
           {addable.map((x) => (
-            <button key={x.id} type="button" onClick={() => { addTemplateExercise(type, x.id); setAdding(false) }} className="pressable flex w-full items-center justify-between gap-3 px-1 py-3 text-left hover:bg-surface-2">
-              <span>
+            <button key={x.id} type="button" aria-label={L(`Ajouter ${x.name}`, `Add ${x.name}`)} onClick={() => { addTemplateExercise(type, x.id); setAdding(false) }} className="pressable flex w-full items-center justify-between gap-3 px-1 py-3 text-left hover:bg-surface-2">
+              <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-medium">{x.name}</span>
                 <span className="block text-[13px] text-muted">{x.muscle}</span>
               </span>
-              <LevelTag level={x.evidence.level} />
+              <span className="flex shrink-0 items-center gap-2"><LevelTag level={x.evidence.level} /><Plus size={18} className="text-signal-text" aria-hidden /></span>
             </button>
           ))}
         </div>
@@ -296,9 +297,13 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
   const sets = parseNumber(v.sets)
   const minReps = parseNumber(v.minReps)
   const maxReps = parseNumber(v.maxReps)
+  const weight = parseNumber(v.weight)
+  const restSeconds = parseNumber(v.rest)
   const positiveInteger = (n: number | null): n is number => n !== null && Number.isInteger(n) && n > 0
   const integerError = L('Saisis un nombre entier supérieur à zéro.', 'Enter a whole number greater than zero.')
   const errors = {
+    weight: v.weight.trim() && (weight === null || weight < 0) ? L('Saisis une charge égale ou supérieure à zéro.', 'Enter a load of zero or more.') : undefined,
+    rest: restSeconds === null || !Number.isInteger(restSeconds) || restSeconds < 15 ? L('Saisis au moins 15 secondes, sans décimale.', 'Enter at least 15 seconds, without decimals.') : undefined,
     sets: positiveInteger(sets) ? undefined : integerError,
     minReps: positiveInteger(minReps) ? undefined : integerError,
     maxReps: !positiveInteger(maxReps) ? integerError : positiveInteger(minReps) && maxReps < minReps
@@ -309,11 +314,11 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
     if (!valid) return
     onSave({
       target: {
-        weight: ex.unit === 'PDC' ? (takesLest(ex) ? parseNumber(v.weight) || null : null) : parseNumber(v.weight),
+        weight: ex.unit === 'PDC' ? (takesLest(ex) ? weight || null : null) : weight,
         sets: sets!,
         minReps: minReps!,
         maxReps: maxReps!,
-        restSeconds: Math.max(15, parseNumber(v.rest) ?? ex.target.restSeconds),
+        restSeconds: restSeconds!,
         rir: v.rir || undefined,
       },
       technique: v.technique || undefined,
@@ -321,18 +326,18 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
     })
   }
   return (
-    <Sheet open onClose={onClose} icon={<Dumbbell size={18} aria-hidden />} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" disabled={!valid} onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
+    <Sheet open onClose={onClose} icon={<Dumbbell size={18} aria-hidden />} title={ex.name} footer={<div className="flex gap-2"><Button variant="danger" size="lg" closeSheet onClick={onRemove} aria-label={L('Retirer l’exercice', 'Remove exercise')}><Trash size={16} /></Button><Button variant="primary" size="lg" className="flex-1" icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button></div>}>
       {alternativesFor(ex.exerciseId).length > 0 && <Disclosure className="mb-4" icon={<Repeat2 size={18} aria-hidden />} title={L('Alternatives à cet exercice', 'Exercise alternatives')}>
         <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} onReplaced={onClose} />
       </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
-        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('À définir', 'Not set')} /></Field>}
-        {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} className="col-span-2"><input className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('Aucun', 'None')} /></Field>}
+        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} error={errors.weight} className="col-span-2"><MeasurementPicker label={L('Charge', 'Load')} unit={unitLabel(ex.unit)} value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={500} step={0.1} defaultValue={20} invalid={!!errors.weight} placeholder={L('À définir', 'Not set')} /></Field>}
+        {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} error={errors.weight} className="col-span-2"><MeasurementPicker label={L('Lest', 'Added load')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={150} step={0.1} defaultValue={0} invalid={!!errors.weight} placeholder={L('Aucun', 'None')} /></Field>}
         <Field label={L('Séries', 'Sets')} error={errors.sets}><input className={inputClass} inputMode="numeric" value={v.sets} onChange={set('sets')} /></Field>
         <Field label={L('Répétitions en réserve visées', 'Target reps in reserve')} hint={L('Répétitions encore possibles à la fin de la série.', 'Reps you could still do at the end of the set.')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
         <Field label={L('Répétitions min.', 'Min reps')} error={errors.minReps}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>
         <Field label={L('Répétitions max.', 'Max reps')} error={errors.maxReps}><input className={inputClass} inputMode="numeric" value={v.maxReps} onChange={set('maxReps')} /></Field>
-        <Field label={L('Repos (s)', 'Rest (s)')} className="col-span-2"><input className={inputClass} inputMode="numeric" value={v.rest} onChange={set('rest')} /></Field>
+        <Field label={L('Repos (s)', 'Rest (s)')} error={errors.rest} className="col-span-2"><MeasurementPicker label={L('Repos', 'Rest')} unit="s" value={v.rest} onChange={rest => setV(current => ({ ...current, rest }))} min={15} max={900} step={15} defaultValue={120} invalid={!!errors.rest} /></Field>
         <Field label={L('Réglage machine / note', 'Machine setting / note')} className="col-span-2"><textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={v.technique} onChange={set('technique')} placeholder={L('Ex. : siège 4, pieds repère 4–5', 'E.g. seat 4, feet on mark 4–5')} /></Field>
       </div>
       {ex.note && <p className="mt-3 text-[13px] text-muted">{L(`Programme : ${ex.note}`, `Program: ${ex.note}`)}</p>}

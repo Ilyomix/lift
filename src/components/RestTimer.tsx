@@ -298,7 +298,7 @@ function RestOverlay({ remaining, progress, onClose }: { remaining: number; prog
             <Plus size={18} strokeWidth={2.25} aria-hidden />
           </IconButton>
         </div>
-        <button type="button" onClick={() => { stopAfterExit.current = true; dismiss() }} className="pressable mt-3 h-14 w-full rounded-[14px] bg-signal text-[16px] font-semibold text-signal-ink">{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
+        <button type="button" onClick={() => { stopAfterExit.current = true; dismiss() }} className="pressable mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-signal px-4 py-3 text-[16px] font-semibold text-signal-ink">{done ? <X size={18} aria-hidden /> : <SkipForward size={18} aria-hidden />}{done ? L('Fermer le minuteur', 'Close timer') : L('Passer le repos', 'Skip rest')}</button>
       </div>
     </div>
     </div>

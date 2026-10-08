@@ -1,4 +1,4 @@
-import { History, Layers3 } from 'lucide-react'
+import { History, Layers3, Pencil } from 'lucide-react'
 import { fmtDate, todayISO } from '../lib/date'
 import { L } from '../lib/i18n'
 import { GOAL_DATE, MAINTENANCE, PHASES, type Period } from '../lib/program'
@@ -29,7 +29,7 @@ export function ProgramProgress({ today = todayISO(), paused = false }: { today?
     {MAINTENANCE && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Mode entretien : les blocs continuent sans date de fin.', 'Maintenance mode: blocks continue with no end date.')}</p>}
     {upcoming.length > 4 && <Disclosure icon={<Layers3 size={18} />} bordered={false} className="mt-1" title={L(`Voir les ${upcoming.length - 4} autres étapes prévues`, `View ${upcoming.length - 4} more planned stages`)}><PeriodList periods={upcoming.slice(4)} /></Disclosure>}
     {past.length > 0 && <Disclosure icon={<History size={18} />} bordered={false} className="mt-2" title={L(`Étapes passées (${past.length})`, `Past stages (${past.length})`)}><PeriodList periods={past} /></Disclosure>}
-    {!current && !first && !MAINTENANCE && <Button variant="outline" full className="mt-4" onClick={() => navigate('plus/objectif')}>{L('Ajuster mon objectif', 'Adjust my goal')}</Button>}
+    {!current && !first && !MAINTENANCE && <Button variant="outline" full className="mt-4" icon={<Pencil size={18} aria-hidden />} onClick={() => navigate('plus/objectif')}>{L('Ajuster mon objectif', 'Adjust my goal')}</Button>}
   </section>
 }
 

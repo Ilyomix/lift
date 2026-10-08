@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, Camera, ChevronLeft, ChevronRight, Columns2, Gauge, Plus, Ruler, Trash } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Columns2, History, MapPin, Play, Plus, Ruler, Trash, X } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid, unitLabel } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -18,6 +18,7 @@ import {
 import type { AppState, BodyEntry } from '../lib/types'
 import { Columns, LineChart, RangeBars, Sparkline, type ChartSeries } from '../components/charts'
 import { ExerciseSheet } from '../components/ExerciseSheet'
+import { MeasurementPicker } from '../components/MeasurementPicker'
 import { RecordTag, StatusTag } from '../components/Status'
 import { SportArt } from '../components/SportArt'
 import { Button, Card, cx, DateInput, Empty, Field, Header, IconButton, inputClass, Screen, Section, Segmented, Sheet, Tag } from '../components/ui'
@@ -26,7 +27,7 @@ type Tab = 'force' | 'corps' | 'volume' | 'seances'
 
 function SessionLink() {
   const active = useStore((s) => s.state.activeWorkout)
-  return <Button variant="primary" onClick={() => navigate('seance')}>{active ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>
+  return <Button variant="primary" full icon={<Play size={16} aria-hidden />} onClick={() => navigate('seance')}>{active ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>
 }
 
 export function ProgressScreen({ tab, sub }: { tab: Tab; sub?: string }) {
@@ -148,7 +149,7 @@ export function ExerciseDetail({ id }: { id: string }) {
     <Screen>
       <Header art="chart" backTo="progres" eyebrow={info.muscle} title={tpl?.name ?? info.name} sub={history.length ? `${plural(history.length, L('séance', 'workout'), L('séances', 'workouts'))} · ${first && last && first.best > 0 ? `${fmtSigned(((last.best - first.best) / first.best) * 100, 0, '%')} ${L('depuis le', 'since')} ${fmtDate(first.date)}` : ''}` : L('Pas encore réalisé.', 'Not done yet.')} />
       {gymsUsed.length > 1 && (
-        <Segmented className="mb-4" label={L('Salle', 'Gym')} value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
+        <Segmented className="mb-4" layout="scroll" label={L('Salle', 'Gym')} value={gym} onChange={setGym} options={gymsUsed.map((g) => ({ value: g, label: gymName(state, g) }))} />
       )}
       {differentConditions && <p className="mb-4 text-[13px] leading-[1.45] text-text-2">{L('Les courbes utilisent les séries dont la charge est renseignée, avec la même unité et les mêmes conditions que la dernière séance. Toutes les séances restent dans l’historique ci-dessous.', 'Charts use sets with a logged load, in the same unit and conditions as your latest workout. All workouts remain in the history below.')}</p>}
       {history.length > 0 ? (
@@ -181,9 +182,12 @@ export function ExerciseDetail({ id }: { id: string }) {
                     <span className="block text-[15px] font-medium tnum">{setsSummary(x.sets, x.unit)}</span>
                     {differentConditions && <span className="block text-[12px] text-text-2">{unitLabel(x.unit)} · {x.comparisonContext || L('Conditions non précisées', 'Conditions not specified')}</span>}
                   </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    <StatusTag c={x.comparison} />
-                    {x.comparison?.isRecord && <RecordTag />}
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="flex flex-col items-end gap-1">
+                      <StatusTag c={x.comparison} />
+                      {x.comparison?.isRecord && <RecordTag />}
+                    </span>
+                    <ChevronRight size={16} className="text-muted" aria-hidden />
                   </span>
                 </button>
               ))}
@@ -194,8 +198,8 @@ export function ExerciseDetail({ id }: { id: string }) {
         <Empty art="dumbbell"
           title={all.length ? L('Pas de séance dans cette salle', 'No workouts at this gym') : L('Aucune série enregistrée', 'No sets logged yet')}
           action={all.length
-            ? <Button variant="outline" onClick={() => setGym(all[all.length - 1].gymId)}>{L('Voir la dernière salle utilisée', 'View the last gym used')}</Button>
-            : <Button variant="outline" onClick={() => setSheet(true)}>{L('Voir le mouvement', 'View the movement')}</Button>}
+            ? <Button variant="outline" full icon={<MapPin size={16} aria-hidden />} onClick={() => setGym(all[all.length - 1].gymId)}>{L('Voir la dernière salle utilisée', 'View the last gym used')}</Button>
+            : <Button variant="outline" full icon={<BookOpen size={16} aria-hidden />} onClick={() => setSheet(true)}>{L('Voir le mouvement', 'View the movement')}</Button>}
         >
           {all.length
             ? L('Cet exercice a été enregistré dans une autre salle. Ses résultats sont conservés séparément.', 'This exercise was recorded at another gym. Its results are kept separately.')
@@ -322,8 +326,8 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
       ))}
     </Card>
     <Sheet open={!!pending} onClose={() => setPending(null)} icon={<Trash size={18} aria-hidden />} title={L('Supprimer cette mesure ?', 'Delete this measurement?')} footer={<div className="grid grid-cols-2 gap-2">
-      <Button full onClick={() => setPending(null)}>{L('Annuler', 'Cancel')}</Button>
-      <Button full variant="danger" onClick={() => { if (pending) deleteBody(pending.id); setPending(null) }}>{L('Supprimer', 'Delete')}</Button>
+      <Button full icon={<X size={16} aria-hidden />} closeSheet onClick={() => setPending(null)}>{L('Annuler', 'Cancel')}</Button>
+      <Button full variant="danger" icon={<Trash size={16} aria-hidden />} closeSheet onClick={() => { if (pending) deleteBody(pending.id); setPending(null) }}>{L('Supprimer', 'Delete')}</Button>
     </div>}>
       <p className="text-[14px] leading-[1.5] text-text-2">{pending && L(`Les mesures du ${fmtDate(pending.date, { long: true, year: true })} seront retirées de ton suivi. Cette action ne peut pas être annulée.`, `The measurements from ${fmtDate(pending.date, { long: true, year: true })} will be removed from your progress. This action cannot be undone.`)}</p>
     </Sheet></>
@@ -332,9 +336,9 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
 
 function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const saveBody = useStore((s) => s.saveBody)
+  const bodyEntries = useStore((s) => s.state.bodyEntries)
   const [date, setDate] = useState(todayISO())
   const [v, setV] = useState({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV((x) => ({ ...x, [k]: e.target.value }))
   const invalid = (key: keyof typeof v) => v[key].trim() !== '' && (parseNumber(v[key]) === null || parseNumber(v[key])! <= 0)
   const valid = Object.values(v).some(x => parseNumber(x) !== null) && !(Object.keys(v) as (keyof typeof v)[]).some(invalid)
   const error = L('Saisis une valeur supérieure à zéro.', 'Enter a value greater than zero.')
@@ -346,17 +350,21 @@ function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void })
     onClose()
   }
   return (
-    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Ajouter des mesures', 'Add measurements')} footer={<Button variant="primary" size="lg" full disabled={!valid} onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
+    <Sheet icon={<Ruler size={18} aria-hidden />} open={open} onClose={onClose} title={L('Ajouter des mesures', 'Add measurements')} footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!valid} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button>}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
           <DateInput label={L('Date de la mesure', 'Measurement date')} value={date} max={todayISO()} onChange={(v) => v && setDate(v)} />
         </div>
-        <Field label={L('Poids (kg)', 'Weight (kg)')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={invalid('weight') ? error : undefined}><input data-autofocus className={inputClass} inputMode="decimal" value={v.weight} onChange={set('weight')} placeholder={L('93,0', '93.0')} /></Field>
-        <Field label={L('Tour de taille (cm)', 'Waist (cm)')} hint={L('Au nombril', 'At the navel')} error={invalid('waist') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.waist} onChange={set('waist')} /></Field>
-        <Field label={L('Bras (cm)', 'Arm (cm)')} error={invalid('arm') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.arm} onChange={set('arm')} /></Field>
-        <Field label={L('Poitrine (cm)', 'Chest (cm)')} error={invalid('chest') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.chest} onChange={set('chest')} /></Field>
-        <Field label={L('Épaules (cm)', 'Shoulders (cm)')} error={invalid('shoulders') ? error : undefined}><input className={inputClass} inputMode="decimal" value={v.shoulders} onChange={set('shoulders')} /></Field>
+        <Field label={L('Poids', 'Weight')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={invalid('weight') ? error : undefined}>
+          <MeasurementPicker label={L('Poids', 'Weight')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={35} max={250} step={0.1} defaultValue={measureSeries(bodyEntries, 'weight').at(-1)?.value ?? 75} invalid={invalid('weight')} />
+        </Field>
+        <Field label={L('Tour de taille', 'Waist')} hint={L('Au nombril', 'At the navel')} error={invalid('waist') ? error : undefined}>
+          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={v.waist} onChange={waist => setV(current => ({ ...current, waist }))} min={50} max={200} step={0.1} defaultValue={measureSeries(bodyEntries, 'waist').at(-1)?.value ?? 85} invalid={invalid('waist')} />
+        </Field>
+        <Field label={L('Bras', 'Arm')} error={invalid('arm') ? error : undefined}><MeasurementPicker label={L('Bras', 'Arm')} unit="cm" value={v.arm} onChange={arm => setV(current => ({ ...current, arm }))} min={10} max={80} step={0.1} defaultValue={measureSeries(bodyEntries, 'arm').at(-1)?.value ?? 35} invalid={invalid('arm')} /></Field>
+        <Field label={L('Poitrine', 'Chest')} error={invalid('chest') ? error : undefined}><MeasurementPicker label={L('Poitrine', 'Chest')} unit="cm" value={v.chest} onChange={chest => setV(current => ({ ...current, chest }))} min={40} max={200} step={0.1} defaultValue={measureSeries(bodyEntries, 'chest').at(-1)?.value ?? 100} invalid={invalid('chest')} /></Field>
+        <Field label={L('Épaules', 'Shoulders')} error={invalid('shoulders') ? error : undefined}><MeasurementPicker label={L('Épaules', 'Shoulders')} unit="cm" value={v.shoulders} onChange={shoulders => setV(current => ({ ...current, shoulders }))} min={40} max={220} step={0.1} defaultValue={measureSeries(bodyEntries, 'shoulders').at(-1)?.value ?? 115} invalid={invalid('shoulders')} /></Field>
       </div>
     </Sheet>
   )
@@ -380,7 +388,7 @@ function Photos() {
     }
   }
   return (
-    <Section art="camera" title={L('Photos de progression', 'Progress photos')} action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
+    <Section art="camera" title={L('Photos de progression', 'Progress photos')} action={photos.length > 1 || (photos.length > 0 && hasGoal) ? <Button size="sm" variant="soft" icon={<Columns2 size={16} aria-hidden />} onClick={() => setCompare(true)}>{L('Comparer', 'Compare')}</Button> : undefined}>
       {photos.length > 0 ? <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
@@ -401,12 +409,12 @@ function Photos() {
       </button>}
       <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onFile(e.target.files); e.target.value = '' }} />
       <p className="mt-2 text-[12px] text-muted">{L('Toutes les 4 semaines, même lumière, même pose. Les photos restent sur cet appareil et sont incluses dans tes sauvegardes.', 'Every 4 weeks, same lighting, same pose. Photos stay on this device and are included in your backups.')}</p>
-      <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { setPendingDelete(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
+      <Sheet icon={<Camera size={18} aria-hidden />} open={!!current} onClose={() => setView(null)} title={current ? L(`Photo du ${fmtDate(current.date, { year: true })}`, `Photo from ${fmtDate(current.date, { year: true })}`) : ''} footer={current && <Button variant="danger" full icon={<Trash size={16} aria-hidden />} closeSheet onClick={() => { setPendingDelete(current.id); setView(null) }}>{L('Supprimer', 'Delete')}</Button>}>
         {current && <img src={current.dataUrl} alt="" className="w-full rounded-[12px]" />}
       </Sheet>
       <Sheet icon={<Trash size={18} aria-hidden />} open={!!deleting} onClose={() => { setView(pendingDelete); setPendingDelete(null) }} title={L('Supprimer cette photo ?', 'Delete this photo?')} footer={<div className="grid grid-cols-2 gap-2">
-        <Button full onClick={() => { setView(pendingDelete); setPendingDelete(null) }}>{L('Annuler', 'Cancel')}</Button>
-        <Button full variant="danger" onClick={() => { if (pendingDelete) void deletePhoto(pendingDelete); setPendingDelete(null) }}>{L('Supprimer', 'Delete')}</Button>
+        <Button full icon={<X size={16} aria-hidden />} closeSheet onClick={() => { setView(pendingDelete); setPendingDelete(null) }}>{L('Annuler', 'Cancel')}</Button>
+        <Button full variant="danger" icon={<Trash size={16} aria-hidden />} closeSheet onClick={async () => { if (pendingDelete) await deletePhoto(pendingDelete); setPendingDelete(null) }}>{L('Supprimer', 'Delete')}</Button>
       </div>}>
         <p className="text-[14px] leading-[1.5] text-text-2">{deleting && L(`La photo du ${fmtDate(deleting.date, { long: true, year: true })} sera retirée de ton suivi. Cette action ne peut pas être annulée.`, `The photo from ${fmtDate(deleting.date, { long: true, year: true })} will be removed from your progress. This action cannot be undone.`)}</p>
       </Sheet>
@@ -496,8 +504,8 @@ function VolumeTab() {
         </Card>
         </> : <Empty art="calendar" title={L('Aucune série cette semaine', 'No sets this week')}
           action={offset !== latestOffset
-            ? <Button variant="outline" onClick={() => setOffset(latestOffset)}>{L('Voir la dernière semaine active', 'View the last active week')}</Button>
-            : <Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
+            ? <Button variant="outline" full icon={<CalendarDays size={16} aria-hidden />} onClick={() => setOffset(latestOffset)}>{L('Voir la dernière semaine active', 'View the last active week')}</Button>
+            : <Button variant="outline" full icon={<History size={16} aria-hidden />} onClick={() => navigate('progres/seances')}>{L('Voir l’historique', 'View history')}</Button>}
         >{L('Cette semaine ne contient pas de séries enregistrées. Tes autres séances restent dans l’historique.', 'There are no logged sets in this week. Your other workouts remain in your history.')}</Empty>}
       </Section>
       {counts.some((count) => count.count > 0) && <Section art="calendar" title={L('Séances par semaine', 'Workouts per week')}>
@@ -510,7 +518,7 @@ function VolumeTab() {
           />
         </Card>
       </Section>}
-      <Section icon={<Gauge size={18} aria-hidden />} title={L('Répétitions en réserve', 'Reps in reserve')}>
+      <Section art="dumbbell" title={L('Répétitions en réserve', 'Reps in reserve')}>
         {rirs.length ? (
           <Card className="divide-y divide-line">
             {rirs.map(({ w, r }) => (

@@ -26,12 +26,12 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
   const [error, setError] = useState(false)
   const total = week.completed + week.active + selected.length
   const save = (days: number[] | null) => {
-    if (!useStore.getState().setWeekSchedule(week.monday, days)) { setError(true); return }
+    if (!useStore.getState().setWeekSchedule(week.monday, days)) { setError(true); return false }
     useStore.getState().notify(days === null ? L('Jours habituels rétablis.', 'Usual days restored.') : L('Planning de la semaine enregistré.', 'Weekly schedule saved.'))
-    onClose()
+    return true
   }
   return <Sheet open onClose={onClose} title={afterRestWorkout ? L('Où placer ton repos ?', 'When would you like to rest?') : L('Organiser la semaine', 'Plan your week')} icon={<SportArt kind="calendar" size="title" />}
-    footer={<Button variant="primary" size="lg" full onClick={() => save(selected.map(weekday))}>{L('Enregistrer cette semaine', 'Save this week')}</Button>}>
+    footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} closeSheet={() => save(selected.map(weekday))} onClick={onClose}>{L('Enregistrer cette semaine', 'Save this week')}</Button>}>
     <p className="text-[13px] text-text-2">{fmtDate(week.monday)} – {fmtDate(addDays(week.monday, 6))}</p>
     <p className="mt-3 text-[15px] leading-relaxed">{afterRestWorkout
       ? L('Tu t’es entraîné un jour de repos. Choisis les jours de tes prochaines séances cette semaine.', 'You trained on a rest day. Choose your remaining workout days this week.')
@@ -60,7 +60,7 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
       <p className="text-[13px] text-text-2">{[L(`${week.completed} terminées`, `${week.completed} done`), ...(week.active ? [L(`${week.active} en cours`, `${week.active} in progress`)] : []), L(`${selected.length} à venir`, `${selected.length} upcoming`)].join(' · ')}</p>
     </div>
     <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Les séances terminées restent en place. Les dates des blocs et de ton objectif ne changent pas.', 'Completed workouts stay in place. Your program blocks and goal date stay unchanged.')}</p>
-    {week.customized && <Button full variant="outline" className="mt-4" icon={<RotateCcw size={16} aria-hidden />} onClick={() => save(null)}>{L('Rétablir les jours habituels', 'Restore usual days')}</Button>}
+    {week.customized && <Button full variant="outline" className="mt-4" icon={<RotateCcw size={16} aria-hidden />} closeSheet={() => save(null)} onClick={onClose}>{L('Rétablir les jours habituels', 'Restore usual days')}</Button>}
     {error && <p role="alert" className="mt-3 text-[13px] text-bad">{L('Le planning a changé. Ferme ce volet puis rouvre la semaine.', 'The schedule has changed. Close this panel and reopen the week.')}</p>}
   </Sheet>
 }

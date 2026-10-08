@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { BookOpen, CirclePlay, Dumbbell, ExternalLink, Gauge, History, Layers, Link2, ListChecks, Replace, Timer } from 'lucide-react'
+import { Check, CirclePlay, Dumbbell, ExternalLink, Gauge, Layers, Link2, Replace, Timer, Trash } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
 import { infoFor, youtubeId, youtubeSearchUrl } from '../lib/library'
 import { alternativesFor } from '../lib/exerciseAlternatives'
@@ -13,6 +13,7 @@ import { LevelTag, RefList } from './Evidence'
 import { reserveLabel } from './EffortGuidance'
 import { ExerciseDemo } from './ExerciseDemo'
 import { ExerciseAlternatives, type ExerciseReplacementTarget } from './ExerciseAlternatives'
+import { SportArt } from './SportArt'
 import { Button, Disclosure, Field, inputClass, LinkButton, SectionHeading, Sheet, Tag } from './ui'
 
 // Retain the public export used by exercise detail/session screens.
@@ -62,7 +63,7 @@ export function ExerciseSheet({
 
       {info.cues.length > 0 && (
         <section className="mt-5">
-          <SectionHeading icon={<ListChecks size={18} aria-hidden />}>Technique</SectionHeading>
+          <SectionHeading icon={<SportArt kind="coach" size="title" />}>Technique</SectionHeading>
           <ol className="mt-3 list-decimal space-y-3 pl-5 marker:font-semibold marker:text-signal-text">
             {info.cues.map((cue, index) => <li key={index} className="pl-1 text-[15px] leading-[1.5]">{cue}</li>)}
           </ol>
@@ -115,8 +116,8 @@ export function ExerciseSheet({
               <input className={inputClass} value={draft} onChange={event => { setDraft(event.target.value); setVideoError(false) }} placeholder="https://youtu.be/…" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={videoError} aria-describedby={videoError ? errorId : undefined} />
             </Field>
             {videoError && <p id={errorId} role="alert" className="text-[13px] leading-5 text-bad">{L('Lien non reconnu. Copie le lien d’une vidéo YouTube, puis réessaie.', 'Link not recognized. Copy a YouTube video link, then try again.')}</p>}
-            <Button type="submit" full variant="ink" disabled={!draft.trim()}>{L('Enregistrer la vidéo', 'Save video')}</Button>
-            {video && <Button full variant="ghost" onClick={() => {
+            <Button type="submit" full variant="ink" icon={<Check size={18} aria-hidden />} disabled={!draft.trim()}>{L('Enregistrer la vidéo', 'Save video')}</Button>
+            {video && <Button full variant="ghost" icon={<Trash size={18} aria-hidden />} onClick={() => {
               setVideo(exerciseId, ''); setDraft(''); setVideoError(false); setPlay(false)
               useStore.getState().notify(L('Vidéo retirée de cet exercice.', 'Video removed from this exercise.'))
             }}>{L('Retirer la vidéo', 'Remove video')}</Button>}
@@ -129,14 +130,14 @@ export function ExerciseSheet({
       </div>
 
       <section className="mt-6">
-        <SectionHeading icon={<BookOpen size={18} aria-hidden />} action={<LevelTag level={info.evidence.level} />}>{L('Pourquoi cet exercice', 'Why this exercise')}</SectionHeading>
+        <SectionHeading icon={<SportArt kind="evidence" size="title" />} action={<LevelTag level={info.evidence.level} />}>{L('Pourquoi cet exercice', 'Why this exercise')}</SectionHeading>
         <p className="mt-2 text-[14px] leading-[1.5] text-text-2">{info.evidence.text}</p>
         <RefList refs={info.evidence.refs} compact />
       </section>
 
       {history.length > 0 && (
         <section className="mt-6">
-          <SectionHeading icon={<History size={18} aria-hidden />}>{L('Dernières performances', 'Recent performances')}</SectionHeading>
+          <SectionHeading icon={<SportArt kind="chart" size="title" />}>{L('Dernières performances', 'Recent performances')}</SectionHeading>
           <ul className="mt-2 divide-y divide-line rounded-[12px] border border-line">
             {history.map((h) => (
               <li key={h.workoutId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2.5 text-[14px]">

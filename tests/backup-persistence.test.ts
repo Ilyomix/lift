@@ -144,3 +144,24 @@ test('an import waits for an earlier flush and cannot be overwritten by it', asy
   assert.equal(result, true)
   assert.equal((databases.get('golgoth')!.get('state') as any).profile.heightCm, 190)
 })
+
+
+test('an edit made during a failed import is saved as soon as import releases storage', async () => {
+  holdNextStateWrite = true
+  let failImportWrite = true
+  fail = (database, operation) => {
+    if (database === 'golgoth' && operation === 'put' && failImportWrite) { failImportWrite = false; return true }
+    return false
+  }
+  const incoming = defaultState(); incoming.profile.heightCm = 190
+  const importing = useStore.getState().importBackup(parseBackup(JSON.stringify(makeBackup(incoming, [newPhoto]))), { upgrade: false })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.ok(held)
+  useStore.getState().setNutrition('2026-10-08', { calories: 1234 })
+  held!(); held = undefined
+  assert.equal(await importing, false)
+  await new Promise(resolve => setImmediate(resolve))
+  const saved = databases.get('golgoth')!.get('state') as any
+  assert.equal(saved.profile.heightCm, 175)
+  assert.equal(saved.nutritionEntries['2026-10-08'].calories, 1234)
+})

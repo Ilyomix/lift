@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play } from 'lucide-react'
+import { CirclePause, Play } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { todayISO } from '../lib/date'
 import { L } from '../lib/i18n'
@@ -28,8 +28,8 @@ export function useSessionStart(onStarted: () => void) {
         icon={<SportArt kind="pause" size="title" />}
         title={L('S’entraîner un jour de repos ?', 'Train on a rest day?')}
         footer={<div className="grid gap-2">
-          <Button variant="primary" size="lg" full icon={<Play size={18} aria-hidden />} onClick={() => pending && begin(pending)}>{L('Commencer la séance', 'Start workout')}</Button>
-          <Button variant="outline" full onClick={() => setPending(null)}>{L('Garder mon repos', 'Keep my rest day')}</Button>
+          <Button variant="primary" size="lg" full icon={<Play size={18} aria-hidden />} closeSheet onClick={() => pending && begin(pending)}>{L('Commencer la séance', 'Start workout')}</Button>
+          <Button variant="outline" full icon={<CirclePause size={18} aria-hidden />} closeSheet onClick={() => setPending(null)}>{L('Garder mon repos', 'Keep my rest day')}</Button>
         </div>}
       >
         <p className="text-[15px] leading-relaxed text-text-2">{L('Aujourd’hui est prévu pour le repos dans ton programme.', 'Today is a scheduled rest day in your program.')}</p>

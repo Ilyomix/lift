@@ -1,6 +1,6 @@
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type AriaAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
+import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type AriaAttributes, type ButtonHTMLAttributes, type ReactEventHandler, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Undo2, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { addMonths, capitalize, dayLetter, fmtDate, monthName, todayISO } from '../lib/date'
 import { L, locale } from '../lib/i18n'
@@ -17,6 +17,18 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 
 type Variant = 'primary' | 'ink' | 'outline' | 'ghost' | 'danger' | 'soft'
 type Size = 'sm' | 'md' | 'lg'
+type SheetAction = () => unknown
+type SheetClose = (action: SheetAction, validate?: () => boolean | Promise<boolean>) => void
+const SheetCloseContext = createContext<SheetClose>((action, validate) => {
+  const allowed = validate ? validate() : true
+  if (allowed instanceof Promise) void allowed.then(ok => { if (ok) void action() })
+  else if (allowed) void action()
+})
+
+/** Defer only an action that has already passed validation and will close this sheet. */
+export function SheetAction({ children }: { children: (close: SheetClose) => ReactNode }) {
+  return children(useContext(SheetCloseContext))
+}
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-signal text-signal-ink hover:brightness-105 font-semibold',
@@ -39,12 +51,18 @@ function buttonClass(variant: Variant, size: Size, full?: boolean, className?: s
 }
 
 export function Button({
-  variant = 'outline', size = 'md', full, icon, children, className, ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & ButtonStyle) {
+  variant = 'outline', size = 'md', full, icon, children, className, closeSheet, onClick, ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & ButtonStyle & { closeSheet?: boolean | (() => boolean | Promise<boolean>) }) {
+  const close = useContext(SheetCloseContext)
+  const click = closeSheet && onClick ? (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    close(() => onClick(event), typeof closeSheet === 'function' ? closeSheet : undefined)
+  } : onClick
   return (
     <button
       type="button"
       {...rest}
+      onClick={click}
       className={buttonClass(variant, size, full, className)}
     >
       {icon}
@@ -120,25 +138,23 @@ export function Screen({ children, className }: { children: ReactNode; className
 export function Header({ eyebrow, title, backTo, right, sub, art, artSize = 'illustration' }: { eyebrow?: ReactNode; title: ReactNode; backTo?: string; right?: ReactNode; sub?: ReactNode; art?: SportArtKind; artSize?: 'title' | 'illustration' }) {
   return (
     <header className="pt-2 pb-5">
-      {(backTo !== undefined || right) && <div className="mb-1 flex min-h-11 items-center justify-between gap-2">
-        {backTo !== undefined ? (
-          <button type="button" onClick={() => back(backTo)} className="pressable -ml-2 inline-flex h-11 items-center gap-1 rounded-[10px] px-2 text-sm font-medium text-text-2 hover:text-text">
-            <ArrowLeft size={18} strokeWidth={2} aria-hidden />
-            {L('Retour', 'Back')}
-          </button>
-        ) : (
-          <span />
-        )}
-        {right}
+      {backTo !== undefined && <div className="mb-1 flex min-h-11 items-center">
+        <button type="button" onClick={() => back(backTo)} className="pressable -ml-2 inline-flex h-11 items-center gap-1 rounded-[10px] px-2 text-sm font-medium text-text-2 hover:text-text">
+          <ArrowLeft size={18} strokeWidth={2} aria-hidden />
+          {L('Retour', 'Back')}
+        </button>
       </div>}
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         {art && <SportArt kind={art} size={artSize} />}
         <div className="min-w-0 flex-1">
-          <h1 className="text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] text-text">{title}</h1>
+          <div className="flex min-h-8 min-w-0 items-center justify-between gap-2">
+            <h1 className={cx('min-w-0 break-words font-semibold leading-[1.05] tracking-[-0.03em] text-text', right ? 'text-[28px] min-[400px]:text-[32px]' : 'text-[32px]')}>{title}</h1>
+            {right && <div className="min-w-0 max-w-[55%] shrink-0">{right}</div>}
+          </div>
           {eyebrow && <div className="mt-1.5 text-[13px] leading-[1.4] text-text-2">{eyebrow}</div>}
+          {sub && <p className="mt-1.5 text-[14px] leading-[1.45] text-text-2">{sub}</p>}
         </div>
       </div>
-      {sub && <p className="mt-2 text-[15px] leading-[1.45] text-text-2">{sub}</p>}
     </header>
   )
 }
@@ -213,9 +229,9 @@ export function Disclosure({ title, icon, children, className, contentClassName,
   </details>
 }
 
-export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'scroll' }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
+export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'fit' }: { value: T | undefined; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
   return (
-    <div role="group" aria-label={label} className={cx('flex gap-2', layout === 'fit' ? 'min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
+    <div role="group" aria-label={label} className={cx('flex gap-2', layout === 'fit' ? 'w-full min-w-0' : 'no-scrollbar -mx-4 overflow-x-auto px-4', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -258,17 +274,20 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
 
 export function Field({ label, hint, error, children, className }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; className?: string }) {
   const id = useId()
-  const child = isValidElement<AriaAttributes>(children) && typeof children.type === 'string' && ['input', 'textarea', 'select'].includes(children.type) ? children : undefined
+  const child = isValidElement<AriaAttributes>(children) && (typeof children.type === 'function' || (typeof children.type === 'string' && ['input', 'textarea', 'select'].includes(children.type))) ? children : undefined
+  // Composite pickers own their accessible name. Wrapping their wheel in a
+  // label forwards taps on the selected value to its first button and closes it.
+  const Label = child && typeof child.type === 'string' ? 'label' : 'div'
   const control = child ? cloneElement(child, {
     'aria-describedby': [child.props['aria-describedby'], hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined,
     'aria-invalid': error ? true : child.props['aria-invalid'],
   }) : children
   return (
     <div className={cx('block min-w-0', className)}>
-      <label className="block">
+      <Label className="block">
         <span className="mb-1.5 block text-[13px] font-medium text-text-2">{label}</span>
         {control}
-      </label>
+      </Label>
       {hint && <span id={`${id}-hint`} className="mt-1 block text-[12px] text-muted">{hint}</span>}
       {error && <span id={`${id}-error`} className="mt-1 block text-[13px] leading-[18px] text-bad">{error}</span>}
     </div>
@@ -425,17 +444,74 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 
 // ───────────── Sheet (dialog) ─────────────
 
+const sheetPanels: HTMLElement[] = []
+let beforeSheetsOverflow = ''
+
 export function Sheet({ open, onClose, title, icon, children, footer, tall }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
-  const dismiss = useDismissGesture(ref, open, onClose, backdrop)
+  const [present, setPresent] = useState(open)
+  const [revision, setRevision] = useState(0)
+  const snapshot = useRef({ title, icon, children, footer, tall })
+  if (open) snapshot.current = { title, icon, children, footer, tall }
+  const openRef = useRef(open)
+  openRef.current = open
+  const closing = useRef(false)
+  const pendingAction = useRef<SheetAction | null>(null)
+  const visible = open || present
+  const dismiss = useDismissGesture(ref, visible, () => {
+    setPresent(false)
+    const action = pendingAction.current
+    pendingAction.current = null
+    if (!action) { if (openRef.current) onClose(); return }
+    // The action owns the parent's state/navigation. If an asynchronous action
+    // refuses to close, restore the live panel rather than leaving it offscreen.
+    void Promise.resolve().then(action).finally(() => requestAnimationFrame(() => {
+      // Let React commit the action's parent state before deciding whether the
+      // operation stayed open. Otherwise a successful save can exit twice.
+      if (openRef.current) { closing.current = false; setPresent(true); setRevision(value => value + 1) }
+    }))
+  }, backdrop, revision)
+  const closeAfter: SheetClose = (action, validate) => {
+    if (closing.current) return
+    closing.current = true
+    const proceed = (allowed: boolean) => {
+      if (!allowed) { closing.current = false; return }
+      pendingAction.current = action
+      dismiss()
+    }
+    const allowed = validate ? validate() : true
+    if (allowed instanceof Promise) void allowed.then(proceed)
+    else proceed(allowed)
+  }
+  useEffect(() => {
+    openRef.current = open
+    return () => { openRef.current = false; pendingAction.current = null }
+  }, [])
+  useEffect(() => {
+    if (open) {
+      setPresent(true)
+      if (closing.current) {
+        closing.current = false
+        pendingAction.current = null
+        setRevision(value => value + 1)
+      }
+    } else if (present) {
+      closing.current = true
+      dismiss()
+    }
+  }, [open, dismiss])
   const titleId = useId()
   // dismiss stays stable while the hook keeps the latest parent callback;
   // ticking parents must not reset focus or interrupt an open picker.
   useEffect(() => {
-    if (!open) return
+    if (!visible) return
+    const panel = ref.current!
     const prev = document.activeElement as HTMLElement | null
+    if (!sheetPanels.length) beforeSheetsOverflow = document.body.style.overflow
+    sheetPanels.push(panel)
     const onKey = (e: KeyboardEvent) => {
+      if (sheetPanels.at(-1) !== panel) return
       if (e.key === 'Escape') { e.preventDefault(); dismiss() }
       if (e.key === 'Tab' && ref.current) {
         const f = [...ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
@@ -454,15 +530,21 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    requestAnimationFrame(() => (ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current)?.focus())
+    const focusFrame = requestAnimationFrame(() => { if (sheetPanels.at(-1) === panel) (panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel).focus({ preventScroll: true }) })
     return () => {
+      cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-      prev?.focus?.()
+      const wasTop = sheetPanels.at(-1) === panel
+      const index = sheetPanels.indexOf(panel)
+      if (index !== -1) sheetPanels.splice(index, 1)
+      if (!sheetPanels.length) document.body.style.overflow = beforeSheetsOverflow
+      if (wasTop && prev?.isConnected !== false) prev?.focus?.({ preventScroll: true })
     }
-  }, [open, dismiss])
-  if (!open) return null
+  }, [visible, dismiss])
+  if (!visible) return null
+  const content = open ? { title, icon, children, footer, tall } : snapshot.current
   return createPortal(
+    <SheetCloseContext value={closeAfter}>
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div ref={backdrop} className="overlay-enter absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]" onClick={dismiss} aria-hidden />
       <div
@@ -473,25 +555,26 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
         tabIndex={-1}
         className={cx(
           'sheet-enter relative flex w-full max-w-[640px] flex-col rounded-t-[16px] bg-surface shadow-[var(--shadow-sheet)] outline-none',
-          tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
+          content.tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
         )}
       >
         <div data-sheet-handle className="shrink-0 touch-none select-none pt-2">
           <div aria-hidden className="mx-auto h-1 w-8 rounded-full bg-line-strong" />
           <div className="flex items-center justify-between gap-3 px-4 pt-1 pb-2">
           <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">
-            {icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
-            <span className="min-w-0">{title}</span>
+            {content.icon && <span className="inline-flex shrink-0 text-text-2 [&>svg]:size-[18px]" aria-hidden>{content.icon}</span>}
+            <span className="min-w-0">{content.title}</span>
           </h2>
           <IconButton label={L('Fermer', 'Close')} onClick={dismiss} className="-mr-2">
             <X size={20} aria-hidden />
           </IconButton>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
-        {footer && <div className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{content.children}</div>
+        {content.footer && <div className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{content.footer}</div>}
       </div>
-    </div>,
+    </div>
+    </SheetCloseContext>,
     document.body,
   )
 }
@@ -519,6 +602,7 @@ export function Toaster() {
         <span className="min-w-0 flex-1">{toast.message}</span>
         {toast.action && (
           <button type="button" onClick={() => { toast.action!.run(); useStore.setState({ toast: null }) }} className="pressable -my-1 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[8px] px-2 py-1 text-[14px] font-semibold text-signal-text hover:bg-surface-2">
+            <Undo2 size={14} className="mr-1.5 shrink-0" aria-hidden />
             {toast.action.label}
           </button>
         )}

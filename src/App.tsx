@@ -2,7 +2,7 @@ import { NativeSessionEffects } from './components/NativeSessionEffects'
 import { isNative } from './lib/native/bridge'
 import { Fragment, useEffect, useLayoutEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, X } from 'lucide-react'
 import { L, resolveLang } from './lib/i18n'
 import { navigate, useRoute } from './lib/router'
 import { useStore } from './lib/store'
@@ -81,8 +81,8 @@ function UpdatePrompt() {
           {L('Nouvelle version disponible', 'New version available')}
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>{L('Plus tard', 'Later')}</Button>
-          <Button size="sm" variant="primary" onClick={() => void updateServiceWorker(true)}>{L('Mettre à jour', 'Update')}</Button>
+          <Button size="sm" variant="ghost" icon={<X size={16} aria-hidden />} onClick={() => setNeedRefresh(false)}>{L('Plus tard', 'Later')}</Button>
+          <Button size="sm" variant="primary" icon={<RefreshCw size={16} aria-hidden />} onClick={() => void updateServiceWorker(true)}>{L('Mettre à jour', 'Update')}</Button>
         </span>
       </div>
     </div>
@@ -128,7 +128,7 @@ export default function App() {
       <p className="text-[15px] leading-[1.5] text-text-2">
         {L('Lift n’a pas pu ouvrir le stockage de cet appareil. Aucune donnée n’a été effacée. Réessaie ou ferme puis rouvre l’app.', 'Lift could not open this device’s storage. No data was erased. Retry or close and reopen the app.')}
       </p>
-      <Button full variant="primary" className="mt-5" onClick={() => void useStore.getState().init()}>{L('Réessayer', 'Retry')}</Button>
+      <Button full variant="primary" className="mt-5" icon={<RefreshCw size={18} aria-hidden />} onClick={() => void useStore.getState().init()}>{L('Réessayer', 'Retry')}</Button>
     </Screen>
   }
 

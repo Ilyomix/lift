@@ -1,18 +1,20 @@
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, Camera, Check, Flag, ImageOff, Infinity as InfinityIcon, Ruler, Target, TriangleAlert } from 'lucide-react'
+import { Camera, Check, Flag, ImageOff, RotateCcw, Ruler, Target, TriangleAlert } from 'lucide-react'
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
-import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, resumeGoalFor, TYPE_META } from '../lib/program'
+import { CUT_LENGTH, CUT_WEEKS, GOAL_DATE, MAINTENANCE, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { weightStatus } from '../lib/stats'
 import { imageToDataUrl } from '../lib/share'
 import { GOAL_PHOTO_ID, useStore } from '../lib/store'
 import type { Look, WorkoutType, Zone } from '../lib/types'
-import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, earliestGoalFor, goalApplied, LOOKS, lookInfo, MAX_ZONES, prioritySets, prioritySetsStart, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
+import { bodyFatEstimate, cutDrift, DEFAULT_ZONES, goalApplied, LOOKS, lookInfo, MAX_ZONES, prioritySets, prioritySetsStart, reachesLook, visualPlan, ZONES, zonesText, type PaceResult } from '../lib/visual'
 import { RefList } from '../components/Evidence'
 import { ZonePicker } from '../components/ZonePicker'
-import { Disclosure, Button, Card, cx, Field, Header, inputClass, Screen, Section } from '../components/ui'
+import { SportArt } from '../components/SportArt'
+import { MeasurementPicker } from '../components/MeasurementPicker'
+import { Disclosure, Button, Card, cx, Field, Header, Screen, Section, Segmented } from '../components/ui'
 
 const kg = (x: number) => `${fmtNum(x, 1)} kg`
 const pct = (x: number) => L(`${fmtNum(x, 0)} %`, `${fmtNum(x, 0)}%`)
@@ -25,7 +27,7 @@ const STALE_WAIST_DAYS = 21
 export function VisualGoalScreen() {
   const state = useStore((s) => s.state)
   const photos = useStore((s) => s.photos)
-  const { applyVisualGoal, clearVisualGoal, setGoalPhoto, notify } = useStore.getState()
+  const { applyVisualGoal, saveVisualPreferences, clearVisualGoal, setGoalPhoto, notify } = useStore.getState()
   const saved = state.visualGoal
   const applied = goalApplied(saved)
   const [look, setLook] = useState<Look>(saved?.look ?? 'taille')
@@ -37,13 +39,11 @@ export function VisualGoalScreen() {
   const today = todayISO()
   const heightCm = parseNumber(height) ?? 0
   const override = parseNumber(measured)
+  const validHeight = height.trim() === '' || (heightCm >= 120 && heightCm <= 230)
+  const validBodyFat = measured.trim() === '' || (override !== null && override >= 4 && override <= 50)
   const bf = bodyFatEstimate(state, { override: override && override >= 4 && override <= 50 ? override : null, heightCm, sex })
-  // Maintenance mode has no date: applying a look brings back a dated plan, ending on the date this look needs.
-  const goalDate = useMemo(
-    () => (MAINTENANCE ? (bf && earliestGoalFor(state, { look, bodyFat: bf, sex, today })) || resumeGoalFor(state.settings.goalDate, today) : GOAL_DATE),
-    [state, look, bf?.pct, sex, today], // eslint-disable-line react-hooks/exhaustive-deps
-  )
-  const plan = useMemo(() => (bf ? visualPlan(state, { look, bodyFat: bf, sex, today, goal: goalDate }) : null), [state, look, bf?.pct, sex, today, goalDate]) // eslint-disable-line react-hooks/exhaustive-deps
+  const goalDate = GOAL_DATE
+  const plan = useMemo(() => (!MAINTENANCE && bf ? visualPlan(state, { look, bodyFat: bf, sex, today, goal: goalDate }) : null), [state, look, bf?.pct, sex, today, goalDate]) // eslint-disable-line react-hooks/exhaustive-deps
   const photo = photos.find((p) => p.id === GOAL_PHOTO_ID)
   const waistMissing = !state.bodyEntries.some((b) => typeof b.waist === 'number' && b.waist > 0)
   const weight = weightStatus(state, today)
@@ -65,14 +65,20 @@ export function VisualGoalScreen() {
   }, [state.templates, zones])
   const start = prioritySetsStart(today)
   const apply = (goal?: string) => {
+    if (!validHeight || !validBodyFat) return
+    const preferences = { look, zones, bodyFat: override ?? null, heightCm, sex }
+    if (MAINTENANCE) {
+      if (!saveVisualPreferences(preferences)) {
+        notify(L('Vérifie tes mesures avant d’enregistrer.', 'Check your measurements before saving.'), 'bad')
+        return
+      }
+      notify(L('Préférences enregistrées.', 'Preferences saved.'), 'good')
+      navigate('plus/reglages/objectifs')
+      return
+    }
     if (!plan) return
-    applyVisualGoal({ look, zones, bodyFat: override ?? null, heightCm, sex }, { cutWeeks: plan.cutWeeks, target: plan.target, goal: goal ?? (MAINTENANCE ? goalDate : undefined) })
-    notify(
-      MAINTENANCE
-        ? L(`Objectif « ${lookInfo(look).label} » appliqué : fin du mode entretien, plan jusqu’au ${fmtDate(goal ?? goalDate, { long: true, year: true })}.`, `Goal “${lookInfo(look).label}” applied: maintenance mode ended, plan until ${fmtDate(goal ?? goalDate, { long: true, year: true })}.`)
-        : L(`Objectif « ${lookInfo(look).label} » appliqué : plan recalculé.`, `Goal “${lookInfo(look).label}” applied: plan recalculated.`),
-      'good',
-    )
+    applyVisualGoal(preferences, { cutWeeks: plan.cutWeeks, target: plan.target, goal })
+    notify(L(`Objectif « ${lookInfo(look).label} » appliqué : plan recalculé.`, `Goal “${lookInfo(look).label}” applied: plan recalculated.`), 'good')
     navigate('')
   }
   const onPhoto = async (f: File | undefined) => {
@@ -86,32 +92,18 @@ export function VisualGoalScreen() {
     <Screen>
       <Header art="trophy"
         backTo="plus/reglages/objectifs"
-        title={L('Objectif visuel', 'Visual goal')}
-        sub={L('Choisis un repère visuel : l’app estime un poids cible et une durée de sèche. Le rendu dépend aussi de ta musculature ; ces estimations ne sont pas des promesses.', 'Choose a visual reference: the app estimates a target weight and cut length. Your musculature also affects the result; these estimates are not promises.')}
+        title={L('Physique et priorités', 'Physique and priorities')}
+        sub={L('Choisis ton repère physique et les muscles à privilégier.', 'Choose your physique reference and priority muscles.')}
       />
 
-      {MAINTENANCE && (
-        <Card className="mb-3 flex items-center gap-3 p-4">
-          <InfinityIcon size={20} className="shrink-0 text-signal-text" aria-hidden />
-          <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-text-2">
-            <span className="block text-[15px] font-semibold text-text">{L('Tu es en mode entretien', 'You’re in maintenance mode')}</span>
-            {plan?.cutWeeks === 0
-              ? L(`Tes mesures estimées correspondent à l’objectif « ${lookInfo(look).label} ». Lift te propose le mode entretien.`, `Your estimated measurements match the “${lookInfo(look).label}” goal. Lift suggests maintenance mode.`)
-              : plan
-                ? L(`Le physique « ${lookInfo(look).label} » demande une sèche de ${plural(plan.cutWeeks, 'semaine', 'semaines')} : l’appliquer crée un plan qui finit au plus tôt le ${nb(fmtDate(goalDate, { long: true, year: true }))}. Date modifiable ensuite.`, `The “${lookInfo(look).label}” physique needs a ${plan.cutWeeks}-week cut: applying it creates a plan ending ${nb(fmtDate(goalDate, { long: true, year: true }))} at the earliest. You can move the date later.`)
-                : L('Choisis un physique : l’app calcule la sèche qu’il demande et la date de fin du plan.', 'Choose a physique: the app works out the cut it needs and when the plan ends.')}
-          </p>
-        </Card>
-      )}
-
-      {applied && saved && (
+      {(applied || MAINTENANCE) && saved && (
         <Card className="mb-3 flex items-center gap-3 p-4">
           <Target size={20} className="shrink-0 text-signal-text" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">{L('Objectif actif : ', 'Active goal: ')}{lookInfo(saved.look).label}</p>
-            <p className="text-[13px] leading-[1.45] text-text-2">{fmtNum(state.goals.targetWeightMin, 1)}–{kg(state.goals.targetWeightMax)} {L('d’ici le', 'by')} {nb(fmtDate(goalDate, { long: true, year: true }))}</p>
+            <p className="text-[15px] font-semibold">{MAINTENANCE ? L('Repère enregistré : ', 'Saved reference: ') : L('Objectif actif : ', 'Active goal: ')}{lookInfo(saved.look).label}</p>
+            {!MAINTENANCE && <p className="text-[13px] leading-[1.45] text-text-2">{fmtNum(state.goals.targetWeightMin, 1)}–{kg(state.goals.targetWeightMax)} {L('d’ici le', 'by')} {nb(fmtDate(goalDate, { long: true, year: true }))}</p>}
             <p className="text-[13px] leading-[1.45] text-text-2">
-              {L(`Sèche de ${plural(CUT_LENGTH, 'semaine', 'semaines')}`, `${CUT_LENGTH}-week cut`)}{zonesText(saved.zones) ? L(` · priorités : ${zonesText(saved.zones)}`, ` · priorities: ${zonesText(saved.zones)}`) : ''}
+              {!MAINTENANCE && L(`Sèche de ${plural(CUT_LENGTH, 'semaine', 'semaines')}`, `${CUT_LENGTH}-week cut`)}{zonesText(saved.zones) ? `${MAINTENANCE ? '' : ' · '}${L('Priorités : ', 'Priorities: ')}${zonesText(saved.zones)}` : ''}
             </p>
             {drift && (
               <p className="mt-1 text-[13px] leading-[1.45] text-warn">
@@ -124,8 +116,8 @@ export function VisualGoalScreen() {
         </Card>
       )}
 
-      <Section art="body-target" title={L('Physique visé', 'Target physique')} className={MAINTENANCE || (applied && saved) ? undefined : 'mt-0'}>
-        <div className="grid gap-2" role="group" aria-label={L('Physique visé', 'Target physique')}>
+      <Section art="body-target" title={MAINTENANCE ? L('Repère physique', 'Physique reference') : L('Physique visé', 'Target physique')} className={(MAINTENANCE || applied) && saved ? undefined : 'mt-0'}>
+        <div className="grid gap-2" role="group" aria-label={MAINTENANCE ? L('Repère physique', 'Physique reference') : L('Physique visé', 'Target physique')}>
           {LOOKS.map((l) => {
             const on = l.id === look
             const r = l.range[sex]
@@ -155,11 +147,11 @@ export function VisualGoalScreen() {
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Repères visuels indicatifs : à taux égal, la musculature et la répartition du gras varient. Aucun résultat visuel n’est garanti.', 'Visual references for guidance only: at the same body fat, musculature and fat distribution vary. No visual outcome is guaranteed.')}</p>
       </Section>
 
-      <Section icon={<Target size={18} aria-hidden />} title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
+      <Section art="dumbbell" title={L('Zones prioritaires', 'Priority areas')} action={<span className="text-[13px] text-text-2 tnum">{zones.length}/{MAX_ZONES}</span>}>
         <ZonePicker value={zones} onChange={setZones} />
         <p className="mt-2 text-[12px] leading-[1.45] text-muted">
-          {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille. Trois zones au plus : tout prioriser revient à ne rien prioriser.', 'One more set on one exercise per area, in every workout that trains it. Three areas at most: prioritizing everything means prioritizing nothing.')}
-          {zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)} (le V du programme).`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)} (the program’s V shape).`)}
+          {L('Jusqu’à 3 zones. Le programme peut ajouter une série sur un exercice de ces muscles.', 'Up to 3 areas. The program can add a set to an exercise for these muscles.')}
+          {zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)}.`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)}.`)}
         </p>
         <Disclosure title={L('Effet sur les séances', 'Effect on workouts')} className="mt-3">
         <Card className="divide-y divide-line">
@@ -187,19 +179,13 @@ export function VisualGoalScreen() {
 
       <Section art="measuring-tape" title={L('Où tu en es', 'Where you stand')}>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={L('Taille (cm)', 'Height (cm)')}><input className={inputClass} inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="189" /></Field>
+          <Field label={L('Taille (cm)', 'Height (cm)')} error={!validHeight ? L('Entre 120 et 230 cm.', 'Between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" value={height} onChange={setHeight} min={120} max={230} defaultValue={178} invalid={!validHeight} placeholder="—" /></Field>
           <div className="min-w-0">
             <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
-            <div className="grid min-h-[54px] grid-cols-2 gap-1 rounded-[10px] border border-line-strong p-1" role="group" aria-label={L('Sexe', 'Sex')}>
-              {([['m', L('Homme', 'Male')], ['f', L('Femme', 'Female')]] as const).map(([v, label]) => (
-                <button key={v} type="button" aria-pressed={sex === v} onClick={() => setSex(v)} className={cx('pressable min-h-11 rounded-[7px] text-[14px] font-semibold', sex === v ? 'bg-text text-bg' : 'text-text-2')}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Segmented label={L('Sexe', 'Sex')} value={sex} layout="fit" onChange={setSex} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
           </div>
-          <Field label={L('Taux de gras mesuré (%), facultatif', 'Measured body fat (%), optional')} hint={L('Impédancemètre, DEXA… Laisse vide pour utiliser l’estimation.', 'Bioimpedance scale, DEXA… Leave blank to use the estimate.')} className="col-span-2">
-            <input className={inputClass} inputMode="decimal" value={measured} onChange={(e) => setMeasured(e.target.value)} placeholder={bf && bf.source === 'tour de taille' ? `≈ ${fmtNum(bf.pct, 0)}` : '—'} />
+          <Field label={L('Taux de gras mesuré (%), facultatif', 'Measured body fat (%), optional')} hint={L('Impédancemètre, DEXA… Laisse vide pour utiliser l’estimation.', 'Bioimpedance scale, DEXA… Leave blank to use the estimate.')} error={!validBodyFat ? L('Entre 4 et 50 % ou laisse vide.', 'Between 4 and 50%, or leave blank.') : undefined} className="col-span-2">
+            <MeasurementPicker label={L('Taux de gras mesuré', 'Measured body fat')} unit="%" value={measured} onChange={setMeasured} min={4} max={50} step={0.1} defaultValue={bf?.pct ?? 20} invalid={!validBodyFat} placeholder={bf && bf.source === 'tour de taille' ? `≈ ${fmtNum(bf.pct, 0)}` : '—'} />
           </Field>
         </div>
         {bf ? (
@@ -207,7 +193,7 @@ export function VisualGoalScreen() {
             <Line label={L('Taux de gras', 'Body fat')} value={`≈ ${pct(bf.pct)}`} hint={bf.source === 'mesure' ? L('Valeur mesurée', 'Measured value') : bf.source === 'imc' ? L('Estimé avec ton IMC (poids, taille, âge) · formule de Deurenberg', 'Estimated from your BMI (weight, height, age) · Deurenberg formula') : L(`Estimé avec ton tour de taille (${fmtNum(bf.waist!, 0)} cm, ${nb(fmtRelativeDay(bf.waistDate!, today))}) · formule RFM`, `Estimated from your waist (${fmtNum(bf.waist!, 0)} cm, ${nb(fmtRelativeDay(bf.waistDate!, today))}) · RFM formula`)} />
             {plan && <Line label={L('Masse maigre', 'Lean mass')} value={kg(plan.lean)} hint={L(`Masse grasse ≈ ${kg(plan.fat)} sur ${kg(plan.weight)}`, `Fat mass ≈ ${kg(plan.fat)} of ${kg(plan.weight)}`)} />}
           </Card>
-        ) : (
+        ) : !MAINTENANCE ? (
           <Card className="mt-3 flex items-start gap-3 p-4">
             <Ruler size={24} className="mt-0.5 shrink-0 text-signal-text" aria-hidden />
             <div className="min-w-0">
@@ -218,11 +204,11 @@ export function VisualGoalScreen() {
               </p>
             </div>
           </Card>
-        )}
+        ) : null}
         {waistStale && (
           <p className="mt-3 flex gap-2 text-[13px] leading-[1.45] text-text-2">
             <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-            {L('Tour de taille mesuré il y a', 'Waist measured')} {plural(Math.round(waistAge / 7), L('semaine', 'week'), L('semaines', 'weeks'))}{L(' : remesure-le (au nombril, à jeun) pour un plan à jour.', ' ago: measure it again (at the navel, fasted) for an up-to-date plan.')}
+            {L('Tour de taille mesuré il y a', 'Waist measured')} {plural(Math.round(waistAge / 7), L('semaine', 'week'), L('semaines', 'weeks'))}{L(' : remesure-le (au nombril, à jeun) pour une estimation à jour.', ' ago: measure it again (at the navel, fasted) for an up-to-date estimate.')}
           </p>
         )}
         {(waistMissing || noWeight || waistStale) && (
@@ -231,6 +217,11 @@ export function VisualGoalScreen() {
           </Button>
         )}
       </Section>
+
+      {MAINTENANCE && <div className="mt-5 grid gap-2">
+        <Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{L('Enregistrer les préférences', 'Save preferences')}</Button>
+        {saved && <Button variant="outline" full icon={<RotateCcw size={18} aria-hidden />} onClick={() => { clearVisualGoal(); notify(L('Préférences physiques réinitialisées.', 'Physique preferences reset.')); navigate('plus/reglages/objectifs') }}>{L('Réinitialiser les préférences', 'Reset preferences')}</Button>}
+      </div>}
 
       {plan && (
         <Section art="program" title={L('Le plan', 'The plan')}>
@@ -257,14 +248,14 @@ export function VisualGoalScreen() {
           )}
           <div className="mt-4 grid gap-2">
             {plan.fits ? (
-              <Button variant="primary" size="lg" full onClick={() => apply()}>{applied ? L('Mettre à jour le plan', 'Update the plan') : L('Appliquer ce plan', 'Apply this plan')}</Button>
+              <Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{applied ? L('Mettre à jour le plan', 'Update the plan') : L('Appliquer ce plan', 'Apply this plan')}</Button>
             ) : (
               <>
-                {plan.suggestedGoal && <Button variant="primary" size="lg" full onClick={() => apply(plan.suggestedGoal!)}>{L('Viser le', 'Aim for')} {fmtDate(plan.suggestedGoal, { long: true, year: true })}</Button>}
-                <Button variant="outline" size="lg" full onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(goalDate, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
+                {plan.suggestedGoal && <Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply(plan.suggestedGoal!)}>{L('Viser le', 'Aim for')} {fmtDate(plan.suggestedGoal, { long: true, year: true })}</Button>}
+                <Button variant="outline" size="lg" full icon={<Flag size={18} aria-hidden />} disabled={!validHeight || !validBodyFat} onClick={() => apply()}>{L('Garder le', 'Keep')} {fmtDate(goalDate, { long: true })} {L('(sèche plus courte)', '(shorter cut)')}</Button>
               </>
             )}
-            {applied && <Button variant="outline" full onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')) }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
+            {applied && <Button variant="outline" full icon={<RotateCcw size={18} aria-hidden />} onClick={() => { clearVisualGoal(); notify(L('Objectif visuel retiré : plan de base rétabli.', 'Visual goal removed: base plan restored.')); navigate('plus/reglages/objectifs') }}>{L('Retirer l’objectif visuel', 'Remove the visual goal')}</Button>}
           </div>
           <p className="mt-3 text-[12px] leading-[1.45] text-muted">
             {L('Appliquer fixe ton poids cible, la durée de la sèche (le calendrier est recalculé) et les zones prioritaires dans tes séances. Ton poids ne change jamais tes charges.', 'Applying sets your target weight, the length of the cut (the calendar is recalculated) and the priority areas in your workouts. Your weight never changes your loads.')}
@@ -272,7 +263,7 @@ export function VisualGoalScreen() {
         </Section>
       )}
 
-      <Disclosure icon={<Camera size={18} aria-hidden />} title={L('Photo de référence', 'Reference photo')} className="mt-4">
+      <Disclosure icon={<SportArt kind="camera" size="title" />} title={L('Photo de référence', 'Reference photo')} className="mt-4">
         {photo ? (
           <div className="grid grid-cols-[120px_1fr] items-start gap-3">
             <img src={photo.dataUrl} alt={L('Photo de référence de l’objectif', 'Goal reference photo')} className="aspect-[3/4] w-full rounded-[10px] object-cover" />
@@ -294,13 +285,15 @@ export function VisualGoalScreen() {
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { void onPhoto(e.target.files?.[0]); e.target.value = '' }} />
       </Disclosure>
 
-      <Disclosure icon={<BookOpen size={18} aria-hidden />} title={L('Sur quoi ça repose', 'What this is based on')} className="mt-4">
+      <Disclosure icon={<SportArt kind="evidence" size="title" />} title={L('Sur quoi ça repose', 'What this is based on')} className="mt-4">
         <ul className="space-y-2 text-[13px] leading-[1.5] text-text-2">
           <li>{L('Taux de gras estimé par la masse grasse relative (RFM), validée contre la DEXA : fiable pour suivre une tendance, à quelques points près pour une valeur isolée.', 'Body fat estimated with relative fat mass (RFM), validated against DEXA: reliable for tracking a trend, within a few points for a single value.')}</li>
-          <li>{L('Sèche entre −0,5 et −0,7 % du poids par semaine : au-delà, la masse maigre est moins bien préservée.', 'Cut between −0.5 and −0.7% of body weight per week: faster than that, lean mass is less well preserved.')}</li>
-          <li>{L('Le calendrier ne suppose aucun gain de muscle. Le poids cible reste une estimation, à réévaluer avec des mesures récentes.', 'The calendar assumes no muscle gain. Target weight remains an estimate to revisit with recent measurements.')}</li>
+          {!MAINTENANCE && <>
+            <li>{L('Sèche entre −0,5 et −0,7 % du poids par semaine : au-delà, la masse maigre est moins bien préservée.', 'Cut between −0.5 and −0.7% of body weight per week: faster than that, lean mass is less well preserved.')}</li>
+            <li>{L('Le calendrier ne suppose aucun gain de muscle. Le poids cible reste une estimation, à réévaluer avec des mesures récentes.', 'The calendar assumes no muscle gain. Target weight remains an estimate to revisit with recent measurements.')}</li>
+          </>}
         </ul>
-        <RefList refs={['woolcott2018', 'garthe2011', 'helms2014']} compact />
+        <RefList refs={MAINTENANCE ? ['woolcott2018'] : ['woolcott2018', 'garthe2011', 'helms2014']} compact />
       </Disclosure>
     </Screen>
   )

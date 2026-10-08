@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Check, ChevronRight, Dumbbell, Languages, MapPin, Palette, Pencil, Ruler, Trash } from 'lucide-react'
+import { BellRing, Check, ChevronRight, MapPin, Pencil, Plus, Ruler, Trash } from 'lucide-react'
 import { NativeActivitySettings } from '../components/NativeActivitySettings'
+import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SettingsMenuRow } from '../components/SettingsMenu'
 import { GoalSheet } from '../components/GoalSheet'
 import { SetupSheet, setupLabel } from '../components/Setup'
@@ -18,7 +19,7 @@ import { navigate } from '../lib/router'
 import { isIOS, isStandalone } from '../lib/share'
 import { goalWeightRange } from '../lib/stats'
 import { useStore } from '../lib/store'
-import { lookInfo, goalApplied } from '../lib/visual'
+import { lookInfo } from '../lib/visual'
 
 export function SettingsScreen({ section }: { section?: string }) {
   switch (section) {
@@ -35,7 +36,7 @@ export function SettingsScreen({ section }: { section?: string }) {
 
 function SettingsIndex() {
   const items: { to: string; art: SportArtKind; label: string; hint: string }[] = [
-    { to: 'objectifs', art: 'trophy', label: L('Objectifs', 'Goals'), hint: L('Date, silhouette et mesures cibles', 'Date, physique and target measurements') },
+    { to: 'objectifs', art: 'trophy', label: L('Objectifs', 'Goals'), hint: L('Durée, physique et mesures cibles', 'Duration, physique and target measurements') },
     { to: 'seances', art: 'dumbbell', label: L('Séances et matériel', 'Workouts and equipment'), hint: L('Jours, exercices, salles et charges', 'Days, exercises, gyms and loads') },
     { to: 'repos', art: 'stopwatch', label: L('Repos et alertes', 'Rest and alerts'), hint: L('Son, écran et notifications', 'Sound, screen and notifications') },
     { to: 'nutrition', art: 'nutrition', label: L('Cibles nutritionnelles', 'Nutrition targets'), hint: L('Calories, protéines et créatine', 'Calories, protein and creatine') },
@@ -61,7 +62,7 @@ function TrainingSettings() {
       <SettingsMenuRow to="plus/pause" art="pause" label={L('Pause du programme', 'Program pause')} hint={state.programPause.active ? L('En pause', 'Paused') : L('Vacances, maladie ou blessure', 'Vacation, illness or injury')} />
       <SettingsMenuRow to="plus/rappels" art="reminders" label={L('Rappels calendrier', 'Calendar reminders')} hint={L('Exporter les rappels de séance et de pesée', 'Export workout and weigh-in reminders')} />
     </Card>
-    <Section icon={<Dumbbell size={18} aria-hidden />} title={L('Progression des charges', 'Load progression')}>
+    <Section art="plate" title={L('Progression des charges', 'Load progression')}>
       <Card>
         <Toggle label={L('Charges automatiques', 'Automatic loads')} hint={L('Ajustées selon tes séries, avec les changements détaillés dans le bilan.', 'Adjusted from your sets, with changes shown in your workout summary.')} checked={state.prefs.autoLoad} onChange={autoLoad => useStore.getState().setPrefs({ autoLoad })} />
       </Card>
@@ -90,26 +91,17 @@ function GoalSettings() {
     <Header art="trophy" backTo="plus/reglages" title={L('Objectifs', 'Goals')} />
         <Card className="divide-y divide-line">
           <Row
-            label={L('Objectif visuel', 'Visual goal')}
-            hint={goalApplied(state.visualGoal) ? lookInfo(state.visualGoal.look).label : L('Silhouette et muscles prioritaires', 'Physique and priority muscles')}
+            label={L('Durée du programme', 'Program duration')}
+            hint={MAINTENANCE ? L('Sans date limite · poids stable', 'No deadline · stable weight') : L(`Date cible : ${fmtDate(GOAL_DATE, { long: true, year: true })}`, `Target date: ${fmtDate(GOAL_DATE, { long: true, year: true })}`)}
+            right={<Pencil size={14} className="text-muted" aria-hidden />}
+            onClick={() => setGoalOpen(true)}
+          />
+          <Row
+            label={L('Physique et priorités', 'Physique and priorities')}
+            hint={state.visualGoal ? lookInfo(state.visualGoal.look).label : L('Repère physique et muscles prioritaires', 'Physique reference and priority muscles')}
             right={<ChevronRight size={16} className="text-muted" aria-hidden />}
             onClick={() => navigate('plus/objectif')}
           />
-          {MAINTENANCE ? (
-            <Row
-              label={L('Mode entretien', 'Maintenance mode')}
-              hint={L('Entretien · poids stable', 'Maintenance · stable weight')}
-              right={<Pencil size={14} className="text-muted" aria-hidden />}
-              onClick={() => setGoalOpen(true)}
-            />
-          ) : (
-            <Row
-              label={L('Date objectif', 'Goal date')}
-              hint={fmtDate(GOAL_DATE, { long: true, year: true })}
-              right={<Pencil size={14} className="text-muted" aria-hidden />}
-              onClick={() => setGoalOpen(true)}
-            />
-          )}
         </Card>
     <TargetMeasurements key={`${state.goals.targetWeightMin}:${state.goals.targetWeightMax}:${state.goals.targetWaist}`} />
 
@@ -189,7 +181,7 @@ function EquipmentSettings() {
             onClick={() => setSetupOpen(true)}
           />
     </Card>
-    <Section icon={<MapPin size={18} aria-hidden />} title={L('Mes salles', 'My gyms')}><GymManager /></Section>
+    <Section art="kit" title={L('Mes salles', 'My gyms')}><GymManager /></Section>
     {setupOpen && <SetupSheet onClose={() => setSetupOpen(false)} />}
   </Screen>
 }
@@ -208,7 +200,7 @@ function RestSettings() {
             <Row
               label={L('Notification avec l’app ouverte', 'Notification while the app is open')}
               hint={perm === 'granted' ? L('Activée : quand l’app est ouverte', 'On: while the app is open') : perm === 'denied' ? L('Refusée dans les réglages de l’appareil', 'Denied in your device settings') : perm === 'unsupported' ? (isIOS() && !isStandalone() ? L('Installe d’abord l’app sur l’écran d’accueil', 'Install the app on your Home Screen first') : L('Non disponible', 'Not available')) : L('Alerte système quand le repos se termine, app ouverte', 'System alert when rest ends, app open')}
-              right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>{L('Activer', 'Turn on')}</Button> : undefined}
+              right={perm !== 'granted' && perm !== 'unsupported' && perm !== 'denied' ? <Button size="sm" variant="ink" icon={<BellRing size={16} aria-hidden />} onClick={async () => { const p = await requestNotifications(); setPerm(p); setPrefs({ notifications: p === 'granted' }) }}>{L('Activer', 'Turn on')}</Button> : undefined}
             />
           )}
         </Card>
@@ -220,13 +212,13 @@ function AppearanceSettings() {
   const { setPrefs } = useStore.getState()
   return <Screen>
     <Header art="appearance" backTo="plus/reglages" title={L('Apparence', 'Appearance')} />
-        <Section icon={<Languages size={18} aria-hidden />} title={L('Langue', 'Language')} className="mt-0">
+        <Section art="settings" title={L('Langue', 'Language')} className="mt-0">
         <Segmented layout="fit" label={L('Langue', 'Language')} value={state.prefs.lang ?? 'auto'} onChange={(v) => setPrefs({ lang: v })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }]} />
         </Section>
-        <Section icon={<Palette size={18} aria-hidden />} title={L('Thème', 'Theme')}>
+        <Section art="appearance" title={L('Thème', 'Theme')}>
         <Segmented layout="fit" label={L('Thème', 'Theme')} value={state.prefs.theme} onChange={(t) => setPrefs({ theme: t })} options={[{ value: 'auto', label: L('Automatique', 'Automatic') }, { value: 'dark', label: L('Sombre', 'Dark') }, { value: 'light', label: L('Clair', 'Light') }]} />
         </Section>
-        <Section icon={<Palette size={18} aria-hidden />} title={L('Couleur d’accent', 'Accent color')}>
+        <Section art="appearance" title={L('Couleur d’accent', 'Accent color')}>
         <div className="flex gap-2" role="group" aria-label={L('Couleur d’accent', 'Accent color')}>
           {([['orange', 'Orange', '#ff7b00'], ['blue', L('Bleu', 'Blue'), '#3068f5']] as const).map(([v, label, color]) => (
             <button
@@ -299,7 +291,7 @@ function PushRow() {
       {active && (
         <div className="flex items-center justify-between gap-3 px-4 pb-3">
           <p className="text-[12px] leading-[1.4] text-muted">{L('Aucun compte : le serveur garde l’abonnement une heure au plus, le temps d’un repos.', 'No account: the server keeps the subscription for an hour at most, just long enough for one rest.')}</p>
-          <Button size="sm" variant="soft" onClick={() => { if (testPush(8)) notify(L('Verrouille ton téléphone : notification dans 8 s.', 'Lock your phone: notification in 8 s.')) }}>{L('Tester', 'Test')}</Button>
+          <Button size="sm" variant="soft" icon={<BellRing size={16} aria-hidden />} onClick={() => { if (testPush(8)) notify(L('Verrouille ton téléphone : notification dans 8 s.', 'Lock your phone: notification in 8 s.')) }}>{L('Tester', 'Test')}</Button>
         </div>
       )}
     </div>
@@ -323,7 +315,7 @@ function GymManager() {
             {edit === g.id ? (
               <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); renameGym(g.id, name); setEdit(null) }}>
                 <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
-                <Button type="submit" variant="ink">{L('Renommer', 'Rename')}</Button>
+                <Button type="submit" variant="ink" icon={<Pencil size={16} aria-hidden />}>{L('Renommer', 'Rename')}</Button>
               </form>
             ) : (
               <>
@@ -342,7 +334,7 @@ function GymManager() {
       </Card>
       <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); setAdding('') } }}>
         <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ex. : salle du centre', 'E.g. Downtown gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
-        <Button type="submit" variant="ink" size="lg" disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
+        <Button type="submit" variant="ink" size="lg" icon={<Plus size={18} aria-hidden />} disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
       </form>
       <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres, poids du corps : communs.', 'Machines, cables and Smith machine: loads and history are specific to each gym. Dumbbells, barbells, bodyweight: shared.')}</p>
     </div>
@@ -350,47 +342,66 @@ function GymManager() {
 }
 
 function TargetMeasurements() {
-  const goals = useStore(s => s.state.goals)
-  const goal = goalWeightRange(useStore(s => s.state))
+  const state = useStore(s => s.state)
+  const goals = state.goals
+  const estimate = goalWeightRange({ ...state, goals: { ...goals, targetWeightMin: 0, targetWeightMax: 0 } })
+  const [weightMode, setWeightMode] = useState<'program' | 'custom'>(goals.targetWeightMin > 0 && goals.targetWeightMax > 0 ? 'custom' : 'program')
+  const [waistEnabled, setWaistEnabled] = useState(!!goals.targetWaist)
   const [draft, setDraft] = useState({
     min: goals.targetWeightMin ? String(goals.targetWeightMin) : '',
     max: goals.targetWeightMax ? String(goals.targetWeightMax) : '',
     waist: goals.targetWaist ? String(goals.targetWaist) : '',
   })
-  const [saved, setSaved] = useState(draft)
   const values = { min: parseNumber(draft.min), max: parseNumber(draft.max), waist: parseNumber(draft.waist) }
-  const invalid = (key: keyof typeof draft) => !!draft[key].trim() && (values[key] === null || values[key]! <= 0)
+  const invalid = (key: keyof typeof draft) => values[key] === null || values[key]! < (key === 'waist' ? 50 : 35) || values[key]! > (key === 'waist' ? 200 : 250)
   const reversed = values.min !== null && values.max !== null && values.min > values.max
-  const partialRange = !!draft.min.trim() !== !!draft.max.trim()
-  const rangeError = L('Renseigne les poids minimum et maximum, ou laisse les deux champs vides.', 'Enter both minimum and maximum weights, or leave both fields blank.')
-  const error = L('Saisis une valeur supérieure à zéro, ou laisse ce champ vide.', 'Enter a value above zero, or leave blank.')
-  const changed = Object.keys(draft).some(key => draft[key as keyof typeof draft] !== saved[key as keyof typeof draft])
-  const valid = !invalid('min') && !invalid('max') && !invalid('waist') && !reversed && !partialRange
+  const error = L('Choisis un poids entre 35 et 250 kg.', 'Choose a weight between 35 and 250 kg.')
+  const valid = (weightMode === 'program' || (!invalid('min') && !invalid('max') && !reversed)) && (!waistEnabled || !invalid('waist'))
+  const next = {
+    targetWeightMin: weightMode === 'program' ? 0 : values.min!,
+    targetWeightMax: weightMode === 'program' ? 0 : values.max!,
+    targetWaist: waistEnabled ? values.waist : null,
+  }
+  const changed = next.targetWeightMin !== goals.targetWeightMin || next.targetWeightMax !== goals.targetWeightMax || next.targetWaist !== goals.targetWaist
   const set = (key: keyof typeof draft, value: string) => setDraft(current => ({ ...current, [key]: value }))
-  return <Section icon={<Ruler size={18} aria-hidden />} title={L('Mesures cibles', 'Target measurements')}>
+  return <Section art="measuring-tape" title={L('Mesures cibles', 'Target measurements')}>
     <form onSubmit={event => {
       event.preventDefault()
       if (!valid || !changed) return
-      useStore.getState().setGoals({ targetWeightMin: values.min ?? 0, targetWeightMax: values.max ?? 0, targetWaist: values.waist })
-      setSaved(draft)
+      useStore.getState().setGoals(next)
       useStore.getState().notify(L('Cibles enregistrées.', 'Targets saved.'), 'good')
     }}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={L('Poids min (kg)', 'Min weight (kg)')} error={invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : partialRange ? rangeError : undefined}>
-          <input className={inputClass} inputMode="decimal" value={draft.min} placeholder={goal ? fmtNum(goal.min, 0) : '—'} onChange={event => set('min', event.target.value)} />
+      <Segmented label={L('Cible de poids', 'Weight target')} layout="fit" value={weightMode} onChange={mode => {
+        setWeightMode(mode)
+        if (mode === 'custom' && estimate) setDraft(current => ({ ...current, min: current.min || String(estimate.min), max: current.max || String(estimate.max) }))
+      }} options={[
+        { value: 'program', label: L('Estimation du programme', 'Program estimate') },
+        { value: 'custom', label: L('Cible personnalisée', 'Custom target') },
+      ]} />
+      {weightMode === 'program' ? <div className="mt-3 px-1">
+        {estimate ? <>
+          <p className="text-[20px] font-semibold tnum">{fmtNum(estimate.min, 1)}–{fmtNum(estimate.max, 1)} <span className="text-[14px] text-text-2">kg</span></p>
+          <p className="mt-1 text-[13px] text-text-2">{L('Calculée avec ton programme et tes dernières mesures.', 'Calculated from your program and latest measurements.')}</p>
+        </> : <Button full icon={<Ruler size={18} aria-hidden />} onClick={() => navigate('progres/corps/mesure')}>{L('Ajouter une pesée pour estimer la cible', 'Add a weigh-in to estimate the target')}</Button>}
+      </div> : <div className="mt-3 grid grid-cols-2 gap-3">
+        <Field label={L('Poids minimum', 'Minimum weight')} error={draft.min.trim() && invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : undefined}>
+          <MeasurementPicker label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={250} step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
         </Field>
-        <Field label={L('Poids max (kg)', 'Max weight (kg)')} error={invalid('max') ? error : undefined}>
-          <input className={inputClass} inputMode="decimal" value={draft.max} placeholder={goal ? fmtNum(goal.max, 0) : '—'} onChange={event => set('max', event.target.value)} />
+        <Field label={L('Poids maximum', 'Maximum weight')} error={draft.max.trim() && invalid('max') ? error : undefined}>
+          <MeasurementPicker label={L('Poids maximum', 'Maximum weight')} unit="kg" value={draft.max} onChange={value => set('max', value)} min={35} max={250} step={0.1} defaultValue={estimate?.max ?? 77} required invalid={!!draft.max.trim() && invalid('max')} />
         </Field>
-        <Field label={L('Tour de taille (cm)', 'Waist (cm)')} className="col-span-2" error={invalid('waist') ? error : undefined}>
-          <input className={inputClass} inputMode="decimal" value={draft.waist} placeholder="—" onChange={event => set('waist', event.target.value)} />
-        </Field>
-      </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Laisse les deux poids vides pour utiliser l’estimation du programme. Un tour de taille vide signifie aucune cible.', 'Leave both weights blank to use the program estimate. Leave waist blank for no target.')}</p>
-      <Button type="submit" variant="primary" full className="mt-3" disabled={!changed || !valid}>{L('Enregistrer les cibles', 'Save targets')}</Button>
+      </div>}
+      <Card className="mt-4">
+        <Toggle label={L('Cible de tour de taille', 'Waist target')} hint={waistEnabled ? undefined : L('Aucune cible', 'No target')} checked={waistEnabled} onChange={setWaistEnabled} />
+        {waistEnabled && <div className="px-4 pb-3">
+          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={draft.waist} onChange={value => set('waist', value)} min={50} max={200} step={0.1} defaultValue={85} required invalid={!!draft.waist.trim() && invalid('waist')} />
+          {draft.waist.trim() && invalid('waist') && <p className="mt-1 text-[13px] text-bad">{L('Choisis un tour de taille entre 50 et 200 cm.', 'Choose a waist size between 50 and 200 cm.')}</p>}
+        </div>}
+      </Card>
+      <Button type="submit" variant="primary" full icon={<Check size={18} aria-hidden />} className="mt-3" disabled={!changed || !valid}>{L('Enregistrer les cibles', 'Save targets')}</Button>
     </form>
     <Disclosure title={L('Comprendre mes cibles', 'Understanding my targets')} bordered={false} className="mt-3" contentClassName="text-[13px] leading-relaxed text-text-2">
-      {MAINTENANCE ? L('Sans valeur, la cible est ton poids actuel ± 1 kg : en entretien, le poids reste stable. Taux de gras et poids restent des estimations : suis aussi ton tour de taille et tes photos.', 'With no value, the target is your current weight ± 1 kg: in maintenance, your weight stays stable. Body fat and weight are still estimates: also track your waist and your photos.') : L('Sans valeur, la cible vient de la trajectoire du plan : recomposition à poids stable, puis sèche. Taux de gras et poids cible restent des estimations : ajuste avec ton tour de taille et tes photos.', 'With no value, the target comes from the plan: recomposition at a stable weight, then a cut. Body fat and target weight are still estimates: adjust with your waist and your photos.')}
+      {MAINTENANCE ? L('L’estimation suit ton poids actuel à ± 1 kg. Une cible personnalisée remplace cette estimation.', 'The estimate follows your current weight within 1 kg. A custom target replaces this estimate.') : L('L’estimation suit la trajectoire du programme. Une cible personnalisée remplace cette estimation.', 'The estimate follows the program trajectory. A custom target replaces this estimate.')}
     </Disclosure>
   </Section>
 }

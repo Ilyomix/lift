@@ -22,7 +22,7 @@ import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
 import { weightStatus } from './stats'
 import { clearSessionReplacement, normalizeSessionReplacements, replacePlanned, replaceTemplate, replacementTemplate, sessionExercises, validReplacementSlot, type ReplacementResult } from './exerciseReplacement'
-import { goalApplied, lookInfo, tagPriorities, ZONES, zonesText } from './visual'
+import { goalApplied, LOOKS, lookInfo, MAX_ZONES, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs, Prescription,
   Look, ReplacementScope, SetFlag, Template, TemplateExercise, TrainingSetup, WorkoutExercise, WorkoutSet, WorkoutType, Zone,
@@ -115,6 +115,8 @@ interface Store {
     g: { look: Look; zones: Zone[]; bodyFat: number | null; heightCm: number; sex: 'm' | 'f' },
     plan: { cutWeeks: number; target: [number, number]; goal?: ISODate },
   ) => void
+  /** Saves maintenance preferences without applying a dated goal or changing nutrition targets. */
+  saveVisualPreferences: (g: { look: Look; zones: Zone[]; bodyFat: number | null; heightCm: number; sex: 'm' | 'f' }) => boolean
   clearVisualGoal: () => void
   setGoalPhoto: (dataUrl: string | null) => Promise<void>
   setGoals: (patch: Partial<Goals>) => void
@@ -139,7 +141,7 @@ interface Store {
   deletePhoto: (id: string) => Promise<void>
 }
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null
+let savePending = false
 let saveInFlight: Promise<void> | null = null
 let replacingData = false
 
@@ -157,9 +159,8 @@ function replacePhotos(photos: Photo[]): Promise<void> {
   })
 }
 
-function cancelScheduledSave() {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = null
+function clearPendingSave() {
+  savePending = false
 }
 const storageUnavailableMessages = [
   'Enregistrement indisponible. Exporte une sauvegarde avant de fermer Lift.',
@@ -339,50 +340,54 @@ export const useStore = create<Store>((set, get) => ({
     const next = fn(get().state)
     syncPlan(next)
     set({ state: next })
-    if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => void get().flush(), 150)
+    savePending = true
+    // Start persistence in this event; in-flight writes already coalesce later edits.
+    void get().flush()
   },
 
   flush: async () => {
     // Keep a deferred edit marked as pending while import/reset owns storage.
     if (replacingData) return
-    if (saveTimer) {
-      clearTimeout(saveTimer)
-      saveTimer = null
-    }
+    savePending = false
     if (!get().hasData) return
     if (saveInFlight) return saveInFlight
     // WebKit can close IndexedDB while the app is suspended. Retry with a fresh
     // connection, and keep later saves possible even if both attempts fail.
-    saveInFlight = (async () => {
-      while (get().hasData) {
-        let savedState = get().state
-        let saved = false
-        for (let attempt = 0; attempt < 2; attempt++) {
-          if (!get().hasData) return
-          savedState = get().state
-          try {
-            await idbSet('state', savedState, kv)
-            saved = true
-            break
-          } catch (error) {
-            // Reopening cannot fix quota exhaustion or non-cloneable values.
-            const name = error && typeof error === 'object' && 'name' in error ? error.name : undefined
-            if (error != null && !['AbortError', 'InvalidStateError', 'UnknownError'].includes(String(name))) break
-            kv = createStore('golgoth', 'kv')
+    // Assign the lock before the worker starts; release it in the same microtask
+    // as the final state check so a just-arrived edit cannot join a finished writer.
+    saveInFlight = Promise.resolve().then(async () => {
+      try {
+        while (get().hasData) {
+          let savedState = get().state
+          let saved = false
+          for (let attempt = 0; attempt < 2; attempt++) {
+            if (!get().hasData) return
+            savedState = get().state
+            try {
+              await idbSet('state', savedState, kv)
+              saved = true
+              break
+            } catch (error) {
+              // Reopening cannot fix quota exhaustion or non-cloneable values.
+              const name = error && typeof error === 'object' && 'name' in error ? error.name : undefined
+              if (error != null && !['AbortError', 'InvalidStateError', 'UnknownError'].includes(String(name))) break
+              kv = createStore('golgoth', 'kv')
+            }
           }
+          if (!saved) {
+            set({ storage: 'memory' })
+            get().notify(L(...storageUnavailableMessages), 'bad')
+            return
+          }
+          const storageWarning = storageUnavailableMessages.some(message => message === get().toast?.message)
+          set({ storage: 'idb', ...(storageWarning ? { toast: null } : {}) })
+          // An edit made during the write must be saved before callers resolve.
+          if (get().state === savedState) return
         }
-        if (!saved) {
-          set({ storage: 'memory' })
-          get().notify(L(...storageUnavailableMessages), 'bad')
-          return
-        }
-        const storageWarning = storageUnavailableMessages.some(message => message === get().toast?.message)
-        set({ storage: 'idb', ...(storageWarning ? { toast: null } : {}) })
-        // An edit made during the write must be saved before callers resolve.
-        if (get().state === savedState) return
+      } finally {
+        saveInFlight = null
       }
-    })().finally(() => { saveInFlight = null })
+    })
     return saveInFlight
   },
 
@@ -422,7 +427,7 @@ export const useStore = create<Store>((set, get) => ({
   importBackup: async (parsed, { upgrade }) => {
     if (replacingData) return false
     replacingData = true
-    cancelScheduledSave()
+    clearPendingSave()
     await saveInFlight
     const previous = get()
     let photosChanged = false
@@ -460,7 +465,7 @@ export const useStore = create<Store>((set, get) => ({
     } finally {
       replacingData = false
       // A UI edit made while the databases were busy remains eligible for saving.
-      if (saveTimer) void get().flush()
+      if (savePending) void get().flush()
     }
   },
 
@@ -469,7 +474,7 @@ export const useStore = create<Store>((set, get) => ({
   resetAll: async () => {
     if (replacingData) return false
     replacingData = true
-    cancelScheduledSave()
+    clearPendingSave()
     await saveInFlight
     try {
       await clear(photoDb)
@@ -484,8 +489,8 @@ export const useStore = create<Store>((set, get) => ({
       return false
     } finally {
       replacingData = false
-      if (get().hasData && saveTimer) void get().flush()
-      else cancelScheduledSave()
+      if (get().hasData && savePending) void get().flush()
+      else clearPendingSave()
     }
   },
 
@@ -1003,12 +1008,29 @@ export const useStore = create<Store>((set, get) => ({
     void get().flush()
   },
 
+  saveVisualPreferences: (g) => {
+    if (!get().state.settings.maintenance || !LOOKS.some(look => look.id === g.look)
+      || !Array.isArray(g.zones) || g.zones.some(zone => !ZONES.some(item => item.id === zone))
+      || new Set(g.zones).size > MAX_ZONES || (g.sex !== 'm' && g.sex !== 'f')
+      || !Number.isFinite(g.heightCm) || (g.heightCm !== 0 && (g.heightCm < 120 || g.heightCm > 230))
+      || (g.bodyFat !== null && (!Number.isFinite(g.bodyFat) || g.bodyFat < 4 || g.bodyFat > 50))) return false
+    const zones = [...new Set(g.zones)]
+    get().update(s => ({
+      ...s,
+      profile: { ...s.profile, heightCm: g.heightCm, sex: g.sex },
+      visualGoal: { look: g.look, zones, bodyFat: g.bodyFat, photoId: s.visualGoal?.photoId },
+      templates: tagPriorities(s.templates, zones),
+    }))
+    void get().flush()
+    return true
+  },
+
   clearVisualGoal: () => {
     // Without a look the plan returns to the report's 23-week cut and V-shape priorities.
     get().update((s) => ({
       ...s,
-      visualGoal: s.visualGoal?.photoId ? { look: s.visualGoal.look, zones: [], bodyFat: null, photoId: s.visualGoal.photoId } : null,
-      goals: { ...s.goals, targetWeightMin: 0, targetWeightMax: 0 },
+      visualGoal: s.visualGoal?.photoId ? { look: 'taille', zones: [], bodyFat: null, photoId: s.visualGoal.photoId } : null,
+      goals: s.settings.maintenance ? s.goals : { ...s.goals, targetWeightMin: 0, targetWeightMax: 0 },
       templates: tagPriorities(s.templates, []),
     }))
     void get().flush()

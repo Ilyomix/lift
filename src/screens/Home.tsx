@@ -128,7 +128,7 @@ export function Home() {
               {state.programPause.plannedEnd ? L(` · reprise ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`, ` · back ${fmtRelativeDay(addDays(state.programPause.plannedEnd, 1), today)}`) : ''}
             </p>
           </div>
-          <Button size="sm" variant="ink" onClick={() => navigate('plus/pause')}>{L('Voir la pause', 'View pause')}</Button>
+          <Button size="sm" variant="ink" icon={<CirclePause size={16} aria-hidden />} onClick={() => navigate('plus/pause')}>{L('Voir la pause', 'View pause')}</Button>
         </Card>
       )}
 
@@ -167,7 +167,7 @@ export function Home() {
               {active ? L('Reprendre', 'Resume') : restToday ? L('M’entraîner', 'Train today') : L('Commencer', 'Start')}
             </Button>
             {!active && (
-              <Button variant="outline" size="lg" onClick={() => next ? setDay(nextDate) : navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
+              <Button variant="outline" size="lg" icon={<ArrowRight size={18} aria-hidden />} onClick={() => next ? setDay(nextDate) : navigate('seance')} aria-label={L('Voir le détail de la séance', 'View workout details')}>
                 {L('Détail', 'Details')}
               </Button>
             )}
@@ -284,8 +284,8 @@ export function Home() {
 function Tile({ label, value, foot, detail, chart, onClick, children }: { label: string; value: React.ReactNode; foot?: string; detail?: string; chart?: React.ReactNode; onClick?: () => void; children?: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} className="pressable card flex min-h-[132px] flex-col p-3.5 text-left hover:border-line-strong">
-      <span className="flex w-full items-start justify-between gap-2">
-        <span className="text-[13px] font-medium text-text-2">{label}</span>
+      <span className="flex w-full flex-wrap items-start justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-text-2">{label}<ArrowRight size={14} className="shrink-0 text-muted" aria-hidden /></span>
         {chart}
       </span>
       <span className="mt-auto pt-3 text-[28px] leading-none font-semibold tracking-[-0.03em] tnum">{value}</span>
@@ -320,7 +320,7 @@ function Reminders({ items }: { items: { icon: React.ReactNode; text: string; ac
           <div key={i} className="flex items-center gap-3 px-4 py-3">
             <span className={cx('shrink-0 text-text-2')}>{it.icon}</span>
             <p className="min-w-0 flex-1 text-[14px] leading-[1.4]">{it.text}</p>
-            <Button size="sm" variant="soft" onClick={() => (it.run ? it.run() : it.to !== undefined && navigate(it.to))}>{it.action}</Button>
+            <Button size="sm" variant="soft" icon={<ArrowRight size={16} aria-hidden />} onClick={() => (it.run ? it.run() : it.to !== undefined && navigate(it.to))}>{it.action}</Button>
           </div>
         ))}
       </Card>

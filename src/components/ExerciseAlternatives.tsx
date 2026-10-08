@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { ChevronDown, Replace } from 'lucide-react'
+import { ChevronDown, Dumbbell, Replace } from 'lucide-react'
 import { alternativeEquipment, alternativesFor } from '../lib/exerciseAlternatives'
 import { sessionExercises } from '../lib/exerciseReplacement'
 import { L } from '../lib/i18n'
@@ -118,7 +118,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
               </span>
               <ChevronDown size={16} className={cx('shrink-0 text-text-2', open && 'rotate-180')} aria-hidden />
             </button>
-            {target && <Button size="sm" variant="outline" className="shrink-0" disabled={locked || duplicate} aria-label={L(`Remplacer par ${choice.name}`, `Replace with ${choice.name}`)} icon={<Replace size={15} aria-hidden />} onClick={() => choose(choice.id)}>{L('Remplacer', 'Replace')}</Button>}
+            {target && <Button size="sm" variant="outline" className="shrink-0" disabled={locked || duplicate} aria-label={L(`Remplacer par ${choice.name}`, `Replace with ${choice.name}`)} icon={<Replace size={15} aria-hidden />} closeSheet={!!onReplaced} onClick={() => choose(choice.id)}>{L('Remplacer', 'Replace')}</Button>}
           </div>
           <div id={panelId} hidden={!open}>
             {open && <div className="pb-4">
@@ -130,7 +130,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, show
       })}
     </div>
     {!choices.length && <Empty art="dumbbell" title={L('Pas d’alternative avec ce matériel', 'No alternative with this equipment')}
-      action={<Button variant="outline" onClick={() => setEquipment('all')}>{L('Voir tout le matériel', 'View all equipment')}</Button>}
+      action={<Button variant="outline" icon={<Dumbbell size={18} aria-hidden />} onClick={() => setEquipment('all')}>{L('Voir tout le matériel', 'View all equipment')}</Button>}
     >{L('D’autres mouvements existent avec un équipement différent. Tu peux les consulter avant de choisir.', 'Other movements use different equipment. You can explore them before choosing.')}</Empty>}
   </section>
 }

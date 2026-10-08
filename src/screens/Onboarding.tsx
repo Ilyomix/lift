@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, CalendarDays, ChartNoAxesColumn, Check, Flag, Focus, ListChecks, TriangleAlert, Upload, Utensils } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bell, BellOff, CalendarDays, Check, Play, TriangleAlert, Upload } from 'lucide-react'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
@@ -12,6 +12,8 @@ import { isNative, nativeNotificationPermissionStatus } from '../lib/native/brid
 import type { Look, TrainingSetup, Zone } from '../lib/types'
 import { DEFAULT_ZONES, LOOKS, MAX_ZONES, reachesLook, zonesText } from '../lib/visual'
 import { ZonePicker } from '../components/ZonePicker'
+import { PlanModePicker } from '../components/PlanMode'
+import { MeasurementPicker } from '../components/MeasurementPicker'
 import { setupLabel, SetupPicker } from '../components/Setup'
 import { Button, Card, Disclosure, cx, DateInput, Field, inputClass, SectionHeading, Segmented, Sheet } from '../components/ui'
 import { ImportSheet } from './More'
@@ -41,7 +43,7 @@ interface Draft {
   /** Priority zones, three at most; none keeps the program's own. */
   zones: Zone[]
   goalDate: string
-  /** Maintenance mode: no goal date, no look. */
+  /** Maintenance keeps physical preferences without a goal date. */
   maintenance: boolean
 }
 
@@ -143,9 +145,9 @@ export function Onboarding() {
 
       <div className="sticky bottom-0 -mx-5 border-t border-line bg-bg px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
         {step < STEPS ? (
-          <Button variant="primary" size="lg" full disabled={!canNext} onClick={next}>{L('Continuer', 'Continue')}</Button>
+          <Button variant="primary" size="lg" full icon={<ArrowRight size={18} aria-hidden />} disabled={!canNext} onClick={next}>{L('Continuer', 'Continue')}</Button>
         ) : (
-          <Button variant="primary" size="lg" full disabled={!answers || !preview || notificationBusy} onClick={finish}>{L('Voir ma première séance', 'See my first workout')}</Button>
+          <Button variant="primary" size="lg" full icon={<Play size={18} aria-hidden />} disabled={!answers || !preview || notificationBusy} onClick={finish}>{L('Voir ma première séance', 'See my first workout')}</Button>
         )}
       </div>
     </main>
@@ -206,7 +208,7 @@ function OnboardingNotifications({ enabled, onEnabled, onBusy }: { enabled: bool
       {permission === 'denied' && <p className="mb-2 text-[13px] leading-[1.5] text-text-2">{L('Autorisation refusée. Pour changer ton choix, ouvre les réglages de l’appareil → Lift → Notifications, puis reviens ici.', 'Permission denied. To change your choice, open device settings → Lift → Notifications, then return here.')}</p>}
       {error && <p className="mb-2 text-[13px] leading-[1.5] text-warn">{L('Impossible de vérifier les notifications. Réessaie ou continue sans les activer.', 'Couldn’t check notifications. Try again or continue without enabling them.')}</p>}
     </div>
-    <Button variant="soft" full disabled={busy} onClick={() => enabled ? onEnabled(false) : void enable()}>
+    <Button variant="soft" full icon={enabled ? <BellOff size={16} aria-hidden /> : <Bell size={16} aria-hidden />} disabled={busy} onClick={() => enabled ? onEnabled(false) : void enable()}>
       {busy ? L('Vérification…', 'Checking…') : enabled ? L('Désactiver', 'Turn off') : permission === 'denied' ? L('Vérifier l’autorisation', 'Check permission') : L('Activer les notifications', 'Enable notifications')}
     </Button>
     <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Modifiable ensuite dans Plus → Réglages → Repos et alertes.', 'You can change this later in More → Settings → Rest and alerts.')}</p>
@@ -260,7 +262,7 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
         <p className="mt-6 text-[13px] leading-[1.5] text-muted">{L('5 étapes pour préparer ta première séance. Tes choix restent modifiables.', '5 steps to prepare your first workout. You can change your choices later.')}</p>
       </div>
       <div className="pb-6">
-        <Button variant="primary" size="lg" full onClick={onStart}>{L('Préparer mes séances', 'Set up my workouts')}</Button>
+        <Button variant="primary" size="lg" full icon={<ArrowRight size={18} aria-hidden />} onClick={onStart}>{L('Préparer mes séances', 'Set up my workouts')}</Button>
         <Button variant="ghost" size="lg" full className="mt-2" icon={<Upload size={18} aria-hidden />} onClick={() => file.current?.click()}>
           {L('Importer une sauvegarde', 'Import a backup')}
         </Button>
@@ -270,7 +272,7 @@ function Welcome({ language, onLanguage, onStart }: { language: Lang; onLanguage
           {L('Tes données restent sur cet appareil.', 'Your data stays on this device.')}
         </p>
       </div>
-      <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={() => void importBackup(parsed!, { upgrade })} />
+      <ImportSheet parsed={parsed} upgrade={upgrade} setUpgrade={setUpgrade} onClose={() => setParsed(null)} onConfirm={() => importBackup(parsed!, { upgrade })} />
     </main>
   )
 }
@@ -288,7 +290,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
   return (
     <div>
       <p className="mb-4 text-[15px] leading-[1.5] text-text-2">{L('Choisis les jours que tu peux tenir dans la durée. Une séance manquée décale la suite du programme.', 'Choose days you can stick to. A missed workout moves the next one along.')}</p>
-      <div className="grid grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
+      <div className="grid grid-cols-4 min-[400px]:grid-cols-7 gap-1.5" role="group" aria-label={L('Jours d’entraînement', 'Training days')}>
         {[1, 2, 3, 4, 5, 6, 0].map((day) => {
           const on = days.includes(day)
           return (
@@ -310,7 +312,7 @@ function DaysStep({ days, onChange }: { days: number[]; onChange: (d: number[]) 
         {n >= 2 && <span className="text-text-2"> · {L(`environ ${week.minutes[0]}–${week.minutes[1]} min par séance`, `about ${week.minutes[0]}–${week.minutes[1]} min per workout`)}</span>}
       </p>
       {n < 2 && <p role="status" className="mt-2 text-[13px] text-text-2">{L('Choisis au moins 2 jours pour continuer.', 'Choose at least 2 days to continue.')}</p>}
-      {n >= 2 && <Disclosure icon={<CalendarDays size={18} aria-hidden />} title={L('Comment les séances s’adaptent', 'How workouts adapt')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
+      {n >= 2 && <Disclosure icon={<SportArt kind="calendar" size="title" />} title={L('Comment les séances s’adaptent', 'How workouts adapt')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
         <p className="mt-2">
               {L(`Chaque muscle travaille environ ${fmtNum(perMuscle, 1)} fois par semaine. `, `Each muscle works about ${fmtNum(perMuscle, 1)} times a week. `)}
               {L('Le programme tourne sur 5 séances (Upper, Lower, Push, Pull, Legs). ', 'The program rotates 5 workouts (Upper, Lower, Push, Pull, Legs). ')}
@@ -338,16 +340,16 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
         <Segmented label={L('Sexe', 'Sex')} value={d.sex} layout="fit" onChange={(sex) => patch({ sex })} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
       </div>
       <Field label={L('Âge', 'Age')} hint={error(d.age, 14, 90) ? L('Saisis un âge entre 14 et 90 ans.', 'Enter an age between 14 and 90.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
-      <Field label={L('Taille (cm)', 'Height (cm)')} hint={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.height, 120, 230)} value={d.height} onChange={(e) => patch({ height: e.target.value })} placeholder="178" /></Field>
+      <Field label={L('Taille (cm)', 'Height (cm)')} hint={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" required invalid={error(d.height, 120, 230)} value={d.height} onChange={(height) => patch({ height })} min={120} max={230} defaultValue={178} placeholder="178" /></Field>
       <Field label={L('Poids actuel (kg)', 'Current weight (kg)')} hint={error(d.weight, 35, 250) ? L('Saisis un poids entre 35 et 250 kg.', 'Enter a weight between 35 and 250 kg.') : undefined} className="col-span-2">
-        <input className={inputClass} inputMode="decimal" required aria-invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(e) => patch({ weight: e.target.value })} placeholder={L('78,5', '78.5')} />
+        <MeasurementPicker label={L('Poids actuel', 'Current weight')} unit="kg" required invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(weight) => patch({ weight })} min={35} max={250} step={0.1} defaultValue={78} placeholder={L('78,5', '78.5')} />
       </Field>
       <Field
         label={L('Tour de taille (cm), facultatif', 'Waist (cm), optional')}
         hint={error(d.waist, 50, 200) ? L('Saisis un tour de taille entre 50 et 200 cm, ou laisse ce champ vide.', 'Enter a waist measurement between 50 and 200 cm, or leave this blank.') : L('Au nombril, à jeun. Cette mesure affine l’estimation du taux de gras.', 'At the navel, before eating. This helps refine the body-fat estimate.')}
         className="col-span-2"
       >
-        <input className={inputClass} inputMode="decimal" aria-invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(e) => patch({ waist: e.target.value })} placeholder="—" />
+        <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(waist) => patch({ waist })} min={50} max={200} step={0.1} defaultValue={90} placeholder="—" />
       </Field>
       <p className="col-span-2 text-[12px] leading-[1.45] text-muted">
         {L('Renseigne ton âge, ta taille et ton poids pour continuer. Le tour de taille peut attendre.', 'Enter your age, height and weight to continue. You can add your waist measurement later.')}
@@ -368,40 +370,10 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
       hint={preview.bodyFat?.source === 'imc' ? L('Avec ton IMC : ± 4 points. Mesure ton tour de taille pour affiner l’estimation.', 'From your BMI: ± 4 points. Measure your waist to refine the estimate.') : L('Avec ton tour de taille (formule RFM)', 'From your waist (RFM formula)')}
     />
   )
-  const mode = <div className="grid gap-2" role="group" aria-label={L('Type de plan', 'Plan type')}>
-    {[
-      { maintenance: false, title: L('Un objectif à une date', 'A goal by a date'), text: L('Choisir le physique visé et le temps pour y arriver.', 'Choose the physique you want and the time to work towards it.') },
-      { maintenance: true, title: L('M’entraîner sans date limite', 'Train without a deadline'), text: L('Continuer à progresser en gardant un poids stable.', 'Keep progressing while maintaining a stable weight.') },
-    ].map((option) => <button key={String(option.maintenance)} type="button" aria-pressed={d.maintenance === option.maintenance} onClick={() => patch({ maintenance: option.maintenance })} className={cx('pressable card flex items-center gap-3 px-4 py-3 text-left', d.maintenance === option.maintenance ? 'border-signal bg-signal-soft' : 'hover:border-line-strong')}>
-      <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">{option.title}</span><span className="mt-1 block text-[13px] leading-[1.45] text-text-2">{option.text}</span></span>
-      {d.maintenance === option.maintenance && <Check size={18} className="shrink-0 text-signal-text" aria-hidden />}
-    </button>)}
-  </div>
-  if (d.maintenance) {
-    return (
-      <div>
-        {mode}
-        <p className="mt-4 text-[15px] leading-[1.5] text-text-2">{L('Ton programme alterne entraînement et semaines allégées. Tu pourras définir une date objectif plus tard.', 'Your program alternates training with deload weeks. You can set a goal date later.')}</p>
-        {preview && (
-          <Disclosure icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Voir les estimations et le rythme', 'View estimates and training rhythm')} className="mt-5">
-          <Card className="mt-2 divide-y divide-line">
-            {bodyFat}
-            <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Maintenance estimée : poids stable, ajustée ensuite sur ta moyenne 7 jours', 'Estimated maintenance: stable weight, then adjusted to your 7-day average')} />
-            <Line
-              label={L('Rythme', 'Rhythm')}
-              value={L('5 sem. + 1 allégée', '5 wk + deload week')}
-              hint={L('Les blocs se suivent sans date de fin, fêtes de fin d’année à volume réduit. Pas de sèche.', 'Blocks follow one another with no end date, year-end holidays at reduced volume. No cut.')}
-            />
-          </Card>
-          </Disclosure>
-        )}
-      </div>
-    )
-  }
   return (
     <div>
-      {mode}
-      <div className="mt-5">
+      <PlanModePicker value={d.maintenance ? 'maintenance' : 'goal'} onChange={(mode) => patch({ maintenance: mode === 'maintenance' })} />
+      {!d.maintenance && <div className="mt-5">
         <DateInput label={L('Date objectif', 'Goal date')} value={d.goalDate} min={min} max={max} onChange={(goalDate) => patch({ goalDate })} />
         <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5" role="group" aria-label={L('Durée', 'Duration')}>
           {chips.map((c) => (
@@ -418,10 +390,10 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
           ))}
         </div>
         {!isValidGoal(d.goalDate, start) && <p role="status" className="mt-2 text-[13px] text-bad">{L(`Choisis une date à partir du ${fmtDate(min, { long: true, year: true })}.`, `Choose a date from ${fmtDate(min, { long: true, year: true })} onwards.`)}</p>}
-      </div>
+      </div>}
 
-      <SectionHeading className="mt-6 mb-3" icon={<Flag size={18} aria-hidden />}>{L('Physique visé', 'Target physique')}</SectionHeading>
-      <div className="grid gap-2" role="group" aria-label={L('Physique visé', 'Target physique')}>
+      <SectionHeading className="mt-6 mb-3" icon={<SportArt kind="body-target" size="title" />}>{d.maintenance ? L('Repère physique', 'Physique reference') : L('Physique visé', 'Target physique')}</SectionHeading>
+      <div className="grid gap-2" role="group" aria-label={d.maintenance ? L('Repère physique', 'Physique reference') : L('Physique visé', 'Target physique')}>
         {LOOKS.map((l) => {
           const on = l.id === d.look
           const r = l.range[d.sex]
@@ -448,10 +420,12 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
         })}
       </div>
 
-      <Disclosure icon={<Focus size={18} aria-hidden />} title={<span className="block">{L('Personnaliser les zones prioritaires', 'Customize priority areas')}<span className="mt-1 block text-[13px] font-normal text-muted">{L('Facultatif', 'Optional')} · <span className="tnum">{d.zones.length}/{MAX_ZONES}</span></span></span>} className="mt-5">
+      <Disclosure icon={<SportArt kind="dumbbell" size="title" />} title={<span className="block">{L('Personnaliser les zones prioritaires', 'Customize priority areas')}<span className="mt-1 block text-[13px] font-normal text-muted">{L('Facultatif', 'Optional')} · <span className="tnum">{d.zones.length}/{MAX_ZONES}</span></span></span>} className="mt-5">
       <ZonePicker value={d.zones} onChange={(zones) => patch({ zones })} />
       <p className="mt-2 text-[12px] leading-[1.45] text-muted">
-        {L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every workout that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
+        {d.maintenance
+          ? L('Une série de plus sur un exercice de chaque zone : à partir du bloc 2, semaine 3, si tes performances montent.', 'One more set on one exercise per area: from block 2, week 3, if your performance is improving.')
+          : L('Une série de plus sur un exercice de chaque zone, à chaque séance qui la travaille : à partir du bloc 2 (semaine 3, si tes performances montent), puis dès la semaine 1 en sèche.', 'One more set on one exercise per area, in every workout that trains it: from block 2 (week 3, if your performance is going up), then from week 1 in the cut.')}
         {d.zones.length === 0 && L(` Sans choix : ${zonesText(DEFAULT_ZONES)}.`, ` If none is chosen: ${zonesText(DEFAULT_ZONES)}.`)}
       </p>
       </Disclosure>
@@ -459,9 +433,13 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
 
 
       {preview && (
-        <Disclosure icon={<ChartNoAxesColumn size={18} aria-hidden />} title={L('Voir les estimations du plan', 'View plan estimates')} className="mt-5">
+        <Disclosure icon={<SportArt kind="chart" size="title" />} title={L('Voir les estimations du plan', 'View plan estimates')} className="mt-5">
         <Card className="mt-2 divide-y divide-line">
           {bodyFat}
+          {d.maintenance && <>
+            <Line label="Calories" value={`${fmtNum(preview.calories, 0)} kcal`} hint={L('Poids stable, ajustées ensuite sur ta moyenne 7 jours', 'Stable weight, then adjusted to your 7-day average')} />
+            <Line label={L('Rythme', 'Rhythm')} value={L('5 sem. + 1 allégée', '5 wk + deload week')} hint={L('Blocs en continu, sans date limite.', 'Ongoing blocks, with no deadline.')} />
+          </>}
           {plan && preview.shape && (
             <>
               <Line label={L(`Poids cible · ${plan.look.label}`, `Target weight · ${plan.look.label}`)} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />
@@ -488,7 +466,7 @@ function GoalStep({ d, patch, start, preview }: { d: Draft; patch: (p: Partial<D
               ? L(`Délai trop court au rythme prévu pour préserver le muscle. Date suggérée : ${fmtDate(plan.suggestedGoal, { long: true, year: true })}.`, `Too short at the planned pace, which aims to preserve muscle. Suggested date: ${fmtDate(plan.suggestedGoal, { long: true, year: true })}.`)
               : L('Trop loin pour un seul plan : choisis un physique moins sec.', 'Too far for a single plan: pick a less lean physique.')}
             {plan.suggestedGoal && (
-              <Button size="sm" variant="soft" className="mt-2" onClick={() => patch({ goalDate: plan.suggestedGoal! })}>
+              <Button size="sm" variant="soft" className="mt-2" full icon={<CalendarDays size={16} aria-hidden />} onClick={() => patch({ goalDate: plan.suggestedGoal! })}>
                 {L(`Viser le ${fmtDate(plan.suggestedGoal, { long: true, year: true })}`, `Aim for ${fmtDate(plan.suggestedGoal, { long: true, year: true })}`)}
               </Button>
             )}
@@ -518,34 +496,32 @@ function Summary({ answers, preview }: { answers: OnboardingAnswers; preview: No
         <ol className="mt-2 divide-y divide-line">
           {session.exercises.slice(0, 3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 1}</span><span>{exercise.name}</span></li>)}
         </ol>
-        {session.exercises.length > 3 && <Disclosure icon={<ListChecks size={18} aria-hidden />} title={L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}>
+        {session.exercises.length > 3 && <Disclosure icon={<SportArt kind="dumbbell" size="title" />} title={L(`Voir les ${session.exercises.length - 3} autres exercices`, `See the other ${session.exercises.length - 3} exercises`)}>
           <ol start={4} className="divide-y divide-line">{session.exercises.slice(3).map((exercise, i) => <li key={exercise.exerciseId} className="flex gap-3 py-2.5 text-[14px]"><span className="text-muted tnum">{i + 4}</span><span>{exercise.name}</span></li>)}</ol>
         </Disclosure>}
       </Card>
       <p className="mt-4 text-[14px] leading-[1.5]"><span className="font-medium">{plural(answers.days.length, L('séance par semaine', 'workout per week'), L('séances par semaine', 'workouts per week'))}</span><br /><span className="text-text-2">{[1, 2, 3, 4, 5, 6, 0].filter((x) => answers.days.includes(x)).map((x) => dayName(x, true)).join(' · ')}</span></p>
-      <p className="mt-2 text-[13px] text-text-2">{answers.maintenance ? L('Entretien · sans date limite', 'Maintenance · no deadline') : `${plan?.look.label ?? ''} · ${fmtDate(answers.goalDate, { long: true, year: true })}`}</p>
+      <p className="mt-2 text-[13px] text-text-2">{answers.maintenance ? L('Sans date limite · poids stable', 'No deadline · stable weight') : `${plan?.look.label ?? ''} · ${fmtDate(answers.goalDate, { long: true, year: true })}`}</p>
       <p className="mt-3 text-[13px] leading-[1.5] text-text-2">{L('Pour commencer, choisis des charges confortables : garde de quoi faire encore 3 répétitions à la fin de chaque série.', 'Start with comfortable weights: finish each set feeling you could do 3 more reps.')}</p>
-      <Disclosure icon={<Utensils size={18} aria-hidden />} title={L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')} className="mt-5">
+      <Disclosure icon={<SportArt kind="nutrition" size="title" />} title={L('Objectif et repères nutritionnels', 'Goal and nutrition estimates')} className="mt-5">
       <Card className="mt-2 divide-y divide-line">
         {answers.maintenance ? (
           <>
-            <Line label={L('Objectif', 'Goal')} value={L('Entretien', 'Maintenance')} hint={L('Sans date : blocs de 5 semaines + semaine allégée, en continu', 'No end date: 5-week blocks + deload week, ongoing')} />
+            <Line label={L('Repère physique', 'Physique reference')} value={LOOKS.find(look => look.id === answers.look)!.label} hint={L('Sans date limite · poids stable', 'No deadline · stable weight')} />
             <Line label={L('Séances du bloc 1', 'Workouts in block 1')} value={String(preview.sessions)} hint={L(`Jusqu’au ${fmtDate(preview.until, { long: true })}, puis une semaine allégée`, `Until ${fmtDate(preview.until, { long: true })}, then a deload week`)} />
           </>
         ) : (
           <>
             <Line label={L('Objectif', 'Goal')} value={plan ? plan.look.label : '—'} hint={fmtDate(answers.goalDate, { long: true, year: true })} />
             {plan && <Line label={L('Poids cible', 'Target weight')} value={`${fmtNum(plan.target[0], 1)}–${fmtNum(plan.target[1], 1)} kg`} />}
-            {plan && (
-              <Line
-                label={L('Zones prioritaires', 'Priority areas')}
-                value={capitalize(zonesText(answers.zones?.length ? answers.zones : DEFAULT_ZONES) ?? '')}
-                hint={L(`+1 série par zone et par séance, à partir du bloc 2${answers.zones?.length ? '' : ' · celles du programme'}`, `+1 set per area and per workout, from block 2${answers.zones?.length ? '' : ' · the program’s own'}`)}
-              />
-            )}
             <Line label={L('Séances d’ici là', 'Workouts until then')} value={String(preview.sessions)} />
           </>
         )}
+        <Line
+          label={L('Zones prioritaires', 'Priority areas')}
+          value={capitalize(zonesText(answers.zones?.length ? answers.zones : DEFAULT_ZONES) ?? '')}
+          hint={L(`+1 série par zone et par séance, à partir du bloc 2${answers.zones?.length ? '' : ' · celles du programme'}`, `+1 set per area and per workout, from block 2${answers.zones?.length ? '' : ' · the program’s own'}`)}
+        />
         <Line
           label={L('Calories de départ', 'Starting calories')}
           value={`${fmtNum(preview.calories, 0)} kcal`}
@@ -579,6 +555,7 @@ export function ImportResultSheet() {
   const lastWeigh = useStore((s) => s.state.bodyEntries.filter((b) => b.weight !== null).at(-1))
   const saveBody = useStore((s) => s.saveBody)
   const [w, setW] = useState('')
+  const invalidWeight = w.trim() !== '' && (parseNumber(w) === null || parseNumber(w)! <= 0)
   if (!lastImport) return null
   const close = () => useStore.setState({ lastImport: null })
   const added = lastImport.changes.filter((c) => c.kind === 'added')
@@ -591,7 +568,8 @@ export function ImportResultSheet() {
       icon={<Upload size={18} aria-hidden />}
       title={L('Import terminé', 'Import complete')}
       footer={
-        <Button variant="primary" size="lg" full onClick={() => {
+        <Button variant="primary" size="lg" full icon={<ArrowRight size={18} aria-hidden />} closeSheet disabled={invalidWeight} onClick={() => {
+          if (invalidWeight) return
           const n = parseNumber(w)
           if (n) saveBody({ date: todayISO(), weight: n, waist: null, arm: null, chest: null, shoulders: null })
           close()
@@ -624,8 +602,8 @@ export function ImportResultSheet() {
         <p className="text-[15px] text-text-2">{L('Données importées.', 'Data imported.')}</p>
       )}
       {stale && (
-        <Field label={L('Ton poids ce matin (kg), facultatif', 'Your weight this morning (kg), optional')} hint={L('Il sert de point de départ à la trajectoire et à la cible du plan.', 'It provides a starting point for the plan’s path and target.')} className="mt-5">
-          <input data-autofocus className={inputClass} inputMode="decimal" value={w} onChange={(e) => setW(e.target.value)} placeholder={lastWeigh?.weight ? fmtNum(lastWeigh.weight, 1) : '—'} />
+        <Field label={L('Ton poids ce matin, facultatif', 'Your weight this morning, optional')} hint={L('Cette pesée sera ajoutée à ton suivi.', 'This weigh-in will be added to your progress log.')} error={invalidWeight ? L('Saisis un poids supérieur à zéro.', 'Enter a weight greater than zero.') : undefined} className="mt-5">
+          <MeasurementPicker label={L('Poids ce matin', 'Weight this morning')} unit="kg" value={w} onChange={setW} min={35} max={250} step={0.1} defaultValue={lastWeigh?.weight ?? 78} invalid={invalidWeight} placeholder={lastWeigh?.weight ? fmtNum(lastWeigh.weight, 1) : '—'} />
         </Field>
       )}
     </Sheet>

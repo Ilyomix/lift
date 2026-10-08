@@ -4,11 +4,11 @@ import { exerciseContextReason, workoutsBefore } from '../lib/comparability'
 import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Gauge, HeartPulse, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SlidersHorizontal, Timer, Trash, TriangleAlert, Trophy, Undo2, X,
+  ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, HeartPulse, House, Info, Link as LinkIcon, List, MapPin, Pencil, Play, Plus, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, mondayOf, todayISO } from '../lib/date'
-import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural } from '../lib/format'
+import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plural, unitLabel as loadUnitLabel } from '../lib/format'
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
 import { sessionExercises } from '../lib/exerciseReplacement'
@@ -25,6 +25,7 @@ import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../li
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
+import { MeasurementPicker } from '../components/MeasurementPicker'
 import { workoutArt } from '../components/SportArt'
 import { WeekScheduleSheet } from '../components/WeekScheduleSheet'
 import { useSessionStart } from '../components/useSessionStart'
@@ -70,10 +71,10 @@ function SessionPreview() {
   return (
     <Screen>
       <Header
-        eyebrow={today < PROGRAM_START ? L('Séance d’essai', 'Trial workout') : L('S’entraîner aujourd’hui', 'Train today')}
+        eyebrow={`${TYPE_META[type].fr}${today < PROGRAM_START ? ` · ${L('Séance d’essai', 'Trial workout')}` : ''}`}
         art={workoutArt[type]}
         title={TYPE_META[type].label}
-        sub={`${TYPE_META[type].fr} · ${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
+        sub={`${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
       <Segmented label={L('Type de séance', 'Workout type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => ({ value: t, label: TYPE_META[t].label }))} />
@@ -128,9 +129,9 @@ function SessionPreview() {
 function GymChip({ id, onClick }: { id: string | undefined; onClick: () => void }) {
   const name = useStore((s) => placeName(s.state, id))
   return (
-    <button type="button" onClick={onClick} className="pressable inline-flex min-h-11 max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Changer le lieu de la séance. Lieu actuel : ${name}`, `Change workout location. Current location: ${name}`)}>
+    <button type="button" onClick={onClick} className="pressable inline-flex min-h-11 min-w-0 max-w-full items-center gap-1 rounded-full border border-line-strong px-2 text-[13px] font-semibold text-text-2 hover:text-text" aria-label={L(`Changer le lieu de la séance. Lieu actuel : ${name}`, `Change workout location. Current location: ${name}`)}>
       <MapPin size={14} className="shrink-0" aria-hidden />
-      <span className="truncate">{name}</span>
+      <span className="min-w-0 truncate">{name}</span>
       <ChevronDown size={14} className="shrink-0 text-muted" aria-hidden />
     </button>
   )
@@ -213,7 +214,7 @@ function ActiveSession() {
         art={workoutArt[a.type]}
         title={TYPE_META[a.type].label}
         right={
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <GymChip id={a.gymId} onClick={() => setGymOpen(true)} />
             <IconButton label={L('Options de la séance', 'Workout options')} onClick={() => setMenu(true)}><Ellipsis size={20} /></IconButton>
           </div>
@@ -233,7 +234,7 @@ function ActiveSession() {
           <Button variant="outline" size="sm" icon={<List size={16} aria-hidden />} onClick={() => setExercisePicker(true)} aria-label={L('Choisir un exercice', 'Choose an exercise')} aria-haspopup="dialog">
             {L('Exercices', 'Exercises')}
           </Button>
-          <Button variant="soft" size="sm" className="flex-1" disabled={!displayedExercise || displayedExercise.skipped} onClick={showSets} aria-controls={displayedExercise && !displayedExercise.skipped ? `sets-${displayed}` : undefined}>
+          <Button variant="soft" size="sm" className="flex-1" icon={<List size={16} aria-hidden />} disabled={!displayedExercise || displayedExercise.skipped} onClick={showSets} aria-controls={displayedExercise && !displayedExercise.skipped ? `sets-${displayed}` : undefined}>
             {displayedExercise && hasPendingSets(displayedExercise) ? L('Saisir les séries', 'Log sets') : L('Voir les séries', 'Review sets')}
             <ArrowDown size={16} aria-hidden />
           </Button>
@@ -300,7 +301,7 @@ function ActiveSession() {
           <textarea className={cx(inputClass, 'h-24 resize-none py-2.5')} placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')} value={a.notes} onChange={(e) => setSessionField({ notes: e.target.value })} />
         </label>
         <div className="mt-5">
-          <Button variant="danger" full icon={<Trash size={16} aria-hidden />} onClick={() => { discardSession(); setMenu(false) }}>
+          <Button variant="danger" full icon={<Trash size={16} aria-hidden />} closeSheet onClick={() => { discardSession(); setMenu(false) }}>
             {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard workout')}
           </Button>
           <p className="mt-2 text-[12px] text-muted">{a.reopened ? L('La séance reste telle qu’elle était enregistrée.', 'The saved workout stays unchanged.') : L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
@@ -315,8 +316,8 @@ function ActiveSession() {
         title={L('Terminer maintenant ?', 'Finish now?')}
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmFinish(false)}>{L('Continuer', 'Keep going')}</Button>
-            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setConfirmFinish(false); finish() }}>{L('Terminer', 'Finish')}</Button>
+            <Button variant="outline" size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} closeSheet onClick={() => setConfirmFinish(false)}>{L('Continuer', 'Keep going')}</Button>
+            <Button variant="primary" size="lg" className="flex-1" icon={<CircleCheck size={18} aria-hidden />} closeSheet onClick={() => { setConfirmFinish(false); finish() }}>{L('Terminer', 'Finish')}</Button>
           </div>
         }
       >
@@ -388,7 +389,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
           <p className="truncate text-[15px] font-medium line-through decoration-muted">{ex.name}</p>
           <p className="text-[12px] text-muted">{L('Non réalisé', 'Not done')}{ex.skipReason ? ` · ${skipReasonLabel(ex.skipReason)}` : ''}</p>
         </div>
-        <Button size="sm" variant="soft" onClick={() => skipExercise(index, false)}>{L('Reprendre', 'Restore')}</Button>
+        <Button size="sm" variant="soft" icon={<Undo2 size={16} aria-hidden />} onClick={() => skipExercise(index, false)}>{L('Reprendre', 'Restore')}</Button>
       </Card>
     )
   }
@@ -465,7 +466,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
           <div className="mt-2 flex items-center gap-2 rounded-[10px] bg-signal-soft px-3 py-2 text-[13px]">
             {ex.hint.to > ex.hint.from ? <ArrowUp size={15} className="shrink-0 text-signal-text" aria-hidden /> : <ArrowDown size={15} className="shrink-0 text-signal-text" aria-hidden />}
             <span className="min-w-0 flex-1"><span className="font-semibold">{L('Charge ajustée.', 'Load adjusted.')}</span> {ex.hint.text}</span>
-            <button type="button" onClick={() => undoHint(index)} className="pressable -my-1 inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-signal-text hover:bg-surface-2">
+            <button type="button" onClick={() => undoHint(index)} className="pressable -my-1 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-signal-text hover:bg-surface-2">
               <Undo2 size={14} aria-hidden /> {L('Annuler', 'Undo')}
             </button>
           </div>
@@ -517,20 +518,38 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Note sur l’exercice', 'Exercise note')}</span>
             <textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={ex.notes} onChange={(e) => setExerciseField(index, { notes: e.target.value })} />
           </label>
-          <Button variant="danger" full onClick={() => { skipExercise(index, true, L('Passé', 'Skipped')); setMenu(false) }}>{L('Passer cet exercice', 'Skip this exercise')}</Button>
+          <Button variant="danger" full icon={<SkipForward size={18} aria-hidden />} closeSheet onClick={() => { skipExercise(index, true, L('Passé', 'Skipped')); setMenu(false) }}>{L('Passer cet exercice', 'Skip this exercise')}</Button>
         </div>
       </Sheet>
     </Card>
   )
 }
 
-function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { value: number | null; onCommit: (n: number | null) => void; placeholder?: string; decimal?: boolean; label: string; disabled?: boolean }) {
+function NumField({ value, onCommit, placeholder, decimal, label, disabled, unit, defaultValue, onInvalidChange }: { value: number | null; onCommit: (n: number | null) => void; placeholder?: string; decimal?: boolean; label: string; disabled?: boolean; unit?: string; defaultValue?: number; onInvalidChange?: (invalid: boolean) => void }) {
   const toText = (v: number | null) => (v === null ? '' : String(v).replace('.', L(',', '.')))
   const [text, setText] = useState(toText(value))
   const focused = useRef(false)
   useEffect(() => {
-    if (!focused.current) setText(toText(value))
+    if (!focused.current) { setText(toText(value)); onInvalidChange?.(false) }
   }, [value])
+  const parsed = parseNumber(text)
+  const invalid = text.trim() !== '' && (parsed === null || parsed < 0 || parsed >= 1000)
+  const blur = () => {
+    focused.current = false
+    setText(toText(value))
+    onInvalidChange?.(false)
+  }
+  const change = (next: string) => {
+    setText(next)
+    const n = parseNumber(next)
+    onInvalidChange?.(next.trim() !== '' && (n === null || n < 0 || n >= 1000))
+    if (next.trim() === '') onCommit(null)
+    else if (n !== null && n >= 0 && n < 1000) onCommit(n)
+  }
+  if (unit) return <MeasurementPicker label={label} unit={unit} value={text} onChange={change} invalid={invalid}
+    onFocus={() => { focused.current = true }} onBlur={blur}
+    min={0} max={500} step={0.1} defaultValue={defaultValue ?? 20} disabled={disabled} placeholder={placeholder}
+    presentation="sheet" inputClassName="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-1 text-[14px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:opacity-100" />
   return (
     <input
       aria-label={label}
@@ -545,15 +564,9 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled }: { 
         focused.current = true
         e.currentTarget.select()
       }}
-      onBlur={() => {
-        focused.current = false
-        setText(toText(value))
-      }}
+      onBlur={blur}
       onChange={(e) => {
-        setText(e.target.value)
-        const n = parseNumber(e.target.value)
-        if (e.target.value.trim() === '') onCommit(null)
-        else if (n !== null && n >= 0 && n < 1000) onCommit(n)
+        change(e.target.value)
       }}
     />
   )
@@ -570,6 +583,7 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
   const s = ex.sets[setIndex]
   const { updateSet, completeSet, toggleFlag } = useStore.getState()
   const [open, setOpen] = useState(false)
+  const [invalidWeight, setInvalidWeight] = useState(false)
   const done = s.completed
   const hasDetail = s.flags.length > 0 || (s.cleanReps !== null && s.reps !== null && s.cleanReps !== s.reps) || !!s.note
   return (
@@ -589,9 +603,9 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           {ex.unit === 'PDC' && !takesLest(ex) ? (
             <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
           ) : ex.unit === 'PDC' ? (
-            <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} decimal value={s.weight} placeholder={bodyweightLabel()} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
+            <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} unit="kg" defaultValue={0} decimal value={s.weight} placeholder="0" onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
           ) : (
-            <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} disabled={done} />
+            <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} unit={loadUnitLabel(ex.unit)} defaultValue={fallbackWeight ?? 20} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
           )}
         </div>
         <div className="min-w-0">
@@ -618,15 +632,18 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           type="button"
           aria-pressed={done}
           aria-label={done ? L(`Annuler la série ${setIndex + 1}`, `Undo set ${setIndex + 1}`) : L(`Valider la série ${setIndex + 1}`, `Log set ${setIndex + 1}`)}
+          disabled={!done && invalidWeight}
           onClick={() => {
+            if (!done && invalidWeight) return
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}
-          className={cx('pressable flex h-11 w-11 items-center justify-center rounded-[10px] border', done ? 'border-transparent bg-signal-soft text-signal-text' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
+          className={cx('pressable flex h-11 w-11 items-center justify-center rounded-[10px] border disabled:pointer-events-none disabled:opacity-40', done ? 'border-transparent bg-signal-soft text-signal-text' : isCurrent ? 'border-signal bg-surface text-signal-text' : 'border-line-strong text-text-2 hover:border-muted hover:text-text')}
         >
           <Check size={20} strokeWidth={done ? 3 : 2.2} aria-hidden />
         </button>
       </div>
+      {invalidWeight && <p role="alert" className="mt-2 text-[12px] leading-4 text-bad">{L('Corrige la charge avant de valider cette série.', 'Correct the load before logging this set.')}</p>}
       {open && (
         <div className="mt-2 space-y-2.5 px-1 pb-1.5">
           <div className="flex flex-wrap gap-1.5">
@@ -675,7 +692,7 @@ export function SessionSummary() {
       <Screen>
         <Header art="trophy" title={L('Bilan', 'Summary')} backTo="" />
         <Empty art="trophy" title={L('Ton premier bilan t’attend', 'No workout summary yet')}
-          action={<Button variant="primary" onClick={() => navigate('seance')}>{state.activeWorkout ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>}
+          action={<Button variant="primary" icon={<Play size={18} aria-hidden />} onClick={() => navigate('seance')}>{state.activeWorkout ? L('Revenir à ma séance', 'Return to my workout') : L('Voir ma séance', 'View my workout')}</Button>}
         >{L('Termine une séance pour retrouver tes séries, tes performances et les ajustements proposés.', 'Finish a workout to see your sets, performance and suggested adjustments.')}</Empty>
       </Screen>
     )
@@ -725,7 +742,7 @@ export function SessionSummary() {
       <EffortReport exercises={w.exercises} />
 
       {records.length > 0 && (
-        <Section icon={<Trophy />} title={L('Records', 'Personal bests')}>
+        <Section art="trophy" title={L('Records', 'Personal bests')}>
           <div className="flex flex-wrap gap-2">
             {records.map((e) => <span key={e.exerciseId} className="inline-flex items-center gap-2 text-[14px] font-medium"><RecordTag />{e.name}</span>)}
           </div>
@@ -734,9 +751,9 @@ export function SessionSummary() {
 
       {changes.length > 0 && (
         <Section
-          icon={<SlidersHorizontal />}
+          art="settings"
           title={state.prefs.autoLoad ? L('Programme ajusté', 'Program adjusted') : L('Ajustements proposés', 'Suggested adjustments')}
-          action={waiting.length > 1 ? <Button size="sm" variant="ink" onClick={() => applyChanges(waiting.map((c) => c.id))}>{L('Tout appliquer', 'Apply all')}</Button> : undefined}
+          action={waiting.length > 1 ? <Button size="sm" variant="ink" icon={<Check size={16} aria-hidden />} onClick={() => applyChanges(waiting.map((c) => c.id))}>{L('Tout appliquer', 'Apply all')}</Button> : undefined}
         >
           <p className="mb-3 text-[13px] leading-[1.45] text-text-2">
             {state.prefs.autoLoad ? L('Tes prochaines séances partent de ces charges. Annule un changement si la séance ne te ressemblait pas.', 'Your next workouts start with these loads. Undo a change if this workout wasn’t typical for you.') : L('Calculé d’après tes séries. Applique ce qui te convient.', 'Calculated from your sets. Apply what suits you.')}
@@ -748,7 +765,7 @@ export function SessionSummary() {
       )}
 
       {(pushedOften || held.length > 0) && (
-        <Section icon={<Gauge />} title="Effort">
+        <Section art="stopwatch" title="Effort">
           <Card className="p-4">
             <p className="flex gap-2 text-[14px] leading-[1.45]">
               <TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />
@@ -768,16 +785,16 @@ export function SessionSummary() {
       )}
 
       {early && (
-        <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
+        <Section art="pause" title={L('Récupération', 'Recovery')}>
           <Card className="p-4">
             <p className="flex gap-2 text-[14px] leading-[1.45]"><TriangleAlert size={17} className="mt-0.5 shrink-0 text-warn" aria-hidden />{L('Plusieurs exercices sont en nette baisse deux séances de suite : c’est le signal pour avancer la semaine allégée.', 'Several exercises clearly dropped over two consecutive workouts: bring the deload week forward.')}</p>
-            <Button variant="primary" full className="mt-3" onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Semaine allégée avancée : 7 jours dès demain.', 'Deload week moved forward: 7 days starting tomorrow.'), 'good') }}>{L('Semaine allégée dès demain (7 jours)', 'Start a deload week tomorrow (7 days)')}</Button>
+            <Button variant="primary" full className="mt-3" icon={<HeartPulse size={18} aria-hidden />} onClick={() => { bringDeloadForward(); useStore.getState().notify(L('Semaine allégée avancée : 7 jours dès demain.', 'Deload week moved forward: 7 days starting tomorrow.'), 'good') }}>{L('Semaine allégée dès demain (7 jours)', 'Start a deload week tomorrow (7 days)')}</Button>
           </Card>
         </Section>
       )}
 
       {advanced && (
-        <Section icon={<HeartPulse />} title={L('Récupération', 'Recovery')}>
+        <Section art="pause" title={L('Récupération', 'Recovery')}>
           <Card className="flex items-center gap-3 p-4">
             <p className="min-w-0 flex-1 text-[14px] leading-[1.45]">{L(`Semaine allégée avancée : du ${fmtDate(advanced.start, { long: true })} au ${fmtDate(advanced.end, { long: true })}.`, `Deload week moved forward: ${fmtDate(advanced.start, { long: true })} to ${fmtDate(advanced.end, { long: true })}.`)}</p>
             <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={() => { cancelEarlyDeload(); useStore.getState().notify(L('Semaine allégée avancée annulée : le programme reprend son calendrier.', 'Early deload week cancelled: the program returns to its original schedule.')) }}>{L('Annuler', 'Cancel')}</Button>
@@ -793,12 +810,12 @@ export function SessionSummary() {
         </Section>
       )}
 
-      <Section icon={<Dumbbell />} title={L('Exercices', 'Exercises')}>
+      <Section art="dumbbell" title={L('Exercices', 'Exercises')}>
         <WorkoutExercises w={w} />
       </Section>
 
       <div className="mt-8 grid gap-2">
-        <Button variant="primary" size="lg" full onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
+        <Button variant="primary" size="lg" full icon={<House size={18} aria-hidden />} onClick={() => navigate('')}>{L('Retour à l’accueil', 'Back to home')}</Button>
       </div>
       {weekOpen && <WeekScheduleSheet weekDate={w.date} afterRestWorkout onClose={closeWeek} />}
     </Screen>
@@ -824,7 +841,7 @@ function ChangeRow({ c, unit, state, onApply, onRevert }: { c: AutoChange; unit:
       {state === 'applied' ? (
         <Button size="sm" variant="ghost" icon={<Undo2 size={14} aria-hidden />} onClick={onRevert}>{L('Annuler', 'Undo')}</Button>
       ) : state === 'open' ? (
-        <Button size="sm" variant="primary" onClick={onApply}>{L('Appliquer', 'Apply')}</Button>
+        <Button size="sm" variant="primary" icon={<Check size={16} aria-hidden />} onClick={onApply}>{L('Appliquer', 'Apply')}</Button>
       ) : null}
     </div>
   )
@@ -846,11 +863,12 @@ export function WorkoutExercises({ w }: { w: Workout }) {
       <Card className="divide-y divide-line">
         {w.exercises.map((e, i) => (
           <div key={`${e.exerciseId}-${i}`} className={cx('px-4 py-3.5', e.skipped && 'opacity-60')}>
-            <button type="button" onClick={() => setDemo(e.exerciseId)} className="block w-full text-left">
-              <span className="flex items-baseline justify-between gap-3">
+            <button type="button" onClick={() => setDemo(e.exerciseId)} className="pressable flex min-h-11 w-full items-center gap-2 text-left">
+              <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <span className="text-[15px] leading-5 font-medium">{e.name}</span>
-                <span className="shrink-0 text-[14px] font-semibold tnum">{e.skipped ? '—' : setsSummary(e.sets, e.unit)}</span>
+                <span className="text-[14px] font-semibold tnum">{e.skipped ? '—' : setsSummary(e.sets, e.unit)}</span>
               </span>
+              <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
             </button>
             {!e.skipped && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -880,7 +898,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       <Screen>
         <Header art="plate" title={L('Séance', 'Workout')} backTo="progres/seances" />
         <Empty art="calendar" title={L('Séance introuvable', 'Workout not found')}
-          action={<Button variant="outline" onClick={() => navigate('progres/seances')}>{L('Revenir à l’historique', 'Back to history')}</Button>}
+          action={<Button variant="outline" icon={<List size={18} aria-hidden />} onClick={() => navigate('progres/seances')}>{L('Revenir à l’historique', 'Back to history')}</Button>}
         >{L('Cette séance n’est plus disponible sur cet appareil. Retrouve les séances conservées dans ton historique.', 'This workout is no longer available on this device. Find your saved workouts in your history.')}</Empty>
       </Screen>
     )
@@ -902,7 +920,7 @@ export function WorkoutDetail({ id }: { id: string }) {
       {w.notes && <Card className="mb-4 p-4 text-[14px] leading-[1.5] text-text-2">{w.notes}</Card>}
       <WorkoutExercises w={w} />
       {changes.length > 0 && (
-        <Section icon={<SlidersHorizontal />} title={L('Programme ajusté après cette séance', 'Program adjusted after this workout')}>
+        <Section art="settings" title={L('Programme ajusté après cette séance', 'Program adjusted after this workout')}>
           <Card className="divide-y divide-line">
             {changes.map((c) => <ChangeRow key={c.id} c={c} unit={unitOf(w, c)} state={stateOf(c)} onApply={() => applyChanges([c.id])} onRevert={() => revertChange(c.id)} />)}
           </Card>
@@ -924,8 +942,8 @@ export function WorkoutDetail({ id }: { id: string }) {
         title={L('Corriger cette séance ?', 'Edit this workout?')}
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setFix(false)}>{L('Annuler', 'Cancel')}</Button>
-            <Button variant="primary" size="lg" className="flex-1" onClick={() => { setFix(false); if (reopenWorkout(w.id)) { notify(L('Séance rouverte : corrige, puis termine-la.', 'Workout reopened: edit it, then finish it.')); navigate('seance', { replace: true }) } }}>{L('Corriger', 'Correct')}</Button>
+            <Button variant="outline" size="lg" className="flex-1" icon={<X size={18} aria-hidden />} closeSheet onClick={() => setFix(false)}>{L('Annuler', 'Cancel')}</Button>
+            <Button variant="primary" size="lg" className="flex-1" icon={<Pencil size={18} aria-hidden />} closeSheet onClick={() => { setFix(false); if (reopenWorkout(w.id)) { notify(L('Séance rouverte : corrige, puis termine-la.', 'Workout reopened: edit it, then finish it.')); navigate('seance', { replace: true }) } }}>{L('Corriger', 'Correct')}</Button>
           </div>
         }
       >
@@ -941,8 +959,8 @@ export function WorkoutDetail({ id }: { id: string }) {
         title={L('Supprimer cette séance ?', 'Delete this workout?')}
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirm(false)}>{L('Annuler', 'Cancel')}</Button>
-            <Button variant="danger" size="lg" className="flex-1" onClick={() => { deleteWorkout(w.id); navigate('progres/seances', { replace: true }) }}>{L('Supprimer', 'Delete')}</Button>
+            <Button variant="outline" size="lg" className="flex-1" icon={<X size={18} aria-hidden />} closeSheet onClick={() => setConfirm(false)}>{L('Annuler', 'Cancel')}</Button>
+            <Button variant="danger" size="lg" className="flex-1" icon={<Trash size={18} aria-hidden />} closeSheet onClick={() => { deleteWorkout(w.id); navigate('progres/seances', { replace: true }) }}>{L('Supprimer', 'Delete')}</Button>
           </div>
         }
       >

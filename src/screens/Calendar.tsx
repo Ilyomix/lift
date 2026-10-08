@@ -1,6 +1,6 @@
 import { isNative } from '../lib/native/bridge'
 import { useMemo, useState } from 'react'
-import { BellRing, BookOpen, CalendarDays, CalendarPlus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CirclePause, ClipboardList, Flag, HelpCircle, NotebookPen, Play, RotateCcw } from 'lucide-react'
+import { BellRing, BookOpen, CalendarDays, CalendarPlus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, CirclePause, ClipboardList, Flag, HelpCircle, Play } from 'lucide-react'
 import { addDays, addMonths, capitalize, dayLetter, diffDays, fmtDate, fmtRelativeDay, monthKey, monthName, mondayOf, todayISO } from '../lib/date'
 import { plural } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -76,10 +76,11 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       />
       <div className="mt-4">
       {tab === 'programme' ? <ProgramContent /> : <>
+      <Card className="p-3 min-[400px]:p-4">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <SectionHeading>{expanded ? <>{capitalize(monthName(m - 1))} <span className="text-text-2">{y}</span></> : `${fmtDate(anchor)} – ${fmtDate(addDays(anchor, 6))}`}</SectionHeading>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          {(expanded ? month !== monthKey(today) : anchor !== mondayOf(today)) && <Button size="sm" onClick={() => setView(monthKey(today), mondayOf(today))}>{L('Aujourd’hui', 'Today')}</Button>}
+          {(expanded ? month !== monthKey(today) : anchor !== mondayOf(today)) && <Button size="sm" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setView(monthKey(today), mondayOf(today))}>{L('Aujourd’hui', 'Today')}</Button>}
           <IconButton label={expanded ? L('Mois précédent', 'Previous month') : L('Semaine précédente', 'Previous week')} onClick={() => move(-1)} className="border border-line-strong"><ChevronLeft size={18} aria-hidden /></IconButton>
           <IconButton label={expanded ? L('Mois suivant', 'Next month') : L('Semaine suivante', 'Next week')} onClick={() => move(1)} className="border border-line-strong"><ChevronRight size={18} aria-hidden /></IconButton>
         </div>
@@ -113,14 +114,14 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
                       expanded && !c.inMonth && 'opacity-35',
                       w.kind === 'deload' && !done ? 'border-line-strong' : 'border-line',
                       c.paused && !done && 'hatch',
-                      c.rest && 'border-dashed bg-surface',
+                      c.rest && 'border-dashed bg-surface-2',
                       c.isToday && 'border-signal ring-1 ring-signal',
                     )}
                   >
                     <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
                     {workoutName ? (
                       <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center gap-0.5 rounded-[5px] px-1 text-[10px] font-semibold', done ? 'bg-text text-bg' : active ? 'border border-signal bg-signal-soft text-signal-text' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
-                        {active && !done && <Play size={10} aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : workoutName}
+                        {active && !done && <Play size={10} className="hidden min-[400px]:block" aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : workoutName}
                       </span>
                     ) : c.paused || c.rest ? (
                       <span className="flex h-[22px] items-center text-[10px] font-medium text-text-2">{c.paused ? L('Pause', 'Pause') : L('Repos', 'Rest')}</span>
@@ -148,9 +149,10 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         {thisWeek.adaptedRest.length > 0 && <p className="mt-2 text-[13px] text-text-2">{L(`${thisWeek.completed + thisWeek.active + thisWeek.planned.length} séances cette semaine au lieu de ${thisWeek.target}. Tu peux déplacer un repos.`, `${thisWeek.completed + thisWeek.active + thisWeek.planned.length} workouts this week instead of ${thisWeek.target}. You can move a rest day.`)}</p>}
       </div>}
       <div className="mt-3 flex flex-wrap gap-2">
-        {!expanded && canEditWeekSchedule(anchor, today) && <Button className="flex-1" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setEditingWeek(anchor)}>{L('Séances et repos', 'Training & rest')}</Button>}
-        <Button className="flex-1" aria-expanded={expanded} onClick={() => setView(month, anchor, !expanded)} icon={expanded ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}>{expanded ? L('Réduire à la semaine', 'Show week') : L('Afficher le mois', 'Show month')}</Button>
+        {!expanded && canEditWeekSchedule(anchor, today) && <Button className="min-w-[150px] flex-1" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setEditingWeek(anchor)}>{L('Séances et repos', 'Training & rest')}</Button>}
+        <Button className="min-w-[150px] flex-1" aria-expanded={expanded} onClick={() => setView(month, anchor, !expanded)} icon={expanded ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}>{expanded ? L('Réduire à la semaine', 'Show week') : L('Afficher le mois', 'Show month')}</Button>
       </div>
+      </Card>
 
       {next.length > 0 && (
         <Section art="program" title={L('Prochaines étapes', 'Upcoming milestones')}>
@@ -191,7 +193,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       {milestone && <Sheet open onClose={() => setMilestone(null)} title={milestone.title} icon={<Flag size={18} aria-hidden />}>
         <p className="text-[13px] text-text-2">{fmtDate(milestone.date, { long: true, year: true })}{milestonePeriod && ` – ${fmtDate(milestonePeriod.end, { long: true, year: true })}`}</p>
         <p className="mt-3 text-[15px] leading-relaxed">{milestone.detail}</p>
-        <Button variant="outline" full className="mt-5" onClick={() => { setMilestone(null); navigate('calendrier/programme', { replace: true, transition: 'none' }) }}>{L('Voir le programme', 'View program')} <ChevronRight size={16} aria-hidden /></Button>
+        <Button variant="outline" full className="mt-5" closeSheet onClick={() => { setMilestone(null); navigate('calendrier/programme', { replace: true, transition: 'none' }) }}>{L('Voir le programme', 'View program')} <ChevronRight size={16} aria-hidden /></Button>
       </Sheet>}
       </>}
       </div>
@@ -241,17 +243,17 @@ export function PauseScreen() {
             {p.plannedEnd && <p className="mt-1 text-[13px] text-text-2">{L('Reprise prévue le', 'Planned return:')} {fmtDate(addDays(p.plannedEnd, 1), { weekday: true, long: true })}</p>}
             {p.note && <p className="mt-1 text-[13px] text-text-2">{p.note}</p>}
           </Card>
-          <Section icon={<RotateCcw size={18} aria-hidden />} title={L('À la reprise', 'When you return')}>
+          <Section art="program" title={L('À la reprise', 'When you return')}>
             <Card className="p-4">
               <p className="text-[15px] font-semibold">{preview ? preview.label : L('Reprise normale', 'Normal return')}</p>
               <p className="mt-1 text-[14px] leading-[1.45] text-text-2">{preview ? preview.advice : L('Moins d’une semaine d’arrêt : la rotation reprend là où elle s’est arrêtée, sans ajustement.', 'Less than a week off: the rotation picks up where it left off, with no adjustment.')}</p>
             </Card>
           </Section>
-          <Button variant="primary" size="lg" full className="mt-6" onClick={() => { endPause(); navigate('') }}>{L('Reprendre le programme', 'Resume the program')}</Button>
+          <Button variant="primary" size="lg" full className="mt-6" icon={<Play size={18} aria-hidden />} onClick={() => { endPause(); navigate('') }}>{L('Reprendre le programme', 'Resume the program')}</Button>
         </>
       ) : (
         <>
-          <Section icon={<CirclePause size={18} aria-hidden />} title={L('Raison', 'Reason')} className="mt-0">
+          <Section art="pause" title={L('Raison', 'Reason')} className="mt-0">
             <div className="flex flex-wrap gap-2">
               {REASONS.map((r) => (
                 <button key={r.id} type="button" aria-pressed={reason === r.id} onClick={() => setReason(r.id)} className={cx('pressable min-h-11 rounded-full border px-4 text-[14px] font-semibold', reason === r.id ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2')}>
@@ -260,7 +262,7 @@ export function PauseScreen() {
               ))}
             </div>
           </Section>
-          <Section icon={<CalendarDays size={18} aria-hidden />} title={L('Dernier jour de pause (facultatif)', 'Last day of the pause (optional)')}>
+          <Section art="calendar" title={L('Dernier jour de pause (facultatif)', 'Last day of the pause (optional)')}>
             <DateInput label={L('Dernier jour de pause', 'Last day of the pause')} value={end} min={today} max={GOAL_DATE} onChange={setEnd} placeholder={L('Sans date de reprise', 'No return date')} clearable />
             <div className="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4">
               {[3, 7, 14, 21].map((n) => {
@@ -274,7 +276,7 @@ export function PauseScreen() {
             </div>
             {plannedGap !== null && <p className="mt-2 text-[13px] text-text-2">{L('Reprise le', 'Back on')} {fmtDate(addDays(end, 1), { weekday: true, long: true })}. {reentryForGap(plannedGap)?.advice ?? L('Moins d’une semaine : reprise normale.', 'Less than a week: normal return.')}</p>}
           </Section>
-          <Section icon={<NotebookPen size={18} aria-hidden />} title="Note">
+          <Section art="logbook" title="Note">
             <input aria-label={L('Note de pause', 'Pause note')} className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('Ex. : épaule gauche à surveiller', 'E.g. keep an eye on left shoulder')} />
           </Section>
           <Button variant="ink" size="lg" full className="mt-6" icon={<CirclePause size={18} aria-hidden />} onClick={() => { startPause({ reason, plannedEnd: end || null, note: note || undefined }); navigate('') }}>

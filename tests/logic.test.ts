@@ -1610,8 +1610,10 @@ test('priority zones: asked at the onboarding, and the goal screen says what the
   // Anything else than three known zones, each once, is dropped.
   const odd = stateFromOnboarding({ ...answers, zones: ['bras', 'bras', 'cou', 'dos', 'abdos', 'mollets'] as never }, '2026-10-07')
   assert.deepEqual(odd.visualGoal?.zones, ['bras', 'dos', 'abdos'])
-  // Maintenance mode has no visual goal: nothing tagged.
-  assert.equal(stateFromOnboarding({ ...answers, zones: ['bras'], maintenance: true }, '2026-10-07').visualGoal, null)
+  // Maintenance keeps preferences and priorities without applying a dated cut.
+  const upkeep = stateFromOnboarding({ ...answers, zones: ['bras'], maintenance: true }, '2026-10-07')
+  assert.deepEqual(upkeep.visualGoal, { look: answers.look, zones: ['bras'], bodyFat: null })
+  assert.deepEqual(upkeep.templates, tagPriorities(plain.templates, ['bras']))
 
   // What the zones change: exactly the exercises the sessions tag, one per zone and per session.
   const sets = prioritySets(s.templates, ['bras', 'jambes'])
@@ -1833,7 +1835,7 @@ test('maintenance mode: onboarding without a goal date, and backups keep the mod
   const s = stateFromOnboarding({ ...answers, maintenance: true }, '2026-10-07')
   assert.equal(s.settings.maintenance, true)
   assert.equal(s.settings.goalDate, '2027-07-31', 'kept for later')
-  assert.equal(s.visualGoal, null)
+  assert.deepEqual(s.visualGoal, { look: answers.look, zones: [], bodyFat: null })
   assert.equal(s.nutritionTargets.calories, preview.calories)
   assert.equal(normalizeState(JSON.parse(JSON.stringify(s))).settings.maintenance, true)
   assert.equal(normalizeState(JSON.parse(JSON.stringify(stateFromOnboarding(answers, '2026-10-07')))).settings.maintenance, undefined)

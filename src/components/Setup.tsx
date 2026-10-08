@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Check, Dumbbell, House, ListChecks, MapPin } from 'lucide-react'
+import { Check, Dumbbell, House, MapPin } from 'lucide-react'
 import { L } from '../lib/i18n'
 import { LIBRARY } from '../lib/library'
 import { sessionItems } from '../lib/program'
 import { useStore } from '../lib/store'
 import type { Equipment, TrainingSetup } from '../lib/types'
+import { SportArt } from './SportArt'
 import { Button, cx, Disclosure, SectionHeading, Sheet } from './ui'
 
 /** Home equipment, in the order people usually own it. */
@@ -59,7 +60,7 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
       </div>
       {value.place === 'home' && (
         <div className="mt-6">
-          <SectionHeading icon={<Dumbbell size={18} aria-hidden />}>{L('Ton matériel', 'Your equipment')}</SectionHeading>
+          <SectionHeading icon={<SportArt kind="kit" size="title" />}>{L('Ton matériel', 'Your equipment')}</SectionHeading>
           <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label={L('Ton matériel', 'Your equipment')}>
             {EQUIPMENT.map((e) => {
               const on = value.equipment.includes(e.id)
@@ -88,7 +89,7 @@ export function SetupPicker({ value, onChange }: { value: TrainingSetup; onChang
           </p>
         </div>
       )}
-      <Disclosure icon={<ListChecks size={18} aria-hidden />} title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
+      <Disclosure icon={<SportArt kind="program" size="title" />} title={L('Voir les exercices prévus', 'See the planned exercises')} className="mt-5" contentClassName="text-[13px] leading-[1.5] text-text-2">
         <p>{L('Exemple : séance Upper (haut du corps).', 'Example: Upper workout.')}</p>
         <ul className="mt-2 space-y-1">{example.map((name, i) => <li key={name}>{i + 1}. {name}</li>)}</ul>
       </Disclosure>
@@ -113,7 +114,7 @@ export function SetupSheet({ onClose }: { onClose: () => void }) {
       icon={<MapPin size={18} aria-hidden />}
       title={L('Lieu d’entraînement', 'Where you train')}
       tall
-      footer={<Button variant="primary" size="lg" full disabled={!changed} onClick={save}>{L('Enregistrer', 'Save')}</Button>}
+      footer={<Button variant="primary" size="lg" full icon={<Check size={18} aria-hidden />} disabled={!changed} closeSheet onClick={save}>{L('Enregistrer', 'Save')}</Button>}
     >
       <SetupPicker value={draft} onChange={setDraft} />
       <p className="mt-4 text-[12px] leading-[1.45] text-muted">

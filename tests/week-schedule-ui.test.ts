@@ -3,6 +3,7 @@ import { afterEach, beforeEach, test } from 'node:test'
 import React, { createElement, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { WeekScheduleSheet } from '../src/components/WeekScheduleSheet'
+import { Button } from '../src/components/ui'
 import { defaultState } from '../src/lib/backup'
 import { fmtDate } from '../src/lib/date'
 import { lang, setLang } from '../src/lib/i18n'
@@ -73,7 +74,11 @@ test('restoring usual days reopens the sheet on saved training days, not a new r
 
   const reset = findAction(sheet.props.children, 'Rétablir les jours habituels')
   assert.ok(reset, 'the saved exception exposes its real reset action')
-  reset.props.onClick()
+  // Run the real Button's validation-before-exit contract. This component test
+  // uses the default immediate close context; motion is covered separately.
+  const previous = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.H
+  ;(React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.H = { useContext: () => (action: () => void, validate?: () => boolean) => { if (!validate || validate()) action() } }
+  try { Button(reset.props).props.onClick?.({ preventDefault() {} } as any) } finally { (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.H = previous }
   assert.equal(closed, true)
   assert.equal(store().state.workouts, history, 'reset preserves workout history')
   assert.equal(store().state.weekSchedules, undefined)

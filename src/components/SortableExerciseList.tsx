@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type Modifier, type UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Pencil } from 'lucide-react'
 import { fmtLoad, fmtRest } from '../lib/format'
 import { L } from '../lib/i18n'
 import type { TemplateExercise } from '../lib/types'
@@ -80,8 +80,9 @@ export function SortableExerciseList({ exercises, inSession, onEdit, onMove }: P
 function SortableExerciseRow({ id, exercise, sets, disabled, onEdit }: { id: string; exercise: TemplateExercise; sets: number; disabled: boolean; onEdit: () => void }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled, attributes: { roleDescription: L('Exercice déplaçable', 'Sortable exercise') } })
   return <div ref={setNodeRef} role="listitem" style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined, transition }} className={cx('relative flex items-center gap-2 bg-surface px-3 py-2.5 first:rounded-t-[14px] last:rounded-b-[14px]', isDragging && 'opacity-30')}>
-    <button type="button" onClick={onEdit} className="pressable min-w-0 flex-1 rounded-[8px] px-1 py-1 text-left hover:bg-surface-2">
-      <ExerciseSummary exercise={exercise} sets={sets} />
+    <button type="button" onClick={onEdit} className="pressable flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[8px] px-1 py-1 text-left hover:bg-surface-2">
+      <span className="min-w-0 flex-1"><ExerciseSummary exercise={exercise} sets={sets} /></span>
+      <Pencil size={16} className="shrink-0 text-muted" aria-hidden />
     </button>
     <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} disabled={disabled} aria-label={L(`Déplacer ${exercise.name}`, `Move ${exercise.name}`)} className="flex h-11 w-11 shrink-0 touch-none items-center justify-center rounded-[10px] text-text-2 select-none hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-35 cursor-grab active:cursor-grabbing">
       <GripVertical size={20} aria-hidden />

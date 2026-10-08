@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Settings } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { L } from '../lib/i18n'
@@ -52,6 +53,6 @@ export function NativeActivitySettings() {
       checked={prefs.notifications && permission} onChange={v => { if (v) void enableAlerts(); else setPrefs({ notifications: false }) }} />
     {!ios && <Row label={L('Précision du minuteur', 'Timer accuracy')}
       hint={L('Autorise les alarmes et rappels pour recevoir l’alerte au bon moment en arrière-plan.', 'Allow alarms and reminders for timely background alerts.')}
-      right={<Button size="sm" variant="soft" onClick={() => void LocalNotifications.changeExactNotificationSetting().catch(() => notify(L('Ouvre les autorisations de Lift dans les réglages de l’appareil.', 'Open Lift permissions in your device settings.')))}>{L('Réglages', 'Settings')}</Button>} />}
+      right={<Button size="sm" variant="soft" icon={<Settings size={16} aria-hidden />} onClick={() => void LocalNotifications.changeExactNotificationSetting().catch(() => notify(L('Ouvre les autorisations de Lift dans les réglages de l’appareil.', 'Open Lift permissions in your device settings.')))}>{L('Réglages', 'Settings')}</Button>} />}
   </>
 }

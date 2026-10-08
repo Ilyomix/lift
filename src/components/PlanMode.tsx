@@ -1,45 +1,12 @@
-import { Flag, Infinity as InfinityIcon } from 'lucide-react'
 import { L } from '../lib/i18n'
-import { cx } from './ui'
+import { Segmented } from './ui'
 
 export type PlanMode = 'goal' | 'maintenance'
 
 /** A dated goal (recomposition, cut, stabilization) or maintenance: training with no end date. */
 export function PlanModePicker({ value, onChange }: { value: PlanMode; onChange: (m: PlanMode) => void }) {
-  const options = [
-    {
-      id: 'goal' as const,
-      icon: Flag,
-      title: L('Date objectif', 'Goal date'),
-      text: L('Un physique visé à une date : recomposition, sèche, stabilisation.', 'A target physique by a date: recomposition, cut, stabilization.'),
-    },
-    {
-      id: 'maintenance' as const,
-      icon: InfinityIcon,
-      title: L('Entretien', 'Maintenance'),
-      text: L('Sans date : blocs et semaines allégées en continu, calories pour un poids stable.', 'No end date: training blocks and deload weeks, with maintenance calories.'),
-    },
-  ]
-  return (
-    <div className="grid gap-2 min-[380px]:grid-cols-2" role="group" aria-label={L('Type de plan', 'Plan type')}>
-      {options.map(({ id, icon: Icon, title, text }) => {
-        const on = id === value
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(id)}
-            className={cx('pressable card flex min-w-0 flex-col items-start gap-2 p-3.5 text-left', on ? 'border-signal shadow-[0_0_0_1px_var(--signal)]' : 'hover:border-line-strong')}
-          >
-            <span className="flex max-w-full items-start gap-2">
-              <Icon size={18} className={cx('mt-0.5 shrink-0', on ? 'text-signal-text' : 'text-text-2')} aria-hidden />
-              <span className="min-w-0 text-[15px] leading-[1.4] font-semibold">{title}</span>
-            </span>
-            <span className="text-[12px] leading-[1.4] text-text-2">{text}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
+  return <Segmented label={L('Durée du programme', 'Program duration')} value={value} onChange={onChange} layout="fit" options={[
+    { value: 'maintenance', label: L('Sans date limite', 'No deadline') },
+    { value: 'goal', label: L('Avec date cible', 'With a target date') },
+  ]} />
 }

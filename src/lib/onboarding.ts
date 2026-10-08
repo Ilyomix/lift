@@ -23,7 +23,7 @@ export interface OnboardingAnswers {
   zones?: Zone[]
   /** Kept in maintenance mode: offered again if the user sets a goal later. */
   goalDate: ISODate
-  /** Maintenance mode: no goal date and no look — blocks and deloads with no end, calories at maintenance. */
+  /** Maintenance mode: visual preferences without a deadline or cut, calories at maintenance. */
   maintenance?: boolean
 }
 
@@ -130,8 +130,12 @@ export function stateFromOnboarding(a: OnboardingAnswers, today: ISODate = today
     nutritionTargets: { ...s.nutritionTargets, calories: preview.calories, proteinMin: round(1.95 * w, 5), proteinMax: round(2.05 * w, 5), adaptive: true },
     meta: { ...s.meta, createdAt: new Date().toISOString() },
   }
-  if (!preview.plan) return withTargets
   const zones = (a.zones ?? []).filter((z, i, all) => ZONES.some((x) => x.id === z) && all.indexOf(z) === i).slice(0, MAX_ZONES)
+  if (!preview.plan) return {
+    ...withTargets,
+    visualGoal: { look: a.look, zones, bodyFat: null },
+    templates: tagPriorities(withTargets.templates, zones),
+  }
   return {
     ...withTargets,
     visualGoal: { look: a.look, zones, bodyFat: null, cutWeeks: preview.plan.cutWeeks },
