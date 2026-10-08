@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, Camera, ChartColumn, Check, ChevronLeft, ChevronRight, Columns2, Dumbbell, History, MapPin, Play, Plus, Ruler, Trash, X } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, ChartColumn, Check, ChevronLeft, ChevronRight, Columns2, Dumbbell, History, MapPin, Play, Plus, Ruler, Trash, X, ZoomIn } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid, unitLabel } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -393,6 +393,7 @@ function Photos() {
         {photos.map((p) => (
           <button key={p.id} type="button" onClick={() => setView(p.id)} className="pressable relative aspect-[3/4] overflow-hidden rounded-[10px] bg-surface-2">
             <img src={p.dataUrl} alt={L(`Photo du ${fmtDate(p.date)}`, `Photo from ${fmtDate(p.date)}`)} className="h-full w-full object-cover" loading="lazy" />
+            <span className="pointer-events-none absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/60 text-white" aria-hidden><ZoomIn size={16} /></span>
             <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pt-6 pb-1.5 text-left text-[11px] font-semibold text-white">{fmtDate(p.date)}</span>
           </button>
         ))}

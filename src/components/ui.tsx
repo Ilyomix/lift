@@ -533,7 +533,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall }: { 
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    // Focusing the panel itself can block WKWebView touch scrolling; keep focus on a control.
+    // Start on an explicit autofocus target or Close, keeping the dialog's first action reachable.
     const focusFrame = requestAnimationFrame(() => { if (sheetPanels.at(-1) === panel) (panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel.querySelector<HTMLElement>('[data-sheet-handle] button') ?? panel).focus({ preventScroll: true }) })
     return () => {
       cancelAnimationFrame(focusFrame)

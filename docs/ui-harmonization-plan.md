@@ -51,6 +51,13 @@ Restent la validation physique du build réellement installé, Live Activity/Dyn
 
 Complément du code local destiné au build34 : icônes ajoutées aux vues du modèle, aux onglets Progrès et Calendrier/Programme, et aux cinq aperçus de séance. Captures `iab-icons-*` : quatre groupes vérifiés à 320 px EN sombre, Progrès/modèle à 320 px FR clair, Progrès à 1024 px FR clair. Leur dossier `build33/qa` ne change pas cette provenance locale34. Le profil fictif IAB a été restauré (0 séance, 1 mesure, 0 photo), puis langue/thème changés volontairement pour la matrice.
 
-Le correctif de défilement retenu garde `overscroll-contain` et donne le focus initial au contrôle Fermer, avec priorité au `data-autofocus` explicite. La variante isolée a rétabli le défilement du volet Mesures ; 31 tests ciblés Sheet/gestes/Field et typecheck passent. Revalidation native du code intégré, physique et livraison restent distinctes et non acquises par ces preuves.
+Le focus initial est placé sur le contrôle Fermer, avec priorité au `data-autofocus` explicite ; `overscroll-contain` reste présent. Cette adaptation ne corrige pas le blocage natif à elle seule. La variante isolée a rétabli le défilement du volet Mesures ; 31 tests ciblés Sheet/gestes/Field et typecheck passent. Revalidation native du code intégré, physique et livraison restent distinctes et non acquises par ces preuves.
 
 Contrôle final intégré local34 : 446 tests réussis et 1 ignoré (447 au total). Focus/trap/Escape/restauration vérifiés dans l’IAB réel ; aucune extension de cette preuve au natif physique. À 21 h 06 Paris, authentification App Store Connect et iPhone verrouillé empêchent de confirmer la suite de la livraison.
+
+
+## État après compilation 34
+
+Le build 34 figé (`4245a32`) est archivé et signé ; le site public sert cette source. **La fiche exercice native ne défile pas toujours au premier geste**, même après réouverture et attente. Le deuxième geste fonctionne. Les essais isolés de focus différé, animation d’entrée, attachement des écouteurs et animation 3D statique n’apportent pas de correction reproductible ; aucun de ces essais n’est intégré au code. Le simulateur est restauré sur le binaire 34 original. La cause exacte reste ouverte et le build 34 n’a pas été envoyé à Apple.
+
+L’ultime contrôle des actions a ajouté un pictogramme de zoom aux vignettes de photos de progression : elles ouvrent un aperçu et ne sont pas de simples choix de valeur. Les boutons d’action et onglets examinés ont leur icône. Typecheck réussi ; pas de nouveau test logique pour cet ajout décoratif. La validation physique et la livraison Apple restent à faire, avec reconnexion App Store Connect et appareil disponible. Le goal reste actif.
