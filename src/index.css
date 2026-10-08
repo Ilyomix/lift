@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+.segmented {
+  --scroll-fade-start: 0px;
+  --scroll-fade-end: 0px;
+  mask-image: linear-gradient(to right, transparent, #000 var(--scroll-fade-start), #000 calc(100% - var(--scroll-fade-end)), transparent);
+}
+.segmented[data-scroll-start='true'] { --scroll-fade-start: 24px; }
+.segmented[data-scroll-end='true'] { --scroll-fade-end: 24px; }
+
 /* ───────────────────────── Fonts ───────────────────────── */
 
 @font-face {

@@ -253,24 +253,49 @@ export function Disclosure({ title, icon, children, className, contentClassName,
 }
 
 export function Segmented<T extends string>({ value, options, onChange, className, label, disabled, layout = 'fit' }: { value: T | undefined; options: { value: T; label: ReactNode; icon?: ReactNode }[]; onChange: (v: T) => void; className?: string; label: string; disabled?: boolean; layout?: 'scroll' | 'fit' }) {
+  const groupRef = useRef<HTMLDivElement>(null)
+  const selected = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    const group = groupRef.current
+    if (!group) return
+    const update = () => {
+      group.dataset.scrollStart = String(group.scrollLeft > 1)
+      group.dataset.scrollEnd = String(group.scrollWidth - group.clientWidth - group.scrollLeft > 1)
+    }
+    const observer = new ResizeObserver(update)
+    observer.observe(group)
+    for (const button of group.children) observer.observe(button)
+    group.addEventListener('scroll', update, { passive: true })
+    update()
+    return () => { observer.disconnect(); group.removeEventListener('scroll', update) }
+  }, [options.length])
+  useLayoutEffect(() => {
+    const button = selected.current, group = button?.parentElement
+    if (!button || !group) return
+    const item = button.getBoundingClientRect(), bounds = group.getBoundingClientRect()
+    const left = bounds.left + (button.previousElementSibling ? 24 : 0)
+    const right = bounds.right - (button.nextElementSibling ? 24 : 0)
+    group.scrollLeft += item.left < left ? item.left - left : Math.max(0, item.right - right)
+  }, [value])
   return (
-    <div role="group" aria-label={label} className={cx('flex w-full min-w-0 gap-1 overflow-x-auto no-scrollbar', layout === 'scroll' && '-mx-4 px-4', className)}>
+    <div ref={groupRef} role="group" aria-label={label} className={cx('segmented flex w-full min-w-0 gap-1 overflow-x-auto no-scrollbar', layout === 'scroll' && '-mx-4 px-4', className)}>
       {options.map((o) => {
         const active = o.value === value
         return (
           <button
             key={o.value}
+            ref={active ? selected : undefined}
             type="button"
             aria-pressed={active}
             disabled={disabled}
             onClick={() => onChange(o.value)}
             className={cx(
-              'pressable rounded-full border text-[13px] font-semibold leading-5 disabled:opacity-40 disabled:pointer-events-none',
-              layout === 'fit' ? 'min-h-11 min-w-max flex-1 px-1.5 py-2 whitespace-nowrap' : 'h-11 shrink-0 px-4 whitespace-nowrap',
+              'pressable inline-flex min-h-11 items-center justify-center rounded-full border px-3.5 py-2 text-[13px] font-semibold leading-5 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none',
+              layout === 'fit' ? 'min-w-max flex-1' : 'shrink-0',
               active ? 'border-text bg-text text-bg' : 'border-line-strong text-text-2 hover:text-text',
             )}
           >
-            {o.icon ? <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+            {o.icon ? <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
               <span className="inline-flex size-4 shrink-0 [&>svg]:size-4" aria-hidden>{o.icon}</span>
               <span className="min-w-0">{o.label}</span>
             </span> : o.label}
