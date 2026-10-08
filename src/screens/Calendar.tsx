@@ -144,8 +144,8 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
       </div>
 
       {!expanded && <div className="mt-3">
-        <p className="text-[13px] text-text-2">{L(`${thisWeek.completed} terminées · ${thisWeek.planned.length} à venir`, `${thisWeek.completed} done · ${thisWeek.planned.length} upcoming`)} <span className="text-muted">· {L(`Objectif : ${thisWeek.target}`, `Target: ${thisWeek.target}`)}</span></p>
-        {thisWeek.adaptedRest.length > 0 && <p className="mt-2 text-[13px] text-text-2">{L('Une séance supplémentaire est prévue. Déplace ton repos ou conserve-la.', 'An extra workout is planned. Move your rest day or keep it.')}</p>}
+        <p className="text-[13px] text-text-2">{[L(`${thisWeek.completed} terminées`, `${thisWeek.completed} done`), ...(thisWeek.active ? [L(`${thisWeek.active} en cours`, `${thisWeek.active} in progress`)] : []), L(`${thisWeek.planned.length} à venir`, `${thisWeek.planned.length} upcoming`)].join(' · ')} <span className="text-muted">· {L(`Objectif : ${thisWeek.target}`, `Target: ${thisWeek.target}`)}</span></p>
+        {thisWeek.adaptedRest.length > 0 && <p className="mt-2 text-[13px] text-text-2">{L(`${thisWeek.completed + thisWeek.active + thisWeek.planned.length} séances cette semaine au lieu de ${thisWeek.target}. Tu peux déplacer un repos.`, `${thisWeek.completed + thisWeek.active + thisWeek.planned.length} workouts this week instead of ${thisWeek.target}. You can move a rest day.`)}</p>}
       </div>}
       <div className="mt-3 flex flex-wrap gap-2">
         {!expanded && canEditWeekSchedule(anchor, today) && <Button className="flex-1" icon={<CalendarDays size={16} aria-hidden />} onClick={() => setEditingWeek(anchor)}>{L('Séances et repos', 'Training & rest')}</Button>}

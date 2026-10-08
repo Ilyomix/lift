@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
 import { defaultState, makeBackup, normalizeState, normalizeWeekSchedules, parseBackup } from '../src/lib/backup'
 import { addDays, weekday } from '../src/lib/date'
-import { configurePlan, DEFAULT_GOAL, isRestDay, projectSessions, weekSchedule } from '../src/lib/program'
+import { calendarMonth, configurePlan, DEFAULT_GOAL, isRestDay, pauseDays, projectSessions, weekSchedule } from '../src/lib/program'
+import { weekStrip } from '../src/lib/stats'
 import { canEditWeekSchedule } from '../src/components/WeekScheduleSheet'
 import { useStore } from '../src/lib/store'
 import type { ActiveWorkout, Workout } from '../src/lib/types'
@@ -52,6 +53,67 @@ test('future empty weeks and resets are explicit and scoped to one week', () => 
   const before = state()
   assert.equal(actions().setWeekSchedule('2026-10-19', null), true)
   assert.equal(state(), before)
+})
+
+test('restoring usual days removes moved rest in every view and backup without rewriting the completed rest-day workout', () => {
+  const completed = [workout('monday', WEEK), workout('tuesday', '2026-10-06'), workout('rest-day', TODAY)]
+  useStore.setState({ state: { ...state(), workouts: completed, nextWorkoutType: 'LOWER' } })
+  configurePlan(END, null, null, null, { start: '2026-09-28', foundation: null })
+  const baseline = structuredClone(state())
+  const expected = projectSessions(state(), '2026-10-11', TODAY)
+  assert.equal(actions().setWeekSchedule(WEEK, [5, 6]), true)
+  assert.equal(isRestDay(state(), '2026-10-08', TODAY), true)
+  assert.equal(projectSessions(state(), '2026-10-11', TODAY)[0].date, '2026-10-09')
+
+  assert.equal(actions().setWeekSchedule(WEEK, null), true)
+  assert.deepEqual(state(), baseline, 'reset restores the original state, including every completed workout')
+  for (const current of [state(), parseBackup(JSON.stringify(makeBackup(state(), []))).state]) {
+    assert.equal(current.weekSchedules, undefined, 'the removed exception must not return on reload')
+    const summary = weekSchedule(current, TODAY, TODAY)
+    const planned = projectSessions(current, '2026-10-11', TODAY)
+    assert.deepEqual(planned, expected)
+    assert.equal(summary.customized, false)
+    assert.equal(summary.target, 5)
+    assert.deepEqual(summary.planned, ['2026-10-08', '2026-10-09', '2026-10-10'])
+    assert.deepEqual(summary.adaptedRest, ['2026-10-08'], 'a recovery suggestion is not the saved schedule')
+    assert.equal(planned[0].type, 'LOWER', 'resetting weekdays never rewinds the workout rotation')
+    const calendar = calendarMonth(current, '2026-10', planned, TODAY).flatMap(week => week.cells)
+    const home = weekStrip(current, planned, pauseDays(current, TODAY), TODAY)
+    for (const view of [calendar, home]) {
+      const restored = view.find(day => day.date === '2026-10-08')!
+      assert.equal(restored.rest, false)
+      assert.ok(restored.planned)
+      const trained = view.find(day => day.date === TODAY)!
+      assert.equal(trained.done.length, 1)
+      assert.equal(trained.rest, false, 'completed training takes precedence over the usual rest day')
+    }
+  }
+})
+
+test('restoring usual days preserves an active rest-day workout, and discarding it restores rest without a ghost slot', () => {
+  const completed = [workout('monday', WEEK), workout('tuesday', '2026-10-06')]
+  useStore.setState({ state: { ...state(), workouts: completed, nextWorkoutType: 'LOWER' } })
+  configurePlan(END, null, null, null, { start: '2026-09-28', foundation: null })
+  const baseline = structuredClone(state())
+  actions().startSession('LOWER')
+  const active = state().activeWorkout!
+  assert.equal(actions().setWeekSchedule(WEEK, [5, 6]), true)
+  assert.equal(actions().setWeekSchedule(WEEK, null), true)
+  assert.equal(state().activeWorkout, active)
+  assert.equal(state().workouts, completed)
+  assert.equal(state().nextWorkoutType, 'LOWER')
+  assert.equal(isRestDay(state(), TODAY, TODAY), false)
+  assert.equal(isRestDay(state(), '2026-10-08', TODAY), false)
+  assert.equal(projectSessions(state(), '2026-10-11', TODAY)[0].type, 'PUSH', 'the active workout still occupies its place in the rotation')
+  const restored = parseBackup(JSON.stringify(makeBackup(state(), []))).state
+  assert.equal(restored.weekSchedules, undefined)
+  assert.equal(restored.activeWorkout?.id, active.id)
+  assert.equal(weekSchedule(restored, TODAY, TODAY).active, 1)
+
+  actions().discardSession()
+  assert.deepEqual(state(), baseline)
+  assert.equal(isRestDay(state(), TODAY, TODAY), true)
+  assert.equal(projectSessions(state(), '2026-10-11', TODAY)[0].type, 'LOWER')
 })
 
 test('a reopened workout is counted once and invalid or retroactive edits leave state untouched', () => {

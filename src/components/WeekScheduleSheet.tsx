@@ -22,13 +22,12 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
   const dates = Array.from({ length: 7 }, (_, i) => addDays(week.monday, i))
   const occupied = new Set(state.workouts.map(w => w.date))
   if (state.activeWorkout && !state.activeWorkout.reopened) occupied.add(state.activeWorkout.date)
-  const [selected, setSelected] = useState<ISODate[]>(() => week.adaptedRest.length ? week.suggested : week.planned)
+  const [selected, setSelected] = useState<ISODate[]>(() => week.planned)
   const [error, setError] = useState(false)
   const total = week.completed + week.active + selected.length
-  const originalTotal = week.completed + week.active + week.planned.length
   const save = (days: number[] | null) => {
     if (!useStore.getState().setWeekSchedule(week.monday, days)) { setError(true); return }
-    useStore.getState().notify(L('Planning de la semaine enregistré.', 'Weekly schedule saved.'))
+    useStore.getState().notify(days === null ? L('Jours habituels rétablis.', 'Usual days restored.') : L('Planning de la semaine enregistré.', 'Weekly schedule saved.'))
     onClose()
   }
   return <Sheet open onClose={onClose} title={afterRestWorkout ? L('Où placer ton repos ?', 'When would you like to rest?') : L('Organiser la semaine', 'Plan your week')} icon={<SportArt kind="calendar" size="title" />}
@@ -37,10 +36,6 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
     <p className="mt-3 text-[15px] leading-relaxed">{afterRestWorkout
       ? L('Tu t’es entraîné un jour de repos. Choisis les jours de tes prochaines séances cette semaine.', 'You trained on a rest day. Choose your remaining workout days this week.')
       : L('Touche un jour à venir pour alterner séance et repos.', 'Tap an upcoming day to switch between training and rest.')}</p>
-    {week.adaptedRest.length > 0 && <div className="mt-4 grid grid-cols-2 gap-2">
-      <Button variant={selected.join() === week.suggested.join() ? 'ink' : 'outline'} className="whitespace-normal" aria-pressed={selected.join() === week.suggested.join()} onClick={() => setSelected(week.suggested)}>{week.completed + week.active >= week.target ? L('Ne plus prévoir de séance', 'No more workouts this week') : L(`Rester à ${week.target} séances`, `Keep ${week.target} workouts`)}</Button>
-      <Button variant={selected.join() === week.planned.join() ? 'ink' : 'outline'} className="whitespace-normal" aria-pressed={selected.join() === week.planned.join()} onClick={() => setSelected(week.planned)}>{L(`Garder ${originalTotal} séances`, `Keep ${originalTotal} workouts`)}</Button>
-    </div>}
     <div className="mt-5 grid grid-cols-7 gap-1" aria-label={L('Jours de la semaine', 'Days of the week')}>
       {dates.map(date => {
         const done = state.workouts.some(w => w.date === date)
@@ -62,7 +57,7 @@ export function WeekScheduleSheet({ weekDate, onClose, afterRestWorkout = false 
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1">
       <p className="text-[15px] font-semibold" aria-live="polite">{L(`${plural(total, 'séance', 'séances')} cette semaine`, `${plural(total, 'workout', 'workouts')} this week`)}</p>
-      <p className="text-[13px] text-text-2">{L(`${week.completed} terminées · ${selected.length} à venir`, `${week.completed} done · ${selected.length} upcoming`)}</p>
+      <p className="text-[13px] text-text-2">{[L(`${week.completed} terminées`, `${week.completed} done`), ...(week.active ? [L(`${week.active} en cours`, `${week.active} in progress`)] : []), L(`${selected.length} à venir`, `${selected.length} upcoming`)].join(' · ')}</p>
     </div>
     <p className="mt-3 text-[13px] leading-relaxed text-text-2">{L('Les séances terminées restent en place. Les dates des blocs et de ton objectif ne changent pas.', 'Completed workouts stay in place. Your program blocks and goal date stay unchanged.')}</p>
     {week.customized && <Button full variant="outline" className="mt-4" icon={<RotateCcw size={16} aria-hidden />} onClick={() => save(null)}>{L('Rétablir les jours habituels', 'Restore usual days')}</Button>}

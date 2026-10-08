@@ -65,3 +65,17 @@ test('returning from a workout preserves saved week, month expansion and the wee
   assert.match(expanded, /Show week/)
   assert.equal(render(saved), compact, 'collapsing or restoring the history entry returns to the same week')
 })
+
+test('week summary includes an active workout and gives the exact total above the weekly target', () => {
+  const snapshot = useStore.getInitialState()
+  snapshot.state = { ...snapshot.state, activeWorkout: {
+    id: 'active', date: '2026-10-07', type: 'PULL', startedAt: '2026-10-07T12:00:00Z',
+    exercises: [], notes: '', timer: null, timerEndAt: null,
+  }, workouts: ['2026-10-05', '2026-10-05', '2026-10-06'].map((date, i) => ({
+    id: `done-${i}`, date, type: 'UPPER', sessionNumber: i + 1, startedAt: `${date}T10:00:00Z`,
+    completedAt: `${date}T11:00:00Z`, exercises: [], notes: '',
+  })) }
+  const html = render()
+  assert.match(html, /3 done · 1 in progress · 3 upcoming/)
+  assert.match(html, /7 workouts this week instead of 5/)
+})

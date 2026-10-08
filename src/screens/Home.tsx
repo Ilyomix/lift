@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Apple, ArrowRight, Camera, ChevronDown, CirclePause, Download, Flag, Infinity as InfinityIcon, MapPin, Pencil, Play, Scale, Smartphone, TriangleAlert } from 'lucide-react'
-import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
+import { addDays, capitalize, diffDays, fmtDate, fmtRelativeDay, mondayOf, monthKey, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, plural } from '../lib/format'
 import { gymOf, isGymBound, placeName } from '../lib/gyms'
 import { L } from '../lib/i18n'
@@ -175,7 +175,11 @@ export function Home() {
         </Card>
       </Section>
 
-      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<span className="text-[13px] text-text-2 tnum">{doneThisWeek} / {weekSchedule(state, today).target} {L('séances', 'workouts')}</span>}>
+      <Section art="calendar" title={L('Cette semaine', 'This week')} action={<Button variant="outline" size="sm" onClick={() => {
+        window.history.replaceState({ ...window.history.state, liftCalendarMonth: monthKey(today), liftCalendarWeek: mondayOf(today), liftCalendarExpanded: false }, '')
+        navigate('calendrier')
+      }}>{L('Calendrier', 'Calendar')} <ArrowRight size={16} aria-hidden /></Button>}>
+        <p className="mb-2 text-[13px] text-text-2 tnum">{doneThisWeek} / {weekSchedule(state, today).target} {L('séances terminées', 'workouts completed')}</p>
         <WeekStrip days={week} onSelect={setDay} />
       </Section>
 
