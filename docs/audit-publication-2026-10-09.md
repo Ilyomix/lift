@@ -2,7 +2,7 @@
 
 ## Verdict
 
-**Publiable après corrections, livrées dans les builds 41 à 44.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
+**Publiable après corrections, livrées dans les builds 41 à 46.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
 
 Référence : build 40 (`8fc3538`) audité, corrections dans le commit du build 41. Tests : 511 réussis, 1 ignoré, 0 échec. Contrôle de types et build web réussis.
 
@@ -52,13 +52,13 @@ Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revéri
 | Volet derrière le clavier après avoir quitté puis rouvert l'app | Clavier restauré par iOS hors de la mise en page | Quitter l'app termine la saisie (valeur conservée) — build 43 |
 | Volets de saisie sans icône | — | Icône du titre selon la mesure (balance, règle, haltère, minuteur, flamme, steak, gélule, pourcentage) — build 43 |
 
-## Retours sur le build 43, corrigés dans le build 44
+## Retours sur les builds 43 et 44, corrigés dans les builds 44 à 46
 
 | Retour | Cause | Correction |
 |---|---|---|
 | Calendrier : cases allongées en semaine, double contour et libellé collé au bord sur la séance en cours | Cases de 72 px de haut en semaine (52 en mois) ; jour actif en `border` + `ring`, puce « en cours » bordée elle aussi ; 41 px de puce pour 42 px utiles | Cases presque carrées en semaine comme en mois ; la séance en cours remplit toute la case, libellé sans encadré ; un seul contour orange |
 | Hip thrust : barre dans la taille | Barre placée à hauteur fixe au-dessus du bassin, 4 à 5 cm sous la peau ; le contrôle ne voyait que la peau entrée dans la barre | Barre posée sur l'avant du bassin (jeu mesuré de 0 à 1 mm sur tout le mouvement) |
-| Mains posées par le dos | Crunch : paumes tournées vers l'extérieur ; hack squat : mains ouvertes à plat dans le vide | Crunch : bout des doigts aux tempes, paumes vers la tête ; hack squat : poignées fixées au chariot, prise neutre |
+| Mains posées par le dos, poignets cassés | Crunch : paumes tournées vers l'extérieur ; hack squat : mains ouvertes à plat dans le vide ; hip thrust unilatéral : coudes sous le bord du banc, poignets à 90° ; extension à 45° : doigts des deux mains l'un dans l'autre ; rowing inversé : poignet replié à 174° | D'après les références d'exercice : crunch, paumes aux tempes ; hack squat, poignées du chariot ; hip thrust unilatéral, bras posés à plat sur le banc, mains détendues ; extension à 45°, mains sur les côtés de la tête, coudes ouverts ; rowing inversé, coudes vers le sol. Un test refuse tout poignet plié au-delà de 120° |
 | Autres collisions trouvées par le même contrôle | — | Élévations latérales et RDL haltères (haltères dans les cuisses), rowing unilatéral, tractions (tête dans la barre), rowing inversé (tête au lieu de la poitrine), squat Smith (barre dans les trapèzes), fentes bulgares et développé incliné (pieds de banc), Nordic (rouleau dans les talons), mollets assis (bras de levier dans les cuisses), élastiques |
 
 Un test couvre désormais les 78 mouvements : aucun axe de barre, d'haltère ou de cadre à l'intérieur du corps, et paumes du crunch vers la tête.
