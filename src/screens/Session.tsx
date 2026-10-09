@@ -580,8 +580,8 @@ function NumField({ id, value, onCommit, placeholder, decimal, label, disabled, 
       aria-label={unit ? `${label} (${unit})` : label}
       aria-invalid={invalid || undefined}
       disabled={disabled}
-      // A load is typed between sets: the field sizes to its value so the unit stays beside it.
-      size={unit ? Math.max(2, (text || placeholder || '').length) : undefined}
+      // The field sizes to its value in digit widths (ch), so the unit stays beside it and no digit is clipped.
+      style={unit ? { width: `${Math.max(2, (text || placeholder || '').length) + 0.5}ch` } : undefined}
       className={cx(
         'text-[16px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--text)]',
         unit ? 'min-w-0 bg-transparent text-right outline-none' : 'h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center min-[360px]:px-1 focus:border-signal focus:outline-none',

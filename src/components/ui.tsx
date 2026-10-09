@@ -635,7 +635,8 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall, dirt
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cx(
-          'sheet-enter relative flex w-full max-w-[640px] flex-col rounded-t-[16px] bg-surface shadow-[var(--shadow-sheet)] outline-none',
+          // The panel rises with the keyboard (--kb) while its colour fills the space behind it.
+          'sheet-enter relative flex w-full max-w-[640px] flex-col rounded-t-[16px] bg-surface pb-[var(--kb,0px)] shadow-[var(--shadow-sheet)] outline-none transition-[padding] duration-[250ms] ease-out',
           content.tall ? 'h-[min(92dvh,calc(100dvh-var(--top-bar)-12px))]' : 'max-h-[min(88dvh,calc(100dvh-var(--top-bar)-12px))]',
         )}
       >
@@ -652,7 +653,7 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall, dirt
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{content.children}</div>
-        {content.footer && <div className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{content.footer}</div>}
+        {content.footer && <div data-sheet-footer className="border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">{content.footer}</div>}
       </div>
     </div>
     </SheetDiscardContext></SheetCloseContext>,
