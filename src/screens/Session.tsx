@@ -25,13 +25,12 @@ import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../li
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
-import { MeasurementPicker } from '../components/MeasurementPicker'
 import { workoutArt } from '../components/SportArt'
 import { WeekScheduleSheet } from '../components/WeekScheduleSheet'
 import { useSessionStart } from '../components/useSessionStart'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
-  Button, Card, cx, DateInput, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
+  Button, Card, cx, DateInput, Disclosure, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
 } from '../components/ui'
 
 // ───────────────────────── Entry ─────────────────────────
@@ -163,6 +162,7 @@ function ActiveSession() {
   const [menu, setMenu] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [exercisePicker, setExercisePicker] = useState(false)
   // Reviewing completed work must not change the exercise announced by Live Activity.
   const [reviewIndex, setReviewIndex] = useState<number | null>(null)
@@ -170,6 +170,7 @@ function ActiveSession() {
   const total = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + e.sets.length, 0)
   const done = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + doneSets(e).length, 0)
   const pending = total - done
+  const logged = a.exercises.reduce((n, e) => n + doneSets(e).length, 0)
   const current = currentExerciseIndex(a)
   const displayed = reviewIndex ?? current
   const displayedExercise = a.exercises[displayed]
@@ -306,7 +307,7 @@ function ActiveSession() {
           <textarea className={cx(inputClass, 'h-24 resize-none py-2.5')} placeholder={L('Sensations, sommeil, machine différente…', 'How you felt, sleep, different machine…')} value={a.notes} onChange={(e) => setSessionField({ notes: e.target.value })} />
         </label>
         <div className="mt-5">
-          <Button variant="danger" full icon={<Trash size={16} aria-hidden />} closeSheet onClick={() => { discardSession(); setMenu(false) }}>
+          <Button variant="danger" full icon={<Trash size={16} aria-hidden />} closeSheet onClick={() => { setMenu(false); if (!a.reopened && logged > 0) setConfirmDiscard(true); else discardSession() }}>
             {a.reopened ? L('Annuler la correction', 'Cancel the correction') : L('Abandonner la séance', 'Discard workout')}
           </Button>
           <p className="mt-2 text-[12px] text-muted">{a.reopened ? L('La séance reste telle qu’elle était enregistrée.', 'The saved workout stays unchanged.') : L('Les séries saisies seront perdues. La rotation ne change pas.', 'The sets you logged will be lost. The rotation doesn’t change.')}</p>
@@ -333,6 +334,26 @@ function ActiveSession() {
           )}
         </p>
       </Sheet>
+
+      <Sheet
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        icon={<Trash />}
+        title={L('Abandonner la séance ?', 'Discard workout?')}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg" className="flex-1" icon={<Play size={18} aria-hidden />} closeSheet onClick={() => setConfirmDiscard(false)}>{L('Continuer', 'Keep going')}</Button>
+            <Button variant="danger" size="lg" className="flex-1" icon={<Trash size={18} aria-hidden />} closeSheet onClick={() => { setConfirmDiscard(false); discardSession() }}>{L('Abandonner', 'Discard')}</Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] leading-[1.5] text-text-2">
+          {L(
+            `${plural(logged, 'série validée sera perdue', 'séries validées seront perdues')}. La rotation ne change pas.`,
+            `${plural(logged, 'logged set will be lost', 'logged sets will be lost')}. The rotation doesn’t change.`,
+          )}
+        </p>
+      </Sheet>
     </Screen>
   )
 }
@@ -344,7 +365,7 @@ const REENTRY_NOTE_PREFIXES = ['Reprise', 'Remise', 'Return', 'Restart']
 const isReentryNote = (n: string) => REENTRY_NOTE_PREFIXES.some((x) => n.startsWith(x))
 
 // Keep labels and every set in the same compact columns, including on phones.
-const setColumns = 'grid grid-cols-[44px_minmax(0,1fr)_minmax(0,0.9fr)_52px_44px] items-center gap-1 min-[400px]:grid-cols-[44px_minmax(0,1fr)_minmax(0,0.9fr)_60px_44px] min-[400px]:gap-1.5'
+const setColumns = 'grid grid-cols-[44px_minmax(0,1.1fr)_minmax(0,0.8fr)_52px_44px] items-center gap-1 min-[400px]:grid-cols-[44px_minmax(0,1.1fr)_minmax(0,0.8fr)_60px_44px] min-[400px]:gap-1.5'
 
 /** The skip reason stored by « Passer cet exercice », shown in the current language; other reasons are left as typed. */
 const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : r)
@@ -399,6 +420,17 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
     )
   }
 
+  const movement = displayed && <div className={cx('grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]', prevSets.length > 0 ? 'pt-1' : 'px-4 pt-3 pb-4')}>
+    <DemoFrames key={ex.exerciseId} id={ex.exerciseId} name={ex.name} compact className="mx-auto w-full max-w-[320px]" />
+    {(exerciseInfo.cues.length > 0 || ex.technique) && <section aria-labelledby={`technique-${index}`}>
+      <h4 id={`technique-${index}`} className="text-[14px] font-semibold">{L('Technique', 'Technique')}</h4>
+      {exerciseInfo.cues.length > 0 && <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[13px] leading-5 text-text-2 marker:font-semibold marker:text-signal-text">
+        {exerciseInfo.cues.map((cue, cueIndex) => <li key={cueIndex} className="pl-1">{cue}</li>)}
+      </ol>}
+      {ex.technique && <p className="mt-2 text-[13px] leading-5 text-text">{ex.technique}</p>}
+    </section>}
+  </div>
+
   return (
     <Card
       as="article"
@@ -422,16 +454,10 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
         <EffortGuidance exercise={ex} />
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
       </div>
-      {displayed && <div className="grid items-center gap-4 px-4 pt-3 pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <DemoFrames key={ex.exerciseId} id={ex.exerciseId} name={ex.name} compact className="mx-auto w-full max-w-[320px]" />
-        {(exerciseInfo.cues.length > 0 || ex.technique) && <section aria-labelledby={`technique-${index}`}>
-          <h4 id={`technique-${index}`} className="text-[14px] font-semibold">{L('Technique', 'Technique')}</h4>
-          {exerciseInfo.cues.length > 0 && <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[13px] leading-5 text-text-2 marker:font-semibold marker:text-signal-text">
-            {exerciseInfo.cues.map((cue, cueIndex) => <li key={cueIndex} className="pl-1">{cue}</li>)}
-          </ol>}
-          {ex.technique && <p className="mt-2 text-[13px] leading-5 text-text">{ex.technique}</p>}
-        </section>}
-      </div>}
+      {movement && (prevSets.length > 0
+        // A known movement folds away so the sets come first; a new one stays open.
+        ? <Disclosure bordered={false} className="px-4" icon={<PersonStanding size={18} />} title={L('Voir le mouvement', 'See the movement')}>{movement}</Disclosure>
+        : movement)}
       <div className="space-y-1 border-t border-line px-4 pt-3 text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
@@ -527,7 +553,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   )
 }
 
-function NumField({ value, onCommit, placeholder, decimal, label, disabled, unit, defaultValue, onInvalidChange }: { value: number | null; onCommit: (n: number | null) => void; placeholder?: string; decimal?: boolean; label: string; disabled?: boolean; unit?: string; defaultValue?: number; onInvalidChange?: (invalid: boolean) => void }) {
+function NumField({ id, value, onCommit, placeholder, decimal, label, disabled, unit, onInvalidChange }: { id?: string; value: number | null; onCommit: (n: number | null) => void; placeholder?: string; decimal?: boolean; label: string; disabled?: boolean; unit?: string; onInvalidChange?: (invalid: boolean) => void }) {
   const toText = (v: number | null) => (v === null ? '' : String(v).replace('.', L(',', '.')))
   const [text, setText] = useState(toText(value))
   const focused = useRef(false)
@@ -548,15 +574,18 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled, unit
     if (next.trim() === '') onCommit(null)
     else if (n !== null && n >= 0 && n < 1000) onCommit(n)
   }
-  if (unit) return <MeasurementPicker label={label} unit={unit} value={text} onChange={change} invalid={invalid}
-    onFocus={() => { focused.current = true }} onBlur={blur}
-    min={0} max={500} step={0.1} defaultValue={defaultValue ?? 20} disabled={disabled} placeholder={placeholder}
-    presentation="sheet" inputClassName="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-1 text-[14px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:opacity-100" />
-  return (
+  const input = (
     <input
-      aria-label={label}
+      id={id}
+      aria-label={unit ? `${label} (${unit})` : label}
+      aria-invalid={invalid || undefined}
       disabled={disabled}
-      className="h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center text-[16px] font-semibold text-text tnum min-[360px]:px-1 placeholder:font-medium placeholder:text-muted focus:border-signal focus:outline-none disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--text)]"
+      // A load is typed between sets: the field sizes to its value so the unit stays beside it.
+      size={unit ? Math.max(2, (text || placeholder || '').length) : undefined}
+      className={cx(
+        'text-[16px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--text)]',
+        unit ? 'h-full min-w-0 bg-transparent text-right outline-none' : 'h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center min-[360px]:px-1 focus:border-signal focus:outline-none',
+      )}
       inputMode={decimal ? 'decimal' : 'numeric'}
       pattern={decimal ? undefined : '[0-9]*'}
       enterKeyHint="done"
@@ -572,6 +601,15 @@ function NumField({ value, onCommit, placeholder, decimal, label, disabled, unit
       }}
     />
   )
+  if (!unit) return input
+  const [base, per] = unit.split('/')
+  return (
+    <label className="flex h-11 w-full min-w-0 cursor-text items-center justify-center gap-1 rounded-[10px] border border-line-strong bg-surface px-1 focus-within:border-signal has-[[aria-invalid=true]]:border-bad-mark">
+      {input}
+      {/* « kg/main » stacks beside the value: the whole unit stays readable in a 375 pt row. */}
+      <span aria-hidden className={cx('shrink-0 font-medium text-text-2', per ? 'flex flex-col text-[11px] leading-[1.15]' : 'text-[12px]')}>{per ? <><span>{base}</span><span>/{per}</span></> : unit}</span>
+    </label>
+  )
 }
 
 // Labels are getters: they follow the interface language.
@@ -584,6 +622,7 @@ const FLAGS: { id: SetFlag; label: string }[] = [
 function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: { exIndex: number; setIndex: number; ex: WorkoutExercise; prevReps: number | null; fallbackWeight: number | null; isCurrent: boolean }) {
   const s = ex.sets[setIndex]
   const { updateSet, completeSet, toggleFlag } = useStore.getState()
+  const repsId = `reps-${exIndex}-${setIndex}`
   const [open, setOpen] = useState(false)
   const [invalidWeight, setInvalidWeight] = useState(false)
   const done = s.completed
@@ -605,13 +644,14 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           {ex.unit === 'PDC' && !takesLest(ex) ? (
             <span className="flex h-11 items-center justify-center rounded-[10px] text-[14px] font-semibold text-text-2">{bodyweightLabel()}</span>
           ) : ex.unit === 'PDC' ? (
-            <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} unit="kg" defaultValue={0} decimal value={s.weight} placeholder="0" onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
+            <NumField label={L(`Lest série ${setIndex + 1}`, `Set ${setIndex + 1} added load`)} unit="kg" decimal value={s.weight} placeholder="0" onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
           ) : (
-            <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} unit={loadUnitLabel(ex.unit)} defaultValue={fallbackWeight ?? 20} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
+            <NumField label={L(`Charge série ${setIndex + 1}`, `Set ${setIndex + 1} load`)} unit={loadUnitLabel(ex.unit)} decimal value={s.weight} placeholder={fallbackWeight !== null ? fmtNum(fallbackWeight) : '—'} onCommit={(n) => updateSet(exIndex, setIndex, { weight: n })} onInvalidChange={setInvalidWeight} disabled={done} />
           )}
         </div>
         <div className="min-w-0">
           <NumField
+            id={repsId}
             label={L(`Répétitions série ${setIndex + 1}`, `Set ${setIndex + 1} reps`)}
             value={s.reps}
             placeholder={prevReps !== null ? String(prevReps) : `${ex.target.minReps}–${ex.target.maxReps}`}
@@ -637,6 +677,9 @@ function SetRow({ exIndex, setIndex, ex, prevReps, fallbackWeight, isCurrent }: 
           disabled={!done && invalidWeight}
           onClick={() => {
             if (!done && invalidWeight) return
+            // Missing reps: open the field under the thumb rather than a toast at the top.
+            const reps = s.reps ?? prevReps
+            if (!done && !(reps && reps > 0)) { document.getElementById(repsId)?.focus(); return }
             unlockAudio()
             completeSet(exIndex, setIndex, { weight: fallbackWeight, reps: prevReps })
           }}

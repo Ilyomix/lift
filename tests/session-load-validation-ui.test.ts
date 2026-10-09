@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
 import React, { isValidElement, type ReactElement, type ReactNode } from 'react'
-import { MeasurementPicker } from '../src/components/MeasurementPicker'
 import { defaultState } from '../src/lib/backup'
 import { lang, setLang } from '../src/lib/i18n'
 import { configurePlan, DEFAULT_GOAL, takesLest } from '../src/lib/program'
@@ -51,10 +50,15 @@ function mountLoad(index: number) {
   const load = mount(() => renderElement(find(row(), e => named(e, 'NumField') && e.props.unit === 'kg')!))
   return {
     row,
+    // The load is a plain input whose unit label sits beside it.
     picker: () => {
-      const picker = load()
-      assert.equal(picker.type, MeasurementPicker)
-      return picker
+      const input = find(load(), e => e.type === 'input')!
+      return { props: {
+        value: input.props.value,
+        invalid: input.props['aria-invalid'] === true,
+        onChange: (value: string) => input.props.onChange({ target: { value } }),
+        onBlur: () => input.props.onBlur(),
+      } }
     },
     log: () => find(row(), e => e.type === 'button' && e.props['aria-label'] === 'Valider la série 1')!,
   }
