@@ -5,6 +5,17 @@ export const WORKOUT_TYPES: WorkoutType[] = ['UPPER', 'LOWER', 'PUSH', 'PULL', '
 export type ReplacementScope = 'session' | 'program'
 export interface SessionReplacement { index: number; fromId: string; exerciseId: string }
 
+/** An exercise left for the next workout (its machine was taken): it joins the end of that workout. */
+export interface PostponedExercise {
+  /** The exercise as planned that day, without its sets. */
+  exercise: TemplateExercise
+  /** Sheet the exercise belongs to: its load follows that sheet. */
+  fromType: WorkoutType
+  fromDate: ISODate
+  /** Workout it was left in: restoring it there, or discarding that workout, cancels the move. */
+  fromWorkoutId: string
+}
+
 export type Unit = 'kg' | 'kg/main' | 'PDC'
 export type SetFlag = 'failure' | 'bad-technique' | 'pain'
 export type Role = 'compound' | 'isolation'
@@ -125,6 +136,8 @@ export interface WorkoutExercise extends TemplateExercise {
   hint?: { text: string; from: number; to: number; sets: number[]; sourceSet?: number }
   /** First time at this gym on a gym-bound exercise: load of another gym offered as a starting point. */
   gymTrial?: { fromGym: string; weight: number | null }
+  /** Moved here from an earlier workout whose machine was taken: its load follows that workout's sheet. */
+  postponedFrom?: { type: WorkoutType; date: ISODate }
 }
 
 /** A change of the plan made after a session: load up or down, starting load, or one set less. */
@@ -332,6 +345,8 @@ export interface AppState {
   templates: Record<WorkoutType, Template>
   /** One-off choices for the next session of each type, anchored to its original slot. */
   sessionReplacements?: Partial<Record<WorkoutType, SessionReplacement[]>>
+  /** Exercises moved to the next workout, whatever its type. */
+  postponed?: PostponedExercise[]
   activeWorkout: ActiveWorkout | null
   lastCompletedWorkoutId: string | null
   appliedPlanUpdates: PlanUpdateRecord[]

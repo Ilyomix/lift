@@ -5,6 +5,7 @@ import { addDays, diffDays, mondayOf, todayISO } from './date'
 import { fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
 import { L, lang } from './i18n'
+import { keptPostponed, sheetTypeOf, withoutPostponed, withPostponed } from './postponed'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
 import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, isRestDay, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
@@ -768,26 +769,28 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   const gym = gymOf(w)
   const changes: AutoChange[] = []
   const records: string[] = []
-  const tpl = templates?.[w.type]
+  // An exercise carried over from another workout (its machine was taken) answers to that workout's sheet.
+  const sheetOf = (ex: WorkoutExercise) => sheetTypeOf(ex, w.type)
+  const tplOf = (ex: WorkoutExercise) => templates?.[sheetOf(ex)]
   const others = workoutsBefore(workouts, w)
-  const inTemplate = (id: string) => !tpl || tpl.exercises.some((e) => e.exerciseId === id)
+  const inTemplate = (ex: WorkoutExercise) => { const tpl = tplOf(ex); return !tpl || tpl.exercises.some((e) => e.exerciseId === ex.exerciseId) }
   const exercises = w.exercises.map((ex) => {
     const completedOnly = { ...ex, sets: ex.sets.filter((s) => s.completed) }
     const g = isGymBound(ex) ? gym : undefined
     // A reminder follows the same split's last performance, not the heavier slot between them.
-    const before = previousPerformance(others, ex.exerciseId, undefined, g, ex.prescription ?? ex.target, w.type)
+    const before = previousPerformance(others, ex.exerciseId, undefined, g, ex.prescription ?? ex.target, sheetOf(ex))
     const prev = before?.exercise ?? null
     const history = exerciseHistory(others, ex.exerciseId, g)
     let comparison = compareExercise(completedOnly, prev, history, !!w.deload, !!before?.workout.deload, before ? longestBreak(others, before.workout.date, w.date) : 0, before ? workoutContextReason(w, ex, before.workout, before.exercise) : null)
     if (ex.gymTrial && comparison.status === 'new-baseline') comparison = { ...comparison, detail: L('Première séance sur cette machine dans cette salle.', 'First workout on this machine at this gym.') }
     const changedEquipment = comparison.contextReason === 'unit-changed' || comparison.contextReason === 'conditions-changed'
     const replaced = ex.replacement && ex.replacement.fromId !== ex.exerciseId
-    const decision = !changedEquipment && !replaced && inTemplate(ex.exerciseId) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g, ex)) ?? baselineFor(completedOnly)) : null
+    const decision = !changedEquipment && !replaced && inTemplate(ex) ? (loadDecision(completedOnly, knownLoads([...others, w], ex.exerciseId, g, ex)) ?? baselineFor(completedOnly)) : null
     if (decision) {
       const from = completedOnly.target.weight ?? null
-      const also = twinSheets(templates, w.type, ex, g ?? HOME_GYM, from)
+      const also = twinSheets(templates, sheetOf(ex), ex, g ?? HOME_GYM, from)
       changes.push({
-        id: `${w.id}-${ex.exerciseId}-load`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: g ?? HOME_GYM, date: w.date,
+        id: `${w.id}-${ex.exerciseId}-load`, type: sheetOf(ex), exerciseId: ex.exerciseId, name: ex.name, gymId: g ?? HOME_GYM, date: w.date,
         kind: decision.kind, from, to: decision.weight, text: decision.text, lang: lang(), ...(also.length ? { also } : {}),
       })
     }
@@ -800,10 +803,11 @@ export function finalizeWorkout(workouts: Workout[], w: Workout, templates?: Rec
   for (const ex of exercises) {
     // The signal belongs to the session in which the second drop happens: an exercise left out today says nothing new.
     if (ex.skipped) continue
-    const alert = dropAlert(all, ex.exerciseId, isGymBound(ex) ? gym : undefined, ex.target, w.type)
+    const alert = dropAlert(all, ex.exerciseId, isGymBound(ex) ? gym : undefined, ex.target, sheetOf(ex))
     if (!alert) continue
     alerts.push(alert)
-    const t = tpl?.exercises.find((e) => e.exerciseId === ex.exerciseId)
+    // One set less follows a drop on the session's own sheet: a carried exercise was done out of its place.
+    const t = ex.postponedFrom ? undefined : templates?.[w.type]?.exercises.find((e) => e.exerciseId === ex.exerciseId)
     if (t && t.target.sets > 1 && !autoAdjustActive(t, w.date)) {
       changes.push({
         id: `${w.id}-${ex.exerciseId}-sets`, type: w.type, exerciseId: ex.exerciseId, name: ex.name, gymId: HOME_GYM, date: w.date,
@@ -924,8 +928,9 @@ export function withoutWorkout(s: AppState, id: string, today: ISODate = todayIS
   for (const c of changesOf(s, w)) if (changeState(templates, c, w, s.workouts, today) === 'applied') templates = applyChange(templates, c, true)
   const workouts = s.workouts.filter((x) => x.id !== id)
   const wasLast = lastFinished(s.workouts)?.id === id
+  // What the session moved to the next one goes with it, if still waiting.
   return regradeTrainingDiagnostics({
-    ...s,
+    ...withPostponed(s, withoutPostponed(s.postponed, id)),
     workouts,
     templates,
     completedSessions: workouts.length,
@@ -1066,7 +1071,8 @@ export function finishedState(s: AppState, now: string = new Date().toISOString(
   const asBefore = !!original && auto.length === before.inPlace.size && auto.every((c) => before.inPlace.has(c.id) && asFirst(c))
   const updates = s.appliedPlanUpdates.filter((u) => u.updateId !== `auto-${workout.id}`)
   const next: AppState = {
-    ...s,
+    // The moves waiting for this workout were offered to it: only those it made itself still wait.
+    ...(original ? s : withPostponed(s, keptPostponed(s.postponed, a.id))),
     workouts,
     templates,
     completedSessions: workouts.length,

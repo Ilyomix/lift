@@ -4,6 +4,7 @@ import { capitalize, fmtDate, todayISO } from '../lib/date'
 import { fmtRest, plural } from '../lib/format'
 import { L } from '../lib/i18n'
 import { scheduledExercises } from '../lib/exerciseReplacement'
+import { postponedFor } from '../lib/postponed'
 import { contextAt, isPausedDay, isRestDay, prescribeSession, projectSessions, TYPE_META } from '../lib/program'
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
@@ -18,7 +19,10 @@ export function CalendarDaySheet({ date, onClose, planned: projection, onStart }
   const [weekOpen, setWeekOpen] = useState(false)
   const [exercise, setExercise] = useState<number | null>(null)
   const planned = projection.find(item => item.date === date)
-  const exercises = planned ? scheduledExercises(state, planned.type, date, projection) : []
+  const own = planned ? scheduledExercises(state, planned.type, date, projection) : []
+  // Exercises moved from an earlier workout join the next one only.
+  const carried = planned && projection[0] === planned && !state.activeWorkout ? postponedFor(state, date, own) : []
+  const exercises = [...own, ...carried.map(c => c.exercise)]
   const prescriptions = prescribeSession(exercises, date, state.reentry, state.gymId, state.workouts)
   if (weekOpen) return <WeekScheduleSheet weekDate={date} onClose={() => setWeekOpen(false)} />
   if (exercise !== null && exercises[exercise]) return <ExerciseSheet open exerciseId={exercises[exercise].exerciseId} name={exercises[exercise].name} prescription={prescriptions[exercise]} onClose={() => setExercise(null)} />
@@ -59,11 +63,13 @@ export function CalendarDaySheet({ date, onClose, planned: projection, onStart }
           <ol className="mt-3 divide-y divide-line rounded-[12px] border border-line">
             {exercises.map((item, index) => {
               const rx = prescriptions[index]
+              const moved = carried[index - own.length]?.item
               return <li key={`${item.exerciseId}-${index}`}>
                 <button type="button" onClick={() => close(() => setExercise(index))} className="pressable flex w-full items-center gap-3 px-3 py-3.5 text-left hover:bg-surface-2" aria-label={L(`Voir la technique : ${item.name}`, `View technique: ${item.name}`)}>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] leading-5 font-medium">{item.name}</span>
                     <span className="mt-1 block text-[13px] leading-5 text-text-2">{rx.sets} × {rx.minReps}–{rx.maxReps} · {reserveLabel(rx.rir)} · {fmtRest(rx.restSeconds)}</span>
+                    {moved && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L(`Reporté de ${TYPE_META[moved.fromType].label} (${fmtDate(moved.fromDate)})`, `Moved from ${TYPE_META[moved.fromType].label} (${fmtDate(moved.fromDate)})`)}</span>}
                   </span>
                   <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
                 </button>

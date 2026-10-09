@@ -16,12 +16,14 @@ export type ExerciseReplacementTarget =
 type Scope = 'session' | 'program'
 const targetKey = (target: ExerciseReplacementTarget) => `${target.kind}:${target.kind === 'active' ? '' : target.type}:${target.index}`
 
-export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, beforeReplace, showHeading = true }: {
+export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, beforeReplace, showHeading = true, sessionOnly = false }: {
   exerciseId: string
   replacement?: ExerciseReplacementTarget
   onReplaced?: () => void
   beforeReplace?: () => boolean | Promise<boolean>
   showHeading?: boolean
+  /** A one-off swap (machine taken): the program is not offered. */
+  sessionOnly?: boolean
 }) {
   const state = useStore(s => s.state)
   const setup = state.settings.setup
@@ -44,7 +46,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, befo
   const activeType = state.activeWorkout?.type
   const activeTemplate = target?.kind === 'active' && activeType ? state.templates[activeType].exercises[target.index] : undefined
   const canRemember = target?.kind !== 'active' || !!(active && !state.activeWorkout?.reopened && activeTemplate?.exerciseId === (active.replacement?.fromId ?? active.exerciseId))
-  const chosenScope = target?.kind === 'template' ? 'program' : canRemember ? scope : 'session'
+  const chosenScope = target?.kind === 'template' ? 'program' : canRemember && !sessionOnly ? scope : 'session'
   const locked = hasLoggedSets && chosenScope === 'session'
   const slots = target?.kind === 'active'
     ? hasLoggedSets && chosenScope === 'program' && activeType ? state.templates[activeType].exercises : state.activeWorkout?.exercises ?? []
@@ -91,7 +93,7 @@ export function ExerciseAlternatives({ exerciseId, replacement, onReplaced, befo
           {targets.map(item => <option key={targetKey(item)} value={targetKey(item)}>{targetLabel(item)}</option>)}
         </select>
       </Field> : !replacement && <p className="text-[13px] font-medium text-text-2">{targetLabel(target)}</p>}
-      {target.kind !== 'template' && canRemember && <Segmented layout="fit" label={L('Appliquer le remplacement', 'Apply replacement')} value={chosenScope} onChange={setScope} options={[
+      {target.kind !== 'template' && canRemember && !sessionOnly && <Segmented layout="fit" label={L('Appliquer le remplacement', 'Apply replacement')} value={chosenScope} onChange={setScope} options={[
         { value: 'session', label: L('Cette séance', 'This workout') },
         { value: 'program', label: hasLoggedSets ? L('Prochaines séances', 'Future workouts') : L('Garder au programme', 'Keep in program') },
       ]} />}

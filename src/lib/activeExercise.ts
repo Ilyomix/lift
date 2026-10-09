@@ -23,3 +23,20 @@ export function currentExerciseIndex(workout: ActiveWorkout): number {
   const legacy = nextName ? workout.exercises.findIndex(exercise => exercise.name === nextName && hasPendingSets(exercise)) : -1
   return legacy >= 0 ? legacy : workout.exercises.findIndex(hasPendingSets)
 }
+
+/**
+ * Machine taken: the exercise to do instead, the next one with sets left outside this one's
+ * superset. The skipped one comes back once those are done; -1 when nothing else is left.
+ */
+export function deferredFocus(workout: ActiveWorkout, index: number): number {
+  const { exercises } = workout
+  if (!exercises[index]) return -1
+  let first = index, last = index
+  while (first > 0 && exercises[first - 1].supersetWithNext) first--
+  while (last < exercises.length - 1 && exercises[last].supersetWithNext) last++
+  for (let step = 1; step < exercises.length; step++) {
+    const i = (last + step) % exercises.length
+    if ((i < first || i > last) && hasPendingSets(exercises[i])) return i
+  }
+  return -1
+}

@@ -1,5 +1,5 @@
 import { upgradeTrainingDiagnostics } from './trainingMigration'
-import { currentExerciseIndex, hasPendingSets, nextPendingExerciseIndex } from './activeExercise'
+import { currentExerciseIndex, deferredFocus, hasPendingSets, nextPendingExerciseIndex } from './activeExercise'
 import { workoutsBefore } from './comparability'
 import { create } from 'zustand'
 import { clear, createStore, del, entries, get as idbGet, promisifyRequest, set as idbSet } from 'idb-keyval'
@@ -22,6 +22,7 @@ import { localizeState } from './localize'
 import { maintenanceCalories, stateFromOnboarding, type OnboardingAnswers } from './onboarding'
 import { weightStatus } from './stats'
 import { clearSessionReplacement, normalizeSessionReplacements, replacePlanned, replaceTemplate, replacementTemplate, sessionExercises, validReplacementSlot, type ReplacementResult } from './exerciseReplacement'
+import { postponedFor, postponedReason, postponedTemplate, sheetTypeOf, withoutPostponed, withPostponed } from './postponed'
 import { goalApplied, LOOKS, lookInfo, MAX_ZONES, tagPriorities, ZONES, zonesText } from './visual'
 import type {
   ActiveWorkout, AppState, Backup, BodyEntry, Goals, ISODate, NutritionEntry, NutritionTargets, PauseReason, Photo, PlanUpdateRecord, Prefs, Prescription,
@@ -74,6 +75,12 @@ interface Store {
   removeSet: (ex: number, set: number) => void
   toggleFlag: (ex: number, set: number, flag: SetFlag) => void
   skipExercise: (ex: number, skipped: boolean, reason?: string) => void
+  /** Machine taken: go on with the next exercise; this one comes back once the others are done. */
+  deferExercise: (ex: number) => number
+  /** Machine taken: leave the exercise for the next workout, which takes it at its end. */
+  postponeExercise: (ex: number) => boolean
+  /** Keep a moved exercise out of the next workout. */
+  dropPostponed: (exerciseId: string) => void
   replaceExercise: (ex: number, newId: string, scope?: ReplacementScope) => boolean
   replacePlannedExercise: (type: WorkoutType, index: number, newId: string, scope: ReplacementScope) => boolean
   replaceTemplateExercise: (type: WorkoutType, index: number, newId: string) => boolean
@@ -170,6 +177,24 @@ let toastSeq = 0
 
 function withActive(s: AppState, fn: (a: ActiveWorkout) => ActiveWorkout): AppState {
   return s.activeWorkout ? { ...s, activeWorkout: fn(s.activeWorkout) } : s
+}
+
+/** The workout with an exercise left out (or back in), its focus and rest label following. */
+function withSkip(s: AppState, ex: number, skipped: boolean, reason?: string): AppState {
+  return withActive(s, (a) => {
+    const focus = currentExerciseIndex(a)
+    const next = mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined }))
+    // Resolve before changing skip state, so legacy drafts also retain their focus.
+    const focused = focus >= 0 ? { ...next, activeExerciseIndex: focus } : next
+    const nextFocus = currentExerciseIndex(focused)
+    const exercise = focused.exercises[nextFocus]
+    const step = exercise?.sets.findIndex(set => !set.completed) ?? -1
+    return {
+      ...focused,
+      activeExerciseIndex: nextFocus >= 0 ? nextFocus : focused.activeExerciseIndex,
+      timer: focused.timer ? { ...focused.timer, next: exercise ? L(`Série ${step + 1}/${exercise.sets.length} · ${exercise.name}`, `Set ${step + 1}/${exercise.sets.length} · ${exercise.name}`) : undefined } : null,
+    }
+  })
 }
 
 function mapExercise(a: ActiveWorkout, i: number, fn: (e: WorkoutExercise) => WorkoutExercise): ActiveWorkout {
@@ -520,7 +545,10 @@ export const useStore = create<Store>((set, get) => ({
         }
       }
       const gymId = s.gyms.some((g) => g.id === s.gymId) ? s.gymId : HOME_GYM
-      const planned = sessionExercises(s, t)
+      const sheet = sessionExercises(s, t)
+      // Exercises moved from an earlier workout (machine taken) close this one.
+      const carried = postponedFor(s, today, sheet)
+      const planned = [...sheet, ...carried.map(c => c.exercise)]
       const base = { ...clearSessionReplacement(s, t), reentry, programPause }
       // The whole session at once: with fewer than five days its sets are scaled together.
       const rx = prescribeSession(planned, today, reentry, gymId, s.workouts)
@@ -534,6 +562,10 @@ export const useStore = create<Store>((set, get) => ({
         timer: null,
         exercises: planned.map((e, i) => {
           const original = s.templates[t].exercises[i]
+          if (!original) {
+            const { item } = carried[i - sheet.length]
+            return { ...buildExercise(e, rx[i], base, gymId), postponedFrom: { type: item.fromType, date: item.fromDate } }
+          }
           const exercise = buildExercise(e, rx[i], base, gymId, e.exerciseId === original.exerciseId)
           return e.exerciseId === original.exerciseId ? exercise : { ...exercise, replacement: { fromId: original.exerciseId, fromName: original.name } }
         }),
@@ -686,20 +718,36 @@ export const useStore = create<Store>((set, get) => ({
     ),
 
   skipExercise: (ex, skipped, reason) =>
-    get().update((s) => withActive(s, (a) => {
-      const focus = currentExerciseIndex(a)
-      const next = mapExercise(a, ex, (e) => ({ ...e, skipped, skipReason: skipped ? (reason ?? '') : undefined }))
-      // Resolve before changing skip state, so legacy drafts also retain their focus.
-      const focused = focus >= 0 ? { ...next, activeExerciseIndex: focus } : next
-      const nextFocus = currentExerciseIndex(focused)
-      const exercise = focused.exercises[nextFocus]
-      const step = exercise?.sets.findIndex(set => !set.completed) ?? -1
-      return {
-        ...focused,
-        activeExerciseIndex: nextFocus >= 0 ? nextFocus : focused.activeExerciseIndex,
-        timer: focused.timer ? { ...focused.timer, next: exercise ? L(`Série ${step + 1}/${exercise.sets.length} · ${exercise.name}`, `Set ${step + 1}/${exercise.sets.length} · ${exercise.name}`) : undefined } : null,
-      }
-    })),
+    get().update((s) => {
+      const a = s.activeWorkout
+      // Restored, a moved exercise stays here. A reopened workout leaves the next one alone.
+      const moved = !skipped && a && !a.reopened && a.exercises[ex] ? withoutPostponed(s.postponed, a.id, a.exercises[ex].exerciseId) : s.postponed
+      return withPostponed(withSkip(s, ex, skipped, reason), moved)
+    }),
+
+  deferExercise: (ex) => {
+    const a = get().state.activeWorkout
+    const next = a ? deferredFocus(a, ex) : -1
+    if (next >= 0) get().focusExercise(next)
+    return next
+  },
+
+  postponeExercise: (ex) => {
+    const s = get().state, a = s.activeWorkout, exercise = a?.exercises[ex]
+    if (!a || a.reopened || !exercise || exercise.skipped || exercise.sets.some(set => set.completed)) return false
+    const entry = {
+      exercise: postponedTemplate(exercise),
+      fromType: sheetTypeOf(exercise, a.type),
+      fromDate: a.date,
+      fromWorkoutId: a.id,
+    }
+    get().update(state => withPostponed(withSkip(state, ex, true, postponedReason()),
+      [...(state.postponed ?? []).filter(item => item.exercise.exerciseId !== exercise.exerciseId), entry]))
+    return true
+  },
+
+  dropPostponed: (exerciseId) =>
+    get().update(s => withPostponed(s, s.postponed?.filter(item => item.exercise.exerciseId !== exerciseId))),
 
   replacePlannedExercise: (type, index, newId, scope) => {
     const state = get().state
@@ -838,7 +886,8 @@ export const useStore = create<Store>((set, get) => ({
   discardSession: () => {
     const running = get().state.activeWorkout?.timer
     if (running && running.endAt > Date.now() && get().state.prefs.push) cancelRestPush()
-    get().update((s) => ({ ...s, activeWorkout: null }))
+    // A discarded workout moves nothing to the next one; a correction dropped leaves what it had moved.
+    get().update((s) => ({ ...withPostponed(s, s.activeWorkout && !s.activeWorkout.reopened ? withoutPostponed(s.postponed, s.activeWorkout.id) : s.postponed), activeWorkout: null }))
   },
 
   applyChanges: (ids) => get().update((s) => appliedState(s, ids)),

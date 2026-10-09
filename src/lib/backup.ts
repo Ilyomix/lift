@@ -12,6 +12,7 @@ import type {
 import { WORKOUT_TYPES } from './types'
 import { goalApplied, tagPriorities } from './visual'
 import { normalizeSessionReplacements } from './exerciseReplacement'
+import { normalizePostponed } from './postponed'
 
 export const BACKUP_VERSION = 1
 export const APP_ID = 'golgoth-pwa'
@@ -364,7 +365,8 @@ export function normalizeState(raw: any): AppState {
     },
   })
   const weekSchedules = normalizeWeekSchedules(raw.weekSchedules)
-  return { ...state, ...(weekSchedules ? { weekSchedules } : {}), sessionReplacements: normalizeSessionReplacements(raw.sessionReplacements, state.templates) }
+  const postponed = normalizePostponed(raw.postponed)
+  return { ...state, ...(weekSchedules ? { weekSchedules } : {}), ...(postponed ? { postponed } : {}), sessionReplacements: normalizeSessionReplacements(raw.sessionReplacements, state.templates) }
 }
 
 /**

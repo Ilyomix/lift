@@ -24,6 +24,7 @@ import { AppIcon } from './Onboarding'
 import { workoutArt } from '../components/SportArt'
 import type { ISODate } from '../lib/types'
 import { sessionExercises } from '../lib/exerciseReplacement'
+import { postponedFor } from '../lib/postponed'
 import { CalendarDaySheet } from '../components/CalendarDaySheet'
 import { useSessionStart } from '../components/useSessionStart'
 import { cutDrift, lookInfo, goalApplied } from '../lib/visual'
@@ -70,7 +71,10 @@ export function Home() {
   const nextType = active?.type ?? next?.type ?? state.nextWorkoutType
   const nextDate = next?.date ?? today
   const nextCtx = contextAt(nextDate < PROGRAM_START ? PROGRAM_START : nextDate)
-  const nextSets = prescribeSession(sessionExercises(state, nextType), nextCtx.date, state.reentry, state.gymId, state.workouts).reduce((a, p) => a + p.sets, 0)
+  const nextOwn = sessionExercises(state, nextType)
+  // Exercises moved from an earlier workout join the next one.
+  const nextPlanned = active ? nextOwn : [...nextOwn, ...postponedFor(state, today, nextOwn).map((c) => c.exercise)]
+  const nextSets = prescribeSession(nextPlanned, nextCtx.date, state.reentry, state.gymId, state.workouts).reduce((a, p) => a + p.sets, 0)
   const nextMinutes = sessionMinutes(nextType, nextSets, sessionPace(state.workouts, nextType))
 
   const begin = () => {

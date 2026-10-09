@@ -1,4 +1,5 @@
 import type { Workout, WorkoutExercise, WorkoutType } from './types'
+import { sheetTypeOf } from './postponed'
 
 import type { ContextReason } from './trainingMessages'
 export type { ContextReason } from './trainingMessages'
@@ -38,7 +39,8 @@ export function previousComparablePerformance(
     if (latest && (exercise.unit !== latest.exercise.unit || comparisonContext(exercise) !== comparisonContext(latest.exercise))) return sameRangeFallback ?? latest
     latest ??= { workout, exercise }
     if (!like || sameRange(exercise.prescription ?? exercise.target, like)) {
-      if (!preferredType || workout.type === preferredType) return { workout, exercise }
+      // An exercise carried over to another workout still belongs to its own split.
+      if (!preferredType || sheetTypeOf(exercise, workout.type) === preferredType) return { workout, exercise }
       sameRangeFallback ??= { workout, exercise }
     }
   }

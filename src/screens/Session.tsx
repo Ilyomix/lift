@@ -1,10 +1,10 @@
 import { EffortGuidance, EffortReport, reserveLabel } from '../components/EffortGuidance'
 import { effortTarget, prescribedSets, recordedRir } from '../lib/effort'
 import { exerciseContextReason, workoutsBefore } from '../lib/comparability'
-import { currentExerciseIndex, hasPendingSets } from '../lib/activeExercise'
+import { currentExerciseIndex, deferredFocus, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowDownLeft, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Footprints, HeartPulse, House, Info, Link as LinkIcon, List, MapPin, Pencil, PersonStanding, Play, Plus, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowDownLeft, ArrowUp, ArrowUpRight, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Footprints, HeartPulse, Hourglass, House, Info, Link as LinkIcon, List, ListEnd, MapPin, Pencil, PersonStanding, Play, Plus, Replace, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, mondayOf, todayISO } from '../lib/date'
@@ -12,6 +12,8 @@ import { bodyweightLabel, fmtClock, fmtLoad, fmtNum, fmtRest, parseNumber, plura
 import { gymName, gymOf, HOME_GYM, isGymBound, placeName } from '../lib/gyms'
 import { L, lang } from '../lib/i18n'
 import { sessionExercises } from '../lib/exerciseReplacement'
+import { alternativesFor } from '../lib/exerciseAlternatives'
+import { postponedFor, postponedReason, POSTPONED_REASONS, withPostponed } from '../lib/postponed'
 import { infoFor, LIBRARY } from '../lib/library'
 import { localizeGymName } from '../lib/localize'
 import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PROGRAM_START, ROTATION, sessionMinutes, takesLest, templateSets, TYPE_META, WEEK_DAYS, weekShape } from '../lib/program'
@@ -21,7 +23,7 @@ import {
   changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionPace,
   sessionNotes, sessionSetCount, setsSummary, toppedOut, type AutoChange,
 } from '../lib/training'
-import type { SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
+import type { PostponedExercise, SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
 import { DemoFrames, ExerciseSheet } from '../components/ExerciseSheet'
 import { ExerciseAlternatives } from '../components/ExerciseAlternatives'
 import { GymSheet } from '../components/GymSheet'
@@ -30,7 +32,7 @@ import { WeekScheduleSheet } from '../components/WeekScheduleSheet'
 import { useSessionStart } from '../components/useSessionStart'
 import { RecordTag, StatusTag } from '../components/Status'
 import {
-  Button, Card, cx, DateInput, Disclosure, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, Segmented, Sheet, Tag,
+  Button, Card, cx, DateInput, Disclosure, Empty, Header, IconButton, inputClass, ProgressBar, Screen, Section, SectionHeading, Segmented, Sheet, Tag,
 } from '../components/ui'
 
 // ───────────────────────── Entry ─────────────────────────
@@ -55,9 +57,13 @@ function SessionPreview() {
   const date = today < PROGRAM_START ? PROGRAM_START : today
   const ctx = contextAt(date)
   const tpl = state.templates[type]
-  const exercises = sessionExercises(state, type)
+  const own = sessionExercises(state, type)
+  // Exercises moved from an earlier workout join whichever workout comes next.
+  const carried = postponedFor(state, today, own)
+  const exercises = [...own, ...carried.map((c) => c.exercise)]
   const rx = prescribeSession(exercises, date, state.reentry, state.gymId, state.workouts)
   const totalSets = rx.reduce((a, p) => a + p.sets, 0)
+  const ownSets = rx.slice(0, own.length).reduce((a, p) => a + p.sets, 0)
   const sheetSets = tpl.exercises.reduce((a, e) => a + e.target.sets, 0)
   // The reason is given when it is the case: with two days, or sheets the ceiling cuts into, the week holds clearly less than the plan.
   const keepsWeek = weekShape(templateSets(state.templates)).share >= 0.95
@@ -68,6 +74,15 @@ function SessionPreview() {
   const begin = () => {
     start(type)
   }
+  const dropMoved = (item: PostponedExercise) => {
+    const { dropPostponed, notify, update } = useStore.getState()
+    setSheet(null)
+    dropPostponed(item.exercise.exerciseId)
+    notify(L(`Retiré de la prochaine séance : ${item.exercise.name}.`, `Removed from the next workout: ${item.exercise.name}.`), 'default', {
+      label: L('Annuler', 'Undo'),
+      run: () => update((s) => withPostponed(s, [...(s.postponed ?? []).filter((other) => other.exercise.exerciseId !== item.exercise.exerciseId), item])),
+    })
+  }
 
   return (
     <Screen>
@@ -75,7 +90,7 @@ function SessionPreview() {
         eyebrow={`${TYPE_META[type].fr}${today < PROGRAM_START ? ` · ${L('Séance d’essai', 'Trial workout')}` : ''}`}
         art={workoutArt[type]}
         title={TYPE_META[type].label}
-        sub={`${plural(tpl.exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
+        sub={`${plural(exercises.length, L('exercice', 'exercise'), L('exercices', 'exercises'))} · ${plural(totalSets, L('série', 'set'), L('séries', 'sets'))} · ~${minutes} min`}
         right={<GymChip id={state.gymId} onClick={() => setGymOpen(true)} />}
       />
       <Segmented label={L('Type de séance', 'Workout type')} value={type} onChange={value => { setType(value); setSheet(null) }} options={ROTATION.map((t) => {
@@ -88,7 +103,7 @@ function SessionPreview() {
         <span className="text-[13px] text-text-2">{ctx.effortDetail}</span>
       </div>
       {state.reentry && <p className="mt-2 text-[13px] text-text-2">{L(`${state.reentry.label} : ${state.reentry.advice}`, `${state.reentry.label}: ${state.reentry.advice}`)}</p>}
-      {daysFactor() > 1 && totalSets > sheetSets && (
+      {daysFactor() > 1 && ownSets > sheetSets && (
         <p className="mt-2 text-[13px] leading-[1.45] text-text-2">
           {L(
             `${plural(WEEK_DAYS, 'séance', 'séances')} par semaine : la séance contient plus de séries que le programme de base${keepsWeek ? ', pour garder le volume de la semaine' : ''}.`,
@@ -99,9 +114,10 @@ function SessionPreview() {
       {!isNext && <p className="mt-2 text-[13px] text-muted">{L(`La rotation reprendra après cette séance : ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`, `The rotation resumes after this workout: ${TYPE_META[type].label} → ${TYPE_META[ROTATION[(ROTATION.indexOf(type) + 1) % 5]].label}.`)}</p>}
 
       <ol className="mt-5 divide-y divide-line rounded-[12px] border border-line bg-surface">
-        {exercises.map((e, i) => (
-          <li key={`${e.exerciseId}-${i}`}>
-            <button type="button" onClick={() => setSheet(i)} className="pressable flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
+        {exercises.map((e, i) => {
+          const moved: PostponedExercise | undefined = carried[i - own.length]?.item
+          return <li key={`${e.exerciseId}-${i}`} className="flex items-center">
+            <button type="button" onClick={() => setSheet(i)} className="pressable flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2">
               <span className="w-6 shrink-0 text-[12px] font-semibold text-muted tnum">{String(i + 1).padStart(2, '0')}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-5 font-medium">{e.name}</span>
@@ -109,13 +125,16 @@ function SessionPreview() {
                   {rx[i].sets} × {rx[i].minReps}–{rx[i].maxReps} · {reserveLabel(rx[i].rir)} · {rx[i].weight === null && e.unit !== 'PDC' ? (isGymBound(e) && state.gymId !== HOME_GYM ? L('première fois ici', 'first time here') : L('charge à trouver', 'find your load')) : <span className="whitespace-nowrap">{fmtLoad(rx[i].weight, e.unit)}</span>}
                 </span>
                 {e.supersetWithNext && <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-signal-text"><LinkIcon size={12} aria-hidden /> {L('À enchaîner avec l’exercice suivant', 'Follow immediately with the next exercise')}</span>}
-                {e.exerciseId !== tpl.exercises[i].exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this workout')}</span>}
+                {!moved && e.exerciseId !== tpl.exercises[i]?.exerciseId && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L('Alternative pour cette séance', 'Alternative for this workout')}</span>}
+                {moved && <span className="mt-1 block text-[12px] font-medium text-signal-text">{L(`Reporté de ${TYPE_META[moved.fromType].label} (${fmtDate(moved.fromDate)})`, `Moved from ${TYPE_META[moved.fromType].label} (${fmtDate(moved.fromDate)})`)}</span>}
               </span>
               <Info size={18} className="shrink-0 text-muted" aria-hidden />
             </button>
+            {moved && <IconButton label={L(`Ne pas ajouter ${e.name} à cette séance`, `Don’t add ${e.name} to this workout`)} className="mr-2" onClick={() => dropMoved(moved)}><X size={18} /></IconButton>}
           </li>
-        ))}
+        })}
       </ol>
+      {carried.length > 0 && <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Les exercices reportés s’ajoutent à la fin de ta prochaine séance, quel que soit son type.', 'Moved exercises join the end of your next workout, whatever its type.')}</p>}
 
       <div className="sticky bottom-[calc(66px+env(safe-area-inset-bottom))] z-20 mt-6">
         <Button variant="primary" size="lg" full icon={<Play size={18} aria-hidden />} onClick={begin}>
@@ -123,7 +142,7 @@ function SessionPreview() {
         </Button>
       </div>
 
-      {sheet !== null && exercises[sheet] && <ExerciseSheet key={`${type}-${sheet}-${exercises[sheet].exerciseId}`} exerciseId={exercises[sheet].exerciseId} open onClose={() => setSheet(null)} prescription={rx[sheet]} replacement={{ kind: 'planned', type, index: sheet }} />}
+      {sheet !== null && exercises[sheet] && <ExerciseSheet key={`${type}-${sheet}-${exercises[sheet].exerciseId}`} exerciseId={exercises[sheet].exerciseId} open onClose={() => setSheet(null)} prescription={rx[sheet]} replacement={sheet < tpl.exercises.length ? { kind: 'planned', type, index: sheet } : undefined} />}
       {gymOpen && <GymSheet onClose={() => setGymOpen(false)} />}
       {confirmation}
     </Screen>
@@ -291,7 +310,7 @@ function ActiveSession() {
               <span className={cx('w-6 shrink-0 text-center text-[12px] font-semibold tnum', i === current ? 'text-signal-text' : 'text-muted')}>{!ex.skipped && !hasPendingSets(ex) ? <Check size={18} aria-hidden /> : String(i + 1).padStart(2, '0')}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-medium">{ex.name}</span>
-                <span className="mt-0.5 block text-[12px] text-text-2">{ex.skipped ? L('Non réalisé', 'Not done') : L(`${doneSets(ex).length}/${ex.sets.length} séries validées`, `${doneSets(ex).length}/${ex.sets.length} sets logged`)}</span>
+                <span className="mt-0.5 block text-[12px] text-text-2">{ex.skipped ? (movedOn(ex.skipReason) ? postponedReason() : L('Non réalisé', 'Not done')) : L(`${doneSets(ex).length}/${ex.sets.length} séries validées`, `${doneSets(ex).length}/${ex.sets.length} sets logged`)}</span>
               </span>
               <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
             </button>
@@ -367,8 +386,9 @@ const isReentryNote = (n: string) => REENTRY_NOTE_PREFIXES.some((x) => n.startsW
 // Keep labels and every set in the same compact columns, including on phones.
 const setColumns = 'grid grid-cols-[44px_minmax(0,1.1fr)_minmax(0,0.8fr)_52px_44px] items-center gap-1 min-[400px]:grid-cols-[44px_minmax(0,1.1fr)_minmax(0,0.8fr)_60px_44px] min-[400px]:gap-1.5'
 
-/** The skip reason stored by « Passer cet exercice », shown in the current language; other reasons are left as typed. */
-const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : r)
+/** The skip reasons stored by « Passer cet exercice » and a move to the next workout, shown in the current language; other reasons are left as typed. */
+const movedOn = (r: string | undefined) => !!r && (POSTPONED_REASONS as readonly string[]).includes(r)
+const skipReasonLabel = (r: string) => (r === 'Passé' || r === 'Skipped' ? L('Passé', 'Skipped') : movedOn(r) ? postponedReason() : r)
 
 function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { index: number; ex: WorkoutExercise; nextName?: string; current: boolean; displayed: boolean; gymId: string }) {
   const workouts = useStore((s) => s.state.workouts)
@@ -376,6 +396,10 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
   const { addSet, removeSet, skipExercise, setExerciseField, undoHint, focusExercise } = useStore.getState()
   const [info, setInfo] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [taken, setTaken] = useState(false)
+  const atHome = useStore((s) => s.state.settings.setup?.place === 'home')
+  const reopened = useStore((s) => !!s.state.activeWorkout?.reopened)
+  const machineTaken = useMachineTaken(index, ex)
   const exerciseInfo = infoFor(ex.exerciseId, { name: ex.name })
   const bound = isGymBound(ex)
   // Prefer the same split and rep range, so a reminder is compared with its own reference.
@@ -444,6 +468,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] leading-[1.25] font-semibold tracking-[-0.015em]">{ex.name}</h3>
           <p className="mt-0.5 text-[13px] text-text-2">{ex.muscle}{ex.replacement ? L(` · remplace ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`, ` · replaces ${LIBRARY[ex.replacement.fromId]?.name ?? ex.replacement.fromName}`) : ''}</p>
+          {ex.postponedFrom && TYPE_META[ex.postponedFrom.type] && <p className="mt-0.5 text-[12px] font-medium text-signal-text">{L(`Reporté de ${TYPE_META[ex.postponedFrom.type].label} (${fmtDate(ex.postponedFrom.date)})`, `Moved from ${TYPE_META[ex.postponedFrom.type].label} (${fmtDate(ex.postponedFrom.date)})`)}</p>}
         </div>
         <IconButton label={L(`Détails de l’exercice : ${ex.name}`, `Exercise details: ${ex.name}`)} onClick={() => setInfo(true)} className="-mt-1.5 -mr-1"><Info size={19} /></IconButton>
         <IconButton label={L(`Options : ${ex.name}`, `Options: ${ex.name}`)} onClick={() => setMenu(true)} aria-haspopup="dialog" className="-mt-1.5 -mr-2"><Ellipsis size={19} /></IconButton>
@@ -453,6 +478,7 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
         <EffortGuidance exercise={ex} />
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
+        {!atHome && !reopened && !allDone && <Button variant="ghost" size="sm" className="-mr-3 ml-auto" icon={<Hourglass size={16} aria-hidden />} aria-haspopup="dialog" aria-label={L(`Machine occupée : ${ex.name}`, `Machine taken: ${ex.name}`)} onClick={() => setTaken(true)}>{L('Machine occupée', 'Machine taken')}</Button>}
       </div>
       {movement && (prevSets.length > 0
         // A known movement folds away so the sets come first; a new one stays open.
@@ -546,10 +572,71 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
             <span className="mb-1.5 block text-[13px] font-medium text-text-2">{L('Note sur l’exercice', 'Exercise note')}</span>
             <textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={ex.notes} onChange={(e) => setExerciseField(index, { notes: e.target.value })} />
           </label>
+          {!reopened && <div className="space-y-2">
+            <Button full icon={<ListEnd size={18} aria-hidden />} disabled={!machineTaken.later} closeSheet onClick={() => { setMenu(false); machineTaken.doLater() }}>{L('Le faire plus tard dans la séance', 'Do it later in this workout')}</Button>
+            <Button full icon={<CalendarClock size={18} aria-hidden />} disabled={!machineTaken.canMove} closeSheet onClick={() => { setMenu(false); machineTaken.moveToNext() }}>{L('Le reporter à la prochaine séance', 'Move it to the next workout')}</Button>
+          </div>}
           <Button variant="danger" full icon={<SkipForward size={18} aria-hidden />} closeSheet onClick={() => { skipExercise(index, true, L('Passé', 'Skipped')); setMenu(false) }}>{L('Passer cet exercice', 'Skip this exercise')}</Button>
         </div>
       </Sheet>
+      <MachineTakenSheet open={taken} onClose={() => setTaken(false)} index={index} ex={ex} actions={machineTaken} />
     </Card>
+  )
+}
+
+/** What a taken machine allows: go on with another exercise and come back, or leave this one for the next workout. */
+function useMachineTaken(index: number, ex: WorkoutExercise) {
+  const active = useStore((s) => s.state.activeWorkout)
+  const laterIndex = active ? deferredFocus(active, index) : -1
+  const later = laterIndex >= 0 ? active!.exercises[laterIndex].name : null
+  const logged = ex.sets.some((set) => set.completed)
+  const canMove = !!active && !active.reopened && !ex.skipped && !logged
+  const doLater = () => {
+    const { deferExercise, notify, state } = useStore.getState()
+    const next = deferExercise(index)
+    const name = state.activeWorkout?.exercises[next]?.name
+    if (name) notify(L(`${ex.name} reviendra après les autres. Place à ${name}.`, `${ex.name} comes back after the others. Next up: ${name}.`))
+  }
+  const moveToNext = () => {
+    const { postponeExercise, notify, skipExercise } = useStore.getState()
+    const workoutId = active?.id
+    if (!postponeExercise(index)) return
+    notify(L(`Exercice reporté à ta prochaine séance : ${ex.name}.`, `Exercise moved to your next workout: ${ex.name}.`), 'good', {
+      label: L('Annuler', 'Undo'),
+      run: () => { if (useStore.getState().state.activeWorkout?.id === workoutId) skipExercise(index, false) },
+    })
+  }
+  return { later, logged, canMove, doLater, moveToNext }
+}
+
+function MachineTakenSheet({ open, onClose, index, ex, actions }: { open: boolean; onClose: () => void; index: number; ex: WorkoutExercise; actions: ReturnType<typeof useMachineTaken> }) {
+  const alternatives = alternativesFor(ex.exerciseId).length > 0
+  const choice = (title: string, detail: string) => <span className="min-w-0 flex-1 text-left">
+    <span className="block text-[14px] leading-5 font-semibold">{title}</span>
+    <span className="mt-0.5 block text-[12px] leading-[18px] font-normal text-text-2">{detail}</span>
+  </span>
+  return (
+    <Sheet icon={<Hourglass />} open={open} onClose={onClose} title={L('Machine occupée', 'Machine taken')}>
+      <p className="text-[13px] leading-[1.5] text-text-2">{L(`Pas besoin d’attendre pour ${ex.name} : choisis comment continuer.`, `No need to wait for ${ex.name}: choose how to carry on.`)}</p>
+      <div className="mt-4 space-y-2">
+        <Button full className="justify-start py-3" icon={<ListEnd size={18} aria-hidden />} disabled={!actions.later} closeSheet onClick={() => { onClose(); actions.doLater() }}>
+          {choice(L('Le faire plus tard', 'Do it later'), actions.later
+            ? L(`Passe à ${actions.later}. Celui-ci reviendra une fois les autres exercices faits.`, `Go on with ${actions.later}. This one comes back once the other exercises are done.`)
+            : L('C’est le dernier exercice à faire : attends la machine, ou choisis une autre option.', 'This is the last exercise left: wait for the machine, or choose another option.'))}
+        </Button>
+        <Button full className="justify-start py-3" icon={<CalendarClock size={18} aria-hidden />} disabled={!actions.canMove} closeSheet onClick={() => { onClose(); actions.moveToNext() }}>
+          {choice(L('Le reporter à la prochaine séance', 'Move it to the next workout'), actions.logged
+            ? L('Des séries sont déjà validées : finis-le plus tard dans cette séance.', 'Sets are already logged: finish it later in this workout.')
+            : L('Il s’ajoute à la fin de ta prochaine séance, quelle qu’elle soit. La semaine garde ses séries, la charge reste celle de ton programme.', 'It joins the end of your next workout, whichever it is. The week keeps its sets, and the load stays as programmed.'))}
+        </Button>
+      </div>
+      {alternatives && <div className="mt-6">
+        <SectionHeading icon={<Replace size={18} aria-hidden />}>{L('Ou le remplacer aujourd’hui', 'Or replace it today')}</SectionHeading>
+        <div className="mt-2">
+          <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={{ kind: 'active', index }} sessionOnly showHeading={false} onReplaced={onClose} />
+        </div>
+      </div>}
+    </Sheet>
   )
 }
 
