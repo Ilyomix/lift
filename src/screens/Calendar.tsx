@@ -101,6 +101,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
               {w.cells.map((c) => {
                 const done = c.done[0]
                 const active = c.active ? state.activeWorkout : null
+                const underway = !!active && !done
                 const workoutName = done ? TYPE_META[done.type].label : active ? TYPE_META[active.type].label : c.planned ? TYPE_META[c.planned.type].label : null
                 const label = done ? L(`${TYPE_META[done.type].label} faite`, `${TYPE_META[done.type].label} done`) : active ? L(`${TYPE_META[active.type].label} en cours`, `${TYPE_META[active.type].label} in progress`) : c.planned ? L(`${TYPE_META[c.planned.type].label} prévue`, `${TYPE_META[c.planned.type].label} planned`) : c.paused ? L('Pause', 'Paused') : c.rest ? L('Repos', 'Rest') : L('Aucune séance', 'No workout')
                 return (
@@ -110,20 +111,20 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
                     onClick={() => setDay(c.date)}
                     aria-label={`${fmtDate(c.date, { weekday: true, long: true })} : ${label}${c.isGoal ? L(', objectif', ', goal') : ''}`}
                     className={cx(
-                      'pressable relative flex min-w-0 flex-col items-center justify-between rounded-[9px] border py-2',
-                      expanded ? 'min-h-[52px] aspect-[0.86]' : 'min-h-[72px]',
+                      // Same near-square cell in the week and the month.
+                      'pressable relative flex min-h-[52px] min-w-0 aspect-[0.86] flex-col items-center justify-between rounded-[9px] border py-2',
                       expanded && !c.inMonth && 'opacity-35',
                       w.kind === 'deload' && !done ? 'border-line-strong' : 'border-line',
                       c.paused && !done && 'hatch',
                       c.rest && 'border-dashed bg-surface-2',
                       c.isToday && 'border-signal',
+                      // The workout in progress fills its whole day: no inner label box.
+                      underway && 'bg-signal',
                     )}
                   >
-                    <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
+                    <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', underway ? 'font-bold text-signal-ink' : c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
                     {workoutName ? (
-                      // Filled like a completed workout, with no outline of its own:
-                      // the day's single orange border is the only contour.
-                      <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center rounded-[5px] px-0.5 text-[10px] font-semibold', done ? 'bg-text text-bg' : active ? 'bg-signal text-signal-ink' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
+                      <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center rounded-[5px] px-0.5 text-[10px] font-semibold', done ? 'bg-text text-bg' : underway ? 'text-signal-ink' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
                         {c.done.length > 1 ? `${c.done.length}×` : workoutName}
                       </span>
                     ) : c.paused || c.rest ? (
