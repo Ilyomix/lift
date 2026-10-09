@@ -2,7 +2,7 @@ import { effortBounds, effortTarget, progressionSets, prescribedSets, recordedRi
 import { chronological, comparisonContext, exerciseContextReason, previousComparablePerformance, workoutContextReason, workoutsBefore } from './comparability'
 import { contextReasonLabel, type ContextReason } from './trainingMessages'
 import { addDays, diffDays, mondayOf, todayISO } from './date'
-import { bodyweightLabel, fmtLoad, fmtNum, roundTo } from './format'
+import { fmtLoad, fmtNum, roundTo } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
 import { L, lang } from './i18n'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
@@ -124,12 +124,10 @@ export function previousPerformance(workouts: Workout[], exerciseId: string, exc
 export function setsSummary(sets: WorkoutSet[], unit: Unit): string {
   const done = sets.filter((s) => s.completed)
   if (!done.length) return '—'
+  // Every load names its unit: kg, kg per hand or body weight plus added kg.
   const sameWeight = done.every((s) => s.weight === done[0].weight)
-  if (sameWeight) {
-    const w = unit === 'PDC' ? (done[0].weight ? `${bodyweightLabel()}+${fmtNum(done[0].weight)}` : bodyweightLabel()) : fmtNum(done[0].weight)
-    return `${w} × ${done.map((s) => cleanOf(s)).join(' · ')}`
-  }
-  return done.map((s) => `${unit === 'PDC' ? (s.weight ? `${bodyweightLabel()}+${fmtNum(s.weight)}` : bodyweightLabel()) : fmtNum(s.weight)}×${cleanOf(s)}`).join(' · ')
+  if (sameWeight) return `${fmtLoad(done[0].weight, unit)} × ${done.map((s) => cleanOf(s)).join(' · ')}`
+  return done.map((s) => `${fmtLoad(s.weight, unit)} × ${cleanOf(s)}`).join(' · ')
 }
 
 // ───────────── Loads ─────────────

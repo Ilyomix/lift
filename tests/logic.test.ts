@@ -1110,7 +1110,7 @@ test('bodyweight work: added load is proposed at the top of the range and tracke
   // Added load counts in the level and shows in the summary of the sets.
   assert.ok(setScore(set(2.5, 11), 'PDC') > setScore(set(null, 12), 'PDC'))
   assert.equal(setScore(set(null, 12), 'PDC'), 12)
-  assert.equal(setsSummary([set(null, 12), set(2.5, 10)], 'PDC'), 'PDC×12 · PDC+2,5×10')
+  assert.equal(setsSummary([set(null, 12), set(2.5, 10)], 'PDC'), 'PDC × 12 · PDC +2,5\u202fkg × 10')
   assert.equal(compareExercise(dips([set(2.5, 11), set(2.5, 10)], 2.5), dips([set(null, 12), set(null, 12)]), [], false).detail, 'Lest différent de la dernière fois.')
   // The decision is written in the template; back to none is stored as no load.
   const s = defaultState()

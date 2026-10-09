@@ -158,8 +158,8 @@ test('curves and deltas separate units and named conditions without removing old
     assert.match(text(full), /All workouts remain in the history below/)
     const historyRows = buttons(full).filter(button => /#\d/.test(text(button[2])))
     assert.equal(historyRows.length, 4)
-    assert.ok(historyRows.some(row => text(row[2]).includes('400 × 10')))
-    assert.ok(historyRows.some(row => text(row[2]).includes('100 × 10')))
+    assert.ok(historyRows.some(row => /400\skg(\/hand)? × 10/.test(text(row[2]))))
+    assert.ok(historyRows.some(row => /100\skg(\/hand)? × 10/.test(text(row[2]))))
     if (variant === 'unit') assert.match(text(full), /Estimated 1RM \(kg\/hand\)/)
     else {
       assert.match(text(full), /machine a/)
