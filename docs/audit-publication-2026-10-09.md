@@ -52,6 +52,11 @@ Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revéri
 | Volet derrière le clavier après avoir quitté puis rouvert l'app | Clavier restauré par iOS hors de la mise en page | Quitter l'app termine la saisie (valeur conservée) — build 43 |
 | Volets de saisie sans icône | — | Icône du titre selon la mesure (balance, règle, haltère, minuteur, flamme, steak, gélule, pourcentage) — build 43 |
 
+## À corriger après la publication (retours du 9 octobre, build 43)
+
+- **Calendrier, cases de la semaine** (`src/screens/Calendar.tsx`, cellules et puce de séance) : garder des cases carrées comme dans la vue mois ; la case du jour actif doit être pleine, son libellé (« Lower ») sans marge intérieure ; pas de double contour (aujourd'hui = `border` + `ring`, plus la bordure de la puce « en cours »).
+- **Démos 3D** (`src/lib/exerciseModel*.ts`) : sur certains exercices, la main est posée à plat sur le dos au lieu de la paume ; collisions manquantes, notamment la barre qui traverse la taille au hip thrust. Revoir toutes les prises et contacts barre/corps, pas seulement le hip thrust.
+
 ## Reporté (connu, non bloquant)
 
 - **Bande sombre sous la barre d'état en thème clair** (P2) : la faire suivre le thème impose de gérer aussi le minuteur plein écran, toujours sombre. Le thème par défaut est sombre.
