@@ -4,7 +4,7 @@ import { exerciseContextReason, workoutsBefore } from '../lib/comparability'
 import { currentExerciseIndex, deferredFocus, hasPendingSets } from '../lib/activeExercise'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowDown, ArrowDownLeft, ArrowUp, ArrowUpRight, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Footprints, HeartPulse, Hourglass, House, Info, Link as LinkIcon, List, ListEnd, MapPin, Pencil, PersonStanding, Play, Plus, Replace, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
+  ArrowDown, ArrowDownLeft, ArrowUp, ArrowUpRight, CalendarClock, Check, Equal, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Dumbbell, Ellipsis, Footprints, HeartPulse, Hourglass, House, Info, Link as LinkIcon, List, ListEnd, MapPin, Pencil, PersonStanding, Play, Plus, Replace, SkipForward, Timer, Trash, TriangleAlert, Undo2, X,
 } from 'lucide-react'
 import { unlockAudio } from '../lib/alerts'
 import { capitalize, fmtDate, mondayOf, todayISO } from '../lib/date'
@@ -20,7 +20,7 @@ import { contextAt, daysFactor, GOAL_DATE, prescribeSession, projectSessions, PR
 import { navigate } from '../lib/router'
 import { useStore } from '../lib/store'
 import {
-  changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionPace,
+  changeLabel, changesOf, changeState, cleanOf, doneSets, heldByEffort, knownLoads, lastFinished, loadDecision, loadOutcome, PLATEAU_SESSIONS, previousPerformance, progressionFor, sessionDurationMin, sessionEffort, sessionPace,
   sessionNotes, sessionSetCount, setsSummary, toppedOut, type AutoChange,
 } from '../lib/training'
 import type { PostponedExercise, SetFlag, Unit, Workout, WorkoutExercise, WorkoutType } from '../lib/types'
@@ -478,12 +478,20 @@ function ExerciseLogger({ index, ex, nextName, current, displayed, gymId }: { in
         <Tag tone={current ? 'signal' : 'ink'}>{(p?.sets ?? ex.target.sets)} × {ex.target.minReps}–{ex.target.maxReps}</Tag>
         <EffortGuidance exercise={ex} />
         <Tag tone="outline">{fmtRest(p?.restSeconds ?? ex.target.restSeconds)}</Tag>
-        {!atHome && !reopened && !allDone && <Button variant="ghost" size="sm" className="-mr-3 ml-auto" icon={<Hourglass size={16} aria-hidden />} aria-haspopup="dialog" aria-label={L(`Machine occupée : ${ex.name}`, `Machine taken: ${ex.name}`)} onClick={() => setTaken(true)}>{L('Machine occupée', 'Machine taken')}</Button>}
       </div>
       {movement && (prevSets.length > 0
         // A known movement folds away so the sets come first; a new one stays open.
         ? <Disclosure bordered={false} className="px-4" icon={<PersonStanding size={18} />} title={L('Voir le mouvement', 'See the movement')}>{movement}</Disclosure>
         : movement)}
+      {/* Same row as « Voir le mouvement »: the way on when the machine is taken, before the first set. */}
+      {!atHome && !reopened && !allDone && (
+        <button type="button" onClick={() => setTaken(true)} aria-haspopup="dialog" aria-label={L(`Machine occupée ? Options pour ${ex.name}`, `Machine taken? Options for ${ex.name}`)}
+          className="pressable flex min-h-[52px] w-full items-center gap-3 border-t border-line px-4 py-3 text-left text-[15px] leading-5 font-medium text-text-2 hover:text-text">
+          <Hourglass size={18} className="shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">{L('Machine occupée ?', 'Machine taken?')}</span>
+          <ChevronRight size={18} className="shrink-0 text-muted" aria-hidden />
+        </button>
+      )}
       <div className="space-y-1 border-t border-line px-4 pt-3 text-[13px] leading-[1.45]">
         {ex.gymTrial && (
           <p className="text-text-2">
@@ -990,8 +998,23 @@ function Figure({ label, value }: { label: string; value: string }) {
   )
 }
 
+const OUTCOME_ICON = {
+  up: <ArrowUp size={13} className="mt-[2px] shrink-0 text-good" aria-hidden />,
+  down: <ArrowDown size={13} className="mt-[2px] shrink-0 text-warn" aria-hidden />,
+  baseline: <Check size={13} className="mt-[2px] shrink-0 text-text-2" aria-hidden />,
+  kept: <Equal size={13} className="mt-[2px] shrink-0 text-muted" aria-hidden />,
+  info: <Info size={13} className="mt-[2px] shrink-0 text-muted" aria-hidden />,
+}
+
 export function WorkoutExercises({ w }: { w: Workout }) {
   const [demo, setDemo] = useState<string | null>(null)
+  const state = useStore((s) => s.state)
+  // What each exercise did to its load: the session's change, or why the load stays and what takes it up.
+  const outcomes = useMemo(() => {
+    const changes = changesOf(state, w)
+    const seen = [...workoutsBefore(state.workouts, w), w]
+    return w.exercises.map((e) => loadOutcome(e, changes, knownLoads(seen, e.exerciseId, isGymBound(e) ? gymOf(w) : undefined, e)))
+  }, [state, w])
   return (
     <>
       <Card className="divide-y divide-line">
@@ -1011,6 +1034,7 @@ export function WorkoutExercises({ w }: { w: Workout }) {
                 {e.comparison?.detail && <span className="text-[12px] text-muted">{e.comparison.detail}</span>}
               </div>
             )}
+            {outcomes[i] && <p className="mt-1.5 flex gap-1.5 text-[12px] leading-[1.45] text-text-2">{OUTCOME_ICON[outcomes[i]!.kind]}<span>{outcomes[i]!.text}</span></p>}
             {e.skipped && <p className="mt-1 text-[12px] text-muted">{L('Non réalisé', 'Not done')}</p>}
             {e.notes && <p className="mt-1 text-[12px] text-muted">{e.notes}</p>}
           </div>

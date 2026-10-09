@@ -5,10 +5,11 @@ import { fmtDate, todayISO } from './date'
 import { fmtLoad, fmtNum, plural } from './format'
 import { gymName, gymOf, isGymBound } from './gyms'
 import { L } from './i18n'
-import { contextAt, daysFactor, GOAL_DATE, MAINTENANCE, nextTargetText, PLAN_DAYS, SESSION_MUSCLE_CAP, sessionPlan, sharePhrase, templateSets, TYPE_META, WEEK_DAYS, weekShape } from './program'
-import { exerciseHistory, setsSummary } from './training'
+import { contextAt, daysFactor, GOAL_DATE, loadStep, MAINTENANCE, nextTargetText, PLAN_DAYS, SESSION_MUSCLE_CAP, sessionPlan, sharePhrase, templateSets, TYPE_META, WEEK_DAYS, weekShape } from './program'
+import { workoutsBefore } from './comparability'
+import { changesOf, doneSets, exerciseHistory, knownLoads, loadOutcome, setsSummary } from './training'
 import { weightStatus } from './stats'
-import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutType } from './types'
+import type { AppState, NutritionTargets, Target, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutType } from './types'
 import { WORKOUT_TYPES } from './types'
 
 const FLAG_LABEL: Record<string, string> = {
@@ -82,8 +83,8 @@ const rules = (share: number) =>
               `- I train ${plural(WEEK_DAYS, 'day', 'days')} a week with the base workouts: the 5-workout rotation spreads out, the week holds ${sharePhrase(share)}.`,
             )]
       : []),
-    L('- Répétitions en réserve : 1–2 en polyarticulaire, 0–1 en isolation ; S1 du bloc 3, S2 2, dernière semaine 0–1.', '- Reps in reserve: 1–2 on compounds, 0–1 on isolation; block week 1 3, week 2 2, last week 0–1.'),
-    L('- Double progression : quand toutes les séries atteignent le haut de la fourchette avec les répétitions en réserve prévues, +2,5 % environ (plus petit incrément).', '- Double progression: when every set reaches the top of the rep range with the planned reps in reserve, about +2.5% (smallest increment).'),
+    L('- Répétitions en réserve : semaine 1 du bloc 3, semaine 2 : 2, puis celles de la fiche (1–2 en polyarticulaire, 0–1 en isolation), dernière semaine 0–1. La semaine l’emporte sur la fiche.', '- Reps in reserve: block week 1 3, week 2 2, then the sheet’s (1–2 on compounds, 0–1 on isolation), last week 0–1. The week overrides the sheet.'),
+    L('- Double progression : quand toutes les séries de la fiche atteignent le haut de la fourchette avec les répétitions en réserve prévues, +2,5 % environ, au moins le palier de l’exercice (indiqué au programme). Une série poussée plus loin que prévu compte pour moins de répétitions ; une charge changée en séance et tenue sur 2 séries devient la cible ; une alternative du jour, une semaine allégée ou une reprise ne changent pas la fiche.', '- Double progression: when every sheet set reaches the top of the rep range with the planned reps in reserve, about +2.5%, at least the exercise’s step (shown in the program). A set pushed past the planned effort counts for fewer reps; a load changed during a workout and held for 2 sets becomes the target; an alternative for the day, a deload or a return week leave the sheet unchanged.'),
     L('- Performance en nette baisse 2 séances de suite sur un exercice (une rep par série ou plus à chaque fois ; moins, c’est la variation normale) : retirer 1 série à ce muscle ; baisse générale : avancer la semaine allégée.', '- Performance clearly down 2 workouts in a row on an exercise (one rep per set or more each time; less is normal variation): remove 1 set for that muscle; general drop: bring the deload forward.'),
     L('- L’app ajuste déjà les charges après chaque séance (double progression, baisse si toutes les séries restent sous la fourchette) : propose surtout ce qu’elle ne voit pas (technique, choix d’exercices, volume, récupération).', '- The app already adjusts loads after each workout (double progression, lower when every set stays below the range): mostly suggest what it can’t see (technique, exercise choice, volume, recovery).'),
     L('- Semaine allégée : moitié des séries, charges −10 %, 3–4 reps en réserve.', '- Deload: half the sets, loads −10%, 3–4 reps in reserve.'),
@@ -126,6 +127,58 @@ export function sessionPrompt(state: AppState, w: Workout): string {
   ].filter((l) => l !== '').join('\n')
 }
 
+/** The step a sheet load moves by, so the coach reads the jumps the app will make. */
+function stepNote(e: TemplateExercise): string {
+  if (e.target.weight === null || e.target.weight === undefined) return ''
+  const step = loadStep(e, e.target.weight)
+  return step > 0 ? L(` (palier ${fmtLoad(step, e.unit === 'PDC' ? 'kg' : e.unit)})`, ` (step ${fmtLoad(step, e.unit === 'PDC' ? 'kg' : e.unit)})`) : ''
+}
+
+/** One workout for the coach: its week, then each exercise planned, done and what it did to the load. */
+function recentWorkoutLines(state: AppState, w: Workout): string[] {
+  const ctx = contextAt(w.date)
+  const where = state.gyms.length > 1 ? L(` · salle : ${gymName(state, w.gymId)}`, ` · gym: ${gymName(state, w.gymId)}`) : ''
+  const week = [ctx.title, w.deload ? L('semaine allégée', 'deload week') : ctx.effort].filter(Boolean).join(' · ')
+  const lines = [`${fmtDate(w.date)} · ${w.type}${week ? ` · ${week}` : ''}${where}`]
+  const changes = changesOf(state, w)
+  const seen = [...workoutsBefore(state.workouts, w), w]
+  for (const ex of w.exercises) {
+    const origin = ex.replacement && ex.replacement.fromId !== ex.exerciseId
+      ? L(` (alternative à ${ex.replacement.fromName})`, ` (instead of ${ex.replacement.fromName})`)
+      : ex.postponedFrom && TYPE_META[ex.postponedFrom.type]
+        ? L(` (reporté de ${ex.postponedFrom.type} du ${fmtDate(ex.postponedFrom.date)})`, ` (moved from ${ex.postponedFrom.type} on ${fmtDate(ex.postponedFrom.date)})`)
+        : ''
+    if (ex.skipped || !doneSets(ex).length) {
+      lines.push(L(`  - ${ex.name}${origin} : non réalisé${ex.skipReason ? ` (${ex.skipReason})` : ''}`, `  - ${ex.name}${origin}: not done${ex.skipReason ? ` (${ex.skipReason})` : ''}`))
+      continue
+    }
+    const outcome = loadOutcome(ex, changes, knownLoads(seen, ex.exerciseId, isGymBound(ex) ? gymOf(w) : undefined, ex))
+    lines.push(L(
+      `  - ${ex.name}${origin} : cible ${plannedOf(ex)} · fait ${doneOf(ex)}${outcome ? ` → ${outcome.text}` : ''}`,
+      `  - ${ex.name}${origin}: target ${plannedOf(ex)} · done ${doneOf(ex)}${outcome ? ` → ${outcome.text}` : ''}`,
+    ))
+  }
+  return lines
+}
+
+/** The day's prescription: sets, range, effort and load. */
+function plannedOf(ex: WorkoutExercise): string {
+  const p = ex.prescription
+  const sets = p?.sets ?? ex.target.sets
+  const rir = p?.rir || ex.target.rir
+  const weight = p?.weight ?? ex.target.weight
+  const load = ex.unit === 'PDC' && !weight ? L('au poids du corps', 'at body weight') : `${L('à', 'at')} ${fmtLoad(weight, ex.unit)}`
+  return `${sets} × ${ex.target.minReps}–${ex.target.maxReps}${rir ? L(`, ${rir} en réserve`, `, ${rir} in reserve`) : ''} ${load}`
+}
+
+/** Sets done, with the effort and flags logged on them. */
+function doneOf(ex: WorkoutExercise): string {
+  const sets = doneSets(ex)
+  const rir = sets.some((s) => typeof s.rir === 'number') ? L(` (en réserve : ${sets.map((s) => typeof s.rir === 'number' ? fmtNum(s.rir) : '–').join(' · ')})`, ` (in reserve: ${sets.map((s) => typeof s.rir === 'number' ? fmtNum(s.rir) : '–').join(' · ')})`) : ''
+  const flags = sets.flatMap((s, i) => s.flags.map((f) => `${FLAG_LABEL[f]} ${L('S', 'set ')}${i + 1}`))
+  return `${setsSummary(ex.sets, ex.unit)}${rir}${flags.length ? ` · ${flags.join(', ')}` : ''}`
+}
+
 export function globalPrompt(state: AppState): string {
   const today = todayISO()
   const ctx = contextAt(today)
@@ -143,7 +196,7 @@ export function globalPrompt(state: AppState): string {
           `Date : ${fmtDate(today, { weekday: true, year: true })} · objectif le ${fmtDate(state.settings.goalDate, { year: true })}`,
           `Date: ${fmtDate(today, { weekday: true, year: true })} · goal on ${fmtDate(state.settings.goalDate, { year: true })}`,
         ),
-    L(`Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`, `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}`),
+    L(`Contexte : ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · cette semaine : ${ctx.effort}` : ''}`, `Context: ${ctx.title}${ctx.phase ? ` · ${ctx.phase.label}` : ''}${ctx.effort ? ` · this week: ${ctx.effort}` : ''}`),
     plan.cycle
       ? L(
           `Séances : ${state.workouts.length} faites au total ; cycle en cours (${plan.cycle.label}) : ${plan.done} faites, ${plan.planned} prévues d’ici le ${fmtDate(plan.cycle.end, { year: true })}`,
@@ -169,14 +222,11 @@ export function globalPrompt(state: AppState): string {
   for (const type of WORKOUT_TYPES) {
     lines.push(L(`${type} :`, `${type}:`))
     for (const e of state.templates[type].exercises) {
-      lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, ${L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}, ${fmtLoad(e.target.weight, e.unit)}`)
+      lines.push(`- ${e.name} [${e.exerciseId}] ${e.target.sets} × ${e.target.minReps}–${e.target.maxReps}, ${L(`${e.target.rir ?? '—'} reps en réserve`, `${e.target.rir ?? '—'} reps in reserve`)}, ${fmtLoad(e.target.weight, e.unit)}${stepNote(e)}`)
     }
   }
-  lines.push('', L('Dernières séances :', 'Recent workouts:'))
-  for (const w of state.workouts.slice(-5)) {
-    const done = w.exercises.filter((e) => !e.skipped).map((e) => `${e.name} ${setsSummary(e.sets, e.unit)}`)
-    lines.push(L(`${fmtDate(w.date)} · ${w.type} : ${done.join(' ; ')}`, `${fmtDate(w.date)} · ${w.type}: ${done.join('; ')}`))
-  }
+  lines.push('', L('Dernières séances (cible du jour · fait · décision de l’app sur la charge) :', 'Recent workouts (target for the day · done · the app’s load decision):'))
+  for (const w of state.workouts.slice(-5)) lines.push(...recentWorkoutLines(state, w))
   lines.push('', rules(weekShape(templateSets(state.templates)).share), '', L('Réponds avec une analyse courte puis un bloc JSON unique à ce format :', 'Answer in English with a short analysis, then a single JSON block in this format:'), schema())
   return lines.join('\n')
 }

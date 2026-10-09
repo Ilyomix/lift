@@ -202,9 +202,9 @@ function render() {
 test('the machine-taken shortcut is offered at the gym in both languages, not at home or in a correction', () => {
   actions().startSession('UPPER')
   const name = active().exercises[0].name
-  assert.ok(buttons(render()).some(button => button.name === `Machine taken: ${name}` && /aria-haspopup="dialog"/.test(button.attributes)))
+  assert.ok(buttons(render()).some(button => button.name === `Machine taken? Options for ${name}` && /aria-haspopup="dialog"/.test(button.attributes)))
   setLang('fr')
-  assert.ok(buttons(render()).some(button => button.name === `Machine occupée : ${active().exercises[0].name}`))
+  assert.ok(buttons(render()).some(button => button.name === `Machine occupée ? Options pour ${active().exercises[0].name}`))
   setLang('en')
   useStore.setState({ state: { ...state(), settings: { ...state().settings, setup: { place: 'home', equipment: [] } } } })
   assert.ok(!buttons(render()).some(button => button.name.startsWith('Machine taken')))

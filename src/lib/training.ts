@@ -7,7 +7,7 @@ import { gymOf, HOME_GYM, isGymBound, loadAt } from './gyms'
 import { L, lang } from './i18n'
 import { keptPostponed, sheetTypeOf, withoutPostponed, withPostponed } from './postponed'
 import { infoFor, MUSCLES, type MuscleGroup } from './library'
-import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, isRestDay, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
+import { autoAdjustActive, contextAt, daysFactorFor, incrementFor, isRestDay, loadStep, nextInRotation, nextTargetText, PLAN_DAYS, scaledSession, SESSION_OVERHEAD_MIN, sessionSlots, SET_DROP_REASON, takesLest } from './program'
 import type {
   ActiveWorkout, AppState, AutoChange, Comparison, ISODate, Template, TemplateExercise, Unit, Workout, WorkoutExercise, WorkoutSet, WorkoutType,
 } from './types'
@@ -180,20 +180,22 @@ export interface Steps {
  * beyond the known loads, the standard arithmetic takes over.
  */
 export function stepsFor(ex: { exerciseId: string; unit: Unit }, known: number[] = []): Steps {
-  const inc = incrementFor(ex)
-  if (inc <= 0) return { up: (w) => w, down: (w) => w, below: (x) => x }
-  const offGrid = (x: number) => Math.abs(x / inc - Math.round(x / inc)) > 1e-6
+  if (incrementFor(ex) <= 0) return { up: (w) => w, down: (w) => w, below: (x) => x }
+  // The finest step of the equipment is its grid; the step itself grows with the load (loadStep).
+  const grid = loadStep(ex, 0)
+  const step = (w: number) => loadStep(ex, w)
+  const offGrid = (x: number) => Math.abs(x / grid - Math.round(x / grid)) > 1e-6
   const own = known.some(offGrid) ? known : []
-  const reach = (w: number) => Math.max(2 * inc, 0.12 * w) + 1e-9
-  const apart = inc / 4 - 1e-9
+  const reach = (w: number) => Math.max(2 * step(w), 0.12 * w) + 1e-9
+  const apart = grid / 4 - 1e-9
   // Added load on a bodyweight exercise can go back to none; any other load keeps at least one step.
-  const floor = ex.unit === 'PDC' ? 0 : inc
+  const floor = ex.unit === 'PDC' ? 0 : grid
   return {
     up: (from, times = 1) => {
       let w = from
       for (let left = times; left > 0; left--) {
         const next = own.find((l) => l >= w + apart)
-        if (next === undefined || next > w + reach(w)) return roundTo(w + left * Math.max(inc, w * 0.025), inc)
+        if (next === undefined || next > w + reach(w)) return roundTo(w + left * Math.max(step(w), w * 0.025), step(w))
         w = next
       }
       return w
@@ -202,12 +204,12 @@ export function stepsFor(ex: { exerciseId: string; unit: Unit }, known: number[]
       let w = from
       for (let left = times; left > 0; left--) {
         const prev = own.filter((l) => l <= w - apart).pop()
-        if (prev === undefined || prev < w - reach(w)) return Math.min(w, Math.max(floor, roundTo(w - left * Math.max(inc, w * 0.05), inc)))
+        if (prev === undefined || prev < w - reach(w)) return Math.min(w, Math.max(floor, roundTo(w - left * Math.max(step(w), w * 0.05), step(w))))
         w = prev
       }
       return w
     },
-    below: (x) => own.filter((l) => l <= x + 1e-9).pop() ?? Math.floor(x / inc + 1e-9) * inc,
+    below: (x) => own.filter((l) => l <= x + 1e-9).pop() ?? Math.floor(x / step(x) + 1e-9) * step(x),
   }
 }
 
@@ -444,21 +446,72 @@ export function baselineFor(ex: WorkoutExercise): LoadDecision | null {
   if (doneSets(ex).some((s) => s.flags.includes('pain'))) return null
   const sets = doneSets(ex).slice(0, setsToMaster(ex)).filter((s) => typeof s.weight === 'number' && (s.weight as number) > 0)
   if (!sets.length) return null
-  const inc = incrementFor(ex)
   const inRange = sets.filter((s) => repsAtPlannedEffort(ex, s) >= ex.target.minReps)
   let weight: number
   if (inRange.length) {
     const best = Math.max(...inRange.map((s) => s.weight as number))
     const topHit = inRange.filter((s) => s.weight === best).every((s) => repsAtPlannedEffort(ex, s) >= ex.target.maxReps)
+    const inc = loadStep(ex, best)
     weight = topHit && inc > 0 ? roundTo(best + inc, inc) : best
   } else {
     const lightest = Math.min(...sets.map((s) => s.weight as number))
+    const inc = loadStep(ex, lightest)
     weight = inc > 0 ? Math.min(lightest, Math.max(inc, roundTo(lightest - inc, inc))) : lightest
   }
   return { weight, kind: 'baseline', text: L(`Charge de départ : ${fmtLoad(weight, ex.unit)}`, `Starting load: ${fmtLoad(weight, ex.unit)}`) }
 }
 
+export interface LoadOutcome {
+  /** up/down/baseline: the session moved the sheet; kept: the load stays and what moves it; info: loads do not move here. */
+  kind: 'up' | 'down' | 'baseline' | 'kept' | 'info'
+  text: string
+}
+
 /**
+ * What a finished exercise did to its load, in a few words: the change the session made, or why
+ * the load stays and what takes it up. Read from the session's own changes (`changes`) and sets.
+ */
+export function loadOutcome(ex: WorkoutExercise, changes: AutoChange[] = [], known: number[] = []): LoadOutcome | null {
+  if (ex.skipped || !doneSets(ex).length) return null
+  const change = changes.find((c): c is AutoChange & { kind: 'up' | 'down' | 'baseline' } => c.exerciseId === ex.exerciseId && c.kind !== 'sets')
+  if (change) return { kind: change.kind, text: change.lang && change.lang !== lang() ? changeLabel(change, ex.unit) : change.text }
+  if (ex.replacement && ex.replacement.fromId !== ex.exerciseId) {
+    return { kind: 'info', text: L('Alternative du jour : la charge du programme ne bouge pas.', 'Alternative for the day: the program’s load stays as it was.') }
+  }
+  if (ex.prescription && ex.prescription.loadFactor < 1) return { kind: 'info', text: L('Semaine allégée ou reprise : les charges ne bougent pas.', 'Deload or return week: loads stay as they are.') }
+  if (doneSets(ex).some((s) => s.flags.includes('pain'))) return { kind: 'kept', text: L('Douleur signalée : la charge ne monte pas.', 'Pain flagged: the load does not go up.') }
+  const needed = setsToMaster(ex)
+  const hi = ex.target.maxReps
+  if (ex.unit === 'PDC' && !takesLest(ex)) {
+    return toppedOut(ex)
+      ? { kind: 'kept', text: L('Haut de la fourchette atteint : passe à une variante plus difficile.', 'Top of the range reached: move to a harder variation.') }
+      : { kind: 'kept', text: L(`Pour progresser : ${needed} × ${hi} répétitions propres.`, `To progress: ${needed} × ${hi} clean reps.`) }
+  }
+  const W = targetLoad(ex)
+  if (W === null) return null
+  const next = fmtLoad(stepsFor(ex, known).up(W), ex.unit)
+  const stays = ex.unit === 'PDC' && W === 0 ? L('Reste au poids du corps', 'Stays at body weight') : L(`Reste à ${fmtLoad(W, ex.unit)}`, `Stays at ${fmtLoad(W, ex.unit)}`)
+  if (heldByEffort(ex)) {
+    return {
+      kind: 'kept',
+      text: L(
+        `${stays} : ${needed} × ${hi} atteint, mais plus près de l’échec que prévu (${effortTarget(ex)} répétitions en réserve).`,
+        `${stays}: ${needed} × ${hi} reached, but closer to failure than planned (${effortTarget(ex)} reps in reserve).`,
+      ),
+    }
+  }
+  const atTop = doneSets(ex).slice(0, needed).filter((s) => (loadOf(ex, s) ?? -1) >= W && repsAtPlannedEffort(ex, s) >= hi).length
+  return {
+    kind: 'kept',
+    text: L(
+      `${stays} : ${atTop}/${needed} ${needed > 1 ? 'séries' : 'série'} à ${hi} répétitions, il en faut ${needed} pour passer à ${next}.`,
+      `${stays}: ${atTop}/${needed} ${needed > 1 ? 'sets' : 'set'} at ${hi} reps; all ${needed} take it to ${next}.`,
+    ),
+  }
+}
+
+/**
+ * In-session correction after a completed set, applied to the following sets:/**
  * In-session correction after a completed set, applied to the following sets:
  * far above the range (or clearly easier than the effort target) → heavier;
  * far below the range → lighter. Deload weeks keep their fixed loads.

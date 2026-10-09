@@ -16,7 +16,7 @@ import { calorieAdvice, calorieFloor, calorieStepPatch, cutAdvice, goalWeightRan
 import {
   appliedState, applyChange, baselineFor, changeLabel, changesOf, changeState, compareExercise, countedDrop, dropAlert, dropMargin, exerciseHistory, finalizeWorkout, findChange, finishedState,
   heldByEffort, intraSessionAdjust, knownLoads, lastFinished, loadDecision, plannedVolume, previousPerformance, progressionFor, reopenedState, revertedState, sessionEffort, sessionNotes, setScore,
-  setsSummary, toppedOut, withoutWorkout,
+  setsSummary, stepsFor, toppedOut, withoutWorkout,
 } from '../src/lib/training'
 import { loadAt } from '../src/lib/gyms'
 import { infoFor } from '../src/lib/library'
@@ -469,7 +469,10 @@ test('a trial session sets the starting load', () => {
   const trial = exo([set(60, 14), set(70, 11), set(80, 6)], { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 } })
   assert.equal(baselineFor(trial)?.weight, 70)
   const easy = exo([set(70, 12), set(70, 12)], { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 } })
-  assert.equal(baselineFor(easy)?.weight, 75)
+  // Under 100 kg, a plate-loaded machine moves by 2.5 kg (1.25 kg plates), not its usual 5 kg.
+  assert.equal(baselineFor(easy)?.weight, 72.5)
+  const heavy = exo([set(120, 12), set(120, 12)], { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 } })
+  assert.equal(baselineFor(heavy)?.weight, 125)
 })
 
 test('effort: a set pushed past the planned RIR counts for fewer reps, and never lowers a load', () => {
@@ -510,8 +513,8 @@ test('effort: a set pushed past the planned RIR counts for fewer reps, and never
   // A trial session keeps a load that holds the range at the planned effort.
   const trial = { target: { weight: null, sets: 3, minReps: 8, maxReps: 12, restSeconds: 150 }, prescription: { ...rx, weight: null } }
   assert.equal(baselineFor(exo(all(70, 12, 0), trial))?.weight, 70, 'top of the range at failure: no step up')
-  assert.equal(baselineFor(exo(all(70, 12, 3), trial))?.weight, 75)
-  assert.equal(baselineFor(exo(all(70, 8, 0), trial))?.weight, 65, 'bottom of the range at failure: one step lighter')
+  assert.equal(baselineFor(exo(all(70, 12, 3), trial))?.weight, 72.5)
+  assert.equal(baselineFor(exo(all(70, 8, 0), trial))?.weight, 67.5, 'bottom of the range at failure: one step lighter')
 
   // The session summary counts the sets pushed past the plan.
   const w = workout('e', '2026-10-06', undefined, [pushed, exo(all(100, 10, 3), week1), exo(all(100, 10, null), week1)], 1)
@@ -558,9 +561,31 @@ test('progression starts from the load really lifted, not from the target', () =
   assert.equal(loadDecision(exo([set(100, 9, { flags: ['pain'] }), set(90, 10), set(90, 10)]))?.weight, 90, 'a lighter load is still adopted')
   assert.equal(loadDecision(exo([set(100, 12), set(100, 12), set(100, 12), set(100, 8, { flags: ['pain'] }), set(90, 10), set(90, 10)])), null, 'mastered but painful: the load stays, back-off sets do not lower it')
   // A lighter load taken to the top of the range, one step under the target: the target stands.
-  assert.equal(loadDecision(exo([set(95, 12), set(95, 12), set(95, 12)])), null)
+  // (Under 100 kg the step is 2.5 kg: 97.5 is one step under 100, 95 is two.)
+  assert.equal(loadDecision(exo([set(97.5, 12), set(97.5, 12), set(97.5, 12)])), null)
+  assert.equal(loadDecision(exo([set(95, 12), set(95, 12), set(95, 12)]))?.weight, 95)
   assert.equal(loadDecision(exo([set(90, 12), set(90, 12), set(90, 12)]))?.weight, 90)
   assert.equal(loadDecision(exo([set(100, 4), set(100, 4), set(95, 12), set(95, 12)]))?.weight, 95, 'failed at the target: the lighter load mastered is adopted')
+})
+
+test('barbells and plate-loaded machines move by 2.5 kg under 100 kg, their 5 kg step above', () => {
+  // The case reported: a hip thrust at 20 kg, 3 × 12 at the top of 8–12, went to 25 kg (+25 %).
+  const hip = (w: number) => exo([set(w, 12), set(w, 12), set(w, 12)], {
+    exerciseId: 'hip-thrust', target: { weight: w, sets: 3, minReps: 8, maxReps: 12, restSeconds: 120, rir: '1–2' },
+    prescription: { sets: 3, minReps: 8, maxReps: 12, rir: '1–2', restSeconds: 120, weight: w, loadFactor: 1, notes: [] },
+  })
+  assert.equal(loadDecision(hip(20))?.weight, 22.5)
+  assert.equal(loadDecision(hip(60))?.weight, 62.5)
+  assert.equal(loadDecision(hip(120))?.weight, 125)
+  const steps = stepsFor({ exerciseId: 'hack-squat', unit: 'kg' })
+  assert.deepEqual([steps.up(40), steps.up(130), steps.down(40), steps.down(130)], [42.5, 135, 37.5, 125])
+  assert.equal(stepsFor({ exerciseId: 'chest-press', unit: 'kg' }).up(80), 82.5, 'cable and selector machines keep their 2.5 kg')
+  assert.equal(stepsFor({ exerciseId: 'lateral-raise', unit: 'kg/main' }).up(6), 7)
+  // A return week at −10 % now lightens a 20 kg hip thrust (rounded to 5 kg, it stayed at 20).
+  const sheet = { ...hip(20), sets: undefined } as unknown as WorkoutExercise
+  const reentry = { sessionsLeft: 1, days: 10, setsFactor: 1, loadFactor: 0.9, rir: '2–3', label: 'Reprise', advice: '' }
+  assert.equal(prescribe(sheet, '2026-10-13', reentry).weight, 17.5)
+  assert.equal(prescribe({ ...sheet, target: { ...sheet.target, weight: 130 } }, '2026-10-13', reentry).weight, 115)
 })
 
 test('a machine whose loads fall off the standard grid gets its own loads back', () => {

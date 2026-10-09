@@ -10,7 +10,7 @@ import { roundTo, uid } from './format'
 import { gymOf, HOME_GYM, isGymBound, loadAt, loadElsewhere, newGymId } from './gyms'
 import { infoFor, LIBRARY } from './library'
 import {
-  buildResearchTemplates, configurePlan, contextAt, defaultExerciseOrder, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, incrementFor, isValidGoal, nextTargetText, prescribeSession,
+  buildResearchTemplates, configurePlan, contextAt, defaultExerciseOrder, DEFAULT_GOAL, gapSinceLastSession, scheduleFromDays, isValidGoal, loadStep, nextTargetText, prescribeSession,
   isPausedDay, maintenanceHorizon, REPORT_START, reentryForGap, scheduledGap, takesLest, trainingDays,
 } from './program'
 import { cancelRestPush, scheduleRestPush } from './push'
@@ -212,7 +212,7 @@ function emptySet(weight: number | null): WorkoutSet {
 /** Starting load of an exercise at a gym, with the deload / re-entry factor. */
 function startingLoad(t: TemplateExercise, gymId: string, state: AppState, loadFactor: number, historyFallback = true): { weight: number | null; trial: WorkoutExercise['gymTrial'] } {
   const scale = (w: number) => {
-    const inc = incrementFor(t)
+    const inc = loadStep(t, w)
     return loadFactor < 1 && inc > 0 ? Math.min(w, Math.max(inc, roundTo(w * loadFactor, inc))) : w
   }
   // Bodyweight work: the added load, if any; never a trial session.

@@ -622,6 +622,16 @@ export function incrementFor(ex: { exerciseId: string; unit: TemplateExercise['u
 }
 
 /**
+ * The step a load moves by. Plates of 1.25 kg make 2.5 kg the smallest jump on a barbell or a
+ * plate-loaded machine: their usual 5 kg step only applies from 100 kg, where it stays within
+ * 5 % of the load. Under that, 5 kg was a jump of 25 % at 20 kg, far from the program's 2.5 %.
+ */
+export function loadStep(ex: { exerciseId: string; unit: TemplateExercise['unit'] }, load: number): number {
+  const inc = incrementFor(ex)
+  return ex.unit === 'kg' && inc === 5 && load < 100 ? 2.5 : inc
+}
+
+/**
  * Bodyweight exercises that take added load (belt, plate, dumbbell: dips, pull-ups…).
  * Their load is the added weight: none (null or 0) until the top of the range is reached.
  */
@@ -731,8 +741,8 @@ export function prescribeSession(exercises: TemplateExercise[], date: ISODate, r
       rir = reentry.rir
       notes.push(reentry.label)
     }
-    const inc = incrementFor(ex)
     const base = gymId === undefined ? (ex.target.weight ?? null) : loadAt(ex, gymId)
+    const inc = loadStep(ex, base ?? 0)
     const weight =
       base === null
         ? null
