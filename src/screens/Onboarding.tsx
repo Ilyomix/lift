@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Bell, BellOff, CalendarDays, Check, Play, TriangleAlert, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bell, BellOff, CalendarDays, Check, Play, Ruler, Scale, TriangleAlert, Upload } from 'lucide-react'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { addDays, capitalize, dayLetter, dayName, fmtDate, shiftMonths, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
@@ -344,9 +344,9 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
         <Segmented label={L('Sexe', 'Sex')} value={d.sex} layout="fit" onChange={(sex) => patch({ sex })} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
       </div>
       <Field label={L('Âge', 'Age')} error={error(d.age, 14, 90) ? L('Saisis un âge entre 14 et 90 ans.', 'Enter an age between 14 and 90.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
-      <Field label={L('Taille (cm)', 'Height (cm)')} error={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" required invalid={error(d.height, 120, 230)} value={d.height} onChange={(height) => patch({ height })} min={120} max={230} defaultValue={178} placeholder="178" /></Field>
+      <Field label={L('Taille (cm)', 'Height (cm)')} error={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><MeasurementPicker icon={<Ruler />} label={L('Taille', 'Height')} unit="cm" required invalid={error(d.height, 120, 230)} value={d.height} onChange={(height) => patch({ height })} min={120} max={230} defaultValue={178} placeholder="178" /></Field>
       <Field label={L('Poids actuel (kg)', 'Current weight (kg)')} error={error(d.weight, 35, 250) ? L('Saisis un poids entre 35 et 250 kg.', 'Enter a weight between 35 and 250 kg.') : undefined} className="col-span-2">
-        <MeasurementPicker label={L('Poids actuel', 'Current weight')} unit="kg" required invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(weight) => patch({ weight })} min={35} max={250} step={0.1} defaultValue={78} placeholder={L('78,5', '78.5')} />
+        <MeasurementPicker icon={<Scale />} label={L('Poids actuel', 'Current weight')} unit="kg" required invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(weight) => patch({ weight })} min={35} max={250} step={0.1} defaultValue={78} placeholder={L('78,5', '78.5')} />
       </Field>
       <Field
         label={L('Tour de taille (cm), facultatif', 'Waist (cm), optional')}
@@ -354,7 +354,7 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
         error={error(d.waist, 50, 200) ? L('Saisis un tour de taille entre 50 et 200 cm, ou laisse ce champ vide.', 'Enter a waist measurement between 50 and 200 cm, or leave this blank.') : undefined}
         className="col-span-2"
       >
-        <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(waist) => patch({ waist })} min={50} max={200} step={0.1} defaultValue={90} placeholder="—" />
+        <MeasurementPicker icon={<Ruler />} label={L('Tour de taille', 'Waist')} unit="cm" invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(waist) => patch({ waist })} min={50} max={200} step={0.1} defaultValue={90} placeholder="—" />
       </Field>
       <p className="col-span-2 text-[12px] leading-[1.45] text-muted">
         {L('Renseigne ton âge, ta taille et ton poids pour continuer. Le tour de taille peut attendre.', 'Enter your age, height and weight to continue. You can add your waist measurement later.')}
@@ -609,7 +609,7 @@ export function ImportResultSheet() {
       )}
       {stale && (
         <Field label={L('Ton poids ce matin, facultatif', 'Your weight this morning, optional')} hint={L('Cette pesée sera ajoutée à ton suivi.', 'This weigh-in will be added to your progress log.')} error={invalidWeight ? L('Entre 35 et 250 kg.', 'Between 35 and 250 kg.') : undefined} className="mt-5">
-          <MeasurementPicker label={L('Poids ce matin', 'Weight this morning')} unit="kg" value={w} onChange={setW} min={35} max={250} step={0.1} defaultValue={lastWeigh?.weight ?? 78} invalid={invalidWeight} placeholder={lastWeigh?.weight ? fmtNum(lastWeigh.weight, 1) : '—'} />
+          <MeasurementPicker icon={<Scale />} label={L('Poids ce matin', 'Weight this morning')} unit="kg" value={w} onChange={setW} min={35} max={250} step={0.1} defaultValue={lastWeigh?.weight ?? 78} invalid={invalidWeight} placeholder={lastWeigh?.weight ? fmtNum(lastWeigh.weight, 1) : '—'} />
         </Field>
       )}
     </Sheet>

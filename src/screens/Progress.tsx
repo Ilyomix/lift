@@ -1,6 +1,6 @@
 import { L, locale } from '../lib/i18n'
 import { useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, Camera, ChartColumn, Check, ChevronLeft, ChevronRight, Columns2, Dumbbell, History, MapPin, Play, Plus, Ruler, Trash, X, ZoomIn } from 'lucide-react'
+import { BookOpen, CalendarDays, Camera, ChartColumn, Check, ChevronLeft, ChevronRight, Columns2, Dumbbell, History, MapPin, Play, Plus, Ruler, Scale, Trash, X, ZoomIn } from 'lucide-react'
 import { addDays, capitalize, dayNumber, diffDays, fmtDate, fmtRelativeDay, mondayOf, parseISO, todayISO } from '../lib/date'
 import { fmtNum, fmtSigned, parseNumber, plural, uid, unitLabel } from '../lib/format'
 import { gymName, isGymBound } from '../lib/gyms'
@@ -373,14 +373,14 @@ export function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => 
           <DateInput label={L('Date de la mesure', 'Measurement date')} value={date} max={todayISO()} onChange={(v) => v && setDate(v)} />
         </div>
         <Field label={L('Poids', 'Weight')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={error('weight')}>
-          <MeasurementPicker label={L('Poids', 'Weight')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={MEASURE_BOUNDS.weight[0]} max={MEASURE_BOUNDS.weight[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'weight').at(-1)?.value ?? 75} invalid={invalid('weight')} />
+          <MeasurementPicker icon={<Scale />} label={L('Poids', 'Weight')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={MEASURE_BOUNDS.weight[0]} max={MEASURE_BOUNDS.weight[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'weight').at(-1)?.value ?? 75} invalid={invalid('weight')} />
         </Field>
         <Field label={L('Tour de taille', 'Waist')} hint={L('Au nombril', 'At the navel')} error={error('waist')}>
-          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={v.waist} onChange={waist => setV(current => ({ ...current, waist }))} min={MEASURE_BOUNDS.waist[0]} max={MEASURE_BOUNDS.waist[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'waist').at(-1)?.value ?? 85} invalid={invalid('waist')} />
+          <MeasurementPicker icon={<Ruler />} label={L('Tour de taille', 'Waist')} unit="cm" value={v.waist} onChange={waist => setV(current => ({ ...current, waist }))} min={MEASURE_BOUNDS.waist[0]} max={MEASURE_BOUNDS.waist[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'waist').at(-1)?.value ?? 85} invalid={invalid('waist')} />
         </Field>
-        <Field label={L('Bras', 'Arm')} error={error('arm')}><MeasurementPicker label={L('Bras', 'Arm')} unit="cm" value={v.arm} onChange={arm => setV(current => ({ ...current, arm }))} min={MEASURE_BOUNDS.arm[0]} max={MEASURE_BOUNDS.arm[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'arm').at(-1)?.value ?? 35} invalid={invalid('arm')} /></Field>
-        <Field label={L('Poitrine', 'Chest')} error={error('chest')}><MeasurementPicker label={L('Poitrine', 'Chest')} unit="cm" value={v.chest} onChange={chest => setV(current => ({ ...current, chest }))} min={MEASURE_BOUNDS.chest[0]} max={MEASURE_BOUNDS.chest[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'chest').at(-1)?.value ?? 100} invalid={invalid('chest')} /></Field>
-        <Field label={L('Épaules', 'Shoulders')} error={error('shoulders')}><MeasurementPicker label={L('Épaules', 'Shoulders')} unit="cm" value={v.shoulders} onChange={shoulders => setV(current => ({ ...current, shoulders }))} min={MEASURE_BOUNDS.shoulders[0]} max={MEASURE_BOUNDS.shoulders[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'shoulders').at(-1)?.value ?? 115} invalid={invalid('shoulders')} /></Field>
+        <Field label={L('Bras', 'Arm')} error={error('arm')}><MeasurementPicker icon={<Ruler />} label={L('Bras', 'Arm')} unit="cm" value={v.arm} onChange={arm => setV(current => ({ ...current, arm }))} min={MEASURE_BOUNDS.arm[0]} max={MEASURE_BOUNDS.arm[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'arm').at(-1)?.value ?? 35} invalid={invalid('arm')} /></Field>
+        <Field label={L('Poitrine', 'Chest')} error={error('chest')}><MeasurementPicker icon={<Ruler />} label={L('Poitrine', 'Chest')} unit="cm" value={v.chest} onChange={chest => setV(current => ({ ...current, chest }))} min={MEASURE_BOUNDS.chest[0]} max={MEASURE_BOUNDS.chest[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'chest').at(-1)?.value ?? 100} invalid={invalid('chest')} /></Field>
+        <Field label={L('Épaules', 'Shoulders')} error={error('shoulders')}><MeasurementPicker icon={<Ruler />} label={L('Épaules', 'Shoulders')} unit="cm" value={v.shoulders} onChange={shoulders => setV(current => ({ ...current, shoulders }))} min={MEASURE_BOUNDS.shoulders[0]} max={MEASURE_BOUNDS.shoulders[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'shoulders').at(-1)?.value ?? 115} invalid={invalid('shoulders')} /></Field>
       </div>
     </Sheet>
   )

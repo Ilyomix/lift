@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, Minus, Pencil, Plus, Share2, SlidersHorizontal, Smartphone, Sparkles, Trash, TriangleAlert, Upload, X } from 'lucide-react'
+import { ArrowLeft, Beef, Check, ChevronLeft, ChevronRight, ClipboardPaste, Download, ExternalLink, Eye, Flame, Minus, Pencil, Pill, Plus, Share2, SlidersHorizontal, Smartphone, Sparkles, Trash, TriangleAlert, Upload, X } from 'lucide-react'
 import { isNative } from '../lib/native/bridge'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
@@ -269,7 +269,7 @@ function NutritionTargetForm() {
   const validProteinMax = proteinMax !== null && proteinMax >= 0
   const field = (key: NutritionField, label: string) => (
     <Field label={label} error={errors[key]}>
-      <MeasurementPicker label={label} unit={key === 'calories' ? 'kcal' : 'g'} value={draft[key]} onChange={value => setDraft(current => ({ ...current, [key]: value }))}
+      <MeasurementPicker icon={key === 'calories' ? <Flame /> : key === 'creatine' ? <Pill /> : <Beef />} label={label} unit={key === 'calories' ? 'kcal' : 'g'} value={draft[key]} onChange={value => setDraft(current => ({ ...current, [key]: value }))}
         min={key === 'calories' ? 50 : key === 'proteinMax' && validProteinMin ? proteinMin : 0}
         max={key === 'calories' ? 10000 : key === 'creatine' ? 20 : key === 'proteinMin' && validProteinMax ? proteinMax : Math.max(500, validProteinMin ? proteinMin : 0, validProteinMax ? proteinMax : 0)}
         strictBounds={key === 'proteinMin' || key === 'proteinMax'}
@@ -326,7 +326,7 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
       </div>
       <div ref={inputRef} className="mt-3">
         <Field label={<span className="sr-only">{label}</span>} error={invalid ? L('Saisis une valeur égale ou supérieure à zéro.', 'Enter a value of zero or more.') : undefined}>
-          <MeasurementPicker label={label} unit={unit} value={draft} min={0} max={unit === 'kcal' ? 10000 : 500} step={unit === 'kcal' ? 50 : 1} defaultValue={value} invalid={invalid} required onChange={next => {
+          <MeasurementPicker icon={unit === 'kcal' ? <Flame /> : <Beef />} label={label} unit={unit} value={draft} min={0} max={unit === 'kcal' ? 10000 : 500} step={unit === 'kcal' ? 50 : 1} defaultValue={value} invalid={invalid} required onChange={next => {
             // An emptied entry keeps the day's total; 0 is typed on purpose.
             if (next.trim() === '') return
             setDraft(next)

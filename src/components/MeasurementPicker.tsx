@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type AriaAttributes, type FocusEventHandler } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type AriaAttributes, type FocusEventHandler, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Check, ChevronDown, Eraser, Keyboard } from 'lucide-react'
 import { fmtNum, parseNumber } from '../lib/format'
@@ -8,6 +8,8 @@ import { Button, cx, inputClass, Sheet } from './ui'
 
 type MeasurementPickerProps = {
   label: string
+  /** Shown beside the sheet title; the same icon as the field it edits. */
+  icon?: ReactNode
   unit: string
   value: string
   onChange: (value: string) => void
@@ -37,7 +39,7 @@ function subscribePointer(change: () => void) {
 }
 
 /** Closing a changed wheel applies its draft; manual input retains the parent's validation and precision. */
-export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlur, min, max, strictBounds = false, step = 1, defaultValue, placeholder = '—', required, invalid, disabled, presentation = 'sheet', className, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid }: MeasurementPickerProps) {
+export function MeasurementPicker({ label, icon, unit, value, onChange, onFocus, onBlur, min, max, strictBounds = false, step = 1, defaultValue, placeholder = '—', required, invalid, disabled, presentation = 'sheet', className, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid }: MeasurementPickerProps) {
   const wheelAvailable = useSyncExternalStore(subscribePointer, canUseWheel, () => false)
   const [open, setOpen] = useState(false)
   const container = useRef<HTMLDivElement>(null)
@@ -131,7 +133,7 @@ export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlu
         </span>
         {presentation !== 'sheet' && <ChevronDown size={12} className={cx('ml-auto shrink-0 text-text-2 transition-transform', open && 'rotate-180')} aria-hidden />}
       </button>}
-    {presentation === 'sheet' ? <Sheet open={!!wheel} onClose={close} title={label} footer={<div className="flex gap-2">
+    {presentation === 'sheet' ? <Sheet open={!!wheel} onClose={close} title={label} icon={icon} footer={<div className="flex gap-2">
       {!required && value !== '' && <Button variant="outline" size="lg" className="flex-1" icon={<Eraser size={18} aria-hidden />} closeSheet onClick={clear}>{L('Effacer', 'Clear')}</Button>}
       <Button variant="primary" size="lg" className="flex-1" icon={<Check size={18} aria-hidden />} closeSheet onClick={confirm}>{L('Valider', 'Done')}</Button>
     </div>}>{wheel}</Sheet> : wheel}
@@ -166,7 +168,7 @@ function MeasurementWheel({ id, label, unit, value, min, max, step, onDraft, onC
     }}>
     {manual !== null ? <label className="flex h-14 cursor-text items-center justify-center rounded-[8px] border border-signal bg-surface-2 px-3"><span className="flex min-w-0 items-baseline gap-2">
       {/* Typing replaces the wheel: a short panel stays above the keyboard, the unit beside the value. */}
-      <input autoFocus aria-label={`${label} (${unit})`} inputMode={decimal ? 'decimal' : 'numeric'} enterKeyHint="done" value={manual} size={Math.max(2, manual.length)}
+      <input autoFocus aria-label={`${label} (${unit})`} inputMode={decimal ? 'decimal' : 'numeric'} enterKeyHint="done" value={manual} style={{ width: `${Math.max(2, manual.length) + 0.5}ch` }}
         onFocus={event => event.currentTarget.select()} onChange={event => { setManual(event.target.value); onDraft(event.target.value) }}
         className="min-w-0 bg-transparent text-right text-[24px] font-semibold text-text tnum outline-none" />
       <span aria-hidden className="shrink-0 text-[17px] text-text-2">{unit}</span>

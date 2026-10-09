@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { BellRing, Check, ChevronRight, MapPin, Pencil, Plus, Ruler, Trash } from 'lucide-react'
+import { BellRing, Check, ChevronRight, MapPin, Pencil, Plus, Ruler, Scale, Trash } from 'lucide-react'
 import { NativeActivitySettings } from '../components/NativeActivitySettings'
 import { MeasurementPicker } from '../components/MeasurementPicker'
 import { SettingsMenuRow } from '../components/SettingsMenu'
@@ -394,16 +394,16 @@ function TargetMeasurements() {
         </> : <Button full icon={<Ruler size={18} aria-hidden />} onClick={() => setMeasureOpen(true)}>{L('Compléter mes mesures', 'Complete my measurements')}</Button>}
       </div> : <div className="mt-3 grid grid-cols-2 gap-3">
         <Field label={L('Poids minimum', 'Minimum weight')} error={draft.min.trim() && invalid('min') ? error : reversed ? L('Le minimum doit être inférieur ou égal au maximum.', 'The minimum must be at most the maximum.') : undefined}>
-          <MeasurementPicker label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={invalid('max') ? 250 : values.max!} strictBounds step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
+          <MeasurementPicker icon={<Scale />} label={L('Poids minimum', 'Minimum weight')} unit="kg" value={draft.min} onChange={value => set('min', value)} min={35} max={invalid('max') ? 250 : values.max!} strictBounds step={0.1} defaultValue={estimate?.min ?? 75} required invalid={!!draft.min.trim() && (invalid('min') || reversed)} />
         </Field>
         <Field label={L('Poids maximum', 'Maximum weight')} error={draft.max.trim() && invalid('max') ? error : reversed ? L('Le maximum doit être supérieur ou égal au minimum.', 'The maximum must be at least the minimum.') : undefined}>
-          <MeasurementPicker label={L('Poids maximum', 'Maximum weight')} unit="kg" value={draft.max} onChange={value => set('max', value)} min={invalid('min') ? 35 : values.min!} max={250} strictBounds step={0.1} defaultValue={estimate?.max ?? 77} required invalid={!!draft.max.trim() && (invalid('max') || reversed)} />
+          <MeasurementPicker icon={<Scale />} label={L('Poids maximum', 'Maximum weight')} unit="kg" value={draft.max} onChange={value => set('max', value)} min={invalid('min') ? 35 : values.min!} max={250} strictBounds step={0.1} defaultValue={estimate?.max ?? 77} required invalid={!!draft.max.trim() && (invalid('max') || reversed)} />
         </Field>
       </div>}
       <Card className="mt-4">
         <Toggle label={L('Cible de tour de taille', 'Waist target')} hint={waistEnabled ? undefined : L('Aucune cible', 'No target')} checked={waistEnabled} onChange={setWaistEnabled} />
         {waistEnabled && <div className="px-4 pb-3">
-          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={draft.waist} onChange={value => set('waist', value)} min={50} max={200} step={0.1} defaultValue={85} required invalid={!!draft.waist.trim() && invalid('waist')} />
+          <MeasurementPicker icon={<Ruler />} label={L('Tour de taille', 'Waist')} unit="cm" value={draft.waist} onChange={value => set('waist', value)} min={50} max={200} step={0.1} defaultValue={85} required invalid={!!draft.waist.trim() && invalid('waist')} />
           {draft.waist.trim() && invalid('waist') && <p className="mt-1 text-[13px] text-bad">{L('Choisis un tour de taille entre 50 et 200 cm.', 'Choose a waist size between 50 and 200 cm.')}</p>}
         </div>}
       </Card>

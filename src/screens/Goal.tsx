@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Camera, Check, Flag, ImageOff, RotateCcw, Ruler, Target, TriangleAlert } from 'lucide-react'
+import { Camera, Check, Flag, ImageOff, Percent, RotateCcw, Ruler, Target, TriangleAlert } from 'lucide-react'
 import { diffDays, fmtDate, fmtRelativeDay, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -190,13 +190,13 @@ export function VisualGoalScreen() {
 
       <Section art="measuring-tape" title={L('Où tu en es', 'Where you stand')}>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={L('Taille (cm)', 'Height (cm)')} error={!validHeight ? L('Entre 120 et 230 cm.', 'Between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" value={height} onChange={setHeight} min={120} max={230} defaultValue={178} invalid={!validHeight} placeholder="—" /></Field>
+          <Field label={L('Taille (cm)', 'Height (cm)')} error={!validHeight ? L('Entre 120 et 230 cm.', 'Between 120 and 230 cm.') : undefined}><MeasurementPicker icon={<Ruler />} label={L('Taille', 'Height')} unit="cm" value={height} onChange={setHeight} min={120} max={230} defaultValue={178} invalid={!validHeight} placeholder="—" /></Field>
           <div className="min-w-0">
             <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
             <Segmented label={L('Sexe', 'Sex')} value={sex} layout="fit" onChange={setSex} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
           </div>
           <Field label={L('Taux de gras mesuré (%), facultatif', 'Measured body fat (%), optional')} hint={L('Impédancemètre, DEXA… Laisse vide pour utiliser l’estimation.', 'Bioimpedance scale, DEXA… Leave blank to use the estimate.')} error={!validBodyFat ? L('Entre 4 et 50 % ou laisse vide.', 'Between 4 and 50%, or leave blank.') : undefined} className="col-span-2">
-            <MeasurementPicker label={L('Taux de gras mesuré', 'Measured body fat')} unit="%" value={measured} onChange={setMeasured} min={4} max={50} step={0.1} defaultValue={bf?.pct ?? 20} invalid={!validBodyFat} placeholder={bf && bf.source === 'tour de taille' ? `≈ ${fmtNum(bf.pct, 0)}` : '—'} />
+            <MeasurementPicker icon={<Percent />} label={L('Taux de gras mesuré', 'Measured body fat')} unit="%" value={measured} onChange={setMeasured} min={4} max={50} step={0.1} defaultValue={bf?.pct ?? 20} invalid={!validBodyFat} placeholder={bf && bf.source === 'tour de taille' ? `≈ ${fmtNum(bf.pct, 0)}` : '—'} />
           </Field>
         </div>
         {bf ? (

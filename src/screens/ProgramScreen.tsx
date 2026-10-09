@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, Check, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, RotateCcw, Trash, TriangleAlert } from 'lucide-react'
+import { BookOpen, Check, ChevronRight, Dumbbell, ExternalLink, Plus, Repeat2, RotateCcw, Timer, Trash, TriangleAlert } from 'lucide-react'
 import { dayName } from '../lib/date'
 import { fmtNum, parseNumber, plural, unitLabel } from '../lib/format'
 import { L } from '../lib/i18n'
@@ -333,13 +333,13 @@ function EditSheet({ ex, replacement, onClose, onSave, onRemove }: { ex: Templat
         <SheetAction>{(_close, confirmDiscard) => <ExerciseAlternatives exerciseId={ex.exerciseId} replacement={replacement} beforeReplace={confirmDiscard} onReplaced={onClose} />}</SheetAction>
       </Disclosure>}
       <div className="grid grid-cols-2 gap-3">
-        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} error={errors.weight} className="col-span-2"><MeasurementPicker label={L('Charge', 'Load')} unit={unitLabel(ex.unit)} value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={500} step={0.1} defaultValue={20} invalid={!!errors.weight} placeholder={L('À définir', 'Not set')} /></Field>}
-        {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} error={errors.weight} className="col-span-2"><MeasurementPicker label={L('Lest', 'Added load')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={150} step={0.1} defaultValue={0} invalid={!!errors.weight} placeholder={L('Aucun', 'None')} /></Field>}
+        {ex.unit !== 'PDC' && <Field label={L(`Charge (${ex.unit})`, `Load (${unitLabel(ex.unit)})`)} error={errors.weight} className="col-span-2"><MeasurementPicker icon={<Dumbbell />} label={L('Charge', 'Load')} unit={unitLabel(ex.unit)} value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={500} step={0.1} defaultValue={20} invalid={!!errors.weight} placeholder={L('À définir', 'Not set')} /></Field>}
+        {takesLest(ex) && <Field label={L('Lest (kg)', 'Added load (kg)')} hint={L('Ajouté au poids du corps : ceinture, haltère, disque.', 'Added to your body weight: belt, dumbbell, plate.')} error={errors.weight} className="col-span-2"><MeasurementPicker icon={<Dumbbell />} label={L('Lest', 'Added load')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={0} max={150} step={0.1} defaultValue={0} invalid={!!errors.weight} placeholder={L('Aucun', 'None')} /></Field>}
         <Field label={L('Séries', 'Sets')} error={errors.sets}><input className={inputClass} inputMode="numeric" value={v.sets} onChange={set('sets')} /></Field>
         <Field label={L('Réserve visée', 'Target reps in reserve')} hint={L('Répétitions encore possibles à la fin de la série.', 'Reps you could still do at the end of the set.')}><input className={inputClass} value={v.rir} onChange={set('rir')} placeholder="1–2" /></Field>
         <Field label={L('Répétitions min.', 'Min reps')} error={errors.minReps}><input className={inputClass} inputMode="numeric" value={v.minReps} onChange={set('minReps')} /></Field>
         <Field label={L('Répétitions max.', 'Max reps')} error={errors.maxReps}><input className={inputClass} inputMode="numeric" value={v.maxReps} onChange={set('maxReps')} /></Field>
-        <Field label={L('Repos (s)', 'Rest (s)')} error={errors.rest} className="col-span-2"><MeasurementPicker label={L('Repos', 'Rest')} unit="s" value={v.rest} onChange={rest => setV(current => ({ ...current, rest }))} min={15} max={900} step={15} defaultValue={120} invalid={!!errors.rest} /></Field>
+        <Field label={L('Repos (s)', 'Rest (s)')} error={errors.rest} className="col-span-2"><MeasurementPicker icon={<Timer />} label={L('Repos', 'Rest')} unit="s" value={v.rest} onChange={rest => setV(current => ({ ...current, rest }))} min={15} max={900} step={15} defaultValue={120} invalid={!!errors.rest} /></Field>
         <Field label={L('Réglage machine / note', 'Machine setting / note')} className="col-span-2"><textarea className={cx(inputClass, 'h-20 resize-none py-2.5')} value={v.technique} onChange={set('technique')} placeholder={L('Ex. : siège 4, pieds repère 4–5', 'E.g. seat 4, feet on mark 4–5')} /></Field>
       </div>
       {ex.note && <p className="mt-3 text-[13px] text-muted">{L(`Programme : ${ex.note}`, `Program: ${ex.note}`)}</p>}
