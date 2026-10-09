@@ -2,7 +2,7 @@
 
 ## Verdict
 
-**Publiable après corrections, livrées dans le build 41.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
+**Publiable après corrections, livrées dans les builds 41 à 43.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
 
 Référence : build 40 (`8fc3538`) audité, corrections dans le commit du build 41. Tests : 511 réussis, 1 ignoré, 0 échec. Contrôle de types et build web réussis.
 
@@ -40,12 +40,23 @@ Trois évaluations indépendantes, puis un inventaire de toutes les surfaces de 
 | 2.1 / 5.1 | Politique de confidentialité : libellé du bouton vidéo erroné | « Voir ma vidéo » |
 | P3 | Correction automatique sur JSON IA et noms de salle, erreurs de plage en gris à l'onboarding, libellé « Réserve visée » sur deux lignes, `armv7` | Corrigés |
 
+## Retours sur iPhone 14 Pro (builds 42–43)
+
+Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revérifiés sur simulateur :
+
+| Retour | Cause | Correction |
+|---|---|---|
+| Unité « kg » décalée par rapport aux chiffres | Valeur et unité centrées séparément | Alignées sur la même ligne de base (séance, mesures, saisie au clavier) — build 42 |
+| Chiffres coupés (« 130 », « .344 ») | Largeur fixée par l'attribut `size`, plus étroite que les chiffres tabulaires sous WebKit iOS 27 | Largeur en `ch` — build 43 |
+| Rien n'apparaît pendant ~0,5 s à la saisie | Redimensionnement natif du clavier appliqué après son animation + 0,2 s | WebView à hauteur fixe ; volets et actions suivent la hauteur du clavier dès son départ, le champ est ramené au-dessus — build 43 |
+| Volet derrière le clavier après avoir quitté puis rouvert l'app | Clavier restauré par iOS hors de la mise en page | Quitter l'app termine la saisie (valeur conservée) — build 43 |
+| Volets de saisie sans icône | — | Icône du titre selon la mesure (balance, règle, haltère, minuteur, flamme, steak, gélule, pourcentage) — build 43 |
+
 ## Reporté (connu, non bloquant)
 
 - **Bande sombre sous la barre d'état en thème clair** (P2) : la faire suivre le thème impose de gérer aussi le minuteur plein écran, toujours sombre. Le thème par défaut est sombre.
 - **Jargon** (codes PS/PL/UP/LO/LG, « RIR », « PDC », « 0,2 t ») et **onboarding** (5 jours cochés, 100 min à 3 jours, étape 4 chargée) : décisions produit.
 - **Dynamic Type** : tailles en px ; ne pas déclarer « Texte plus grand » dans App Store Connect.
 - **iPad** : colonne unique de 640 px.
-- **Volet de roue** : saut d'environ 0,4 s au passage en saisie, le temps que la WebView se redimensionne.
 - **En-tête de séance à 375 pt** : nom de salle tronqué.
 - **Support** : uniquement via les issues GitHub ; ajouter un contact direct si Apple le demande (règle 1.5).
