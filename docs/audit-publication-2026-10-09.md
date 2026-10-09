@@ -2,7 +2,7 @@
 
 ## Verdict
 
-**Publiable après corrections, livrées dans les builds 41 à 43.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
+**Publiable après corrections, livrées dans les builds 41 à 44.** Aucun P0 : l'onboarding, la séance, la saisie, le repos, la fin de séance et l'historique fonctionnent. Les P1 relevés touchaient la saisie au clavier, l'abandon de séance et la conformité App Store ; ils sont corrigés et vérifiés sur simulateur. Les points reportés sont listés en fin de document, aucun n'est un motif de rejet connu.
 
 Référence : build 40 (`8fc3538`) audité, corrections dans le commit du build 41. Tests : 511 réussis, 1 ignoré, 0 échec. Contrôle de types et build web réussis.
 
@@ -52,10 +52,16 @@ Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revéri
 | Volet derrière le clavier après avoir quitté puis rouvert l'app | Clavier restauré par iOS hors de la mise en page | Quitter l'app termine la saisie (valeur conservée) — build 43 |
 | Volets de saisie sans icône | — | Icône du titre selon la mesure (balance, règle, haltère, minuteur, flamme, steak, gélule, pourcentage) — build 43 |
 
-## À corriger après la publication (retours du 9 octobre, build 43)
+## Retours sur le build 43, corrigés dans le build 44
 
-- **Calendrier, cases de la semaine** (`src/screens/Calendar.tsx`, cellules et puce de séance) : garder des cases carrées comme dans la vue mois ; la case du jour actif doit être pleine, son libellé (« Lower ») sans marge intérieure ; pas de double contour (aujourd'hui = `border` + `ring`, plus la bordure de la puce « en cours »).
-- **Démos 3D** (`src/lib/exerciseModel*.ts`) : sur certains exercices, la main est posée à plat sur le dos au lieu de la paume ; collisions manquantes, notamment la barre qui traverse la taille au hip thrust. Revoir toutes les prises et contacts barre/corps, pas seulement le hip thrust.
+| Retour | Cause | Correction |
+|---|---|---|
+| Calendrier : double contour et libellé collé au bord sur la séance en cours | Jour actif en `border` + `ring`, puce « en cours » bordée elle aussi ; 41 px de puce pour 42 px utiles | Un seul contour orange ; puce de la séance en cours pleine, sans bordure ; marges latérales réduites, le libellé ne touche plus le bord (semaine et mois) |
+| Hip thrust : barre dans la taille | Barre placée à hauteur fixe au-dessus du bassin, 4 à 5 cm sous la peau ; le contrôle ne voyait que la peau entrée dans la barre | Barre posée sur l'avant du bassin (jeu mesuré de 0 à 1 mm sur tout le mouvement) |
+| Mains posées par le dos | Crunch : paumes tournées vers l'extérieur ; hack squat : mains ouvertes à plat dans le vide | Crunch : bout des doigts aux tempes, paumes vers la tête ; hack squat : poignées fixées au chariot, prise neutre |
+| Autres collisions trouvées par le même contrôle | — | Élévations latérales et RDL haltères (haltères dans les cuisses), rowing unilatéral, tractions (tête dans la barre), rowing inversé (tête au lieu de la poitrine), squat Smith (barre dans les trapèzes), fentes bulgares et développé incliné (pieds de banc), Nordic (rouleau dans les talons), mollets assis (bras de levier dans les cuisses), élastiques |
+
+Un test couvre désormais les 78 mouvements : aucun axe de barre, d'haltère ou de cadre à l'intérieur du corps, et paumes du crunch vers la tête.
 
 ## Reporté (connu, non bloquant)
 
