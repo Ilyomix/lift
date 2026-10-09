@@ -473,6 +473,40 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       demo: true, query: 'hip thrust technique', alternatives: ['romanian-deadlift'], increment: 5,
     }),
     E({
+      id: 'smith-hip-thrust', name: ['Hip thrust à la Smith machine', 'Smith machine hip thrust'], muscle: ['Fessiers', 'Glutes'], unit: 'kg', role: 'compound',
+      groups: { glutes: 1, hams: 0.5 },
+      cues: [
+        ['Banc perpendiculaire à la Smith, haut du dos dessus, barre guidée sur le pli des hanches.', 'Bench across the Smith machine, upper back on it, the guided bar over your hip crease.'],
+        ['Pousser par les talons jusqu’à l’extension de hanche, menton rentré.', 'Drive through your heels to full hip extension, chin tucked.'],
+        ['Pause d’une seconde en haut ; les crochets restent à portée de main.', 'One-second pause at the top; keep the hooks within reach.'],
+      ],
+      evidence: {
+        level: 'faible', refs: ['haugen2023'],
+        text: [
+          'Même mouvement que le hip thrust, barre guidée : machines et poids libres donnent la même hypertrophie ; le choix de l’exercice relève de l’opinion d’experts.',
+          'The hip thrust with a guided bar: machines and free weights produce the same hypertrophy; the exercise choice is expert opinion.',
+        ],
+      },
+      demo: true, query: 'smith machine hip thrust technique', alternatives: ['hip-thrust'], increment: 5,
+    }),
+    E({
+      id: 'glute-bridge', name: ['Pont fessier à la barre', 'Barbell glute bridge'], muscle: ['Fessiers', 'Glutes'], unit: 'kg', role: 'compound',
+      groups: { glutes: 1, hams: 0.5 },
+      cues: [
+        ['Allongé au sol, haut du dos sur un tapis, barre sur le pli des hanches.', 'Lying on the floor, upper back on a mat, the bar over your hip crease.'],
+        ['Talons proches des fesses, pousser jusqu’à aligner épaules, hanches et genoux.', 'Heels close to your glutes, drive up until shoulders, hips and knees line up.'],
+        ['Pause d’une seconde en haut, sans cambrer le bas du dos.', 'One-second pause at the top, without arching your lower back.'],
+      ],
+      evidence: {
+        level: 'faible', refs: [],
+        text: [
+          'Hip thrust sans banc : amplitude plus courte, même rôle de travail direct des fessiers (opinion d’experts).',
+          'A hip thrust without a bench: a shorter range, the same direct glute work (expert opinion).',
+        ],
+      },
+      demo: true, query: 'barbell glute bridge technique', alternatives: ['hip-thrust'], increment: 5,
+    }),
+    E({
       id: 'back-extension-45', name: ['Extension lombaire 45°', '45° back extension'], muscle: ['Fessiers & chaîne postérieure', 'Glutes & posterior chain'], unit: 'PDC', role: 'isolation',
       groups: { glutes: 1, hams: 0.5 },
       cues: [
@@ -1207,7 +1241,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
 /** Free weights: a dumbbell or a bar weighs the same in every gym. */
 const FREE_WEIGHTS = new Set([
   'incline-db-press', 'lateral-raise', 'ez-curl', 'seated-db-curl', 'incline-db-curl', 'romanian-deadlift', 'goblet-squat',
-  'db-pullover', 'db-overhead-extension', 'db-hip-thrust',
+  'db-pullover', 'db-overhead-extension', 'db-hip-thrust', 'glute-bridge',
 ])
 
 /**

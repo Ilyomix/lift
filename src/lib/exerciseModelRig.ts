@@ -98,6 +98,7 @@ export class Athlete {
   private sides: ResolvedSide[]
   private pelvis: Bone
   private spine: Bone[]
+  private neck: Bone
   private bindPelvis: Vector3
   private materials = new Map<string, MeshStandardMaterial[]>()
   private geometries = new Set<Mesh['geometry']>()
@@ -155,6 +156,7 @@ export class Athlete {
     }
     this.pelvis = bone(this.manifest.bones.pelvis)
     this.spine = this.manifest.bones.spine.map(bone)
+    this.neck = bone(this.manifest.bones.neck)
     this.bindPelvis = this.pelvis.getWorldPosition(new Vector3())
     // Pose arrays use left side of the image first (-X), anatomical right.
     this.sides = [this.manifest.bones.right, this.manifest.bones.left].map(side => {
@@ -395,7 +397,7 @@ export class Athlete {
   }
 
   pose(hips: Point, lean: number, knees: Point[], feet: Point[], hands: Point[], poles: Point[], options: {
-    pelvisTilt?: number; trunkFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; flatDirections?: Point[]; gripTargets?: boolean
+    pelvisTilt?: number; trunkFlexion?: number; neckFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; flatDirections?: Point[]; gripTargets?: boolean
   } = {}): PoseResult {
     if (options.gripTargets) {
       if (options.grip && !options.gripDirections && !options.openHands && !options.flatHands &&
@@ -460,6 +462,8 @@ export class Athlete {
     this.worldRotation(this.pelvis, new Quaternion().setFromAxisAngle(X, options.pelvisTilt ?? lean).multiply(pelvisRest.world))
     const bend = (lean - (options.pelvisTilt ?? lean) + (options.trunkFlexion ?? 0)) / this.spine.length
     for (const spine of this.spine) this.worldRotation(spine, new Quaternion().setFromAxisAngle(X, bend).multiply(spine.getWorldQuaternion(new Quaternion())))
+    // Chin toward the chest (positive) with the head resting on a surface; the arms hang from the spine, not the neck.
+    if (options.neckFlexion) this.worldRotation(this.neck, new Quaternion().setFromAxisAngle(X, options.neckFlexion).multiply(this.neck.getWorldQuaternion(new Quaternion())))
     const resolvedHands: Vector3[] = []
     for (let i = 0; i < 2; i++) {
       const side = this.sides[i]

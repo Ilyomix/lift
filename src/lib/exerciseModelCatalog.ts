@@ -50,6 +50,8 @@ export const EXERCISE_ANATOMY: Record<string, MuscleWeights> = {
   'lying-leg-curl': regions(['hams'], ['calves']),
   'romanian-deadlift': regions(['hams', 'glutes'], ['adductors', 'lowerBack', 'forearms']),
   'hip-thrust': regions(['glutes'], ['hams', 'adductors', 'abs']),
+  'smith-hip-thrust': regions(['glutes'], ['hams', 'adductors', 'abs']),
+  'glute-bridge': regions(['glutes'], ['hams', 'adductors', 'abs']),
   'back-extension-45': regions(['glutes', 'hams'], ['lowerBack']),
   'calf-press': regions(['calves']),
   'standing-calf-raise': regions(['calves']),

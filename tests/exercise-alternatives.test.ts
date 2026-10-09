@@ -11,6 +11,10 @@ test('machine alternatives cover multiple useful options without unrelated muscl
   assert.deepEqual(alternativesFor('leg-extension').map(info => info.id), ['sissy-squat'])
   assert(!alternativesFor('leg-curl').some(info => info.id === 'romanian-deadlift'))
   assert.deepEqual(alternativesFor('custom-import'), [])
+  // A taken hip thrust station leaves a guided bar, the floor, a dumbbell on any bench or the back extension.
+  assert.deepEqual(alternativesFor('hip-thrust').map(info => info.id), ['smith-hip-thrust', 'glute-bridge', 'db-hip-thrust', 'single-leg-hip-thrust', 'back-extension-45'])
+  assert.ok(alternativesFor('hip-thrust').every(info => info.groups.glutes === 1))
+  assert.ok(alternativesFor('back-extension-45').some(info => info.id === 'romanian-deadlift'))
   for (const id of Object.keys(LIBRARY)) {
     const choices = alternativesFor(id)
     assert(choices.every(info => info.id !== id && LIBRARY[info.id] && info.cues.length > 0))
@@ -38,6 +42,8 @@ test('equipment and choice names follow French and English without rebuilding th
     assert.equal(alternativeEquipment('db-bench-press'), 'Dumbbells · Bench')
     assert.equal(alternativeEquipment('lat-pulldown'), 'Machine or cable')
     assert.equal(alternativeEquipment('push-up'), 'Bodyweight')
+    assert.equal(alternativeEquipment('glute-bridge'), 'Barbell')
+    assert.equal(alternativeEquipment('smith-hip-thrust'), 'Smith machine')
     assert.match(option.name, /Overhead/)
   } finally { setLang('fr') }
 })

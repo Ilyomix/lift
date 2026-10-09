@@ -21,7 +21,8 @@ const FAMILIES: readonly (readonly string[])[] = [
   ['leg-extension', 'sissy-squat'],
   ['leg-curl', 'lying-leg-curl', 'sliding-leg-curl', 'nordic-curl'],
   ['romanian-deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'back-extension-45'],
-  ['hip-thrust', 'db-hip-thrust', 'single-leg-hip-thrust'],
+  // A taken hip thrust station: the Smith machine, the floor, a dumbbell on any bench, or the glute-focused back extension.
+  ['hip-thrust', 'smith-hip-thrust', 'glute-bridge', 'db-hip-thrust', 'single-leg-hip-thrust', 'back-extension-45'],
   ['calf-press', 'standing-calf-raise', 'seated-calf-raise', 'single-leg-calf-raise'],
   ['roman-chair-abs', 'hanging-leg-raise', 'reverse-crunch', 'cable-crunch', 'crunch'],
 ]
@@ -39,7 +40,9 @@ export function alternativeEquipment(id: string): string {
   const exercise = LIBRARY[id]
   if (!exercise) return ''
   if (!exercise.requires) {
-    if (id === 'ez-curl' || id === 'romanian-deadlift') return L('Barre', 'Barbell')
+    if (id === 'ez-curl' || id === 'romanian-deadlift' || id === 'glute-bridge') return L('Barre', 'Barbell')
+    if (id === 'smith-squat' || id === 'smith-hip-thrust') return L('Barre guidée (Smith)', 'Smith machine')
+    if (id === 'back-extension-45') return L('Banc à 45°', '45° bench')
     return L('Machine ou poulie', 'Machine or cable')
   }
   const labels = {

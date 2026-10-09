@@ -5,7 +5,7 @@ import type { ExerciseContext, ExerciseMotion } from './exerciseModelTypes'
 
 export const LOWER_EXERCISES = new Set([
   'leg-press', 'hack-squat', 'smith-squat', 'leg-extension', 'leg-curl', 'lying-leg-curl',
-  'romanian-deadlift', 'hip-thrust', 'back-extension-45', 'calf-press', 'standing-calf-raise',
+  'romanian-deadlift', 'hip-thrust', 'smith-hip-thrust', 'glute-bridge', 'back-extension-45', 'calf-press', 'standing-calf-raise',
   'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
   'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
   'db-hip-thrust', 'single-leg-hip-thrust', 'single-leg-calf-raise',
@@ -372,7 +372,7 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     }, [2.8, 1.7, 3.7], [0, 0.86, -0.03], 2.13)
   }
 
-  if (id === 'hip-thrust' || id === 'db-hip-thrust' || id === 'single-leg-hip-thrust' || id === 'sliding-leg-curl') {
+  if (id === 'hip-thrust' || id === 'smith-hip-thrust' || id === 'db-hip-thrust' || id === 'single-leg-hip-thrust' || id === 'sliding-leg-curl') {
     const sliding = id === 'sliding-leg-curl'
     if (sliding) mat(0.18, 1.8)
     else {
@@ -383,8 +383,13 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         bar([side * 0.36, 0.04, -0.77], [side * 0.36, 0.04, -0.37], 0.03)
       }
     }
-    const barbell = id === 'hip-thrust' ? eq.barbell() : null
+    const barbell = id === 'hip-thrust' || id === 'smith-hip-thrust' ? eq.barbell() : null
     const dumbbell = id === 'db-hip-thrust' ? eq.dumbbell() : null
+    if (id === 'smith-hip-thrust') {
+      // A compact Smith frame: the bar rides its rails 2 cm either side of its own path over the hips.
+      for (const side of SIDES) { bar([side * 0.62, 0.04, -0.021], [side * 0.62, 1.30, -0.021]); bar([side * 0.62, 0.04, -0.30], [side * 0.62, 0.04, 0.45], 0.035) }
+      bar([-0.62, 1.30, -0.021], [0.62, 1.30, -0.021])
+    }
     barbell?.scale.setScalar(scale); dumbbell?.scale.setScalar(scale)
     const sliders = sliding ? SIDES.map(side => block([side * 0.17, 0.055, 0.7], [0.19, 0.035, 0.24], 0, eq.grip)) : []
     return motion(t => {
@@ -424,6 +429,23 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (dumbbell) dumbbell.position.set(...p(loadCenter))
       sliders.forEach((slider, i) => slider.position.set(...p([feet[i][0], 0.055, feet[i][2]])))
     }, [2.8, 2.1, 3.0], [0, 0.41, 0.04], 1.78)
+  }
+
+  if (id === 'glute-bridge') {
+    // The hip thrust without a bench: shoulder blades on a mat, the bar over the hips.
+    mat(-0.45, 1.2)
+    const barbell = eq.barbell()
+    barbell.scale.setScalar(scale)
+    return motion(t => {
+      const lean = -1.63 - 0.57 * t
+      // The torso turns about the shoulder blades, 10 cm above the mat as on the bench.
+      const hips: Point = [0, 0.135 - 0.47 * Math.cos(lean), -0.45 - 0.47 * Math.sin(lean)]
+      const result = pose(hips, lean, pair(side => [side * 0.18, 0.75, 0.36]), pair(side => [side * 0.17, 0.078, 0.42]),
+        pair(side => torso(hips, lean, [side * 0.26, 0.04, 0.153])), pair(side => [side * 0.52, 0.06, -0.32]),
+        // The neck bends as the shoulders tip back, so the head stays on the mat.
+        { neckFlexion: 0.8 * t, footRotations: straightFeet, grip: true, gripTargets: true, gripAxes: [[1, 0, 0], [-1, 0, 0]] })
+      barbell.position.copy(average(result.hands))
+    }, [3.3, 1.5, 1.7], [0, 0.25, -0.15], 1.5)
   }
 
   if (id === 'back-extension-45') {
