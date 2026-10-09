@@ -57,7 +57,7 @@ export function GymSheet({ onClose, session }: { onClose: () => void; session?: 
         ))}
       </div>
       <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) close(create) }}>
-        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={L('Nouvelle salle (ex. : Basic-Fit Nation)', 'New gym (e.g. Basic-Fit Nation)')} enterKeyHint="done" aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
+        <input autoCorrect="off" autoComplete="off" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={L('Nouvelle salle (ex. : Basic-Fit Nation)', 'New gym (e.g. Basic-Fit Nation)')} enterKeyHint="done" aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
         <Button type="submit" variant="ink" size="lg" disabled={!name.trim()} aria-label={L('Ajouter la salle', 'Add gym')} icon={<Plus size={18} aria-hidden />} />
       </form>
       <p className="mt-3 text-[12px] leading-[1.45] text-muted">

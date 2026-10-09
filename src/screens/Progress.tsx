@@ -334,6 +334,8 @@ function MeasureList({ entries }: { entries: BodyEntry[] }) {
   )
 }
 
+const MEASURE_BOUNDS = { weight: [35, 250], waist: [50, 200], arm: [10, 80], chest: [40, 200], shoulders: [40, 220] } as const
+
 export function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const saveBody = useStore((s) => s.saveBody)
   const bodyEntries = useStore((s) => s.state.bodyEntries)
@@ -347,9 +349,16 @@ export function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => 
     setV({ weight: '', waist: '', arm: '', chest: '', shoulders: '' })
     onClose()
   }
-  const invalid = (key: keyof typeof v) => v[key].trim() !== '' && (parseNumber(v[key]) === null || parseNumber(v[key])! <= 0)
+  // Typed values keep the wheel's plausible range: « 7,8 » for 78 kg must not reach the trend.
+  const invalid = (key: keyof typeof v) => {
+    const n = parseNumber(v[key]), [low, high] = MEASURE_BOUNDS[key]
+    return v[key].trim() !== '' && (n === null || n < low || n > high)
+  }
   const valid = Object.values(v).some(x => parseNumber(x) !== null) && !(Object.keys(v) as (keyof typeof v)[]).some(invalid)
-  const error = L('Saisis une valeur supérieure à zéro.', 'Enter a value greater than zero.')
+  const error = (key: keyof typeof v) => {
+    const [low, high] = MEASURE_BOUNDS[key], unit = key === 'weight' ? 'kg' : 'cm'
+    return invalid(key) ? L(`Entre ${low} et ${high} ${unit}.`, `Between ${low} and ${high} ${unit}.`) : undefined
+  }
   const save = () => {
     if (!valid) return
     saveBody({ date, weight: parseNumber(v.weight), waist: parseNumber(v.waist), arm: parseNumber(v.arm), chest: parseNumber(v.chest), shoulders: parseNumber(v.shoulders) })
@@ -363,15 +372,15 @@ export function MeasureSheet({ open, onClose }: { open: boolean; onClose: () => 
           <p className="mb-1.5 text-[13px] font-medium text-text-2">Date</p>
           <DateInput label={L('Date de la mesure', 'Measurement date')} value={date} max={todayISO()} onChange={(v) => v && setDate(v)} />
         </div>
-        <Field label={L('Poids', 'Weight')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={invalid('weight') ? error : undefined}>
-          <MeasurementPicker label={L('Poids', 'Weight')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={35} max={250} step={0.1} defaultValue={measureSeries(bodyEntries, 'weight').at(-1)?.value ?? 75} invalid={invalid('weight')} />
+        <Field label={L('Poids', 'Weight')} hint={L('À jeun, même balance', 'Fasted, same scale')} error={error('weight')}>
+          <MeasurementPicker label={L('Poids', 'Weight')} unit="kg" value={v.weight} onChange={weight => setV(current => ({ ...current, weight }))} min={MEASURE_BOUNDS.weight[0]} max={MEASURE_BOUNDS.weight[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'weight').at(-1)?.value ?? 75} invalid={invalid('weight')} />
         </Field>
-        <Field label={L('Tour de taille', 'Waist')} hint={L('Au nombril', 'At the navel')} error={invalid('waist') ? error : undefined}>
-          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={v.waist} onChange={waist => setV(current => ({ ...current, waist }))} min={50} max={200} step={0.1} defaultValue={measureSeries(bodyEntries, 'waist').at(-1)?.value ?? 85} invalid={invalid('waist')} />
+        <Field label={L('Tour de taille', 'Waist')} hint={L('Au nombril', 'At the navel')} error={error('waist')}>
+          <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" value={v.waist} onChange={waist => setV(current => ({ ...current, waist }))} min={MEASURE_BOUNDS.waist[0]} max={MEASURE_BOUNDS.waist[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'waist').at(-1)?.value ?? 85} invalid={invalid('waist')} />
         </Field>
-        <Field label={L('Bras', 'Arm')} error={invalid('arm') ? error : undefined}><MeasurementPicker label={L('Bras', 'Arm')} unit="cm" value={v.arm} onChange={arm => setV(current => ({ ...current, arm }))} min={10} max={80} step={0.1} defaultValue={measureSeries(bodyEntries, 'arm').at(-1)?.value ?? 35} invalid={invalid('arm')} /></Field>
-        <Field label={L('Poitrine', 'Chest')} error={invalid('chest') ? error : undefined}><MeasurementPicker label={L('Poitrine', 'Chest')} unit="cm" value={v.chest} onChange={chest => setV(current => ({ ...current, chest }))} min={40} max={200} step={0.1} defaultValue={measureSeries(bodyEntries, 'chest').at(-1)?.value ?? 100} invalid={invalid('chest')} /></Field>
-        <Field label={L('Épaules', 'Shoulders')} error={invalid('shoulders') ? error : undefined}><MeasurementPicker label={L('Épaules', 'Shoulders')} unit="cm" value={v.shoulders} onChange={shoulders => setV(current => ({ ...current, shoulders }))} min={40} max={220} step={0.1} defaultValue={measureSeries(bodyEntries, 'shoulders').at(-1)?.value ?? 115} invalid={invalid('shoulders')} /></Field>
+        <Field label={L('Bras', 'Arm')} error={error('arm')}><MeasurementPicker label={L('Bras', 'Arm')} unit="cm" value={v.arm} onChange={arm => setV(current => ({ ...current, arm }))} min={MEASURE_BOUNDS.arm[0]} max={MEASURE_BOUNDS.arm[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'arm').at(-1)?.value ?? 35} invalid={invalid('arm')} /></Field>
+        <Field label={L('Poitrine', 'Chest')} error={error('chest')}><MeasurementPicker label={L('Poitrine', 'Chest')} unit="cm" value={v.chest} onChange={chest => setV(current => ({ ...current, chest }))} min={MEASURE_BOUNDS.chest[0]} max={MEASURE_BOUNDS.chest[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'chest').at(-1)?.value ?? 100} invalid={invalid('chest')} /></Field>
+        <Field label={L('Épaules', 'Shoulders')} error={error('shoulders')}><MeasurementPicker label={L('Épaules', 'Shoulders')} unit="cm" value={v.shoulders} onChange={shoulders => setV(current => ({ ...current, shoulders }))} min={MEASURE_BOUNDS.shoulders[0]} max={MEASURE_BOUNDS.shoulders[1]} step={0.1} defaultValue={measureSeries(bodyEntries, 'shoulders').at(-1)?.value ?? 115} invalid={invalid('shoulders')} /></Field>
       </div>
     </Sheet>
   )

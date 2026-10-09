@@ -343,14 +343,15 @@ function BodyStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }
         <p className="mb-1.5 text-[13px] font-medium text-text-2">{L('Sexe', 'Sex')}</p>
         <Segmented label={L('Sexe', 'Sex')} value={d.sex} layout="fit" onChange={(sex) => patch({ sex })} options={[{ value: 'm', label: L('Homme', 'Male') }, { value: 'f', label: L('Femme', 'Female') }]} />
       </div>
-      <Field label={L('Âge', 'Age')} hint={error(d.age, 14, 90) ? L('Saisis un âge entre 14 et 90 ans.', 'Enter an age between 14 and 90.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
-      <Field label={L('Taille (cm)', 'Height (cm)')} hint={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" required invalid={error(d.height, 120, 230)} value={d.height} onChange={(height) => patch({ height })} min={120} max={230} defaultValue={178} placeholder="178" /></Field>
-      <Field label={L('Poids actuel (kg)', 'Current weight (kg)')} hint={error(d.weight, 35, 250) ? L('Saisis un poids entre 35 et 250 kg.', 'Enter a weight between 35 and 250 kg.') : undefined} className="col-span-2">
+      <Field label={L('Âge', 'Age')} error={error(d.age, 14, 90) ? L('Saisis un âge entre 14 et 90 ans.', 'Enter an age between 14 and 90.') : undefined}><input className={inputClass} inputMode="numeric" required aria-invalid={error(d.age, 14, 90)} value={d.age} onChange={(e) => patch({ age: e.target.value })} placeholder="30" /></Field>
+      <Field label={L('Taille (cm)', 'Height (cm)')} error={error(d.height, 120, 230) ? L('Saisis une taille entre 120 et 230 cm.', 'Enter a height between 120 and 230 cm.') : undefined}><MeasurementPicker label={L('Taille', 'Height')} unit="cm" required invalid={error(d.height, 120, 230)} value={d.height} onChange={(height) => patch({ height })} min={120} max={230} defaultValue={178} placeholder="178" /></Field>
+      <Field label={L('Poids actuel (kg)', 'Current weight (kg)')} error={error(d.weight, 35, 250) ? L('Saisis un poids entre 35 et 250 kg.', 'Enter a weight between 35 and 250 kg.') : undefined} className="col-span-2">
         <MeasurementPicker label={L('Poids actuel', 'Current weight')} unit="kg" required invalid={error(d.weight, 35, 250)} value={d.weight} onChange={(weight) => patch({ weight })} min={35} max={250} step={0.1} defaultValue={78} placeholder={L('78,5', '78.5')} />
       </Field>
       <Field
         label={L('Tour de taille (cm), facultatif', 'Waist (cm), optional')}
-        hint={error(d.waist, 50, 200) ? L('Saisis un tour de taille entre 50 et 200 cm, ou laisse ce champ vide.', 'Enter a waist measurement between 50 and 200 cm, or leave this blank.') : L('Au nombril, à jeun. Cette mesure affine l’estimation du taux de gras.', 'At the navel, before eating. This helps refine the body-fat estimate.')}
+        hint={L('Au nombril, à jeun. Cette mesure affine l’estimation du taux de gras.', 'At the navel, before eating. This helps refine the body-fat estimate.')}
+        error={error(d.waist, 50, 200) ? L('Saisis un tour de taille entre 50 et 200 cm, ou laisse ce champ vide.', 'Enter a waist measurement between 50 and 200 cm, or leave this blank.') : undefined}
         className="col-span-2"
       >
         <MeasurementPicker label={L('Tour de taille', 'Waist')} unit="cm" invalid={error(d.waist, 50, 200)} value={d.waist} onChange={(waist) => patch({ waist })} min={50} max={200} step={0.1} defaultValue={90} placeholder="—" />
@@ -559,7 +560,7 @@ export function ImportResultSheet() {
   const lastWeigh = useStore((s) => s.state.bodyEntries.filter((b) => b.weight !== null).at(-1))
   const saveBody = useStore((s) => s.saveBody)
   const [w, setW] = useState('')
-  const invalidWeight = w.trim() !== '' && (parseNumber(w) === null || parseNumber(w)! <= 0)
+  const invalidWeight = w.trim() !== '' && (parseNumber(w) === null || parseNumber(w)! < 35 || parseNumber(w)! > 250)
   if (!lastImport) return null
   const close = () => { setW(''); useStore.setState({ lastImport: null }) }
   const added = lastImport.changes.filter((c) => c.kind === 'added')
@@ -607,7 +608,7 @@ export function ImportResultSheet() {
         <p className="text-[15px] text-text-2">{L('Données importées.', 'Data imported.')}</p>
       )}
       {stale && (
-        <Field label={L('Ton poids ce matin, facultatif', 'Your weight this morning, optional')} hint={L('Cette pesée sera ajoutée à ton suivi.', 'This weigh-in will be added to your progress log.')} error={invalidWeight ? L('Saisis un poids supérieur à zéro.', 'Enter a weight greater than zero.') : undefined} className="mt-5">
+        <Field label={L('Ton poids ce matin, facultatif', 'Your weight this morning, optional')} hint={L('Cette pesée sera ajoutée à ton suivi.', 'This weigh-in will be added to your progress log.')} error={invalidWeight ? L('Entre 35 et 250 kg.', 'Between 35 and 250 kg.') : undefined} className="mt-5">
           <MeasurementPicker label={L('Poids ce matin', 'Weight this morning')} unit="kg" value={w} onChange={setW} min={35} max={250} step={0.1} defaultValue={lastWeigh?.weight ?? 78} invalid={invalidWeight} placeholder={lastWeigh?.weight ? fmtNum(lastWeigh.weight, 1) : '—'} />
         </Field>
       )}

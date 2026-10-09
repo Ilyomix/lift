@@ -212,6 +212,7 @@ export function NutritionTargetsScreen() {
             </>
           )}
         </Card>
+        <p className="mt-3 text-[13px] leading-[1.45] text-muted">{L('Repères généraux, pas un avis médical. Demande l’avis d’un médecin avant de réduire tes calories, surtout en cas de problème de santé, de grossesse ou si tu as moins de 18 ans.', 'General guidance, not medical advice. Check with a doctor before cutting calories, especially if you have a health condition, are pregnant or are under 18.')}</p>
       </Section>
 
       <Disclosure icon={<SportArt kind="nutrition" size="title" />} title={L('Comment les cibles sont calculées', 'How targets are calculated')} className="mt-6" contentClassName="text-[13px] leading-[1.5] text-text-2">
@@ -325,9 +326,11 @@ function Counter({ label, unit, value, target, targetValue, targetMax, inputRef,
       </div>
       <div ref={inputRef} className="mt-3">
         <Field label={<span className="sr-only">{label}</span>} error={invalid ? L('Saisis une valeur égale ou supérieure à zéro.', 'Enter a value of zero or more.') : undefined}>
-          <MeasurementPicker label={label} unit={unit} value={draft} min={0} max={unit === 'kcal' ? 10000 : 500} step={unit === 'kcal' ? 50 : 1} defaultValue={value} invalid={invalid} onChange={next => {
+          <MeasurementPicker label={label} unit={unit} value={draft} min={0} max={unit === 'kcal' ? 10000 : 500} step={unit === 'kcal' ? 50 : 1} defaultValue={value} invalid={invalid} required onChange={next => {
+            // An emptied entry keeps the day's total; 0 is typed on purpose.
+            if (next.trim() === '') return
             setDraft(next)
-            const n = next.trim() === '' ? 0 : parseNumber(next)
+            const n = parseNumber(next)
             if (n !== null && n >= 0) { ownValue.current = n; onSet(n) }
           }} />
         </Field>
@@ -398,7 +401,7 @@ export function CoachScreen() {
       </div>
 
       <Section art="coach" title={L('Réponse de l’IA', 'AI reply')} action={<Button size="sm" variant="outline" icon={<ClipboardPaste size={15} aria-hidden />} onClick={paste}>{L('Coller', 'Paste')}</Button>}>
-        <textarea aria-label={L('Réponse de l’IA', 'AI reply')} aria-invalid={!!error} aria-describedby={error ? errorId : undefined} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
+        <textarea aria-label={L('Réponse de l’IA', 'AI reply')} autoCorrect="off" autoCapitalize="off" spellCheck={false} aria-invalid={!!error} aria-describedby={error ? errorId : undefined} className={cx(inputClass, 'h-36 resize-none py-2.5 font-mono')} value={text} onChange={(e) => { setText(e.target.value); setUpdate(null); setError(null) }} placeholder={L('Colle ici la réponse complète : le bloc JSON est détecté automatiquement.', 'Paste the full reply here: the JSON block is detected automatically.')} />
         {error && <p id={errorId} role="alert" className="mt-2 text-[13px] text-bad">{error}</p>}
         <Button variant="outline" full className="mt-2" icon={<Eye size={16} aria-hidden />} disabled={!text.trim()} onClick={analyze}>{L('Prévisualiser les modifications', 'Preview changes')}</Button>
       </Section>

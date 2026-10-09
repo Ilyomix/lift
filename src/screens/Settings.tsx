@@ -318,7 +318,7 @@ function GymManager() {
             <MapPin size={17} className={cx('shrink-0', g.id === current ? 'text-signal-text' : 'text-muted')} aria-hidden />
             {edit === g.id ? (
               <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; renameGym(g.id, name); renameDraft.discard(); setEdit(null) }}>
-                <input data-autofocus className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
+                <input autoFocus autoCorrect="off" autoComplete="off" enterKeyHint="done" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} aria-label={L('Nom de la salle', 'Gym name')} />
                 <Button type="submit" variant="ink" disabled={!name.trim()} icon={<Pencil size={16} aria-hidden />}>{L('Renommer', 'Rename')}</Button>
               </form>
             ) : (
@@ -337,7 +337,7 @@ function GymManager() {
         ))}
       </Card>
       <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) { addGym(adding); addDraft.discard(); setAdding('') } }}>
-        <input className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ex. : salle du centre', 'E.g. Downtown gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
+        <input autoCorrect="off" autoComplete="off" enterKeyHint="done" className={inputClass} value={adding} onChange={(e) => setAdding(e.target.value)} placeholder={L('Ex. : salle du centre', 'E.g. Downtown gym')} aria-label={L('Nom de la nouvelle salle', 'New gym name')} />
         <Button type="submit" variant="ink" size="lg" icon={<Plus size={18} aria-hidden />} disabled={!adding.trim()}>{L('Ajouter', 'Add')}</Button>
       </form>
       <p className="mt-2 text-[12px] leading-[1.45] text-muted">{L('Machines, poulies et Smith : charges et historique propres à chaque salle. Haltères, barres, poids du corps : communs.', 'Machines, cables and Smith machine: loads and history are specific to each gym. Dumbbells, barbells, bodyweight: shared.')}</p>
