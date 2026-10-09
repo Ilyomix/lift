@@ -401,6 +401,10 @@
   }
 }
 
+/* Native keyboard open: the WebView ends at the keyboard. */
+:root[data-keyboard] .keyboard-hidden { display: none; }
+:root[data-keyboard] [data-page-actions] { bottom: 0; }
+
 /* ───────────────────────── Motion ───────────────────────── */
 
 @keyframes screen-in {

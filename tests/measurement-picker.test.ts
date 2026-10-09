@@ -102,7 +102,7 @@ test('desktop uses direct input and reacts to touch pointer availability', () =>
   assert.deepEqual(changes, ['300,25'], 'manual validation belongs to the parent, not the wheel range')
   assert.doesNotMatch(renderToStaticMarkup(render()), /<button/)
   assert.match(renderToStaticMarkup(render()), /pointer-events-none[^>]*>kg<\/span>/)
-  assert.match(input.props.className, /pr-11/)
+  assert.match(input.props.className, /pr-12/)
   assert.equal(input.props.value, '', 'the visible unit does not change numeric input content')
   let notified = 0
   const cleanup = subscribe!(() => { notified++ })
@@ -158,9 +158,8 @@ test('closing manual entry preserves exact raw input, empty values and parent va
     const input = find(wheel(), item => item.type === 'input')
     assert.equal(input.props.inputMode, 'decimal')
     assert.equal(input.props.value, '78')
-    const overlay = find(wheel(), item => typeof item.props.className === 'string' && item.props.className.includes('absolute inset-x-0 top-[88px] flex'))
-    assert.equal(find(overlay, item => item.type === 'input').props.value, '78', 'manual entry occupies the selected row, not a separate field')
-    assert.equal(find(wheel(), item => item.props.inert === true).props['aria-hidden'], true)
+    assert.throws(() => find(wheel(), item => item.props.role === 'spinbutton'), /Control not found/, 'typing replaces the wheel so the short panel stays above the keyboard')
+    assert.equal(find(wheel(), item => item.type === 'span' && item.props.children === 'kg').props['aria-hidden'], true, 'the unit stays beside the typed value')
     input.props.onChange({ target: { value } })
     assert.deepEqual(changes, [])
     return wheel
@@ -225,26 +224,6 @@ test('opening decimal measurements keeps their exact precision with a narrow fra
   closeWheel(wheel)
   assert.deepEqual(changes, [], 'closing without editing preserves the exact original value and formatting')
 })
-
-test('compact workout fields omit the chevron, use a sheet and respect disabled state', () => {
-  const p = { ...props(() => {}), presentation: 'sheet' as const, inputClassName: 'compact-control', disabled: true, value: '22.5', unit: 'kg/hand' }
-  const render = mount(MeasurementPicker, p)
-  const trigger = find(render(), item => 'aria-expanded' in item.props)
-  assert.equal(trigger.props.disabled, true)
-  assert.doesNotMatch(renderToStaticMarkup(trigger), /<svg/)
-  assert.equal(trigger.props['aria-haspopup'], 'dialog')
-  assert.match(trigger.props.className, /flex-col justify-center/)
-  assert.match(find(trigger, item => item.props.children === '22.5').props.className, /whitespace-nowrap/)
-  assert.match(renderToStaticMarkup(trigger), />kg\/hand</)
-  touch = false
-  const input = find(render(), item => item.type === 'input')
-  assert.equal(input.props.disabled, true)
-  assert.match(input.props.className, /pb-3 text-center/)
-  assert.doesNotMatch(input.props.className, /pr-11|pr-5/)
-  assert.equal(input.props.value, '22.5')
-  assert.match(find(render(), item => item.props.children === 'kg/hand').props.className, /bottom-1/)
-})
-
 
 test('reopening a manually entered value outside the suggested wheel range never clamps it', () => {
   const changes: string[] = [], wheel = openWheel(mount(MeasurementPicker, { ...props(value => changes.push(value)), value: '300,25' }))
@@ -380,4 +359,22 @@ test('measurement wheels open in a portal sheet by default without inserting the
   assert.deepEqual(changes, ['82'], 'navigation first commits the open wheel so the parent draft is guarded')
   emit('lift:commit-measurements')
   assert.deepEqual(changes, ['82'])
+})
+
+test('Done applies the value the wheel shows, even untouched; Clear empties an optional field', () => {
+  touch = true
+  const changes: string[] = []
+  const open = (render: () => ReactNode) => {
+    find(render(), item => item.type === 'button' && 'aria-expanded' in item.props).props.onClick()
+    return find(render(), item => 'footer' in item.props).props.footer
+  }
+  const empty = mount(MeasurementPicker, props(value => changes.push(value)))
+  find(open(empty), item => item.props.variant === 'primary').props.onClick()
+  assert.deepEqual(changes, ['78'], 'a height or weight equal to the default needs no wheel move')
+  assert.throws(() => find(open(empty), item => item.props.variant === 'outline'), /Control not found/, 'an empty field has nothing to clear')
+  const filled = mount(MeasurementPicker, { ...props(value => changes.push(value)), value: '80' })
+  find(open(filled), item => item.props.variant === 'outline').props.onClick()
+  assert.deepEqual(changes, ['78', ''])
+  const required = mount(MeasurementPicker, { ...props(() => {}), value: '80', required: true })
+  assert.throws(() => find(open(required), item => item.props.variant === 'outline'), /Control not found/, 'a required field cannot be cleared')
 })

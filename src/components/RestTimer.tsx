@@ -149,7 +149,7 @@ export function RestDock() {
   const next = splitNext(timer.next)
 
   return (
-    <><div ref={dock} aria-hidden={expanded || undefined} className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
+    <><div ref={dock} aria-hidden={expanded || undefined} className="keyboard-hidden fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 px-3 pb-2">
       <div
         role="timer"
         aria-live={done ? 'assertive' : 'off'}

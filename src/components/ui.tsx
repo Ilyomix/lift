@@ -496,7 +496,29 @@ export function Empty({ art = 'chart', icon, title, children, action }: { art?: 
 // ───────────── Sheet (dialog) ─────────────
 
 const sheetPanels: HTMLElement[] = []
-let beforeSheetsOverflow = ''
+const LOCKED_STYLES = ['position', 'top', 'left', 'right', 'overflow'] as const
+let pageLock: { scrollY: number; route: string; style: Record<string, string> } | null = null
+// iOS scrolls the page to reveal a focused field even under overflow: hidden.
+// Pinning the body at its offset keeps the page still behind every sheet.
+function lockPage() {
+  const style = document.body.style
+  pageLock = { scrollY: window.scrollY ?? 0, route: window.location?.hash ?? '', style: Object.fromEntries(LOCKED_STYLES.map(key => [key, style[key]])) }
+  Object.assign(style, { position: 'fixed', top: `${-pageLock.scrollY}px`, left: '0', right: '0', overflow: 'hidden' })
+}
+// Only the top sheet stays reachable: the keyboard's ⌃ ⌄ and VoiceOver follow
+// the DOM, and must not land on a field hidden behind it.
+function syncInert() {
+  const top = sheetPanels.at(-1)?.parentElement
+  for (const element of Array.from(document.body.children ?? [])) (element as HTMLElement).inert = !!top && element !== top
+}
+function unlockPage() {
+  if (!pageLock) return
+  const { scrollY, route, style } = pageLock
+  pageLock = null
+  Object.assign(document.body.style, style)
+  // A sheet action that opened another screen leaves it at its top.
+  if ((window.location?.hash ?? '') === route) window.scrollTo?.({ top: scrollY, left: 0, behavior: 'instant' })
+}
 
 export function Sheet({ open, onClose, title, icon, children, footer, tall, dirty = false }: { open: boolean; onClose: () => void; title: ReactNode; icon?: ReactNode; children: ReactNode; footer?: ReactNode; tall?: boolean; dirty?: boolean }) {
   const guard = useUnsavedChanges(open && dirty)
@@ -565,8 +587,9 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall, dirt
     if (!visible) return
     const panel = ref.current!
     const prev = document.activeElement as HTMLElement | null
-    if (!sheetPanels.length) beforeSheetsOverflow = document.body.style.overflow
+    if (!sheetPanels.length) lockPage()
     sheetPanels.push(panel)
+    syncInert()
     const onKey = (e: KeyboardEvent) => {
       if (sheetPanels.at(-1) !== panel) return
       if (e.key === 'Escape') { e.preventDefault(); dismiss() }
@@ -586,7 +609,6 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall, dirt
       }
     }
     document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
     // Start on an explicit autofocus target or Close, keeping the dialog's first action reachable.
     const focusFrame = requestAnimationFrame(() => { if (sheetPanels.at(-1) === panel) (panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel.querySelector<HTMLElement>('[data-sheet-handle] button') ?? panel).focus({ preventScroll: true }) })
     return () => {
@@ -595,7 +617,8 @@ export function Sheet({ open, onClose, title, icon, children, footer, tall, dirt
       const wasTop = sheetPanels.at(-1) === panel
       const index = sheetPanels.indexOf(panel)
       if (index !== -1) sheetPanels.splice(index, 1)
-      if (!sheetPanels.length) document.body.style.overflow = beforeSheetsOverflow
+      syncInert()
+      if (!sheetPanels.length) unlockPage()
       if (wasTop && prev?.isConnected !== false) prev?.focus?.({ preventScroll: true })
     }
   }, [visible, dismiss])

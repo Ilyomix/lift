@@ -18,7 +18,7 @@ export function TabBar({ current }: { current: string }) {
   return (
     <nav
       aria-label={L('Navigation principale', 'Main navigation')}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-[color-mix(in_oklch,var(--bg)_86%,transparent)] backdrop-blur-xl safe-bottom"
+      className="keyboard-hidden fixed inset-x-0 bottom-0 z-40 border-t border-line bg-[color-mix(in_oklch,var(--bg)_86%,transparent)] backdrop-blur-xl safe-bottom"
     >
       <ul className="mx-auto grid max-w-[640px] grid-cols-5">
         {TABS.map(({ path, label, Icon }) => {
