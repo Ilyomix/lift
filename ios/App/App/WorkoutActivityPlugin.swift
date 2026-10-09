@@ -41,7 +41,12 @@ public class WorkoutActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func status(_ call: CAPPluginCall) {
-        call.resolve(["supported": true, "enabled": ActivityAuthorizationInfo().areActivitiesEnabled])
+        Task { @MainActor in
+            let enabled = ActivityAuthorizationInfo().areActivitiesEnabled
+            let phone = UIDevice.current.userInterfaceIdiom == .phone
+            // iPad offers the setting only when iOS reports Live Activities available.
+            call.resolve(["supported": phone || enabled, "enabled": enabled, "phone": phone])
+        }
     }
 
     @objc func setAppIcon(_ call: CAPPluginCall) {

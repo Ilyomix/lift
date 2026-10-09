@@ -5,7 +5,7 @@ import type { WorkoutActivityState } from './snapshot'
 import type { NativeRestAction } from './restActions'
 
 export const isNative = () => Capacitor.isNativePlatform()
-export interface ActivityStatus { supported: boolean; enabled: boolean; apiLevel?: number }
+export interface ActivityStatus { supported: boolean; enabled: boolean; apiLevel?: number; phone?: boolean }
 export const WorkoutActivity = registerPlugin<{
   status(): Promise<ActivityStatus>
   setAppIcon(options: { accent: 'blue' | 'orange' }): Promise<{ applied: boolean }>

@@ -4,19 +4,19 @@ import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { L } from '../lib/i18n'
 import { useStore } from '../lib/store'
-import { isNative, nativeNotificationPermission, WorkoutActivity } from '../lib/native/bridge'
+import { isNative, nativeNotificationPermission, WorkoutActivity, type ActivityStatus } from '../lib/native/bridge'
 import { Button, Row, Toggle } from './ui'
 
 export function NativeActivitySettings() {
   const prefs = useStore(s => s.state.prefs)
   const { setPrefs, notify } = useStore.getState()
   const [permission, setPermission] = useState(false)
-  const [activityEnabled, setActivityEnabled] = useState(true)
+  const [activity, setActivity] = useState<ActivityStatus>({ supported: true, enabled: true })
   useEffect(() => {
     if (!isNative()) return
     const refresh = () => {
       void nativeNotificationPermission().then(setPermission).catch(() => {})
-      void WorkoutActivity.status().then(s => setActivityEnabled(s.enabled)).catch(() => setActivityEnabled(false))
+      void WorkoutActivity.status().then(setActivity).catch(() => setActivity({ supported: true, enabled: false }))
     }
     const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
     refresh()
@@ -40,12 +40,16 @@ export function NativeActivitySettings() {
   }
   const ios = Capacitor.getPlatform() === 'ios'
   return <>
-    <Toggle
-      label={ios ? L('Activité en direct', 'Live Activity') : L('Suivi sur l’écran verrouillé', 'Lock screen tracking')}
-      hint={ios ? L('Progression et repos sur l’écran verrouillé et dans la Dynamic Island.', 'Progress and rest on the lock screen and in the Dynamic Island.') : L('Notification persistante avec progression et compte à rebours.', 'Ongoing notification with progress and countdown.')}
-      checked={prefs.liveActivity !== false} onChange={v => setPrefs({ liveActivity: v })}
-    />
-    {!activityEnabled && <Row label={L('Autorisation nécessaire', 'Permission needed')} hint={ios ? L('Réglages iPhone → Lift → Activités en direct.', 'iPhone Settings → Lift → Live Activities.') : L('Autorise les notifications de Lift pour afficher le suivi.', 'Allow Lift notifications to show workout tracking.')} />}
+    {activity.supported && <>
+      <Toggle
+        label={ios ? L('Activité en direct', 'Live Activity') : L('Suivi sur l’écran verrouillé', 'Lock screen tracking')}
+        hint={!ios ? L('Notification persistante avec progression et compte à rebours.', 'Ongoing notification with progress and countdown.')
+          : activity.phone === false ? L('Progression et repos sur l’écran verrouillé.', 'Progress and rest on the lock screen.')
+          : L('Progression et repos sur l’écran verrouillé et dans la Dynamic Island.', 'Progress and rest on the lock screen and in the Dynamic Island.')}
+        checked={prefs.liveActivity !== false} onChange={v => setPrefs({ liveActivity: v })}
+      />
+      {!activity.enabled && <Row label={L('Autorisation nécessaire', 'Permission needed')} hint={ios ? L('Réglages → Lift → Activités en direct.', 'Settings → Lift → Live Activities.') : L('Autorise les notifications de Lift pour afficher le suivi.', 'Allow Lift notifications to show workout tracking.')} />}
+    </>}
     <Toggle label={L('Notification de fin de repos', 'End-of-rest notification')}
       hint={permission
         ? L('Une alerte en fin de repos, avec les actions +30 s et Reprendre la séance.', 'An alert when your rest ends, with +30 s and Resume workout actions.')
