@@ -584,7 +584,7 @@ function NumField({ id, value, onCommit, placeholder, decimal, label, disabled, 
       size={unit ? Math.max(2, (text || placeholder || '').length) : undefined}
       className={cx(
         'text-[16px] font-semibold text-text tnum placeholder:font-medium placeholder:text-muted disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--text)]',
-        unit ? 'h-full min-w-0 bg-transparent text-right outline-none' : 'h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center min-[360px]:px-1 focus:border-signal focus:outline-none',
+        unit ? 'min-w-0 bg-transparent text-right outline-none' : 'h-11 w-full min-w-0 rounded-[10px] border border-line-strong bg-surface px-0 text-center min-[360px]:px-1 focus:border-signal focus:outline-none',
       )}
       inputMode={decimal ? 'decimal' : 'numeric'}
       pattern={decimal ? undefined : '[0-9]*'}
@@ -604,10 +604,12 @@ function NumField({ id, value, onCommit, placeholder, decimal, label, disabled, 
   if (!unit) return input
   const [base, per] = unit.split('/')
   return (
-    <label className="flex h-11 w-full min-w-0 cursor-text items-center justify-center gap-1 rounded-[10px] border border-line-strong bg-surface px-1 focus-within:border-signal has-[[aria-invalid=true]]:border-bad-mark">
-      {input}
-      {/* « kg/main » stacks beside the value: the whole unit stays readable in a 375 pt row. */}
-      <span aria-hidden className={cx('shrink-0 font-medium text-text-2', per ? 'flex flex-col text-[11px] leading-[1.15]' : 'text-[12px]')}>{per ? <><span>{base}</span><span>/{per}</span></> : unit}</span>
+    <label className="flex h-11 w-full min-w-0 cursor-text items-center justify-center rounded-[10px] border border-line-strong bg-surface px-1 focus-within:border-signal has-[[aria-invalid=true]]:border-bad-mark">
+      {/* Value and unit share one baseline; « kg/main » stacks beside the value to fit a 375 pt row. */}
+      <span className="flex min-w-0 items-baseline gap-1">
+        {input}
+        <span aria-hidden className={cx('shrink-0 font-medium text-text-2', per ? 'flex flex-col text-[11px] leading-[1.15]' : 'text-[12px]')}>{per ? <><span>{base}</span><span>/{per}</span></> : unit}</span>
+      </span>
     </label>
   )
 }

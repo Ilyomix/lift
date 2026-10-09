@@ -325,7 +325,7 @@ test('closing when disabled discards the pending wheel without updating a comple
 test('strict linked bounds exclude the invalid old value and apply the displayed correction on close', () => {
   for (const [value, min, max, expected] of [['96', 35, 93, '93'], ['80', 82.5, 250, '82.5']] as const) {
     const changes: string[] = [], render = mount(MeasurementPicker, { ...props(next => changes.push(next)), value, min, max, strictBounds: true })
-    assert.equal(find(render(), item => 'aria-expanded' in item.props).props.children[0].props.children, value)
+    assert.equal(find(render(), item => 'aria-expanded' in item.props).props.children[0].props.children[0].props.children, value)
     const wheel = openWheel(render)
     const whole = spin(column(wheel, 'Weight: whole number'))
     const fraction = spin(column(wheel, 'Weight: decimals'))

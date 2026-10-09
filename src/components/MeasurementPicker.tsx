@@ -124,9 +124,11 @@ export function MeasurementPicker({ label, unit, value, onChange, onFocus, onBlu
             setOpen(true)
           }
         }}>
-        {/* The unit follows the value on its line, readable at a glance. */}
-        <span className={cx('whitespace-nowrap', parsed === null && 'text-muted')}>{parsed === null ? placeholder : fmtNum(parsed, 6)}</span>
-        <span className="shrink-0 text-[13px] text-text-2">{unit}</span>
+        {/* The unit follows the value on its baseline, readable at a glance. */}
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className={cx('whitespace-nowrap', parsed === null && 'text-muted')}>{parsed === null ? placeholder : fmtNum(parsed, 6)}</span>
+          <span className="shrink-0 text-[13px] text-text-2">{unit}</span>
+        </span>
         {presentation !== 'sheet' && <ChevronDown size={12} className={cx('ml-auto shrink-0 text-text-2 transition-transform', open && 'rotate-180')} aria-hidden />}
       </button>}
     {presentation === 'sheet' ? <Sheet open={!!wheel} onClose={close} title={label} footer={<div className="flex gap-2">
@@ -162,13 +164,13 @@ function MeasurementWheel({ id, label, unit, value, min, max, step, onDraft, onC
       if (event.key === 'Enter' && ((event.target as HTMLElement).getAttribute('role') === 'spinbutton' || (event.target as HTMLElement).tagName === 'INPUT')) { event.preventDefault(); onClose() }
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose() }
     }}>
-    {manual !== null ? <label className="flex h-14 cursor-text items-center justify-center gap-2 rounded-[8px] border border-signal bg-surface-2 px-3">
+    {manual !== null ? <label className="flex h-14 cursor-text items-center justify-center rounded-[8px] border border-signal bg-surface-2 px-3"><span className="flex min-w-0 items-baseline gap-2">
       {/* Typing replaces the wheel: a short panel stays above the keyboard, the unit beside the value. */}
       <input autoFocus aria-label={`${label} (${unit})`} inputMode={decimal ? 'decimal' : 'numeric'} enterKeyHint="done" value={manual} size={Math.max(2, manual.length)}
         onFocus={event => event.currentTarget.select()} onChange={event => { setManual(event.target.value); onDraft(event.target.value) }}
         className="min-w-0 bg-transparent text-right text-[24px] font-semibold text-text tnum outline-none" />
       <span aria-hidden className="shrink-0 text-[17px] text-text-2">{unit}</span>
-    </label> : <div className="relative">
+    </span></label> : <div className="relative">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[88px] h-11 rounded-[8px] bg-surface-2" />
       <div className="flex items-center justify-center gap-1">
         <WheelColumn label={decimal ? L(`${label} : unités`, `${label}: whole number`) : `${label} (${unit})`}
