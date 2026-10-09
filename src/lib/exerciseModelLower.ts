@@ -405,7 +405,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         if (id === 'single-leg-hip-thrust') {
           feet[1] = [0.16, hips[1] + 0.21, hips[2] + 0.60]
           knees[1] = [0.16, hips[1] + 0.46, hips[2] + 0.18]
-          hands = [[-0.33, 0.525, -0.55], [0.33, 0.525, -0.55]]
+          // Palms rest on the chest: on a 40 cm bench, flat hands beside the
+          // shoulders hung the elbows below its edge and bent the wrists square.
+          hands = pair(side => torso(hips, lean, [side * 0.11, 0.35, 0.14]))
         }
       }
       // The head rests on the changing hip surface. Open palms retain each
@@ -414,9 +416,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const supportTilt = .5
       if (dumbbell) hands = pair(side => [side * .105, loadCenter[1] + (.078 + .025) * Math.cos(supportTilt), loadCenter[2] - (.078 + .025) * Math.sin(supportTilt)])
       const result = pose(hips, lean, knees, feet, hands,
-        [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell, openHands: !!dumbbell, gripTargets: !!barbell || !!dumbbell,
+        id === 'single-leg-hip-thrust' ? pair(side => torso(hips, lean, [side * 0.38, 0.18, 0.12])) : [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell, openHands: !!dumbbell, gripTargets: !!barbell || !!dumbbell,
           gripAxes: [[1, 0, 0], [-1, 0, 0]], gripDirections: dumbbell ? pair(() => [0, Math.sin(supportTilt), Math.cos(supportTilt)]) : undefined,
-          flatHands: sliding || id === 'single-leg-hip-thrust' })
+          flatHands: sliding })
       if (barbell) barbell.position.copy(average(result.hands))
       if (dumbbell) dumbbell.position.set(...p(loadCenter))
       sliders.forEach((slider, i) => slider.position.set(...p([feet[i][0], 0.055, feet[i][2]])))

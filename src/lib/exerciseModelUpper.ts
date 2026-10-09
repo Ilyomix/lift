@@ -249,6 +249,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (inverted) {
         // Heels 71 cm short of the bar: the rigid body pivots on them from
         // straight arms until the chest, not the head, comes up to the bar.
+        // Elbows aim at the floor; a pole above the bar folded the wrists back.
         const hipY = 0.51 + 0.24 * t
         hip = [0, hipY, 0.16 - Math.sqrt(0.911 ** 2 - (hipY - 0.078) ** 2)]
         lean = -Math.acos((hipY - 0.078) / 0.911)
@@ -259,7 +260,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       const lever = rowMachine?.(t)
       if (lever) hands = lever.targets
       const result = body.pose(hip, lean, legKnees, legFeet, hands,
-        pair(s => [s * (band || single ? 0.35 : 0.65), single ? 0.96 : band ? 0.47 : supported ? 1.14 : seated ? 0.83 : 1.2, -0.23]), { footRotations, grip: true, gripAxes: lever?.axes ?? (inverted ? pronated : single ? pair(() => [0, 0, 1]) : neutral), gripDirections: lever?.directions ?? (inverted ? pair(() => [0, 1, 0]) : door ? pair(() => [0, 0, 1]) : undefined), flatHandSides: single ? [false, true] : undefined, gripTargets: inverted || door || supported })
+        inverted ? pair(s => [s * 0.55, 0.30, -0.40]) : pair(s => [s * (band || single ? 0.35 : 0.65), single ? 0.96 : band ? 0.47 : supported ? 1.14 : seated ? 0.83 : 1.2, -0.23]), { footRotations, grip: true, gripAxes: lever?.axes ?? (inverted ? pronated : single ? pair(() => [0, 0, 1]) : neutral), gripDirections: lever?.directions ?? (inverted ? pair(() => [0, 1, 0]) : door ? pair(() => [0, 0, 1]) : undefined), flatHandSides: single ? [false, true] : undefined, gripTargets: inverted || door || supported })
       grips.forEach((grip, i) => {
         grip.position.copy(result.hands[i])
         grip.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), gripAxis(i))

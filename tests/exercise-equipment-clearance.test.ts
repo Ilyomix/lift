@@ -134,3 +134,26 @@ test('crunch palms rest toward the head, never the backs of the hands', async ()
     }
   } finally { body.dispose(); equipment.dispose() }
 })
+
+test('no wrist folds back on itself, and the single-leg hip thrust palms rest on the chest', async () => {
+  const asset = await source
+  for (const id of [...UPPER_EXERCISES, ...ARM_EXERCISES, ...LOWER_EXERCISES]) {
+    const { body, equipment, motion } = create(id, asset)
+    const at = (name: string) => body.root.getObjectByName(name)!.getWorldPosition(new Vector3())
+    try {
+      for (const phase of [0, .25, .5, .75, 1]) {
+        motion.update(phase)
+        for (const [i, side] of [asset.manifest.bones.right, asset.manifest.bones.left].entries()) {
+          const wrist = at(side.hand), middle = at(side.palmLandmarks!.middle)
+          // Flat push-up palms reach about 90°; a folded wrist is near 180°.
+          const bend = wrist.clone().sub(at(side.forearm)).angleTo(middle.clone().sub(wrist)) * 180 / Math.PI
+          assert(bend < 120, `${id}: ${i ? 'left' : 'right'} wrist bent ${bend.toFixed(0)}° at ${phase}`)
+          if (id !== 'single-leg-hip-thrust') continue
+          const across = at(side.palmLandmarks!.index).sub(at(side.palmLandmarks!.pinky)).normalize()
+          const palm = across.cross(middle.clone().sub(wrist).normalize()).normalize().multiplyScalar(i ? -1 : 1)
+          assert(palm.dot(at('spine_03').sub(wrist).normalize()) > .5, `${id}: palm turned away from the chest at ${phase}`)
+        }
+      }
+    } finally { body.dispose(); equipment.dispose() }
+  }
+})
