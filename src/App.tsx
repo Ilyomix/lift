@@ -23,6 +23,7 @@ import { ExerciseDetail, ProgressScreen } from './screens/Progress'
 import { VisualGoalScreen } from './screens/Goal'
 import { SessionScreen, SessionSummary, WorkoutDetail } from './screens/Session'
 import { PrivacyScreen } from './screens/Privacy'
+import { ExercisesScreen } from './screens/Exercises'
 
 function LegacyProgramRedirect({ type }: { type?: WorkoutType }) {
   useLayoutEffect(() => {
@@ -52,6 +53,7 @@ function Routes({ path }: { path: string[] }) {
         case 'nutrition': return <NutritionScreen />
         case 'programme': return <LegacyProgramRedirect type={c && (WORKOUT_TYPES as string[]).includes(c) ? c as WorkoutType : undefined} />
         case 'preuves': return <SourcesScreen />
+        case 'exercices': return <ExercisesScreen />
         case 'coach': return <CoachScreen />
         case 'pause': return <PauseScreen />
         case 'rappels': return <RemindersScreen />

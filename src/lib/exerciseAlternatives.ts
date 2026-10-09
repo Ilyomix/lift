@@ -36,14 +36,28 @@ export function alternativesFor(id: string, setup?: TrainingSetup) {
     .map(candidate => LIBRARY[candidate])
 }
 
+/** Gym equipment other than a plate-loaded or selectorized machine. */
+const GYM_KIT: Record<string, 'barbell' | 'smith' | 'cable' | 'dips' | 'bench45' | 'romanChair'> = {
+  'ez-curl': 'barbell', 'romanian-deadlift': 'barbell', 'glute-bridge': 'barbell', 'hip-thrust': 'barbell',
+  'smith-squat': 'smith', 'smith-hip-thrust': 'smith',
+  'cable-fly': 'cable', 'lat-pulldown': 'cable', 'low-cable-row': 'cable', 'cable-pullover': 'cable', 'single-arm-pulldown': 'cable',
+  'face-pull': 'cable', 'cable-lateral-raise': 'cable', 'triceps-overhead-rope': 'cable', 'triceps-rope': 'cable', 'cable-crunch': 'cable',
+  dips: 'dips', 'back-extension-45': 'bench45', 'roman-chair-abs': 'romanChair',
+}
+
 export function alternativeEquipment(id: string): string {
   const exercise = LIBRARY[id]
   if (!exercise) return ''
   if (!exercise.requires) {
-    if (id === 'ez-curl' || id === 'romanian-deadlift' || id === 'glute-bridge') return L('Barre', 'Barbell')
-    if (id === 'smith-squat' || id === 'smith-hip-thrust') return L('Barre guidée (Smith)', 'Smith machine')
-    if (id === 'back-extension-45') return L('Banc à 45°', '45° bench')
-    return L('Machine ou poulie', 'Machine or cable')
+    switch (GYM_KIT[id]) {
+      case 'barbell': return L('Barre', 'Barbell')
+      case 'smith': return L('Barre guidée (Smith)', 'Smith machine')
+      case 'cable': return L('Poulie', 'Cable')
+      case 'dips': return L('Barres parallèles', 'Dip bars')
+      case 'bench45': return L('Banc à 45°', '45° bench')
+      case 'romanChair': return L('Chaise romaine', 'Roman chair')
+      default: return L('Machine', 'Machine')
+    }
   }
   const labels = {
     dumbbells: L('Haltères', 'Dumbbells'), bench: L('Banc', 'Bench'),

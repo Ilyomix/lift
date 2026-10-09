@@ -4,6 +4,7 @@ import { isNative } from '../lib/native/bridge'
 import { parseBackup, type ParsedBackup } from '../lib/backup'
 import { globalPrompt, nutritionFigures, parsePlanUpdate, previewPlanUpdate, sessionPrompt, type PlanUpdate } from '../lib/coach'
 import { L } from '../lib/i18n'
+import { LIBRARY } from '../lib/library'
 import { addDays, capitalize, fmtDate, fmtRelativeDay, isoFromTimestamp, todayISO } from '../lib/date'
 import { fmtNum, parseNumber, plural } from '../lib/format'
 import { contextAt, TYPE_META } from '../lib/program'
@@ -33,6 +34,7 @@ export function MoreScreen() {
       <section aria-labelledby="more-training" className="mt-4">
         <h2 id="more-training" className="mb-2 text-[13px] font-semibold text-text-2">{L('Entraînement', 'Training')}</h2>
         <Card className="divide-y divide-line">
+          <SettingsMenuRow to="plus/exercices" art="dumbbell" label={L('Encyclopédie des mouvements', 'Exercise encyclopedia')} hint={L(`${Object.keys(LIBRARY).length} exercices en 3D`, `${Object.keys(LIBRARY).length} exercises in 3D`)} />
           <SettingsMenuRow to="plus/reglages/materiel" art="kit" label={L('Salles et matériel', 'Gyms and equipment')} />
         </Card>
       </section>
