@@ -116,13 +116,15 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
                       w.kind === 'deload' && !done ? 'border-line-strong' : 'border-line',
                       c.paused && !done && 'hatch',
                       c.rest && 'border-dashed bg-surface-2',
-                      c.isToday && 'border-signal ring-1 ring-signal',
+                      c.isToday && 'border-signal',
                     )}
                   >
                     <span className={cx('inline-flex items-center gap-0.5 text-[12px] tnum', c.isToday ? 'font-bold text-signal-text' : 'text-text-2')}>{Number(c.date.slice(8))}{c.isGoal && <Flag size={10} className="text-signal-text" aria-hidden />}</span>
                     {workoutName ? (
-                      <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center gap-0.5 rounded-[5px] px-1 text-[10px] font-semibold', done ? 'bg-text text-bg' : active ? 'border border-signal bg-signal-soft text-signal-text' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
-                        {active && !done && <Play size={10} className="hidden min-[400px]:block" aria-hidden />}{c.done.length > 1 ? `${c.done.length}×` : workoutName}
+                      // Filled like a completed workout, with no outline of its own:
+                      // the day's single orange border is the only contour.
+                      <span className={cx('flex h-[22px] max-w-full min-w-0 items-center justify-center rounded-[5px] px-0.5 text-[10px] font-semibold', done ? 'bg-text text-bg' : active ? 'bg-signal text-signal-ink' : c.planned?.tentative ? 'border border-dashed border-line-strong text-muted' : 'border border-line-strong text-text-2')}>
+                        {c.done.length > 1 ? `${c.done.length}×` : workoutName}
                       </span>
                     ) : c.paused || c.rest ? (
                       <span className="flex h-[22px] items-center text-[10px] font-medium text-text-2">{c.paused ? L('Pause', 'Pause') : L('Repos', 'Rest')}</span>
@@ -141,7 +143,7 @@ export function CalendarScreen({ tab = 'calendrier' }: { tab?: 'calendrier' | 'p
         <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] bg-text" />} label={L('Terminée', 'Completed')} />
         <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] border border-line-strong" />} label={L('Prévue', 'Planned')} />
         <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] border border-dashed border-line-strong" />} label={L('Repos', 'Rest')} />
-        {visibleWeeks.some(w => w.cells.some(c => c.active)) && <Legend swatch={<Play size={11} className="text-signal-text" />} label={L('En cours', 'In progress')} />}
+        {visibleWeeks.some(w => w.cells.some(c => c.active)) && <Legend swatch={<span className="h-2.5 w-3.5 rounded-[3px] bg-signal" />} label={L('En cours', 'In progress')} />}
         {visibleWeeks.some(w => w.cells.some(c => c.paused)) && <Legend swatch={<span className="hatch h-2.5 w-3.5 rounded-[3px] border border-line" />} label={L('Pause', 'Paused')} />}
       </div>
 
