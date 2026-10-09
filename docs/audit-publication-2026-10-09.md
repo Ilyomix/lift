@@ -56,7 +56,7 @@ Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revéri
 
 | Retour | Cause | Correction |
 |---|---|---|
-| Calendrier : double contour et libellé collé au bord sur la séance en cours | Jour actif en `border` + `ring`, puce « en cours » bordée elle aussi ; 41 px de puce pour 42 px utiles | Un seul contour orange ; puce de la séance en cours pleine, sans bordure ; marges latérales réduites, le libellé ne touche plus le bord (semaine et mois) |
+| Calendrier : cases allongées en semaine, double contour et libellé collé au bord sur la séance en cours | Cases de 72 px de haut en semaine (52 en mois) ; jour actif en `border` + `ring`, puce « en cours » bordée elle aussi ; 41 px de puce pour 42 px utiles | Cases presque carrées en semaine comme en mois ; la séance en cours remplit toute la case, libellé sans encadré ; un seul contour orange |
 | Hip thrust : barre dans la taille | Barre placée à hauteur fixe au-dessus du bassin, 4 à 5 cm sous la peau ; le contrôle ne voyait que la peau entrée dans la barre | Barre posée sur l'avant du bassin (jeu mesuré de 0 à 1 mm sur tout le mouvement) |
 | Mains posées par le dos | Crunch : paumes tournées vers l'extérieur ; hack squat : mains ouvertes à plat dans le vide | Crunch : bout des doigts aux tempes, paumes vers la tête ; hack squat : poignées fixées au chariot, prise neutre |
 | Autres collisions trouvées par le même contrôle | — | Élévations latérales et RDL haltères (haltères dans les cuisses), rowing unilatéral, tractions (tête dans la barre), rowing inversé (tête au lieu de la poitrine), squat Smith (barre dans les trapèzes), fentes bulgares et développé incliné (pieds de banc), Nordic (rouleau dans les talons), mollets assis (bras de levier dans les cuisses), élastiques |
