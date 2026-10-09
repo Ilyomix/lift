@@ -311,8 +311,9 @@ export class Athlete {
   private grip(side: ResolvedSide, index: number, axis?: Point, flat = false, direction?: Point, closed = true) {
     if (!side.palm || !side.fingers) return side.arm.end.getWorldPosition(new Vector3())
     const wrist = side.arm.end.getWorldPosition(new Vector3())
-    const along = flat ? new Vector3(0, 0, 1) : direction ? new Vector3(...direction).normalize() : wrist.clone().sub(side.arm.middle.getWorldPosition(new Vector3())).normalize()
-    const across = flat ? new Vector3(index === 0 ? 1 : -1, 0, 0) : axis ? new Vector3(...axis) : new Vector3(0, 1, 0)
+    const along = flat ? new Vector3(...(direction ?? [0, 0, 1])).normalize() : direction ? new Vector3(...direction).normalize() : wrist.clone().sub(side.arm.middle.getWorldPosition(new Vector3())).normalize()
+    // A flat palm faces the floor whichever way its fingers point.
+    const across = flat ? along.clone().cross(new Vector3(0, index === 0 ? -1 : 1, 0)) : axis ? new Vector3(...axis) : new Vector3(0, 1, 0)
     across.addScaledVector(along, -across.dot(along)).normalize()
     if (across.lengthSq() < 0.1) across.set(1, 0, 0).addScaledVector(along, -along.x).normalize()
     const normal = across.clone().cross(along).normalize()
@@ -394,7 +395,7 @@ export class Athlete {
   }
 
   pose(hips: Point, lean: number, knees: Point[], feet: Point[], hands: Point[], poles: Point[], options: {
-    pelvisTilt?: number; trunkFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; gripTargets?: boolean
+    pelvisTilt?: number; trunkFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; flatDirections?: Point[]; gripTargets?: boolean
   } = {}): PoseResult {
     if (options.gripTargets) {
       if (options.grip && !options.gripDirections && !options.openHands && !options.flatHands &&
@@ -470,7 +471,7 @@ export class Athlete {
         this.worldRotation(bone, new Quaternion().setFromEuler(new Euler(...rotations[i])).multiply(rest.world))
       }
       const flat = options.flatHands || options.flatHandSides?.[i]
-      if (options.grip || options.openHands || flat) resolvedHands[i] = this.grip(side, i, options.gripAxes?.[i], flat, options.gripDirections?.[i], !options.openHands)
+      if (options.grip || options.openHands || flat) resolvedHands[i] = this.grip(side, i, options.gripAxes?.[i], flat, flat ? options.flatDirections?.[i] : options.gripDirections?.[i], !options.openHands)
     }
     this.root.updateMatrixWorld(true)
     return {

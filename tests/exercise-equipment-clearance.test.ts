@@ -135,7 +135,7 @@ test('crunch palms rest toward the head, never the backs of the hands', async ()
   } finally { body.dispose(); equipment.dispose() }
 })
 
-test('no wrist folds back on itself, and the single-leg hip thrust palms rest on the chest', async () => {
+test('no wrist folds back on itself; single-leg hip thrust palms lie flat on the bench', async () => {
   const asset = await source
   for (const id of [...UPPER_EXERCISES, ...ARM_EXERCISES, ...LOWER_EXERCISES]) {
     const { body, equipment, motion } = create(id, asset)
@@ -151,7 +151,9 @@ test('no wrist folds back on itself, and the single-leg hip thrust palms rest on
           if (id !== 'single-leg-hip-thrust') continue
           const across = at(side.palmLandmarks!.index).sub(at(side.palmLandmarks!.pinky)).normalize()
           const palm = across.cross(middle.clone().sub(wrist).normalize()).normalize().multiplyScalar(i ? -1 : 1)
-          assert(palm.dot(at('spine_03').sub(wrist).normalize()) > .5, `${id}: palm turned away from the chest at ${phase}`)
+          // Arms rest out on the bench: palms down, hands beside, never on, the torso.
+          assert(palm.y < -.9, `${id}: palm not flat on the bench at ${phase}`)
+          assert(Math.abs(wrist.x) > .5, `${id}: hand not out on the bench at ${phase}`)
         }
       }
     } finally { body.dispose(); equipment.dispose() }

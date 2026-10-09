@@ -376,7 +376,8 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     const sliding = id === 'sliding-leg-curl'
     if (sliding) mat(0.18, 1.8)
     else {
-      block([0, 0.45, -0.57], [1.0, 0.08, 0.40])
+      // The single-leg variant rests its arms out along a longer bench.
+      block([0, 0.45, -0.57], [id === 'single-leg-hip-thrust' ? 1.5 : 1.0, 0.08, 0.40])
       for (const side of SIDES) {
         bar([side * 0.36, 0.04, -0.57], [side * 0.36, 0.41, -0.57], 0.035)
         bar([side * 0.36, 0.04, -0.77], [side * 0.36, 0.04, -0.37], 0.03)
@@ -405,9 +406,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         if (id === 'single-leg-hip-thrust') {
           feet[1] = [0.16, hips[1] + 0.21, hips[2] + 0.60]
           knees[1] = [0.16, hips[1] + 0.46, hips[2] + 0.18]
-          // Palms rest on the chest: on a 40 cm bench, flat hands beside the
-          // shoulders hung the elbows below its edge and bent the wrists square.
-          hands = pair(side => torso(hips, lean, [side * 0.11, 0.35, 0.14]))
+          // Arms lie out on the bench, palms flat and relaxed (no pushing):
+          // the upper back is the pivot, as coaching references describe.
+          hands = pair(side => [side * 0.62, 0.515, -0.66])
         }
       }
       // The head rests on the changing hip surface. Open palms retain each
@@ -416,9 +417,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const supportTilt = .5
       if (dumbbell) hands = pair(side => [side * .105, loadCenter[1] + (.078 + .025) * Math.cos(supportTilt), loadCenter[2] - (.078 + .025) * Math.sin(supportTilt)])
       const result = pose(hips, lean, knees, feet, hands,
-        id === 'single-leg-hip-thrust' ? pair(side => torso(hips, lean, [side * 0.38, 0.18, 0.12])) : [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell, openHands: !!dumbbell, gripTargets: !!barbell || !!dumbbell,
+        id === 'single-leg-hip-thrust' ? pair(side => [side * 0.45, 0.58, -0.85]) : [[-0.52, 0.23, -0.32], [0.52, 0.23, -0.32]], { footRotations: straightFeet, grip: !!barbell, openHands: !!dumbbell, gripTargets: !!barbell || !!dumbbell,
           gripAxes: [[1, 0, 0], [-1, 0, 0]], gripDirections: dumbbell ? pair(() => [0, Math.sin(supportTilt), Math.cos(supportTilt)]) : undefined,
-          flatHands: sliding })
+          flatHands: sliding || id === 'single-leg-hip-thrust', flatDirections: id === 'single-leg-hip-thrust' ? pair(side => [side * 0.8, 0, -0.6]) : undefined })
       if (barbell) barbell.position.copy(average(result.hands))
       if (dumbbell) dumbbell.position.set(...p(loadCenter))
       sliders.forEach((slider, i) => slider.position.set(...p([feet[i][0], 0.055, feet[i][2]])))
@@ -435,9 +436,13 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     return motion(t => {
       const lean = 1.72 - 0.97 * t
       const hips: Point = [0, 0.92, -0.08]
+      // Hands behind the head, elbows out: palms on the head, fingers toward
+      // the crown. Hands folded on the chest met and passed through each other.
+      const up: Point = [0, Math.cos(lean + 0.06 - 0.35), Math.sin(lean + 0.06 - 0.35)]
       pose(hips, lean, [[-0.14, 0.54, -0.29], [0.14, 0.54, -0.29]], [[-0.17, 0.19, -0.59], [0.17, 0.19, -0.59]],
-        pair(side => torso(hips, lean, [side * 0.11, 0.35, 0.14])),
-        pair(side => torso(hips, lean, [side * 0.38, 0.18, 0.12])), { pelvisTilt: lean - 0.06, trunkFlexion: 0.06, footRotations: [[0.55, 0, 0], [0.55, 0, 0]] })
+        pair(side => torso(hips, lean, [side * 0.095, 0.63, 0.02])),
+        pair(side => torso(hips, lean, [side * 0.45, 0.62, 0.0])), { pelvisTilt: lean - 0.06, trunkFlexion: 0.06, footRotations: [[0.55, 0, 0], [0.55, 0, 0]],
+          openHands: true, gripDirections: pair(() => up), gripAxes: pair(() => [0, up[2], -up[1]]) })
     }, [2.7, 1.8, 3.7], [0, 0.88, 0.05], 2.1)
   }
 
