@@ -91,6 +91,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
     smithBar?.scale.setScalar(scale)
     const backPad = id === 'hack-squat' ? block([0, 0.9, 0], [0.38, 0.60, 0.09], -0.67) : null
     const shoulderPads = id === 'hack-squat' ? pair(side => [side * 0.22, 1.3, 0] as Point).map(at => block(at, [0.14, 0.10, 0.28])) : []
+    // Sled handles beside the pads: a bracket from the back pad, then a
+    // forward grip held palms-in, rather than open hands in the air.
+    const sledHandles = id === 'hack-squat' ? SIDES.map(() => [bar([0, 0, 0], [0, 0, 1], 0.02), bar([0, 0, 0], [0, 0, 1], 0.018)]) : []
     if (id === 'smith-squat') {
       for (const side of SIDES) { bar([side * 0.62, 0.04, -0.085], [side * 0.62, 1.85, -0.085]); bar([side * 0.62, 0.04, -0.40], [side * 0.62, 0.04, 0.5], 0.035) }
       bar([-0.62, 1.85, -0.085], [0.62, 1.85, -0.085])
@@ -110,15 +113,21 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       let footRotations = straightFeet
       if (id === 'smith-squat') {
         lean = 0.05 + 0.18 * t
-        hips = [0, standing - 0.04 - 0.40 * t, -0.47 * Math.sin(lean)]
+        // Measured on the skin: the rail-bound bar rests on the traps (0–3 mm).
+        hips = [0, standing - 0.04 - 0.40 * t, -0.47 * Math.sin(lean) + 0.021 + 0.008 * t]
         feet = pair(side => [side * 0.19, 0.078, 0.22])
         hands = pair(side => [side * 0.43, hips[1] + 0.46 * Math.cos(lean), -0.085])
       } else if (id === 'hack-squat') {
         hips = [0, standing - 0.11 - 0.30 * t, -0.10 + 0.24 * t]; lean = -0.67
         feet = pair(side => [side * 0.18, 0.10, 0.38])
-        hands = pair(side => torso(hips, lean, [side * 0.28, 0.38, 0.11]))
+        hands = pair(side => torso(hips, lean, [side * 0.30, 0.38, 0.06]))
         backPad!.position.set(...p(torso(hips, lean, [0, 0.26, -0.15])))
         shoulderPads.forEach((pad, index) => pad.position.set(...p(torso(hips, lean, [SIDES[index] * 0.22, 0.49, -0.03]))).add(new Vector3(0, 0.122 * scale, 0)))
+        sledHandles.forEach(([bracket, handle], index) => {
+          const side = SIDES[index]
+          placeBetween(bracket, p(torso(hips, lean, [side * 0.18, 0.38, -0.10])), p(torso(hips, lean, [side * 0.30, 0.38, -0.10])))
+          placeBetween(handle, p(torso(hips, lean, [side * 0.30, 0.38, -0.10])), p(torso(hips, lean, [side * 0.30, 0.38, 0.16])))
+        })
       } else if (id === 'bulgarian-split-squat') {
         hips = [0, 0.90 - 0.26 * t, 0.03]; lean = 0.15 + 0.18 * t
         feet = [[-0.14, 0.078, 0.34], [0.14, 0.58, -0.67]]
@@ -142,10 +151,11 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         // narrow shaft, and the lower head stays in front of the chest.
         hands = pair(side => [side * .065, loadCenter[1] + (.076 - .028) * gobletAxis.y, loadCenter[2] + (.076 - .028) * gobletAxis.z])
       }
+      const hack = sledHandles.length > 0
       const result = pose(hips, lean, knees, feet, hands,
-        dumbbell ? pair(side => [side * .35, hips[1] + .20, hips[2] + .08]) : undefined,
-        { footRotations, grip: !!smithBar || id === 'sissy-squat', openHands: !!dumbbell, gripTargets: !!dumbbell || !!smithBar || id === 'sissy-squat',
-          gripAxes: dumbbell ? [[-1, 0, 0], [1, 0, 0]] : smithBar ? [[1, 0, 0], [-1, 0, 0]] : undefined,
+        dumbbell ? pair(side => [side * .35, hips[1] + .20, hips[2] + .08]) : hack ? pair(side => torso(hips, lean, [side * 0.42, 0.08, 0.14])) : undefined,
+        { footRotations, grip: !!smithBar || hack || id === 'sissy-squat', openHands: !!dumbbell, gripTargets: !!dumbbell || !!smithBar || hack || id === 'sissy-squat',
+          gripAxes: dumbbell ? [[-1, 0, 0], [1, 0, 0]] : smithBar ? [[1, 0, 0], [-1, 0, 0]] : hack ? pair(() => rotate([0, 0, 1], lean)) : undefined,
           gripDirections: dumbbell ? pair(() => [0, Math.sin(gobletTilt), Math.cos(gobletTilt)]) : undefined })
       if (dumbbell) dumbbell.position.set(...p(loadCenter))
       if (smithBar) smithBar.position.copy(average(result.hands))
@@ -339,7 +349,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         // shortened this leg by 4–6 cm and folded the knee throughout the rep.
         ? [groundFeet[0], [0.17, freeHip[1] - freeLegReach * Math.cos(lean), freeHip[2] - freeLegReach * Math.sin(lean)] as Point]
         : groundFeet
-      const hands = pair(side => [side * 0.265, hips[1] + 0.44 * Math.cos(lean) - 0.51, hips[2] + 0.46 * Math.sin(lean) + 0.055])
+      // Dumbbells hang beside the legs in a neutral grip; across the front,
+      // their 78 mm heads sank into the thighs.
+      const hands = pair(side => [side * (dumbbells.length ? 0.32 : 0.265), hips[1] + 0.44 * Math.cos(lean) - (dumbbells.length ? 0.494 : 0.51), hips[2] + 0.46 * Math.sin(lean) + 0.055])
       // A shared bar follows the front of the legs, not the wrist centres.
       // Author its palm contacts directly so the grip offset cannot pull the
       // shaft through the thighs when the athlete stands upright.
@@ -351,7 +363,7 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const toeLift = clamp((t - .15) / .40)
       const freeFootAngle = lean * toeLift ** 3 * (10 + toeLift * (-15 + 6 * toeLift))
       const result = pose(hips, lean, knees, feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
-        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [freeFootAngle, 0, 0]] : straightFeet, grip: true, gripTargets: !!barbell || id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : [[1, 0, 0], [-1, 0, 0]] })
+        { footRotations: id === 'single-leg-rdl' ? [[0, 0, 0], [freeFootAngle, 0, 0]] : straightFeet, grip: true, gripTargets: !!barbell || id === 'single-leg-rdl', gripAxes: id === 'single-leg-rdl' ? undefined : dumbbells.length ? [[0, 0, 1], [0, 0, 1]] : [[1, 0, 0], [-1, 0, 0]] })
       if (barbell) barbell.position.copy(average(result.hands))
       dumbbells.forEach((weight, i) => {
         weight.position.copy(result.hands[i])
@@ -387,7 +399,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         hips = [0, 0.59 - 0.47 * Math.cos(lean), -0.46 - 0.47 * Math.sin(lean)]
         feet = pair(side => [side * 0.17, 0.078, 0.55])
         knees = pair(side => [side * 0.17, 0.57, 0.44])
-        hands = pair(side => [side * (id === 'db-hip-thrust' ? 0.085 : 0.26), hips[1] + 0.105, hips[2]])
+        // The bar rests on the front of the pelvis, 4 cm above the hip joints,
+        // where the measured skin stays within 1 mm of it over the whole rep.
+        hands = pair(side => id === 'db-hip-thrust' ? [side * 0.085, hips[1] + 0.105, hips[2]] : torso(hips, lean, [side * 0.26, 0.04, 0.153]))
         if (id === 'single-leg-hip-thrust') {
           feet[1] = [0.16, hips[1] + 0.21, hips[2] + 0.60]
           knees[1] = [0.16, hips[1] + 0.46, hips[2] + 0.18]
@@ -428,8 +442,9 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
   if (id === 'nordic-curl') {
     mat(0.16, 1.8)
     block([0, 0.065, -0.08], [0.48, 0.13, 0.42])
-    bar([-0.36, 0.22, -0.46], [0.36, 0.22, -0.46], 0.065)
-    for (const side of SIDES) bar([side * 0.35, 0.03, -0.46], [side * 0.35, 0.24, -0.46], 0.035)
+    // The roller presses on the heels from above; lower, it went through them.
+    bar([-0.36, 0.35, -0.46], [0.36, 0.35, -0.46], 0.065)
+    for (const side of SIDES) bar([side * 0.35, 0.03, -0.46], [side * 0.35, 0.37, -0.46], 0.035)
     return motion(t => {
       const lean = 0.08 + 1.27 * t
       const hips: Point = [0, 0.16 + upper * Math.cos(lean), upper * Math.sin(lean)]
@@ -482,7 +497,8 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         grip.position.copy(result.hands[i])
         const axis = gripAxis(i)
         grip.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), axis)
-        const anchor = seated ? result.knees[i].clone().add(new Vector3(0, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.59, hips[2] + 0.13]))
+        // Seated, the lever leaves the outer end of the knee pad, beside the thigh.
+        const anchor = seated ? result.knees[i].clone().add(new Vector3(SIDES[i] * 0.095 * scale, 0.055 * scale, -0.04 * scale)) : new Vector3(...p([SIDES[i] * 0.20, hips[1] + 0.59, hips[2] + 0.13]))
         // Join the nearest end of the handle, never its occupied centre.
         const end = result.hands[i].clone().addScaledVector(axis, anchor.clone().sub(result.hands[i]).dot(axis) < 0 ? -.06 : .06)
         placeBetween(gripLinks[i], anchor, end)
@@ -503,10 +519,14 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       const lean = -PI / 2
       const knees: Point[] = reverse ? pair(side => [side * 0.13, 0.58 + 0.04 * t, 0.11 - 0.14 * t]) : pair(side => [side * 0.16, 0.52, 0.30])
       const feet: Point[] = reverse ? pair(side => [side * 0.13, 0.39 + 0.22 * t, 0.51 - 0.24 * t]) : pair(side => [side * 0.16, 0.078, 0.56])
-      const hands = reverse ? [[-0.31, 0.09, -0.27], [0.31, 0.09, -0.27]] as Point[] : pair(side => [side * 0.20, 0.28 + 0.23 * t, -0.59 + 0.045 * t])
+      const hands = reverse ? [[-0.31, 0.09, -0.27], [0.31, 0.09, -0.27]] as Point[] : pair(side => [side * 0.10, 0.28 + 0.23 * t, -0.59 + 0.045 * t])
+      // Crunch fingertips rest at the temples, palms toward the head and
+      // fingers along it; the inherited wrist turned the backs of the hands in.
+      const up: Point = [0, Math.cos(lean + 0.54 * t), Math.sin(lean + 0.54 * t)]
       pose(hips, lean, knees, feet, hands,
         [[-0.52, 0.14, -0.35], [0.52, 0.14, -0.35]],
-        { pelvisTilt: reverse ? lean - 0.27 * t : lean, trunkFlexion: reverse ? 0.12 * t : 0.54 * t, footRotations: straightFeet, flatHands: reverse })
+        { pelvisTilt: reverse ? lean - 0.27 * t : lean, trunkFlexion: reverse ? 0.12 * t : 0.54 * t, footRotations: straightFeet, flatHands: reverse,
+          openHands: !reverse, gripDirections: reverse ? undefined : pair(() => up), gripAxes: reverse ? undefined : pair(() => [0, up[2], -up[1]]) })
     }, [2.8, 2.2, 3.0], [0, 0.27, -0.06], 1.64)
   }
 

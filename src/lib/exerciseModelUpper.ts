@@ -121,7 +121,8 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     const band = id === 'band-fly', hipY = .983
     if (!band) { eq.tower([-.90, 0, -.28]); eq.tower([.90, 0, -.28]) }
     else { eq.bar([-.45, .03, -.4], [-.45, 1.65, -.4], .025); eq.bar([.45, .03, -.4], [.45, 1.65, -.4], .025) }
-    const handles = SIDES.map(() => eq.cableHandle(.23))
+    // Band loops are short; the cable's deep D-frame crossed the forearm.
+    const handles = SIDES.map(() => eq.cableHandle(band ? .09 : .23))
     const cables = SIDES.map(s => eq.cable([s * (band ? .45 : .9), hipY + .45, -.4], [s * .5, hipY + .38, .15]))
     return motion(t => {
       const angle = 1.30 - 1.57 * t
@@ -185,7 +186,8 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       const directions = hanging ? pair(() => [0, 1, 0]) : id === 'lat-pulldown'
         ? pair(() => [0, Math.cos(latHandAngle), Math.sin(latHandAngle)]) : undefined
       if (single) targets[0] = [-0.23, 0.73, 0.30]
-      const result = body.pose([0, hipY, 0], hanging ? -0.02 : -0.04,
+      // Hanging, the body eases back and tips as it rises so the face clears the bar.
+      const result = body.pose([0, hipY, hanging ? -0.035 * t * t : 0], hanging ? -0.02 - 0.06 * t : -0.04,
         hanging ? pair(s => [s * 0.13, hipY - 0.42, 0.02]) : single ? [[-0.17, 0.46, 0.34], [0.17, 0.09, 0.03]] : band ? pair(s => [s * 0.17, 0.09, 0.03]) : pair(s => [s * 0.19, 0.54, 0.43]),
         hanging ? pair(s => [s * 0.12, hipY - 0.79, -0.17]) : single ? [[-0.17, 0.08, 0.47], [0.17, 0.08, -0.40]] : band ? pair(s => [s * 0.17, 0.08, -0.4]) : pair(s => [s * 0.2, 0.08, 0.46]),
         targets, id === 'lat-pulldown' ? pair(s => [s * (.7 - .3 * t), hipY + .36 - .21 * t, .03 + .02 * t]) : pair(s => [s * .7, hipY + .36, .03]), { grip: true, footRotations, gripAxes: id === 'chin-up' ? pair(s => [s, 0, 0]) : pronated, gripDirections: directions, gripTargets: hanging || (!band && !single) })
@@ -241,16 +243,18 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       let hands = pair(s => [s * 0.25, seated ? 0.92 : 1.20, 0.53 - 0.31 * t])
       if (supported) { hip = [0, 0.98, -0.06]; lean = 0.57; legKnees = pair(s => [s * 0.16, 0.52, -0.2]); legFeet = pair(s => [s * 0.20, 0.18, -0.32]) }
       if (seated) { legKnees = pair(s => [s * 0.20, 0.43, 0.44]); legFeet = pair(s => [s * 0.22, 0.10, 0.765]) }
-      if (single) { hip = [0, 0.82, 0]; lean = 0.95; hands = [[-0.30, 0.60 + 0.36 * t, 0.42 - 0.34 * t], [0.19, 0.56, 0.51]]; legKnees = [[-0.25, 0.48, -0.08], [0.18, 0.60, 0.12]]; legFeet = [[-0.28, 0.08, -0.12], [0.20, 0.53, -0.32]] }
+      if (single) { hip = [0, 0.82, 0]; lean = 0.95; hands = [[-0.33, 0.60 + 0.36 * t, 0.42 - 0.34 * t], [0.19, 0.56, 0.51]]; legKnees = [[-0.25, 0.48, -0.08], [0.18, 0.60, 0.12]]; legFeet = [[-0.28, 0.08, -0.12], [0.20, 0.53, -0.32]] }
       if (band) { hip = [0, 0.17, 0]; lean = -0.04; legFeet = pair(s => [s * 0.16, 0.08, 0.89]); legKnees = pair(s => [s * 0.16, 0.18, 0.45]); hands = pair(s => [s * 0.17, 0.52, 0.52 - 0.31 * t]) }
       if (door) { hip = [0, 0.92 + 0.05 * t, -0.073 + 0.143 * t]; lean = -0.23 + 0.20 * t; hands = [[-0.27, hip[1] + 0.10, hip[2] + 0.10], [0.40, 1.28, 0.40]]; legFeet = pair(s => [s * 0.2, 0.08, 0.15]); legKnees = pair(s => [s * .15, .52, .35]); grips[0].visible = false }
       if (inverted) {
-        const hipY = 0.334 + 0.266 * t
-        hip = [0, hipY, 0.80 - Math.sqrt(0.911 ** 2 - (hipY - 0.078) ** 2)]
+        // Heels 71 cm short of the bar: the rigid body pivots on them from
+        // straight arms until the chest, not the head, comes up to the bar.
+        const hipY = 0.51 + 0.24 * t
+        hip = [0, hipY, 0.16 - Math.sqrt(0.911 ** 2 - (hipY - 0.078) ** 2)]
         lean = -Math.acos((hipY - 0.078) / 0.911)
         hands = pair(s => [s * 0.32, 1.10, -0.55])
-        legFeet = pair(s => [s * 0.16, 0.078, 0.80])
-        legKnees = pair(s => [s * 0.16, (hipY + 0.078) / 2, 0.44])
+        legFeet = pair(s => [s * 0.16, 0.078, 0.16])
+        legKnees = pair(s => [s * 0.16, (hipY + 0.078) / 2, -0.20])
       }
       const lever = rowMachine?.(t)
       if (lever) hands = lever.targets
@@ -301,7 +305,9 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       let hip: Point = [0, prone ? 0.17 : rear ? 0.97 : 0.983, 0]
       let lean = rear ? 0.90 : prone ? Math.PI / 2 : 0
       const origins = shoulders(hip, lean)
-      const angle = 0.08 + 1.40 * t
+      // Standing raises start 12° out: hanging closer puts the weight in the thigh.
+      const start = rear ? 0.08 : 0.21
+      const angle = start + (1.48 - start) * t
       let targets = origins.map((origin, i): Point => [origin[0] + SIDES[i] * (cable ? .52412 : .54) * Math.sin(angle), origin[1] - (cable ? .52412 : .54) * Math.cos(angle), origin[2]])
       if (apart) { const arc = -0.17 + 1.57 * t; targets = origins.map((origin, i): Point => [origin[0] + SIDES[i] * 0.54 * Math.sin(arc), origin[1], origin[2] + 0.54 * Math.cos(arc)]) }
       if (rear) targets = origins.map((origin, i): Point => [origin[0] + SIDES[i] * (cable ? .52412 : .54) * Math.sin(angle), origin[1] - (cable ? .52412 : .54) * Math.cos(angle), origin[2]])
@@ -322,7 +328,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
       if (apart) placeBetween(connectors[0], result.hands[0], result.hands[1])
       else connectors.forEach((line, i) => {
         line.visible = !cable || i === 1
-        const anchor: Point = cable ? [-.70, .10, .55] : [SIDES[i] * .2, .008, .015]
+        const anchor: Point = cable ? [-.70, .10, .55] : [SIDES[i] * .27, .008, .015]
         placeBetween(line, anchor, lateralGrip ? lateralGrip(result.hands[i], anchor, gripAxis(i)) : result.hands[i])
       })
     }, { camera: prone ? [2.2, 3.7, 1.6] : rear ? [2.7, 2.0, -3.4] : [2.3, 1.6, 4.1], target: [0, prone ? 0.20 : 0.98, prone ? 0.07 : 0], height: prone ? 1.9 : 2.1 })

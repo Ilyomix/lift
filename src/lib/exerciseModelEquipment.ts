@@ -86,8 +86,11 @@ export class ExerciseEquipment {
   }
   bench(at: Point = [0, 0.48, 0], incline = 0, length = 1.15) {
     this.block(at, [0.34, 0.075, length], incline)
-    for (const z of [-0.36, 0.36]) {
-      this.bar([at[0], 0.065, at[2] + z], [at[0], at[1] - 0.035, at[2] + z], 0.033)
+    // Legs stay under the pad; a short bench keeps them inside its length.
+    const leg = Math.min(0.36, length / 2 - 0.08)
+    for (const z of [-leg, leg]) {
+      // Each post ends under the pad, which drops toward +z when inclined.
+      this.bar([at[0], 0.065, at[2] + z], [at[0], at[1] - z * Math.tan(incline) - 0.035 / Math.cos(incline), at[2] + z], 0.033)
       this.bar([at[0] - 0.25, 0.045, at[2] + z], [at[0] + 0.25, 0.045, at[2] + z], 0.028)
     }
   }
