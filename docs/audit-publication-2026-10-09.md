@@ -63,6 +63,15 @@ Essais du propriétaire sur appareil physique (iOS 27.0.1), corrigés et revéri
 
 Un test couvre désormais les 78 mouvements : aucun axe de barre, d'haltère ou de cadre à l'intérieur du corps, et paumes du crunch vers la tête.
 
+## Build 47 : encyclopédie et nouveaux exercices
+
+- **Encyclopédie des mouvements** (Plus → Entraînement) : les 90 exercices, recherche sans accents, filtres par muscle et par matériel (salle, maison), fiche 3D avec technique, preuves et alternatives.
+- **Dix exercices ajoutés**, chacun d'après des références d'entraîneurs (prise, trajet de barre, position des articulations) : développé couché, incliné et prise serrée à la barre, squat barre, curl barre et curl marteau, développé militaire debout, rowing barre buste penché, fente statique haltères, soulevé de terre. Ils entrent dans les alternatives par famille.
+- **Squat barre et squat Smith** : coudes pliés vers l'avant à travers l'épaule ; désormais paumes vers l'avant, doigts sur la barre, coudes vers le bas derrière elle.
+- **Fente statique** : le pied arrière pivote sur l'avant du pied, orteils à plat, au lieu d'orteils raides enfoncés dans le sol.
+
+Contrôles : contacts barre-peau mesurés (0 à 5 mm sur la poitrine, les trapèzes, les côtes, les tibias et les cuisses ; 14 à 33 mm devant le visage au développé militaire), aucun axe d'équipement dans le corps, poignets sous 120°, appuis fixes, plancher respecté. Tests : 528 réussis, 1 ignoré.
+
 ## Reporté (connu, non bloquant)
 
 - **Bande sombre sous la barre d'état en thème clair** (P2) : la faire suivre le thème impose de gérer aussi le minuteur plein écran, toujours sombre. Le thème par défaut est sombre.
