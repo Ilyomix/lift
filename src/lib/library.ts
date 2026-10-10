@@ -1320,6 +1320,34 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       },
       demo: true, query: 'hammer curl technique', alternatives: ['db-curl', 'band-curl'], increment: 2,
     }),
+    E({
+      id: 'overhead-press', name: ['Développé militaire debout', 'Standing overhead press'], muscle: ['Épaules', 'Shoulders'], unit: 'kg', role: 'compound',
+      groups: { sideDelts: 0.5, triceps: 0.5 },
+      cues: [
+        ['Prise juste plus large que les épaules, coudes un peu devant la barre.', 'Grip just outside your shoulders, elbows slightly in front of the bar.'],
+        ['Menton en arrière au passage du visage, puis la tête revient sous la barre.', 'Pull your chin back as the bar passes your face, then bring your head under it.'],
+        ['Fessiers serrés, sans se cambrer ; barre au-dessus du milieu du pied.', 'Glutes squeezed, no arching; bar over mid-foot.'],
+      ],
+      evidence: {
+        level: 'fort', refs: ['haugen2023'],
+        text: ['Poids libres et machines donnent la même hypertrophie.', 'Free weights and machines produce the same hypertrophy.'],
+      },
+      demo: true, query: 'barbell overhead press technique', alternatives: ['db-shoulder-press', 'shoulder-press-machine'], increment: 2.5,
+    }),
+    E({
+      id: 'barbell-row', name: ['Rowing barre buste penché', 'Bent-over barbell row'], muscle: ['Dos', 'Back'], unit: 'kg', role: 'compound',
+      groups: { back: 1, biceps: 0.5, rearDelts: 0.5 },
+      cues: [
+        ['Buste penché à 30–45° de l’horizontale, dos plat, genoux souples.', 'Torso at 30–45° above horizontal, back flat, knees soft.'],
+        ['Tirer la barre entre le bas des côtes et le nombril, coudes vers l’arrière.', 'Pull the bar between your lower ribs and navel, driving your elbows back.'],
+        ['Buste immobile : sans élan ni redressement.', 'Torso still: no swing, no standing up.'],
+      ],
+      evidence: {
+        level: 'fort', refs: ['haugen2023', 'pelland2025'],
+        text: ['Principe validé (volume, poids libres = machines).', 'Validated principle (volume, free weights = machines).'],
+      },
+      demo: true, query: 'barbell bent over row technique', alternatives: ['one-arm-db-row', 'low-cable-row'], increment: 2.5,
+    }),
   ].map((x) => [x.id, x]),
 )
 
@@ -1327,7 +1355,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
 const FREE_WEIGHTS = new Set([
   'incline-db-press', 'lateral-raise', 'ez-curl', 'seated-db-curl', 'incline-db-curl', 'romanian-deadlift', 'goblet-squat',
   'db-pullover', 'db-overhead-extension', 'db-hip-thrust', 'glute-bridge',
-  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'barbell-squat', 'barbell-curl',
+  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'barbell-squat', 'barbell-curl', 'overhead-press', 'barbell-row',
 ])
 
 /**

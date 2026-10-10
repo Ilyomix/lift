@@ -18,11 +18,11 @@ const fixedElbowAngle = new Set([
 
 // These are geometric regressions on the shipped weighted human, not a claim
 // that numeric reach alone validates exercise technique or camera readability.
-test('40 upper motions preserve real limb reach, supports, isolation angles and loop continuity', async () => {
+test('41 upper motions preserve real limb reach, supports, isolation angles and loop continuity', async () => {
   const bytes = await readFile(new URL('../public/models/exercise/athlete.glb', import.meta.url))
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')
   const manifest = JSON.parse(await readFile(new URL('../public/models/exercise/athlete.rig.json', import.meta.url), 'utf8'))
-  assert.equal(UPPER_EXERCISES.size, 40)
+  assert.equal(UPPER_EXERCISES.size, 41)
   for (const id of UPPER_EXERCISES) {
     assert(id in LIBRARY, `unknown exercise ${id}`)
     const body = Reflect.construct(Athlete, [{ gltf, manifest }, {}]) as Athlete

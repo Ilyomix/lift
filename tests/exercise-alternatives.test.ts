@@ -7,7 +7,7 @@ import { setLang } from '../src/lib/i18n'
 test('machine alternatives cover multiple useful options without unrelated muscle swaps', () => {
   assert(alternativesFor('chest-press').length >= 5)
   assert(alternativesFor('triceps-overhead-rope').length >= 5)
-  assert.deepEqual(alternativesFor('shoulder-press-machine').map(info => info.id), ['db-shoulder-press', 'pike-push-up'])
+  assert.deepEqual(alternativesFor('shoulder-press-machine').map(info => info.id), ['overhead-press', 'db-shoulder-press', 'pike-push-up'])
   assert.deepEqual(alternativesFor('leg-extension').map(info => info.id), ['sissy-squat'])
   assert(!alternativesFor('leg-curl').some(info => info.id === 'romanian-deadlift'))
   assert.deepEqual(alternativesFor('custom-import'), [])

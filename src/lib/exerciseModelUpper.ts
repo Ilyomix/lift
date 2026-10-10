@@ -11,13 +11,16 @@ export const UPPER_EXERCISES = new Set([
   'close-grip-push-up', 'pull-up', 'chin-up', 'band-pulldown', 'one-arm-db-row', 'band-row',
   'doorframe-row', 'prone-y-raise', 'inverted-row', 'db-pullover', 'band-straight-arm-pulldown',
   'db-rear-delt-fly', 'band-pull-apart', 'db-shoulder-press', 'pike-push-up', 'band-lateral-raise',
-  'bench-press', 'incline-bench-press', 'close-grip-bench-press',
+  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'overhead-press',
 ])
 
 const SIDES = [-1, 1]
 // Barbell presses: grip half-widths, bar height over the shoulders at the bottom (measured
 // to graze the chest skin, 0–5 mm) and its depth along the torso.
 const BAR_PRESS = { wide: 0.40, close: 0.22, low: 0.097, lowIncline: 0.045, lowClose: 0.125, z: 0.12 }
+// Standing barbell press: grip half-width, bar heights (upper chest, lockout) and depths
+// (on the chest, past the face, over the neck base), from the measured face profile.
+const OVERHEAD = { grip: 0.27, low: 1.50, high: 2.10, chest: 0.128, face: 0.165, neck: 0.03 }
 const pair = (point: (side: number) => Point) => SIDES.map(point)
 const feet = pair(s => [s * 0.205, 0.078, 0.015])
 const knees = pair(s => [s * 0.15, 0.52, 0.035])
@@ -85,6 +88,23 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
         { footRotations, grip: true, gripAxes: lever?.axes ?? pronated, gripDirections: lever?.directions, gripTargets: !!lever })
       attach(loads, result.hands)
     }, { target: [0, .97, .03], height: free ? 2.04 : 2.30 })
+  }
+
+  if (id === 'overhead-press') {
+    const barbell = eq.barbell()
+    const ramp = (q: number) => { const c = Math.max(0, Math.min(1, q)); return c * c * (3 - 2 * c) }
+    return motion(t => {
+      // From the upper chest, the bar rises in front of the face while the head
+      // tips back, then settles over the base of the neck as the head returns.
+      const y = OVERHEAD.low + (OVERHEAD.high - OVERHEAD.low) * t
+      const z = OVERHEAD.chest + (OVERHEAD.face - OVERHEAD.chest) * ramp(t / 0.3) - (OVERHEAD.face - OVERHEAD.neck) * ramp((t - 0.62) / 0.38)
+      // Bar in the heel of the palm: wrists bent back, 60° in the rack, 35° at lockout.
+      const wristBack = 1.3 - 0.69 * t
+      const result = body.pose([0, 0.983, 0], 0, knees, feet, pair(s => [s * OVERHEAD.grip, y, z]), pair(s => [s * 0.40, 1.10, 0.80]),
+        { footRotations, grip: true, gripAxes: pronated, gripTargets: true, gripDirections: pair(() => [0, Math.cos(wristBack), -Math.sin(wristBack)]),
+          neckFlexion: -0.22 * ramp(t / 0.25) * (1 - ramp((t - 0.65) / 0.3)) })
+      barbell.position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(0.5)
+    }, { target: [0, 1.1, 0.04], height: 2.3 })
   }
 
   if (['db-bench-press', 'incline-db-press', 'db-floor-press', 'db-fly', 'db-pullover', 'bench-press', 'incline-bench-press', 'close-grip-bench-press'].includes(id)) {

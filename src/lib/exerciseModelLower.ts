@@ -9,7 +9,7 @@ export const LOWER_EXERCISES = new Set([
   'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
   'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
   'db-hip-thrust', 'single-leg-hip-thrust', 'single-leg-calf-raise',
-  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch',
+  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch', 'barbell-row',
 ])
 const SIDES = [-1, 1] as const
 const PI = Math.PI
@@ -18,6 +18,9 @@ const smooth = (t: number) => { const q = clamp(t); return q * q * (3 - 2 * q) }
 const add = (a: Point, b: Point): Point => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 const rotate = (point: Point, angle: number): Point => [point[0], point[1] * Math.cos(angle) - point[2] * Math.sin(angle), point[1] * Math.sin(angle) + point[2] * Math.cos(angle)]
 const torso = (hips: Point, lean: number, point: Point): Point => add(hips, rotate(point, lean))
+// Bent-over row: torso angle, hip drop and depth, grip half-width, the hanging bar's
+// distance below and ahead of the shoulders, and its contact on the lower ribs (torso frame).
+const ROW = { lean: 0.90, drop: 0.10, hipsZ: -0.20, grip: 0.24, reach: 0.64, forward: 0.03, ribs: 0.18, front: 0.14 }
 const average = (points: Vector3[]) => points.reduce((a, p) => a.add(p), new Vector3()).multiplyScalar(1 / points.length)
 
 /** Dedicated lower/core contact models. Coordinates are authored for 1.82 m and scaled to the real rig. */
@@ -334,6 +337,22 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       placeBetween(carriage, p(add(sled, [-0.47, 0, 0])), p(add(sled, [0.47, 0, 0])))
       shoes.forEach((shoe, i) => shoe.position.set(...p(add(sled, [SIDES[i] * 0.47, 0, 0]))))
     }, [3.8, 2.0, -2.2], [0, 0.72, -0.05], 2.08)
+  }
+
+  if (id === 'barbell-row') {
+    const barbell = eq.barbell()
+    barbell.scale.setScalar(scale)
+    // Torso still, about 40° above horizontal, knees soft; the bar rises from
+    // under the shoulders to the lower ribs, elbows driving back past the torso.
+    const lean = ROW.lean, hips: Point = [0, standing - ROW.drop, ROW.hipsZ]
+    return motion(t => {
+      const hang = pair(side => add(torso(hips, lean, [side * ROW.grip, 0.475, 0.014]), [0, -ROW.reach, ROW.forward]))
+      const ribs = pair(side => torso(hips, lean, [side * ROW.grip, ROW.ribs, ROW.front]))
+      const hands = hang.map((low, i) => low.map((value, axis) => value + (ribs[i][axis] - value) * t) as Point)
+      const result = pose(hips, lean, pair(side => [side * 0.18, 0.49, 0.28]), groundFeet, hands, pair(side => torso(hips, lean, [side * 0.45, 0.10, -0.65])),
+        { footRotations: straightFeet, grip: true, gripTargets: true, gripAxes: [[1, 0, 0], [-1, 0, 0]] })
+      barbell.position.copy(average(result.hands))
+    }, [2.8, 1.7, 3.7], [0, 0.80, 0], 2.0)
   }
 
   if (id === 'romanian-deadlift' || id === 'db-romanian-deadlift' || id === 'single-leg-rdl') {
