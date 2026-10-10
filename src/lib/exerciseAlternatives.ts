@@ -6,9 +6,9 @@ import type { TrainingSetup } from './types'
 // Curated movement families: a shared muscle alone does not make a useful swap.
 // All entries have their own instructions, load history and demonstration.
 const FAMILIES: readonly (readonly string[])[] = [
-  ['chest-press', 'db-bench-press', 'incline-db-press', 'db-floor-press', 'push-up', 'feet-elevated-push-up'],
+  ['chest-press', 'bench-press', 'incline-bench-press', 'db-bench-press', 'incline-db-press', 'db-floor-press', 'push-up', 'feet-elevated-push-up'],
   ['pec-deck', 'cable-fly', 'db-fly', 'band-fly'],
-  ['dips', 'close-grip-push-up', 'chest-press', 'db-floor-press'],
+  ['dips', 'close-grip-bench-press', 'close-grip-push-up', 'chest-press', 'db-floor-press'],
   ['lat-pulldown', 'pull-up', 'chin-up', 'band-pulldown'],
   ['low-cable-row', 'chest-supported-row', 'one-arm-db-row', 'band-row', 'inverted-row', 'doorframe-row'],
   ['cable-pullover', 'single-arm-pulldown', 'db-pullover', 'band-straight-arm-pulldown'],
@@ -16,8 +16,8 @@ const FAMILIES: readonly (readonly string[])[] = [
   ['shoulder-press-machine', 'db-shoulder-press', 'pike-push-up'],
   ['lateral-raise', 'cable-lateral-raise', 'band-lateral-raise'],
   ['triceps-overhead-rope', 'db-overhead-extension', 'band-overhead-extension', 'db-skull-crusher', 'triceps-rope', 'band-pushdown'],
-  ['ez-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'band-curl'],
-  ['leg-press', 'hack-squat', 'smith-squat', 'goblet-squat', 'bulgarian-split-squat'],
+  ['ez-curl', 'barbell-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'hammer-curl', 'band-curl'],
+  ['leg-press', 'hack-squat', 'barbell-squat', 'smith-squat', 'goblet-squat', 'bulgarian-split-squat'],
   ['leg-extension', 'sissy-squat'],
   ['leg-curl', 'lying-leg-curl', 'sliding-leg-curl', 'nordic-curl'],
   ['romanian-deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'back-extension-45'],
@@ -39,6 +39,7 @@ export function alternativesFor(id: string, setup?: TrainingSetup) {
 /** Gym equipment other than a plate-loaded or selectorized machine. */
 const GYM_KIT: Record<string, 'barbell' | 'smith' | 'cable' | 'dips' | 'bench45' | 'romanChair'> = {
   'ez-curl': 'barbell', 'romanian-deadlift': 'barbell', 'glute-bridge': 'barbell', 'hip-thrust': 'barbell',
+  'bench-press': 'barbell', 'incline-bench-press': 'barbell', 'close-grip-bench-press': 'barbell', 'barbell-squat': 'barbell', 'barbell-curl': 'barbell',
   'smith-squat': 'smith', 'smith-hip-thrust': 'smith',
   'cable-fly': 'cable', 'lat-pulldown': 'cable', 'low-cable-row': 'cable', 'cable-pullover': 'cable', 'single-arm-pulldown': 'cable',
   'face-pull': 'cable', 'cable-lateral-raise': 'cable', 'triceps-overhead-rope': 'cable', 'triceps-rope': 'cable', 'cable-crunch': 'cable',

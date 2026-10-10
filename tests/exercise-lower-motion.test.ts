@@ -44,11 +44,11 @@ test('anatomy covers the library independently of volume credits and uses real s
   assert.deepEqual(exerciseMuscles('unknown'), {})
 })
 
-test('all 31 lower/core motions retain supports, reachable limbs and floor clearance on the shipped human', async () => {
+test('all 32 lower/core motions retain supports, reachable limbs and floor clearance on the shipped human', async () => {
   const bytes = await readFile(new URL('../public/models/exercise/athlete.glb', import.meta.url))
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')
   const manifest = JSON.parse(await readFile(new URL('../public/models/exercise/athlete.rig.json', import.meta.url), 'utf8'))
-  assert.equal(LOWER_EXERCISES.size, 31)
+  assert.equal(LOWER_EXERCISES.size, 32)
   for (const id of LOWER_EXERCISES) {
     assert(id in LIBRARY, `unknown motion ${id}`)
     const body = Reflect.construct(Athlete, [{ gltf, manifest }, {}]) as Athlete

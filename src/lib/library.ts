@@ -1235,6 +1235,91 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       },
       demo: true, query: 'crunch proper form', alternatives: ['reverse-crunch'], increment: 0,
     }),
+    // Classic barbell and dumbbell lifts, for the encyclopedia and alternatives.
+    E({
+      id: 'bench-press', name: ['Développé couché barre', 'Barbell bench press'], muscle: ['Pectoraux', 'Chest'], unit: 'kg', role: 'compound',
+      groups: { chest: 1, triceps: 0.5 },
+      cues: [
+        ['Omoplates serrées et basses, pieds ancrés au sol.', 'Shoulder blades pinched and down, feet planted.'],
+        ['Prise un peu plus large que les épaules, barre au-dessus des poignets.', 'Grip slightly wider than your shoulders, bar over your wrists.'],
+        ['Descendre au bas des pectoraux, coudes à ~45°, sans rebond.', 'Lower to your lower chest, elbows at ~45°, without bouncing.'],
+      ],
+      evidence: {
+        level: 'fort', refs: ['haugen2023', 'schoenfeld2017vol'],
+        text: ['Poids libres et machines donnent la même hypertrophie.', 'Free weights and machines produce the same hypertrophy.'],
+      },
+      demo: true, query: 'barbell bench press technique', alternatives: ['db-bench-press', 'chest-press'], increment: 2.5,
+    }),
+    E({
+      id: 'incline-bench-press', name: ['Développé incliné barre', 'Incline barbell bench press'], muscle: ['Haut des pectoraux', 'Upper chest'], unit: 'kg', role: 'compound',
+      groups: { chest: 1, triceps: 0.5 },
+      cues: [
+        ['Banc à 30° environ, omoplates serrées.', 'Bench at about 30°, shoulder blades pinched.'],
+        ['Barre vers le haut des pectoraux, sous les clavicules.', 'Bar to your upper chest, below the collarbones.'],
+        ['Pousser droit vers le haut, fessiers sur le banc.', 'Press straight up, glutes staying on the bench.'],
+      ],
+      evidence: {
+        level: 'fort', refs: ['haugen2023', 'schoenfeld2017vol'],
+        text: ['Principe validé (volume, machines = libres) ; incliné vs plat non vérifié.', 'Validated principle (volume, machines = free weights); incline vs flat not verified.'],
+      },
+      demo: true, query: 'incline barbell bench press technique', alternatives: ['incline-db-press', 'bench-press'], increment: 2.5,
+    }),
+    E({
+      id: 'close-grip-bench-press', name: ['Développé couché prise serrée', 'Close-grip bench press'], muscle: ['Triceps', 'Triceps'], unit: 'kg', role: 'compound',
+      groups: { triceps: 1, chest: 0.5 },
+      cues: [
+        ['Mains à largeur d’épaules, pas plus serrées.', 'Hands shoulder-width apart, no narrower.'],
+        ['Coudes près du buste en descendant.', 'Elbows close to your torso on the way down.'],
+        ['Barre au bas des pectoraux, coudes tendus en haut.', 'Bar to your lower chest, elbows straight at the top.'],
+      ],
+      evidence: {
+        level: 'faible', refs: ['schoenfeld2017vol'],
+        text: ['Volume ; pas de comparaison d’exercices vérifiée.', 'Volume; no verified exercise comparison.'],
+      },
+      demo: true, query: 'close grip bench press technique', alternatives: ['dips', 'close-grip-push-up'], increment: 2.5,
+    }),
+    E({
+      id: 'barbell-squat', name: ['Squat barre', 'Barbell back squat'], muscle: ['Quadriceps & fessiers', 'Quads & glutes'], unit: 'kg', role: 'compound',
+      groups: { quads: 1, glutes: 0.5 },
+      cues: [
+        ['Barre sur les trapèzes, mains juste à l’extérieur des épaules.', 'Bar on your upper traps, hands just outside your shoulders.'],
+        ['Descendre sous le parallèle si la mobilité le permet, genoux dans l’axe des pieds.', 'Go below parallel if your mobility allows, knees tracking over your toes.'],
+        ['Tronc gainé, pousser le sol en remontant.', 'Core braced, push the floor away on the way up.'],
+      ],
+      evidence: {
+        level: 'modere', refs: ['haugen2023'],
+        text: ['Poids libres et machines donnent la même hypertrophie ; même rôle que le hack squat.', 'Free weights and machines produce the same hypertrophy; same role as the hack squat.'],
+      },
+      demo: true, query: 'barbell back squat technique', alternatives: ['hack-squat', 'smith-squat'], increment: 5,
+    }),
+    E({
+      id: 'barbell-curl', name: ['Curl barre droite', 'Barbell curl'], muscle: ['Biceps', 'Biceps'], unit: 'kg', role: 'isolation',
+      groups: { biceps: 1 },
+      cues: [
+        ['Prise en supination à largeur d’épaules.', 'Underhand grip, shoulder-width apart.'],
+        ['Buste fixe, coudes immobiles, pas d’impulsion des hanches.', 'Torso still, elbows fixed, no hip drive.'],
+        ['Descente complète, bras presque tendus.', 'Lower all the way, arms almost straight.'],
+      ],
+      evidence: {
+        level: 'faible', refs: ['schoenfeld2017vol'],
+        text: ['Volume ; pas de comparaison d’exercices vérifiée.', 'Volume; no verified exercise comparison.'],
+      },
+      demo: true, query: 'barbell curl technique', alternatives: ['ez-curl', 'db-curl'], increment: 2.5,
+    }),
+    E({
+      id: 'hammer-curl', name: ['Curl marteau', 'Hammer curl'], muscle: ['Biceps & brachial', 'Biceps & brachialis'], unit: 'kg/main', role: 'isolation',
+      groups: { biceps: 1 }, requires: ['dumbbells'],
+      cues: [
+        ['Paumes face à face, pouces vers le haut, du début à la fin.', 'Palms facing each other, thumbs up, from start to finish.'],
+        ['Coudes le long du corps et immobiles.', 'Elbows at your sides and still.'],
+        ['Descente contrôlée, sans élan du buste.', 'Controlled lowering, no torso swing.'],
+      ],
+      evidence: {
+        level: 'faible', refs: ['schoenfeld2017vol'],
+        text: ['Volume ; pas de comparaison d’exercices vérifiée.', 'Volume; no verified exercise comparison.'],
+      },
+      demo: true, query: 'hammer curl technique', alternatives: ['db-curl', 'band-curl'], increment: 2,
+    }),
   ].map((x) => [x.id, x]),
 )
 
@@ -1242,6 +1327,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
 const FREE_WEIGHTS = new Set([
   'incline-db-press', 'lateral-raise', 'ez-curl', 'seated-db-curl', 'incline-db-curl', 'romanian-deadlift', 'goblet-squat',
   'db-pullover', 'db-overhead-extension', 'db-hip-thrust', 'glute-bridge',
+  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'barbell-squat', 'barbell-curl',
 ])
 
 /**

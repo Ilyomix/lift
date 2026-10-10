@@ -11,9 +11,13 @@ export const UPPER_EXERCISES = new Set([
   'close-grip-push-up', 'pull-up', 'chin-up', 'band-pulldown', 'one-arm-db-row', 'band-row',
   'doorframe-row', 'prone-y-raise', 'inverted-row', 'db-pullover', 'band-straight-arm-pulldown',
   'db-rear-delt-fly', 'band-pull-apart', 'db-shoulder-press', 'pike-push-up', 'band-lateral-raise',
+  'bench-press', 'incline-bench-press', 'close-grip-bench-press',
 ])
 
 const SIDES = [-1, 1]
+// Barbell presses: grip half-widths, bar height over the shoulders at the bottom (measured
+// to graze the chest skin, 0–5 mm) and its depth along the torso.
+const BAR_PRESS = { wide: 0.40, close: 0.22, low: 0.097, lowIncline: 0.045, lowClose: 0.125, z: 0.12 }
 const pair = (point: (side: number) => Point) => SIDES.map(point)
 const feet = pair(s => [s * 0.205, 0.078, 0.015])
 const knees = pair(s => [s * 0.15, 0.52, 0.035])
@@ -83,12 +87,15 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
     }, { target: [0, .97, .03], height: free ? 2.04 : 2.30 })
   }
 
-  if (['db-bench-press', 'incline-db-press', 'db-floor-press', 'db-fly', 'db-pullover'].includes(id)) {
-    const incline = id === 'incline-db-press', floor = id === 'db-floor-press' || id === 'db-fly', fly = id === 'db-fly', pullover = id === 'db-pullover'
+  if (['db-bench-press', 'incline-db-press', 'db-floor-press', 'db-fly', 'db-pullover', 'bench-press', 'incline-bench-press', 'close-grip-bench-press'].includes(id)) {
+    const incline = id === 'incline-db-press' || id === 'incline-bench-press', floor = id === 'db-floor-press' || id === 'db-fly', fly = id === 'db-fly', pullover = id === 'db-pullover'
+    // Barbell presses: fixed grip width on the bar, which touches the chest at the bottom.
+    const barbell = id === 'bench-press' || id === 'incline-bench-press' || id === 'close-grip-bench-press' ? eq.barbell() : null
+    const gripHalf = id === 'close-grip-bench-press' ? BAR_PRESS.close : BAR_PRESS.wide
     const hipY = floor ? 0.18 : 0.62, lean = incline ? -Math.PI / 3 : -Math.PI / 2
     if (!floor) eq.bench([0, incline ? 0.62 : 0.50, -0.19], incline ? Math.PI / 6 : 0, 1.18)
     else eq.block([0, 0.018, -0.1], [0.70, 0.035, 1.65], 0, eq.rubber)
-    const loads = pullover ? [eq.dumbbell()] : SIDES.map(() => eq.dumbbell())
+    const loads = barbell ? [] : pullover ? [eq.dumbbell()] : SIDES.map(() => eq.dumbbell())
     if (pullover) loads[0].quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(0, 1, 0))
     return motion(t => {
       const shoulderY = hipY + (incline ? 0.235 : 0), shoulderZ = incline ? -0.40 : -0.47
@@ -104,6 +111,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
         const angle = 1.45 - 1.72 * t
         targets = actualShoulders.map((origin, i): Point => [origin[0] + SIDES[i] * 0.54 * Math.sin(angle), origin[1] + 0.54 * Math.cos(angle), origin[2]])
       }
+      else if (barbell) { const low = incline ? BAR_PRESS.lowIncline : id === 'close-grip-bench-press' ? BAR_PRESS.lowClose : BAR_PRESS.low; targets = pair(s => [s * gripHalf, shoulderY + low + (0.48 - low) * t, shoulderZ + BAR_PRESS.z]) }
       else targets = pair(s => [s * (0.33 - 0.12 * t), shoulderY + 0.14 + 0.40 * t, shoulderZ + 0.10])
       const result = body.pose([0, hipY, 0], lean,
         pair(s => [s * 0.19, floor ? 0.35 : 0.49, 0.42]), pair(s => [s * 0.21, 0.08, floor ? 0.72 : 0.48]), targets,
@@ -113,6 +121,7 @@ function buildUpperExercise(id: string, { body, equipment: eq }: ExerciseContext
         { footRotations, grip: !pullover, openHands: pullover, gripAxes: fly ? pair(() => [0, 0, -1]) : pronated,
           gripDirections: pullover ? pair(() => [0, 0, -1]) : undefined })
       if (pullover) loads[0].position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(0.5).add(new Vector3(0, -.043, 0))
+      else if (barbell) barbell.position.copy(result.hands[0]).add(result.hands[1]).multiplyScalar(0.5)
       else attach(loads, result.hands)
     }, { camera: [2.7, 2.15, 2.8], target: [0, floor ? 0.34 : 0.72, -0.20], height: floor ? 1.55 : 1.83 })
   }

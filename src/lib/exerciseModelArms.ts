@@ -6,7 +6,7 @@ import type { ExerciseContext, ExerciseMotion } from './exerciseModelTypes'
 export const ARM_EXERCISES = new Set([
   'triceps-overhead-rope', 'triceps-rope', 'ez-curl', 'preacher-curl',
   'seated-db-curl', 'incline-db-curl', 'db-overhead-extension', 'band-overhead-extension',
-  'band-pushdown', 'db-skull-crusher', 'db-curl', 'band-curl',
+  'band-pushdown', 'db-skull-crusher', 'db-curl', 'band-curl', 'barbell-curl', 'hammer-curl',
 ])
 const sides = [-1, 1]
 const footRotation: Point[] = [[0, 0, 0], [0, 0, 0]]
@@ -21,11 +21,14 @@ export function createArmExercise(id: string, context: ExerciseContext): Exercis
 
 function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): ExerciseMotion | null {
   if (!ARM_EXERCISES.has(id)) return null
-  const curl = ['ez-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'band-curl'].includes(id)
+  const curl = ['ez-curl', 'barbell-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'hammer-curl', 'band-curl'].includes(id)
+  // The straight bar follows the EZ bar's arc; the hammer curl the dumbbell curl's.
+  const barCurl = id === 'ez-curl' || id === 'barbell-curl'
+  const hammer = id === 'hammer-curl'
   const seated = ['preacher-curl', 'seated-db-curl', 'incline-db-curl'].includes(id)
   const incline = id === 'incline-db-curl'
   const preacher = id === 'preacher-curl'
-  const dumbbellCurl = ['seated-db-curl', 'incline-db-curl', 'db-curl'].includes(id)
+  const dumbbellCurl = ['seated-db-curl', 'incline-db-curl', 'db-curl', 'hammer-curl'].includes(id)
   const skull = id === 'db-skull-crusher'
   const overhead = id.includes('overhead')
   const cableOverhead = id === 'triceps-overhead-rope'
@@ -53,7 +56,7 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
     // negative-Z pole forced the elbows behind the ears throughout the rep.
     if (overhead) return [x, shoulder[1] + span * Math.cos(overheadUpperAngle), shoulder[2] + span * Math.sin(overheadUpperAngle)]
     if (preacher) return [x, shoulder[1] - span * Math.cos(0.8), shoulder[2] + span * Math.sin(0.8)]
-    if (id === 'ez-curl') return [x, shoulder[1] - span * Math.cos(.20), shoulder[2] + span * Math.sin(.20)]
+    if (barCurl) return [x, shoulder[1] - span * Math.cos(.20), shoulder[2] + span * Math.sin(.20)]
     if (!curl) return [x, shoulder[1] - span * Math.cos(.22), shoulder[2] + span * Math.sin(.22)]
     return [x, shoulder[1] - span, shoulder[2]]
   })
@@ -81,16 +84,19 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
   }
   if (skull) e.block([0, -0.011, -0.05], [0.73, 0.022, 2.02], 0, e.rubber)
 
-  const dumbbells = ['seated-db-curl', 'incline-db-curl', 'db-curl', 'db-skull-crusher'].includes(id)
+  const dumbbells = ['seated-db-curl', 'incline-db-curl', 'db-curl', 'hammer-curl', 'db-skull-crusher'].includes(id)
     ? [e.dumbbell(), e.dumbbell()] : []
   const singleDumbbell = id === 'db-overhead-extension' ? e.dumbbell() : undefined
-  const bar = id === 'ez-curl' || preacher ? new Group() : undefined
+  const bar = barCurl || preacher ? new Group() : undefined
   if (bar) {
     e.root.add(bar)
     if (id === 'ez-curl') {
       const profile: Point[] = [[-.57, 0, 0], [-.39, 0, 0], [-.27, .035, .035], [-.14, 0, 0], [.14, 0, 0], [.27, .035, .035], [.39, 0, 0], [.57, 0, 0]]
       for (let i = 1; i < profile.length; i++) bar.add(e.bar(profile[i - 1], profile[i], 0.014))
       for (const side of sides) bar.add(e.plate([side * 0.48, 0, 0], 0.11, 0.05))
+    } else if (id === 'barbell-curl') {
+      bar.add(e.bar([-.62, 0, 0], [.62, 0, 0], 0.014))
+      for (const side of sides) bar.add(e.plate([side * 0.50, 0, 0], 0.11, 0.05))
     } else bar.add(e.bar([-.40, 0, 0], [.40, 0, 0], 0.017, e.grip))
   }
   const pivots: Point[] = preacher ? elbows.map((elbow, i) => [sides[i] * .40, elbow[1], elbow[2]]) : []
@@ -142,9 +148,9 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
     update(t) {
       const overheadAngle = overheadUpperAngle - 2.15 + 1.95 * t
       const targets = elbows.map((elbow, i): Point => {
-        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .045 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : .22) : sides[i] * (.18 + .13 * t)
+        const wristX = skull ? sides[i] * .235 : overhead ? sides[i] * (singleDumbbell ? .045 : .18) : curl ? sides[i] * (dumbbellCurl ? .37 : preacher ? .30 : id === 'band-curl' ? .32 : id === 'ez-curl' ? .245 : id === 'barbell-curl' ? .26 : .22) : sides[i] * (.18 + .13 * t)
         const length = Math.sqrt(Math.max(0.01, body.measures.arms[i][1] ** 2 - (wristX - elbow[0]) ** 2))
-        const angle = curl ? (preacher ? .78 + 1.78 * t : id === 'ez-curl' ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? overheadAngle : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
+        const angle = curl ? (preacher ? .78 + 1.78 * t : barCurl ? .34 + 1.84 * t : .13 + 2.05 * t) : overhead ? overheadAngle : skull ? -1.42 + 1.42 * t : 1.48 - 1.12 * t
         return [wristX, elbow[1] + (curl || !overhead && !skull ? -1 : 1) * length * Math.cos(angle), elbow[2] + length * Math.sin(angle)]
       })
       // Two open palms support the upper head. A slight tilt near extension
@@ -157,7 +163,7 @@ function buildArmExercise(id: string, { body, equipment: e }: ExerciseContext): 
       const supportAngle = -Math.PI / 2 + (supportTilt >= tiltBlend ? supportTilt : tiltBlend * tiltProgress ** 3 * (2 - tiltProgress))
       const supportAlong = new Vector3(0, Math.cos(supportAngle), Math.sin(supportAngle))
       const supportNormal = new Vector3(0, -supportAlong.z, supportAlong.y)
-      const gripAxes: Point[] = curl
+      const gripAxes: Point[] = curl && !hammer
         ? pair(side => [side * Math.sin(.18 + 1.39 * t), 0, Math.cos(.18 + 1.39 * t)])
         : singleDumbbell ? pair(side => [-side, 0, 0]) : targets.map((target, i): Point => {
           // A neutral grip rotates with elbow flexion. Projecting a fixed

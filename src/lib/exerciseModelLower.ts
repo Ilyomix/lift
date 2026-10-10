@@ -4,7 +4,7 @@ import type { Point } from './exerciseModelRig'
 import type { ExerciseContext, ExerciseMotion } from './exerciseModelTypes'
 
 export const LOWER_EXERCISES = new Set([
-  'leg-press', 'hack-squat', 'smith-squat', 'leg-extension', 'leg-curl', 'lying-leg-curl',
+  'leg-press', 'hack-squat', 'smith-squat', 'barbell-squat', 'leg-extension', 'leg-curl', 'lying-leg-curl',
   'romanian-deadlift', 'hip-thrust', 'smith-hip-thrust', 'glute-bridge', 'back-extension-45', 'calf-press', 'standing-calf-raise',
   'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
   'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
@@ -79,7 +79,7 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       (hips[2] + foot[2]) / 2 - .40 * y / length]
   }
 
-  if (id === 'goblet-squat' || id === 'smith-squat' || id === 'hack-squat' || id === 'bulgarian-split-squat' || id === 'sissy-squat') {
+  if (id === 'goblet-squat' || id === 'smith-squat' || id === 'barbell-squat' || id === 'hack-squat' || id === 'bulgarian-split-squat' || id === 'sissy-squat') {
     const dumbbell = id === 'goblet-squat' ? eq.dumbbell() : null
     const gobletTilt = .35
     const gobletAxis = new Vector3(0, Math.cos(gobletTilt), -Math.sin(gobletTilt))
@@ -87,7 +87,8 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       dumbbell.scale.setScalar(scale)
       dumbbell.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gobletAxis)
     }
-    const smithBar = id === 'smith-squat' ? eq.barbell() : null
+    // The free back squat follows the Smith path: the bar stays over mid-foot, on the traps.
+    const smithBar = id === 'smith-squat' || id === 'barbell-squat' ? eq.barbell() : null
     smithBar?.scale.setScalar(scale)
     const backPad = id === 'hack-squat' ? block([0, 0.9, 0], [0.38, 0.60, 0.09], -0.67) : null
     const shoulderPads = id === 'hack-squat' ? pair(side => [side * 0.22, 1.3, 0] as Point).map(at => block(at, [0.14, 0.10, 0.28])) : []
@@ -111,7 +112,7 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       let knees = pair(side => [side * 0.2, 0.43, 0.5])
       let hands = pair(side => torso(hips, lean, [side * 0.095, 0.39, 0.15]))
       let footRotations = straightFeet
-      if (id === 'smith-squat') {
+      if (smithBar) {
         lean = 0.05 + 0.18 * t
         // Measured on the skin: the rail-bound bar rests on the traps (0–3 mm).
         hips = [0, standing - 0.04 - 0.40 * t, -0.47 * Math.sin(lean) + 0.021 + 0.008 * t]

@@ -1,7 +1,7 @@
 // Clips use a geometric phase, not time. These start upright/extended and
 // reach their lowered position at phase 1; their outward leg is the descent.
 const DESCENT_FIRST = new Set([
-  'goblet-squat', 'smith-squat', 'hack-squat', 'bulgarian-split-squat', 'sissy-squat',
+  'goblet-squat', 'smith-squat', 'barbell-squat', 'hack-squat', 'bulgarian-split-squat', 'sissy-squat',
   'leg-press', 'romanian-deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'nordic-curl',
 ])
 
