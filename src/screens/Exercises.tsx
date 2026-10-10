@@ -1,11 +1,16 @@
 import { useDeferredValue, useState } from 'react'
-import { ChevronRight, Search } from 'lucide-react'
+import { ArrowUpFromLine, ArrowUpRight, Backpack, BicepsFlexed, ChevronRight, ChevronsUp, Dumbbell, Footprints, Grid2x2, House, LayoutGrid, MoveHorizontal, PersonStanding, Search, Shirt, Undo2 } from 'lucide-react'
 import { ExerciseSheet } from '../components/ExerciseSheet'
 import { Button, Card, cx, Empty, Header, inputClass, Screen, Section, Segmented } from '../components/ui'
 import { browseExercises, type Place } from '../lib/encyclopedia'
 import { alternativeEquipment } from '../lib/exerciseAlternatives'
 import { L } from '../lib/i18n'
 import { LIBRARY, MUSCLES, type MuscleGroup } from '../lib/library'
+
+const muscleIcons = {
+  chest: Shirt, back: Backpack, sideDelts: MoveHorizontal, rearDelts: Undo2, triceps: ArrowUpRight, biceps: BicepsFlexed,
+  quads: PersonStanding, hams: Footprints, glutes: ArrowUpFromLine, calves: ChevronsUp, abs: Grid2x2,
+} satisfies Record<MuscleGroup, unknown>
 
 /** Every exercise of the library, searchable, each opening its 3D sheet. */
 export function ExercisesScreen() {
@@ -31,9 +36,16 @@ export function ExercisesScreen() {
           autoCorrect="off" autoCapitalize="off" spellCheck={false} enterKeyHint="search" />
       </div>
       <Segmented className="mt-3" layout="scroll" label={L('Muscle', 'Muscle')} value={muscle} onChange={setMuscle}
-        options={[{ value: 'all' as const, label: L('Tous', 'All') }, ...MUSCLES.map(m => ({ value: m.id, label: m.label }))]} />
+        options={[{ value: 'all' as const, label: L('Tous', 'All'), icon: <LayoutGrid size={16} aria-hidden /> }, ...MUSCLES.map(m => {
+          const Icon = muscleIcons[m.id]
+          return { value: m.id, label: m.label, icon: <Icon size={16} aria-hidden /> }
+        })]} />
       <Segmented className="mt-2" label={L('Matériel', 'Equipment')} value={place} onChange={setPlace}
-        options={[{ value: 'all', label: L('Tout', 'All') }, { value: 'gym', label: L('Salle', 'Gym') }, { value: 'home', label: L('Maison', 'Home') }]} />
+        options={[
+          { value: 'all', label: L('Tout', 'All'), icon: <LayoutGrid size={16} aria-hidden /> },
+          { value: 'gym', label: L('Salle', 'Gym'), icon: <Dumbbell size={16} aria-hidden /> },
+          { value: 'home', label: L('Maison', 'Home'), icon: <House size={16} aria-hidden /> },
+        ]} />
       <p className="mt-3 text-[13px] text-text-2" aria-live="polite">
         {found === total ? L(`${total} exercices`, `${total} exercises`) : L(`${found} sur ${total} exercices`, `${found} of ${total} exercises`)}
       </p>
