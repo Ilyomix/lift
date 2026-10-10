@@ -17,7 +17,7 @@ const FAMILIES: readonly (readonly string[])[] = [
   ['lateral-raise', 'cable-lateral-raise', 'band-lateral-raise'],
   ['triceps-overhead-rope', 'db-overhead-extension', 'band-overhead-extension', 'db-skull-crusher', 'triceps-rope', 'band-pushdown'],
   ['ez-curl', 'barbell-curl', 'preacher-curl', 'seated-db-curl', 'incline-db-curl', 'db-curl', 'hammer-curl', 'band-curl'],
-  ['leg-press', 'hack-squat', 'barbell-squat', 'smith-squat', 'goblet-squat', 'bulgarian-split-squat'],
+  ['leg-press', 'hack-squat', 'barbell-squat', 'smith-squat', 'goblet-squat', 'bulgarian-split-squat', 'db-split-squat'],
   ['leg-extension', 'sissy-squat'],
   ['leg-curl', 'lying-leg-curl', 'sliding-leg-curl', 'nordic-curl'],
   ['romanian-deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'back-extension-45'],

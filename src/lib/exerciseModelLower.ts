@@ -9,7 +9,7 @@ export const LOWER_EXERCISES = new Set([
   'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
   'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
   'db-hip-thrust', 'single-leg-hip-thrust', 'single-leg-calf-raise',
-  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch', 'barbell-row',
+  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch', 'barbell-row', 'db-split-squat',
 ])
 const SIDES = [-1, 1] as const
 const PI = Math.PI
@@ -20,6 +20,9 @@ const rotate = (point: Point, angle: number): Point => [point[0], point[1] * Mat
 const torso = (hips: Point, lean: number, point: Point): Point => add(hips, rotate(point, lean))
 // Bent-over row: torso angle, hip drop and depth, grip half-width, the hanging bar's
 // distance below and ahead of the shoulders, and its contact on the lower ribs (torso frame).
+// Split squat: hip heights (top, rear knee just above the floor), hip depth, front ankle
+// and rear toe positions along the stride.
+const SPLIT = { top: 0.84, bottom: 0.56, hipsZ: -0.10, front: 0.35, rear: -0.51 }
 const ROW = { lean: 0.90, drop: 0.10, hipsZ: -0.20, grip: 0.24, reach: 0.64, forward: 0.03, ribs: 0.18, front: 0.14 }
 const average = (points: Vector3[]) => points.reduce((a, p) => a.add(p), new Vector3()).multiplyScalar(1 / points.length)
 
@@ -337,6 +340,26 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       placeBetween(carriage, p(add(sled, [-0.47, 0, 0])), p(add(sled, [0.47, 0, 0])))
       shoes.forEach((shoe, i) => shoe.position.set(...p(add(sled, [SIDES[i] * 0.47, 0, 0]))))
     }, [3.8, 2.0, -2.2], [0, 0.72, -0.05], 2.08)
+  }
+
+  if (id === 'db-split-squat') {
+    const weights = SIDES.map(() => eq.dumbbell())
+    weights.forEach(weight => weight.scale.setScalar(scale))
+    return motion(t => {
+      // Long stride: front heel down, rear heel up. The rear knee drops to just
+      // above the floor, front thigh level, torso upright, dumbbells at the sides.
+      const hips: Point = [0, SPLIT.top - (SPLIT.top - SPLIT.bottom) * t, SPLIT.hipsZ]
+      const lean = 0.06 + 0.06 * t
+      const heel = 0.55 + 0.45 * t
+      const feet: Point[] = [[-0.12, 0.078, SPLIT.front], ankleFromToe([0.12, 0.014, SPLIT.rear], heel)]
+      const hands = pair(side => [side * 0.32, hips[1] + 0.44 * Math.cos(lean) - 0.494, hips[2] + 0.46 * Math.sin(lean) + 0.055])
+      const result = pose(hips, lean, [[-0.12, 0.5, 0.9], [0.12, 0.1, -0.15]], feet, hands, pair(side => [side * 0.50, hips[1] + 0.1, hips[2] - 0.1]),
+        { footRotations: [[0, 0, 0], [heel, 0, 0]], flatToes: [false, true], grip: true, gripAxes: [[0, 0, 1], [0, 0, 1]] })
+      weights.forEach((weight, i) => {
+        weight.position.copy(result.hands[i])
+        weight.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), gripAxis(i))
+      })
+    }, [2.8, 1.7, 3.7], [0, 0.78, -0.05], 2.1)
   }
 
   if (id === 'barbell-row') {

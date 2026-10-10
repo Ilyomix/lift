@@ -397,7 +397,7 @@ export class Athlete {
   }
 
   pose(hips: Point, lean: number, knees: Point[], feet: Point[], hands: Point[], poles: Point[], options: {
-    pelvisTilt?: number; trunkFlexion?: number; neckFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; flatDirections?: Point[]; gripTargets?: boolean
+    pelvisTilt?: number; trunkFlexion?: number; neckFlexion?: number; footRotations?: Point[]; handRotations?: Point[]; grip?: boolean; openHands?: boolean; gripAxes?: Point[]; gripDirections?: Point[]; flatHands?: boolean; flatHandSides?: boolean[]; flatDirections?: Point[]; gripTargets?: boolean; flatToes?: boolean[]
   } = {}): PoseResult {
     if (options.gripTargets) {
       if (options.grip && !options.gripDirections && !options.openHands && !options.flatHands &&
@@ -474,6 +474,8 @@ export class Athlete {
         const rest = this.rest.find(item => item.bone === bone)!
         this.worldRotation(bone, new Quaternion().setFromEuler(new Euler(...rotations[i])).multiply(rest.world))
       }
+      // A raised heel pivots on the ball of the foot: the toes stay flat on the floor.
+      if (options.flatToes?.[i] && side.toe) this.worldRotation(side.toe, this.rest.find(item => item.bone === side.toe)!.world.clone())
       const flat = options.flatHands || options.flatHandSides?.[i]
       if (options.grip || options.openHands || flat) resolvedHands[i] = this.grip(side, i, options.gripAxes?.[i], flat, flat ? options.flatDirections?.[i] : options.gripDirections?.[i], !options.openHands)
     }

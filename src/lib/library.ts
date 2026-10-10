@@ -1348,6 +1348,20 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       },
       demo: true, query: 'barbell bent over row technique', alternatives: ['one-arm-db-row', 'low-cable-row'], increment: 2.5,
     }),
+    E({
+      id: 'db-split-squat', name: ['Fente statique haltères', 'Dumbbell split squat'], muscle: ['Quadriceps & fessiers', 'Quads & glutes'], unit: 'kg/main', role: 'compound',
+      groups: { quads: 1, glutes: 0.5 }, requires: ['dumbbells'],
+      cues: [
+        ['Grand pas : en bas, cuisse avant à l’horizontale et genou arrière près du sol.', 'Long stride: at the bottom, front thigh level and back knee near the floor.'],
+        ['Talon avant au sol, talon arrière levé ; répétitions comptées par jambe.', 'Front heel down, back heel up; reps count per leg.'],
+        ['Buste droit, haltères le long du corps.', 'Torso upright, dumbbells at your sides.'],
+      ],
+      evidence: {
+        level: 'modere', refs: ['schoenfeld2017load', 'haugen2023'],
+        text: ['Charge légère ou lourde : hypertrophie similaire si la série finit près de l’échec ; poids libres = machines.', 'Light or heavy load: similar hypertrophy when the set ends close to failure; free weights = machines.'],
+      },
+      demo: true, query: 'dumbbell split squat technique', alternatives: ['bulgarian-split-squat', 'goblet-squat'], increment: 2,
+    }),
   ].map((x) => [x.id, x]),
 )
 

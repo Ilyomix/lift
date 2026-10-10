@@ -98,6 +98,7 @@ export const EXERCISE_ANATOMY: Record<string, MuscleWeights> = {
   'db-curl': regions(['biceps'], ['forearms']),
   'band-curl': regions(['biceps'], ['forearms']),
   'bulgarian-split-squat': regions(['quads', 'glutes'], ['abductors', 'adductors', 'abs']),
+  'db-split-squat': regions(['quads', 'glutes'], ['abductors', 'adductors', 'abs', 'forearms']),
   'sissy-squat': regions(['quads'], ['calves', 'abs']),
   'sliding-leg-curl': regions(['hams'], ['glutes', 'abs']),
   'nordic-curl': regions(['hams'], ['calves', 'glutes', 'abs']),
