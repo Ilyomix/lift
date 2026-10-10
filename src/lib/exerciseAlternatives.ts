@@ -20,7 +20,7 @@ const FAMILIES: readonly (readonly string[])[] = [
   ['leg-press', 'hack-squat', 'barbell-squat', 'smith-squat', 'goblet-squat', 'bulgarian-split-squat', 'db-split-squat'],
   ['leg-extension', 'sissy-squat'],
   ['leg-curl', 'lying-leg-curl', 'sliding-leg-curl', 'nordic-curl'],
-  ['romanian-deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'back-extension-45'],
+  ['romanian-deadlift', 'deadlift', 'db-romanian-deadlift', 'single-leg-rdl', 'back-extension-45'],
   // A taken hip thrust station: the Smith machine, the floor, a dumbbell on any bench, or the glute-focused back extension.
   ['hip-thrust', 'smith-hip-thrust', 'glute-bridge', 'db-hip-thrust', 'single-leg-hip-thrust', 'back-extension-45'],
   ['calf-press', 'standing-calf-raise', 'seated-calf-raise', 'single-leg-calf-raise'],
@@ -39,7 +39,7 @@ export function alternativesFor(id: string, setup?: TrainingSetup) {
 /** Gym equipment other than a plate-loaded or selectorized machine. */
 const GYM_KIT: Record<string, 'barbell' | 'smith' | 'cable' | 'dips' | 'bench45' | 'romanChair'> = {
   'ez-curl': 'barbell', 'romanian-deadlift': 'barbell', 'glute-bridge': 'barbell', 'hip-thrust': 'barbell',
-  'bench-press': 'barbell', 'incline-bench-press': 'barbell', 'close-grip-bench-press': 'barbell', 'barbell-squat': 'barbell', 'barbell-curl': 'barbell', 'overhead-press': 'barbell', 'barbell-row': 'barbell',
+  'bench-press': 'barbell', 'incline-bench-press': 'barbell', 'close-grip-bench-press': 'barbell', 'barbell-squat': 'barbell', 'barbell-curl': 'barbell', 'overhead-press': 'barbell', 'barbell-row': 'barbell', 'deadlift': 'barbell',
   'smith-squat': 'smith', 'smith-hip-thrust': 'smith',
   'cable-fly': 'cable', 'lat-pulldown': 'cable', 'low-cable-row': 'cable', 'cable-pullover': 'cable', 'single-arm-pulldown': 'cable',
   'face-pull': 'cable', 'cable-lateral-raise': 'cable', 'triceps-overhead-rope': 'cable', 'triceps-rope': 'cable', 'cable-crunch': 'cable',

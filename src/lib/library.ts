@@ -1362,6 +1362,20 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
       },
       demo: true, query: 'dumbbell split squat technique', alternatives: ['bulgarian-split-squat', 'goblet-squat'], increment: 2,
     }),
+    E({
+      id: 'deadlift', name: ['Soulevé de terre', 'Deadlift'], muscle: ['Fessiers & ischios', 'Glutes & hamstrings'], unit: 'kg', role: 'compound',
+      groups: { glutes: 1, hams: 0.5, quads: 0.5, back: 0.5 },
+      cues: [
+        ['Barre au-dessus du milieu du pied, tibias contre la barre, mains juste à l’extérieur des genoux.', 'Bar over mid-foot, shins against it, hands just outside your knees.'],
+        ['Épaules un peu devant la barre, dos plat, bras tendus.', 'Shoulders slightly ahead of the bar, back flat, arms straight.'],
+        ['Pousser le sol ; la barre monte droit en frôlant les jambes, hanches verrouillées en haut.', 'Push the floor away; the bar rises straight along your legs, hips locked at the top.'],
+      ],
+      evidence: {
+        level: 'modere', refs: ['haugen2023'],
+        text: ['Poids libres et machines donnent la même hypertrophie ; même rôle que le soulevé de terre roumain.', 'Free weights and machines produce the same hypertrophy; same role as the Romanian deadlift.'],
+      },
+      demo: true, query: 'conventional deadlift technique', alternatives: ['romanian-deadlift', 'back-extension-45'], increment: 5,
+    }),
   ].map((x) => [x.id, x]),
 )
 
@@ -1369,7 +1383,7 @@ export const LIBRARY: Record<string, ExerciseInfo> = Object.fromEntries(
 const FREE_WEIGHTS = new Set([
   'incline-db-press', 'lateral-raise', 'ez-curl', 'seated-db-curl', 'incline-db-curl', 'romanian-deadlift', 'goblet-squat',
   'db-pullover', 'db-overhead-extension', 'db-hip-thrust', 'glute-bridge',
-  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'barbell-squat', 'barbell-curl', 'overhead-press', 'barbell-row',
+  'bench-press', 'incline-bench-press', 'close-grip-bench-press', 'barbell-squat', 'barbell-curl', 'overhead-press', 'barbell-row', 'deadlift',
 ])
 
 /**

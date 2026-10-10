@@ -10,7 +10,7 @@ import { EXERCISE_ANATOMY, exerciseMuscles } from '../src/lib/exerciseModelCatal
 import { LIBRARY } from '../src/lib/library'
 
 const fixedFeet: Record<string, number[]> = {
-  'hack-squat': [0, 1], 'smith-squat': [0, 1], 'barbell-squat': [0, 1], 'goblet-squat': [0, 1], 'barbell-row': [0, 1], 'db-split-squat': [0],
+  'hack-squat': [0, 1], 'smith-squat': [0, 1], 'barbell-squat': [0, 1], 'goblet-squat': [0, 1], 'barbell-row': [0, 1], 'deadlift': [0, 1], 'db-split-squat': [0],
   'bulgarian-split-squat': [0, 1], 'romanian-deadlift': [0, 1], 'db-romanian-deadlift': [0, 1],
   'single-leg-rdl': [0], 'hip-thrust': [0, 1], 'smith-hip-thrust': [0, 1], 'glute-bridge': [0, 1], 'db-hip-thrust': [0, 1],
   'single-leg-hip-thrust': [0], 'back-extension-45': [0, 1], 'nordic-curl': [0, 1],
@@ -44,11 +44,11 @@ test('anatomy covers the library independently of volume credits and uses real s
   assert.deepEqual(exerciseMuscles('unknown'), {})
 })
 
-test('all 34 lower/core motions retain supports, reachable limbs and floor clearance on the shipped human', async () => {
+test('all 35 lower/core motions retain supports, reachable limbs and floor clearance on the shipped human', async () => {
   const bytes = await readFile(new URL('../public/models/exercise/athlete.glb', import.meta.url))
   const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')
   const manifest = JSON.parse(await readFile(new URL('../public/models/exercise/athlete.rig.json', import.meta.url), 'utf8'))
-  assert.equal(LOWER_EXERCISES.size, 34)
+  assert.equal(LOWER_EXERCISES.size, 35)
   for (const id of LOWER_EXERCISES) {
     assert(id in LIBRARY, `unknown motion ${id}`)
     const body = Reflect.construct(Athlete, [{ gltf, manifest }, {}]) as Athlete

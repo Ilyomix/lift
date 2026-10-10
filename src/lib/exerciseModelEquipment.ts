@@ -73,12 +73,13 @@ export class ExerciseEquipment {
     group.position.set(...at); this.root.add(group)
     return group
   }
-  barbell(at: Point = [0, 0, 0], width = 1.45) {
+  /** radius: plate radius; 0.225 m is a full-size plate, which sets a floor pull's bar height. */
+  barbell(at: Point = [0, 0, 0], width = 1.45, radius = 0.16) {
     const group = new Group()
     const bar = new Mesh(new CylinderGeometry(0.014, 0.014, width, 16), this.metal)
     bar.rotation.z = Math.PI / 2; group.add(bar)
     for (const side of [-1, 1]) {
-      const plate = new Mesh(new CylinderGeometry(0.16, 0.16, 0.042, 32), this.rubber)
+      const plate = new Mesh(new CylinderGeometry(radius, radius, 0.042, 32), this.rubber)
       plate.rotation.z = Math.PI / 2; plate.position.x = side * (width / 2 - 0.17); group.add(plate)
     }
     group.position.set(...at); this.root.add(group)

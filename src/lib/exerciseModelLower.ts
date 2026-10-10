@@ -9,7 +9,7 @@ export const LOWER_EXERCISES = new Set([
   'seated-calf-raise', 'goblet-squat', 'hip-adduction', 'hip-abduction', 'bulgarian-split-squat',
   'sissy-squat', 'sliding-leg-curl', 'nordic-curl', 'db-romanian-deadlift', 'single-leg-rdl',
   'db-hip-thrust', 'single-leg-hip-thrust', 'single-leg-calf-raise',
-  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch', 'barbell-row', 'db-split-squat',
+  'roman-chair-abs', 'cable-crunch', 'hanging-leg-raise', 'reverse-crunch', 'crunch', 'barbell-row', 'db-split-squat', 'deadlift',
 ])
 const SIDES = [-1, 1] as const
 const PI = Math.PI
@@ -23,6 +23,11 @@ const torso = (hips: Point, lean: number, point: Point): Point => add(hips, rota
 // Split squat: hip heights (top, rear knee just above the floor), hip depth, front ankle
 // and rear toe positions along the stride.
 const SPLIT = { top: 0.84, bottom: 0.56, hipsZ: -0.10, front: 0.35, rear: -0.51 }
+// Deadlift: bar depth (over mid-foot, on the shins) and its drift up the thighs, plate radius (the bar's floor height),
+// grip half-width and straight-arm reach. Keys, from coaching references: phase, hip height,
+// hip depth, torso angle. The back angle holds to the knees, then the hips come through.
+const DEADLIFT = { barZ: 0.11, thigh: 0.032, plate: 0.225, grip: 0.24, reach: 0.645 }
+const DEADLIFT_KEYS = [[0, 0.675, -0.255, 1.13], [0.4, 0.885, -0.28, 1.04], [0.7, 0.945, -0.16, 0.55], [1, 0.99, -0.01, 0]]
 const ROW = { lean: 0.90, drop: 0.10, hipsZ: -0.20, grip: 0.24, reach: 0.64, forward: 0.03, ribs: 0.18, front: 0.14 }
 const average = (points: Vector3[]) => points.reduce((a, p) => a.add(p), new Vector3()).multiplyScalar(1 / points.length)
 
@@ -340,6 +345,34 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       placeBetween(carriage, p(add(sled, [-0.47, 0, 0])), p(add(sled, [0.47, 0, 0])))
       shoes.forEach((shoe, i) => shoe.position.set(...p(add(sled, [SIDES[i] * 0.47, 0, 0]))))
     }, [3.8, 2.0, -2.2], [0, 0.72, -0.05], 2.08)
+  }
+
+  if (id === 'deadlift') {
+    const barbell = eq.barbell([0, 0, 0], 1.45, DEADLIFT.plate)
+    barbell.scale.setScalar(scale)
+    const armY = Math.sqrt(DEADLIFT.reach ** 2 - (DEADLIFT.grip - 0.19) ** 2)
+    // Cubic through the keys, Catmull-Rom slopes inside and level ends.
+    const key = (t: number, k: number) => {
+      const keys = DEADLIFT_KEYS
+      let i = 0
+      while (i < keys.length - 2 && t > keys[i + 1][0]) i++
+      const a = keys[i], b = keys[i + 1], h = b[0] - a[0], s = (t - a[0]) / h
+      const slope = (j: number) => j <= 0 || j >= keys.length - 1 ? 0 : (keys[j + 1][k] - keys[j - 1][k]) / (keys[j + 1][0] - keys[j - 1][0])
+      return (2 * s ** 3 - 3 * s ** 2 + 1) * a[k] + (s ** 3 - 2 * s ** 2 + s) * h * slope(i) + (3 * s ** 2 - 2 * s ** 3) * b[k] + (s ** 3 - s ** 2) * h * slope(i + 1)
+    }
+    return motion(t => {
+      // Hips and torso follow the keys; the bar hangs a straight arm's length under
+      // the shoulders at a fixed depth, so its path is vertical over mid-foot.
+      const hips: Point = [0, key(t, 1), key(t, 2)], lean = key(t, 3)
+      const shoulder = torso(hips, lean, [0, 0.475, 0.014])
+      // Past the knees the bar rides up the front of the thighs.
+      const barZ = DEADLIFT.barZ + DEADLIFT.thigh * smooth((t - 0.5) / 0.5)
+      const barY = shoulder[1] - Math.sqrt(armY ** 2 - (shoulder[2] - barZ) ** 2)
+      const result = pose(hips, lean, pair(side => [side * 0.2, 0.5, 0.6]), pair(side => [side * 0.13, 0.078, 0.015]),
+        pair(side => [side * DEADLIFT.grip, barY, barZ]), pair(side => [side * 0.5, hips[1] + 0.1, hips[2] - 0.1]),
+        { footRotations: straightFeet, grip: true, gripTargets: true, gripAxes: [[1, 0, 0], [-1, 0, 0]] })
+      barbell.position.copy(average(result.hands))
+    }, [2.8, 1.7, 3.7], [0, 0.75, 0], 2.1)
   }
 
   if (id === 'db-split-squat') {
