@@ -117,7 +117,8 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
         // Measured on the skin: the rail-bound bar rests on the traps (0–3 mm).
         hips = [0, standing - 0.04 - 0.40 * t, -0.47 * Math.sin(lean) + 0.021 + 0.008 * t]
         feet = pair(side => [side * 0.19, 0.078, 0.22])
-        hands = pair(side => [side * 0.43, hips[1] + 0.46 * Math.cos(lean), -0.085])
+        // Free bar: hands just outside the shoulders; the Smith grip is wider.
+        hands = pair(side => [side * (id === 'barbell-squat' ? 0.38 : 0.43), hips[1] + 0.46 * Math.cos(lean), -0.085])
       } else if (id === 'hack-squat') {
         hips = [0, standing - 0.11 - 0.30 * t, -0.10 + 0.24 * t]; lean = -0.67
         feet = pair(side => [side * 0.18, 0.10, 0.38])
@@ -154,10 +155,13 @@ function buildLowerExercise(id: string, { body, equipment: eq }: ExerciseContext
       }
       const hack = sledHandles.length > 0
       const result = pose(hips, lean, knees, feet, hands,
-        dumbbell ? pair(side => [side * .35, hips[1] + .20, hips[2] + .08]) : hack ? pair(side => torso(hips, lean, [side * 0.42, 0.08, 0.14])) : undefined,
+        dumbbell ? pair(side => [side * .35, hips[1] + .20, hips[2] + .08]) : hack ? pair(side => torso(hips, lean, [side * 0.42, 0.08, 0.14]))
+          // Bar on the back: elbows down and behind it. A side pole folded them forward.
+          : smithBar ? pair(side => torso(hips, lean, [side * 0.60, 0.05, -0.40])) : undefined,
         { footRotations, grip: !!smithBar || hack || id === 'sissy-squat', openHands: !!dumbbell, gripTargets: !!dumbbell || !!smithBar || hack || id === 'sissy-squat',
           gripAxes: dumbbell ? [[-1, 0, 0], [1, 0, 0]] : smithBar ? [[1, 0, 0], [-1, 0, 0]] : hack ? pair(() => rotate([0, 0, 1], lean)) : undefined,
-          gripDirections: dumbbell ? pair(() => [0, Math.sin(gobletTilt), Math.cos(gobletTilt)]) : undefined })
+          // Palms forward, fingers up over the bar, wrists under it.
+          gripDirections: dumbbell ? pair(() => [0, Math.sin(gobletTilt), Math.cos(gobletTilt)]) : smithBar ? pair(() => rotate([0, 1, 0], lean)) : undefined })
       if (dumbbell) dumbbell.position.set(...p(loadCenter))
       if (smithBar) smithBar.position.copy(average(result.hands))
     }, id === 'hack-squat' ? [2.8, 1.7, 3.6] : [2.8, 1.85, 3.6], [0, 0.87, -0.05], id === 'hack-squat' ? 2.35 : 2.18)
