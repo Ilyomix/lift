@@ -1,14 +1,15 @@
 # Lift
 
-A research-based hypertrophy program, as a web app you install on your phone.
+A research-based hypertrophy program for iPhone and iPad, free on the App Store, and a web app you can install on any phone.
 
-**App: https://ilyomix.github.io/lift/**
+**App Store: https://apps.apple.com/app/id6818697874** · **Web app: https://ilyomix.github.io/lift/**
 
 ## What it is
 
 You tell Lift where you train, on which days, a few body measurements and the look you want by a given date. It lays out the whole plan (recomposition, a cut if needed, then a stabilization ending on that date, in blocks separated by deloads). Then it guides each session set by set, times your rests and adjusts your loads from what you actually lift.
 
-- **Installable PWA**, designed for the iPhone: open the app in Safari, then Share → Add to Home Screen. It then runs full screen and offline, and can receive notifications.
+- **On the App Store** for iPhone and iPad (iOS 16.2 or later), free, with no ads and no in-app purchases: [Lift — Strength Training](https://apps.apple.com/app/id6818697874). The iOS app keeps the session and the rest timer on the lock screen and in the Dynamic Island (Live Activities), and its end-of-rest notifications offer +30 s and Resume.
+- **Installable PWA**: open https://ilyomix.github.io/lift/ in Safari, then Share → Add to Home Screen. It then runs full screen and offline, and can receive notifications. A backup exported from the web app imports into the iOS app.
 - **Bilingual**: French and English. It follows the phone's language, and you can switch in Settings.
 - **Private**: no account, everything is stored on the device.
 
@@ -19,13 +20,13 @@ You tell Lift where you train, on which days, a few body measurements and the lo
 - **Guided sessions**: the day's prescription for each exercise (sets, rep range, RIR (reps in reserve), rest, load), your last performance, clean reps, failure / technique / pain flags, supersets and exercise swaps. Machine loads and history are kept per gym; free weights are shared.
 - **Machine taken**: one tap on the exercise card offers three ways on. Do it later in the workout (the next exercise comes up and this one returns once the others are done), replace it for this workout only (the hip thrust, for instance, has a Smith machine version, a barbell glute bridge on the floor, a dumbbell version, a single-leg version and the glute-focused back extension), or move it to the next workout, whatever its type. A moved exercise joins the end of that workout with the same prescription, so the week keeps its sets. Its load still follows its own sheet, and it waits a week at most. Restoring it, or discarding the workout it was moved from, cancels the move. The preview of the next workout lists it and can leave it out.
 - **Automatic loads**: double progression after each session. When every set reaches the top of the range, the load goes one step above the load really lifted; when every set falls under it, the load goes down. A step is about 2.5 % of the load and at least the equipment's smallest jump: barbells and plate-loaded machines move by 2.5 kg under 100 kg (1.25 kg plates) and by 5 kg above. A set pushed past the planned effort (logged RIR, or a failure) counts for fewer reps, so effort alone never raises a load. On a machine whose loads fall off the standard 2.5 kg steps, the loads already used on it are proposed again. Dips, pull-ups, chin-ups and back extensions take added load: 2.5 kg more at the top of the range. A trial session sets the starting load. Within a session, the next sets follow the one just done. Sessions are compared on the sets they share, and on the estimated level when a load changed. A drop counts from one rep per set on average (less is the normal variation from one session to the next): two such drops in a row remove a set until the end of the block, and a general drop offers an early deload, which can be cancelled. An exercise that two sessions have in the same rep range and at the same load moves in both at once (sheets that already differ each keep their own load until they meet); with two different ranges, each is compared within its own. Pain that comes back and four sessions without progress are flagged at the end of the session. Each exercise of a finished workout says what it did to its load: the new load, or how many sets reached the top of the range and the load that comes next. Every change can be undone or applied later from the session that made it, and the last finished session can be reopened to fix a set: its verdicts and its changes are worked out again. The dated RIR prescription takes precedence over template effort. Bonus sets remain in the history and volume totals, but cannot validate a heavier load. Changes of machine context, rest, rep range, program or preceding muscle work create a contextual comparison instead of a fatigue alert. Backdated workouts never read future performances.
-- **Rest timer**: seven-segment dial, sound and vibration, screen kept awake, and a push notification that arrives even with the phone locked.
+- **Rest timer**: seven-segment dial, sound and vibration, screen kept awake, and a notification that arrives even with the phone locked (a push notification in the web app, a local notification and a Live Activity in the iOS app).
 - **Calendar**: blocks, deloads, phases and holidays up to the goal date. A missed session shifts the rotation instead of being skipped. Pauses (holiday, illness, injury…) end with return-to-training rules. Reminders for sessions, weigh-ins, waist, photos, deloads and phases export as an `.ics` file for the phone's calendar.
 - **Visual goal**: four looks, from athletic to shredded, each defined by a body-fat range. Lift estimates body fat and a target-weight range assuming current lean mass is maintained; prospective muscle gains never shorten the calendar. Recent weight is required. The cut length accounts for its energy-capped conservative pace and non-cutting breaks. Visual outcomes are not guaranteed. It then checks that the cut fits before your goal date (or proposes a later date) and gives up to three priority zones an extra set: the screen lists the exercises that take it and the date it starts (week 3 of block 2 if performance is rising, week 1 of every cut block). Before the cut starts, a new waist measurement that changes its length by three weeks or more prompts you to update the goal.
 - **Nutrition**: protein follows your 7-day average weight. Calorie advice uses recent, distinct-day weigh-ins (at least six over fourteen days for a trend) and waits after adjustments; absent nutrition entries are not interpreted as fasting. The visual calendar assumes no future lean-mass gain, uses the conservative loss pace, and counts diet breaks and holidays separately. Both the weight projection and calorie advice share an approximate 500 kcal/day deficit budget (7,700 kcal/kg is a modelling assumption, not a physiological guarantee). Ordinary 150 kcal reductions are clipped to the remaining estimated budget and to the calorie floor; at that floor the app asks for a review rather than more restriction or compensatory exercise. The sized first step still asks whether the preceding weeks were representative. Body weight never changes training loads.
 - **Progress**: estimated 1RM per exercise, 7-day average weight against the plan's path, body measurements, hard sets per muscle per week against the 10–20 band, and before/after photos.
 - **AI coach** (optional): send a session or whole-program brief to the AI assistant of your choice, then paste its reply back. The program brief gives each sheet load with its step, the week's effort target, and for each recent exercise the day's target, the sets with their reps in reserve and flags, alternatives and moved exercises, and the app's load decision. The JSON plan update is previewed before it applies.
-- **Exercise sheets**: demo images, technique cues, the evidence behind the exercise, and a YouTube search or your own video.
+- **Exercise sheets**: a 3D demonstration with the target muscles and front and back views, technique cues, the evidence behind the exercise, alternatives, and a YouTube search or your own video. The encyclopedia (More → Training) lists all 90 exercises, searchable and filtered by muscle and equipment.
 - **Backups**: JSON export and import, photos included. Golgoth backups import as they are. Data from the older Golgoth Tracker can be moved onto the research program with loads and history kept.
 
 ## Evidence base
@@ -81,9 +82,9 @@ The 10–20 weekly-set band is a programming reference, not a mandatory minimum 
 ## Privacy
 
 - Sessions, measurements, photos and settings stay on the device, in IndexedDB. There is no account and no analytics.
-- The one exception applies when lock-screen notifications are on. For each rest, the push subscription and the notification text are sent to the [push server](push/README.md), which keeps a cache entry for one hour at most.
+- The iOS app collects no data (its App Store privacy label is “Data Not Collected”): its notifications and Live Activities are local, and a video you pin to an exercise opens in YouTube or the browser when you select it.
+- The web app has one exception, when lock-screen notifications are on. For each rest, the push subscription and the notification text are sent to the [push server](push/README.md), which keeps a cache entry for one hour at most. A video you pin there loads from YouTube's privacy-enhanced domain (youtube-nocookie.com).
 - Backups and coach briefs leave the phone only when you export or share them.
-- A video you pin to an exercise loads from YouTube's privacy-enhanced domain (youtube-nocookie.com).
 
 ## Development
 
@@ -100,8 +101,9 @@ npm run preview     # serves dist/ at http://localhost:4173/lift/
 - **Node 22**, as in CI.
 - **Base path**: `/lift/` by default; set `LIFT_BASE` to build for another path, e.g. `LIFT_BASE=/ npm run build`.
 - **Service worker**: offline mode and push notifications need it, and the dev server doesn't run it. Test those with `npm run build && npm run preview`.
+- **iOS and Android**: Capacitor projects in `ios/` and `android/`, with a native Live Activity on iOS and an ongoing notification on Android. `npm run native:ios` builds the web bundle, syncs it and opens Xcode; see [native workout tracking](docs/native-activities.md).
 - **Translations**: every string is written inline, French first, e.g. `L('Repos terminé', 'Rest over')`, so neither language can miss one.
-- **Stack**: Vite 8 · React 19 · TypeScript · Tailwind CSS 4 · Zustand · idb-keyval (IndexedDB) · vite-plugin-pwa (Workbox) · Lucide · NumberFlow.
+- **Stack**: Vite 8 · React 19 · TypeScript · Tailwind CSS 4 · Zustand · idb-keyval (IndexedDB) · vite-plugin-pwa (Workbox) · Three.js · Capacitor 8 · Swift (ActivityKit, WidgetKit, App Intents) · Lucide · NumberFlow.
 
 | Path | Contents |
 |---|---|

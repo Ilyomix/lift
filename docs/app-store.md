@@ -1,6 +1,6 @@
 # App Store submission
 
-Draft metadata for Lift 1.0. Verify availability and the current App Store Connect fields before submitting. These notes are not a record of an upload or approval.
+Lift 1.0 was released on the App Store on 14 October 2026: https://apps.apple.com/app/id6818697874 (app ID 6818697874), free, in French and English. The metadata below is what was drafted for that submission; App Store Connect holds the live fields.
 
 ## App identity
 
