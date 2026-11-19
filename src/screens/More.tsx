@@ -57,10 +57,10 @@ export function AboutScreen() {
     <Screen>
       <Header art="kit" backTo="plus" title={L('À propos de Lift', 'About Lift')} />
       <Card>
-        <a href="https://github.com/Ilyomix" target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
+        <a href={L('https://ilyomix.github.io/fr/', 'https://ilyomix.github.io/')} target="_blank" rel="noopener noreferrer" className="pressable flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
           <img src={`${import.meta.env.BASE_URL}icons/ilyomix.jpg`} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-full border border-line-strong object-cover" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-medium">{L('Conçue par Ilyomix', 'Designed by Ilyomix')}</span>
+            <span className="block text-[15px] font-medium">{L('Conçue par Ilyes Abd-Lillah', 'Designed by Ilyes Abd-Lillah')}</span>
             <span className="block text-[13px] text-muted tnum" title={__APP_COMMIT__ || undefined}>
               Lift {__APP_VERSION__}{__APP_BUILD__ ? ` · build ${__APP_BUILD__}` : isNative() ? '' : L(' · build local', ' · local build')} · {fmtDate(isoFromTimestamp(__APP_BUILT__), { year: true })}
             </span>
